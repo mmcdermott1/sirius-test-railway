@@ -1,10 +1,11 @@
 // Database storage implementation based on blueprint:javascript_database
 import { 
-  users, workers, roles, permissions, userRoles, rolePermissions,
+  users, workers, roles, userRoles, rolePermissions,
   type User, type InsertUser, type Worker, type InsertWorker,
-  type Role, type InsertRole, type Permission, type InsertPermission,
+  type Role, type InsertRole,
   type UserRole, type RolePermission, type AssignRole, type AssignPermission
 } from "@shared/schema";
+import { permissionRegistry, type PermissionDefinition } from "@shared/permissions";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -32,12 +33,10 @@ export interface IStorage {
   updateRole(id: string, role: Partial<InsertRole>): Promise<Role | undefined>;
   deleteRole(id: string): Promise<boolean>;
   
-  // Permission operations
-  getAllPermissions(): Promise<Permission[]>;
-  getPermission(id: string): Promise<Permission | undefined>;
-  createPermission(permission: InsertPermission): Promise<Permission>;
-  updatePermission(id: string, permission: Partial<InsertPermission>): Promise<Permission | undefined>;
-  deletePermission(id: string): Promise<boolean>;
+  // Permission operations (now using registry)
+  getAllPermissions(): Promise<PermissionDefinition[]>;
+  getPermissionByKey(key: string): Promise<PermissionDefinition | undefined>;
+  permissionExists(key: string): boolean;
   
   // User-Role assignment operations
   assignRoleToUser(assignment: AssignRole): Promise<UserRole>;
@@ -45,14 +44,14 @@ export interface IStorage {
   getUserRoles(userId: string): Promise<Role[]>;
   getUsersWithRole(roleId: string): Promise<User[]>;
   
-  // Role-Permission assignment operations
+  // Role-Permission assignment operations  
   assignPermissionToRole(assignment: AssignPermission): Promise<RolePermission>;
-  unassignPermissionFromRole(roleId: string, permissionId: string): Promise<boolean>;
-  getRolePermissions(roleId: string): Promise<Permission[]>;
-  getRolesWithPermission(permissionId: string): Promise<Role[]>;
+  unassignPermissionFromRole(roleId: string, permissionKey: string): Promise<boolean>;
+  getRolePermissions(roleId: string): Promise<PermissionDefinition[]>;
+  getRolesWithPermission(permissionKey: string): Promise<Role[]>;
   
   // Authorization helpers
-  getUserPermissions(userId: string): Promise<Permission[]>;
+  getUserPermissions(userId: string): Promise<PermissionDefinition[]>;
   userHasPermission(userId: string, permissionKey: string): Promise<boolean>;
   
   // Worker CRUD operations
@@ -143,36 +142,17 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Permission operations
-  async getAllPermissions(): Promise<Permission[]> {
-    return db.select().from(permissions);
+  // Permission operations (now using registry)
+  async getAllPermissions(): Promise<PermissionDefinition[]> {
+    return permissionRegistry.getAll();
   }
 
-  async getPermission(id: string): Promise<Permission | undefined> {
-    const [permission] = await db.select().from(permissions).where(eq(permissions.id, id));
-    return permission || undefined;
+  async getPermissionByKey(key: string): Promise<PermissionDefinition | undefined> {
+    return permissionRegistry.getByKey(key);
   }
 
-  async createPermission(insertPermission: InsertPermission): Promise<Permission> {
-    const [permission] = await db
-      .insert(permissions)
-      .values(insertPermission)
-      .returning();
-    return permission;
-  }
-
-  async updatePermission(id: string, permissionUpdate: Partial<InsertPermission>): Promise<Permission | undefined> {
-    const [permission] = await db
-      .update(permissions)
-      .set(permissionUpdate)
-      .where(eq(permissions.id, id))
-      .returning();
-    return permission || undefined;
-  }
-
-  async deletePermission(id: string): Promise<boolean> {
-    const result = await db.delete(permissions).where(eq(permissions.id, id)).returning();
-    return result.length > 0;
+  permissionExists(key: string): boolean {
+    return permissionRegistry.exists(key);
   }
 
   // User-Role assignment operations
@@ -223,6 +203,11 @@ export class DatabaseStorage implements IStorage {
 
   // Role-Permission assignment operations
   async assignPermissionToRole(assignment: AssignPermission): Promise<RolePermission> {
+    // Validate that the permission key exists in the registry
+    if (!permissionRegistry.exists(assignment.permissionKey)) {
+      throw new Error(`Permission '${assignment.permissionKey}' does not exist in the registry`);
+    }
+    
     const [rolePermission] = await db
       .insert(rolePermissions)
       .values(assignment)
@@ -230,29 +215,29 @@ export class DatabaseStorage implements IStorage {
     return rolePermission;
   }
 
-  async unassignPermissionFromRole(roleId: string, permissionId: string): Promise<boolean> {
+  async unassignPermissionFromRole(roleId: string, permissionKey: string): Promise<boolean> {
     const result = await db
       .delete(rolePermissions)
-      .where(and(eq(rolePermissions.roleId, roleId), eq(rolePermissions.permissionId, permissionId)))
+      .where(and(eq(rolePermissions.roleId, roleId), eq(rolePermissions.permissionKey, permissionKey)))
       .returning();
     return result.length > 0;
   }
 
-  async getRolePermissions(roleId: string): Promise<Permission[]> {
+  async getRolePermissions(roleId: string): Promise<PermissionDefinition[]> {
     const result = await db
       .select({
-        id: permissions.id,
-        key: permissions.key,
-        description: permissions.description,
-        createdAt: permissions.createdAt,
+        permissionKey: rolePermissions.permissionKey,
       })
       .from(rolePermissions)
-      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
       .where(eq(rolePermissions.roleId, roleId));
-    return result;
+    
+    // Map permission keys to PermissionDefinitions from registry
+    return result
+      .map(row => permissionRegistry.getByKey(row.permissionKey))
+      .filter((permission): permission is PermissionDefinition => permission !== undefined);
   }
 
-  async getRolesWithPermission(permissionId: string): Promise<Role[]> {
+  async getRolesWithPermission(permissionKey: string): Promise<Role[]> {
     const result = await db
       .select({
         id: roles.id,
@@ -262,35 +247,35 @@ export class DatabaseStorage implements IStorage {
       })
       .from(rolePermissions)
       .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
-      .where(eq(rolePermissions.permissionId, permissionId));
+      .where(eq(rolePermissions.permissionKey, permissionKey));
     return result;
   }
 
   // Authorization helpers
-  async getUserPermissions(userId: string): Promise<Permission[]> {
+  async getUserPermissions(userId: string): Promise<PermissionDefinition[]> {
     const result = await db
       .select({
-        id: permissions.id,
-        key: permissions.key,
-        description: permissions.description,
-        createdAt: permissions.createdAt,
+        permissionKey: rolePermissions.permissionKey,
       })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
       .innerJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
-      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
       .where(eq(userRoles.userId, userId));
-    return result;
+    
+    // Map permission keys to PermissionDefinitions from registry and remove duplicates
+    const uniqueKeys = Array.from(new Set(result.map(row => row.permissionKey)));
+    return uniqueKeys
+      .map(key => permissionRegistry.getByKey(key))
+      .filter((permission): permission is PermissionDefinition => permission !== undefined);
   }
 
   async userHasPermission(userId: string, permissionKey: string): Promise<boolean> {
     const result = await db
-      .select({ count: permissions.id })
+      .select({ permissionKey: rolePermissions.permissionKey })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
       .innerJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
-      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-      .where(and(eq(userRoles.userId, userId), eq(permissions.key, permissionKey)));
+      .where(and(eq(userRoles.userId, userId), eq(rolePermissions.permissionKey, permissionKey)));
     return result.length > 0;
   }
 

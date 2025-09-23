@@ -18,13 +18,6 @@ export const roles = pgTable("roles", {
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
-export const permissions = pgTable("permissions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: text("key").notNull().unique(),
-  description: text("description"),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-});
-
 export const userRoles = pgTable("user_roles", {
   userId: varchar("user_id").notNull(),
   roleId: varchar("role_id").notNull(),
@@ -35,10 +28,10 @@ export const userRoles = pgTable("user_roles", {
 
 export const rolePermissions = pgTable("role_permissions", {
   roleId: varchar("role_id").notNull(),
-  permissionId: varchar("permission_id").notNull(),
+  permissionKey: text("permission_key").notNull(), // Changed from permissionId to permissionKey
   assignedAt: timestamp("assigned_at").default(sql`now()`).notNull(),
 }, (table) => ({
-  pk: primaryKey({ columns: [table.roleId, table.permissionId] }),
+  pk: primaryKey({ columns: [table.roleId, table.permissionKey] }),
 }));
 
 export const workers = pgTable("workers", {
@@ -66,11 +59,6 @@ export const insertRoleSchema = createInsertSchema(roles).omit({
   createdAt: true,
 });
 
-export const insertPermissionSchema = createInsertSchema(permissions).omit({
-  id: true,
-  createdAt: true,
-});
-
 export const insertWorkerSchema = createInsertSchema(workers).omit({
   id: true,
 });
@@ -82,7 +70,7 @@ export const assignRoleSchema = z.object({
 
 export const assignPermissionSchema = z.object({
   roleId: z.string(),
-  permissionId: z.string(),
+  permissionKey: z.string(), // Changed from permissionId to permissionKey
 });
 
 // TypeScript types
@@ -93,9 +81,6 @@ export type CreateUser = z.infer<typeof createUserSchema>;
 
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type Role = typeof roles.$inferSelect;
-
-export type InsertPermission = z.infer<typeof insertPermissionSchema>;
-export type Permission = typeof permissions.$inferSelect;
 
 export type InsertWorker = z.infer<typeof insertWorkerSchema>;
 export type Worker = typeof workers.$inferSelect;

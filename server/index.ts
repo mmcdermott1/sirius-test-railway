@@ -4,6 +4,7 @@ import ConnectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initializePermissions } from "@shared/permissions";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -61,6 +62,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize the permission system
+  initializePermissions();
+  log("Permission system initialized with core permissions");
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

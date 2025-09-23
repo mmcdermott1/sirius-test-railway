@@ -6,7 +6,6 @@ import {
   loginUserSchema, 
   createUserSchema,
   insertRoleSchema,
-  insertPermissionSchema,
   assignRoleSchema,
   assignPermissionSchema
 } from "@shared/schema";
@@ -235,20 +234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/admin/permissions - Create permission (admin only)
-  app.post("/api/admin/permissions", requireAuth, requirePermission("admin.manage"), async (req, res) => {
-    try {
-      const validatedData = insertPermissionSchema.parse(req.body);
-      const permission = await storage.createPermission(validatedData);
-      res.status(201).json(permission);
-    } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        res.status(400).json({ message: "Invalid permission data" });
-      } else {
-        res.status(500).json({ message: "Failed to create permission" });
-      }
-    }
-  });
+  // NOTE: Permission creation removed - permissions are now defined in code via the registry
 
   // Assignment routes
   
@@ -300,13 +286,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/roles/:roleId/permissions", requireAuth, requirePermission("admin.manage"), async (req, res) => {
     try {
       const { roleId } = req.params;
-      const { permissionId } = assignPermissionSchema.parse({ roleId, ...req.body });
+      const { permissionKey } = assignPermissionSchema.parse({ roleId, ...req.body });
       
-      const assignment = await storage.assignPermissionToRole({ roleId, permissionId });
+      const assignment = await storage.assignPermissionToRole({ roleId, permissionKey });
       res.status(201).json(assignment);
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {
         res.status(400).json({ message: "Invalid assignment data" });
+      } else if (error instanceof Error && error.message.includes("does not exist in the registry")) {
+        res.status(400).json({ message: error.message });
       } else {
         res.status(500).json({ message: "Failed to assign permission" });
       }
