@@ -1,0 +1,64 @@
+# Overview
+
+Sirius is a full-stack web application built for worker management. It provides a clean, modern interface for managing workers with CRUD (Create, Read, Update, Delete) operations. The application features a React frontend with TypeScript, an Express.js backend, and uses PostgreSQL as the database with Drizzle ORM for type-safe database operations.
+
+# User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+# System Architecture
+
+## Frontend Architecture
+- **Framework**: React 18 with TypeScript and Vite as the build tool
+- **UI Components**: Shadcn/ui component library built on top of Radix UI primitives
+- **Styling**: Tailwind CSS with custom CSS variables for theming
+- **State Management**: TanStack Query (React Query) for server state management
+- **Routing**: Wouter for lightweight client-side routing
+- **Form Handling**: React Hook Form with Zod validation
+- **Design System**: Uses a "new-york" style variant with neutral base colors and comprehensive theming support
+
+## Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **API Design**: RESTful API with proper HTTP status codes and error handling
+- **Middleware**: Custom logging middleware for API requests and responses
+- **Development Tools**: Vite integration for hot module replacement in development
+- **Error Handling**: Centralized error handling middleware with proper status codes
+
+## Data Storage Solutions
+- **Database**: PostgreSQL with Neon Database as the serverless provider
+- **ORM**: Drizzle ORM for type-safe database operations and migrations
+- **Schema Management**: Shared schema definitions between frontend and backend using Zod for validation
+- **Migrations**: Drizzle Kit for database schema migrations
+- **Development Storage**: In-memory storage implementation for development/testing
+
+## Authentication and Authorization
+- **Session Management**: Connect-pg-simple for PostgreSQL session storage
+- **Current Implementation**: Basic session setup (authentication logic not fully implemented)
+
+## External Dependencies
+
+### Database Services
+- **Neon Database**: Serverless PostgreSQL hosting
+- **Environment**: Requires `DATABASE_URL` environment variable
+
+### Development Tools
+- **Replit Integration**: Custom Vite plugins for Replit development environment
+- **Cartographer**: Code mapping and navigation
+- **Dev Banner**: Development environment indicators
+- **Runtime Error Modal**: Enhanced error reporting during development
+
+### UI and Styling
+- **Radix UI**: Comprehensive set of accessible UI primitives
+- **Tailwind CSS**: Utility-first CSS framework
+- **Lucide React**: Icon library
+- **Class Variance Authority**: Utility for managing component variants
+
+### Validation and Type Safety
+- **Zod**: Runtime type validation and schema definition
+- **TypeScript**: Static type checking across the entire application
+- **Drizzle Zod**: Integration between Drizzle ORM and Zod validation
+
+### API and State Management
+- **TanStack Query**: Server state management with caching and synchronization
+- **Date-fns**: Date utility functions
+- **ESBuild**: Fast JavaScript bundler for production builds
