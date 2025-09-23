@@ -1,7 +1,8 @@
 // Database storage implementation based on blueprint:javascript_database
 import { 
-  users, workers, roles, userRoles, rolePermissions,
+  users, workers, contacts, roles, userRoles, rolePermissions,
   type User, type InsertUser, type Worker, type InsertWorker,
+  type Contact, type InsertContact,
   type Role, type InsertRole,
   type UserRole, type RolePermission, type AssignRole, type AssignPermission
 } from "@shared/schema";
@@ -291,24 +292,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorker(insertWorker: InsertWorker): Promise<Worker> {
+    // Create contact first with the same name as the worker
+    const [contact] = await db
+      .insert(contacts)
+      .values({ name: insertWorker.name })
+      .returning();
+    
+    // Create worker with the contact reference
     const [worker] = await db
       .insert(workers)
-      .values(insertWorker)
+      .values({ ...insertWorker, contactId: contact.id })
       .returning();
+    
     return worker;
   }
 
   async updateWorker(id: string, workerUpdate: Partial<InsertWorker>): Promise<Worker | undefined> {
+    // Get the current worker to find its contact
+    const currentWorker = await this.getWorker(id);
+    if (!currentWorker) {
+      return undefined;
+    }
+    
+    // Update the worker
     const [worker] = await db
       .update(workers)
       .set(workerUpdate)
       .where(eq(workers.id, id))
       .returning();
+    
+    // If the name was updated, also update the corresponding contact
+    if (workerUpdate.name && worker) {
+      await db
+        .update(contacts)
+        .set({ name: workerUpdate.name })
+        .where(eq(contacts.id, worker.contactId));
+    }
+    
     return worker || undefined;
   }
 
   async deleteWorker(id: string): Promise<boolean> {
+    // Get the worker to find its contact
+    const worker = await this.getWorker(id);
+    if (!worker) {
+      return false;
+    }
+    
+    // Delete the worker (contact will be cascade deleted due to foreign key constraint)
     const result = await db.delete(workers).where(eq(workers.id, id)).returning();
+    
     return result.length > 0;
   }
 }
