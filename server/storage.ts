@@ -336,15 +336,22 @@ export class DatabaseStorage implements IStorage {
     // Get the worker to find its contact
     const worker = await this.getWorker(id);
     if (!worker) {
+      console.log(`[DEBUG] Worker with id ${id} not found`);
       return false;
     }
     
+    console.log(`[DEBUG] Found worker:`, worker);
+    console.log(`[DEBUG] Worker contactId:`, worker.contactId);
+    
     // Delete the worker first
     const result = await db.delete(workers).where(eq(workers.id, id)).returning();
+    console.log(`[DEBUG] Worker delete result:`, result);
     
     // If worker was deleted, also delete the corresponding contact
     if (result.length > 0) {
-      await db.delete(contacts).where(eq(contacts.id, worker.contactId));
+      console.log(`[DEBUG] Attempting to delete contact with id:`, worker.contactId);
+      const contactResult = await db.delete(contacts).where(eq(contacts.id, worker.contactId));
+      console.log(`[DEBUG] Contact delete result:`, contactResult);
     }
     
     return result.length > 0;
