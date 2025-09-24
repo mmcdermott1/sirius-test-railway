@@ -9,8 +9,8 @@ import {
 } from "@shared/schema";
 
 // Type for middleware functions that we'll accept from the main routes
-type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void;
-type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void;
+type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 
 export function registerUserRoutes(
   app: Express, 
