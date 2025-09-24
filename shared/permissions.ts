@@ -159,6 +159,11 @@ export function initializePermissions(): void {
       key: 'workers.view',
       description: 'View worker records and information',
       module: 'core'
+    },
+    {
+      key: 'variables.manage',
+      description: 'Create, update, and delete system variables',
+      module: 'core'
     }
   ];
 

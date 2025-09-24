@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, primaryKey, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -45,6 +45,12 @@ export const workers = pgTable("workers", {
   contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
 });
 
+export const variables = pgTable("variables", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  value: jsonb("value").notNull(),
+});
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -74,6 +80,10 @@ export const insertWorkerSchema = createInsertSchema(workers).omit({
   contactId: true, // Contact will be managed automatically
 });
 
+export const insertVariableSchema = createInsertSchema(variables).omit({
+  id: true,
+});
+
 export const assignRoleSchema = z.object({
   userId: z.string(),
   roleId: z.string(),
@@ -98,6 +108,9 @@ export type Contact = typeof contacts.$inferSelect;
 
 export type InsertWorker = z.infer<typeof insertWorkerSchema>;
 export type Worker = typeof workers.$inferSelect;
+
+export type InsertVariable = z.infer<typeof insertVariableSchema>;
+export type Variable = typeof variables.$inferSelect;
 
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
