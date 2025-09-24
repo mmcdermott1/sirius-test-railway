@@ -9,7 +9,11 @@ import Header from "@/components/layout/Header";
 import LoginPage from "@/pages/login";
 import Workers from "@/pages/workers";
 import WorkerView from "@/pages/worker-view";
-import AdminPage from "@/pages/admin";
+import AdminUsersPage from "@/pages/admin/users";
+import AdminRolesPage from "@/pages/admin/roles";
+import AdminPermissionsPage from "@/pages/admin/permissions";
+import AdminAssignmentsPage from "@/pages/admin/assignments";
+import AdminLayout from "@/components/layouts/AdminLayout";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -46,12 +50,50 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      <Route path="/admin">
+      {/* Admin routes with nested navigation */}
+      <Route path="/admin/users">
         <ProtectedRoute permission="admin.manage">
           <AuthenticatedLayout>
-            <AdminPage />
+            <AdminLayout>
+              <AdminUsersPage />
+            </AdminLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
+      </Route>
+      
+      <Route path="/admin/roles">
+        <ProtectedRoute permission="admin.manage">
+          <AuthenticatedLayout>
+            <AdminLayout>
+              <AdminRolesPage />
+            </AdminLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/admin/permissions">
+        <ProtectedRoute permission="admin.manage">
+          <AuthenticatedLayout>
+            <AdminLayout>
+              <AdminPermissionsPage />
+            </AdminLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/admin/assignments">
+        <ProtectedRoute permission="admin.manage">
+          <AuthenticatedLayout>
+            <AdminLayout>
+              <AdminAssignmentsPage />
+            </AdminLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Legacy admin route - redirect to users page */}
+      <Route path="/admin">
+        <Redirect to="/admin/users" />
       </Route>
       
       {/* Root route - redirect based on auth status */}
