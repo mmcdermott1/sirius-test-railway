@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   password_hash: text("password_hash").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  lastLogin: timestamp("last_login"),
 });
 
 export const roles = pgTable("roles", {

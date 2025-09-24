@@ -16,6 +16,7 @@ interface User {
   username: string;
   isActive: boolean;
   createdAt: string;
+  lastLogin?: string;
 }
 
 export default function UsersManagement() {
@@ -164,6 +165,7 @@ export default function UsersManagement() {
               <TableHead>Username</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created At</TableHead>
+              <TableHead>Last Login</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -183,6 +185,9 @@ export default function UsersManagement() {
                 </TableCell>
                 <TableCell data-testid={`text-created-${user.id}`}>
                   {new Date(user.createdAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell data-testid={`text-lastlogin-${user.id}`}>
+                  {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                 </TableCell>
                 <TableCell className="text-right">
                   <Button

@@ -43,6 +43,9 @@ export function registerUserRoutes(
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
+      // Update last login timestamp
+      await storage.updateUserLastLogin(user.id);
+
       req.session.userId = user.id;
       req.session.username = user.username;
 
@@ -108,7 +111,8 @@ export function registerUserRoutes(
         id: u.id, 
         username: u.username, 
         isActive: u.isActive, 
-        createdAt: u.createdAt 
+        createdAt: u.createdAt,
+        lastLogin: u.lastLogin
       })));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
