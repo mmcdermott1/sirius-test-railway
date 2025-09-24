@@ -52,6 +52,19 @@ export const variables = pgTable("variables", {
   value: jsonb("value").notNull(),
 });
 
+export const postalAddresses = pgTable("postal_addresses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+  street: text("street").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  postalCode: text("postal_code").notNull(),
+  country: text("country").notNull(),
+  isPrimary: boolean("is_primary").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -83,6 +96,11 @@ export const insertWorkerSchema = createInsertSchema(workers).omit({
 
 export const insertVariableSchema = createInsertSchema(variables).omit({
   id: true,
+});
+
+export const insertPostalAddressSchema = createInsertSchema(postalAddresses).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const assignRoleSchema = z.object({
