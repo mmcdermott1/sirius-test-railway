@@ -13,7 +13,6 @@ import AdminUsersPage from "@/pages/admin/users";
 import UserAccountPage from "@/pages/admin/user-account";
 import AdminRolesPage from "@/pages/admin/roles";
 import AdminPermissionsPage from "@/pages/admin/permissions";
-import AdminAssignmentsPage from "@/pages/admin/assignments";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import NotFound from "@/pages/not-found";
 
@@ -87,16 +86,6 @@ function Router() {
           <AuthenticatedLayout>
             <AdminLayout>
               <AdminPermissionsPage />
-            </AdminLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-      
-      <Route path="/admin/assignments">
-        <ProtectedRoute permission="admin.manage">
-          <AuthenticatedLayout>
-            <AdminLayout>
-              <AdminAssignmentsPage />
             </AdminLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

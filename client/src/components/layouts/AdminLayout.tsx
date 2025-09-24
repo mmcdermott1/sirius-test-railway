@@ -25,12 +25,6 @@ const adminNavItems = [
     label: 'Permissions', 
     icon: Key,
     description: 'Manage permissions'
-  },
-  {
-    href: '/admin/assignments',
-    label: 'Assignments',
-    icon: UserCheck,
-    description: 'Assign roles to users'
   }
 ];
 

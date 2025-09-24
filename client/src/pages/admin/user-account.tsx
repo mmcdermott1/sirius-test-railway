@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, UserCheck, UserX, Key } from 'lucide-react';
+import { ArrowLeft, Loader2, UserCheck, UserX, Key, Shield } from 'lucide-react';
 import { Link } from 'wouter';
 
 interface UserDetails {
@@ -17,6 +18,13 @@ interface UserDetails {
   isActive: boolean;
   createdAt: string;
   lastLogin?: string;
+}
+
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
 }
 
 export default function UserAccountPage() {
@@ -33,6 +41,24 @@ export default function UserAccountPage() {
       });
       if (!response.ok) {
         throw new Error('Failed to fetch user details');
+      }
+      return await response.json();
+    },
+    enabled: !!userId,
+  });
+
+  const { data: allRoles = [], isLoading: rolesLoading } = useQuery<Role[]>({
+    queryKey: ['/api/admin/roles'],
+  });
+
+  const { data: userRoles = [], isLoading: userRolesLoading } = useQuery<Role[]>({
+    queryKey: ['/api/admin/users', userId, 'roles'],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/users/${userId}/roles`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch user roles');
       }
       return await response.json();
     },
@@ -82,6 +108,50 @@ export default function UserAccountPage() {
     },
   });
 
+  const assignRoleMutation = useMutation({
+    mutationFn: async (roleId: string) => {
+      const response = await apiRequest('POST', `/api/admin/users/${userId}/roles`, { roleId });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users', userId, 'roles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: 'Success',
+        description: 'Role assigned successfully',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message.replace(/^\d+:\s*/, '') : 'Failed to assign role',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const unassignRoleMutation = useMutation({
+    mutationFn: async (roleId: string) => {
+      const response = await apiRequest('DELETE', `/api/admin/users/${userId}/roles/${roleId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users', userId, 'roles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: 'Success',
+        description: 'Role unassigned successfully',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message.replace(/^\d+:\s*/, '') : 'Failed to unassign role',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handlePasswordUpdate = () => {
     if (!newPassword || newPassword.trim().length === 0) {
       toast({
@@ -98,6 +168,18 @@ export default function UserAccountPage() {
     if (user) {
       toggleStatusMutation.mutate(!user.isActive);
     }
+  };
+
+  const handleRoleToggle = (roleId: string, isChecked: boolean) => {
+    if (isChecked) {
+      assignRoleMutation.mutate(roleId);
+    } else {
+      unassignRoleMutation.mutate(roleId);
+    }
+  };
+
+  const isRoleAssigned = (roleId: string) => {
+    return userRoles.some(role => role.id === roleId);
   };
 
   if (!userId) {
@@ -117,7 +199,7 @@ export default function UserAccountPage() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || rolesLoading || userRolesLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -200,14 +282,12 @@ export default function UserAccountPage() {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Current Status: 
-                <Badge 
-                  className="ml-2"
-                  variant={user.isActive ? 'default' : 'secondary'}
-                >
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Current Status:</span>
+                <Badge variant={user.isActive ? 'default' : 'secondary'}>
                   {user.isActive ? 'Active' : 'Inactive'}
                 </Badge>
-              </p>
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {user.isActive ? 'This user can log in and access the system' : 'This user cannot log in to the system'}
               </p>
@@ -265,6 +345,64 @@ export default function UserAccountPage() {
               </>
             )}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Role Assignment Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Role Assignments
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Assign roles to control this user's system permissions
+          </div>
+          
+          {allRoles.length > 0 ? (
+            <div className="grid gap-3">
+              {allRoles.map((role) => {
+                const isChecked = isRoleAssigned(role.id);
+                const isChanging = (assignRoleMutation.isPending || unassignRoleMutation.isPending);
+                
+                return (
+                  <div key={role.id} className="flex items-start space-x-3">
+                    <Checkbox
+                      id={`role-${role.id}`}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => handleRoleToggle(role.id, checked as boolean)}
+                      disabled={isChanging}
+                      data-testid={`checkbox-role-${role.id}`}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label
+                        htmlFor={`role-${role.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {role.name}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {role.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground">No roles available in the system</p>
+            </div>
+          )}
+          
+          {(assignRoleMutation.isPending || unassignRoleMutation.isPending) && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Updating role assignments...
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
