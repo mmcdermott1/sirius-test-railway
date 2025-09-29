@@ -30,7 +30,7 @@ export function AddressValidationDisplay({
     return null;
   }
 
-  const { isValid, errors, warnings, suggestions, source } = validationResult;
+  const { isValid, errors = [], warnings = [], suggestions, source } = validationResult;
 
   return (
     <div className={`space-y-3 ${className}`}>
@@ -52,7 +52,7 @@ export function AddressValidationDisplay({
       </Alert>
 
       {/* Errors */}
-      {errors.length > 0 && (
+      {errors && errors.length > 0 && (
         <div className="space-y-2">
           {errors.map((error, index) => (
             <Alert key={index} variant="destructive">
@@ -64,7 +64,7 @@ export function AddressValidationDisplay({
       )}
 
       {/* Warnings */}
-      {warnings.length > 0 && (
+      {warnings && warnings.length > 0 && (
         <div className="space-y-2">
           {warnings.map((warning, index) => (
             <Alert key={index} variant="default" className="border-yellow-200 bg-yellow-50 text-yellow-800">

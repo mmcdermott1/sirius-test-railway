@@ -29,8 +29,7 @@ export function useAddressValidation() {
 
   const validateMutation = useMutation({
     mutationFn: async (address: AddressInput): Promise<AddressValidationResult> => {
-      const response = await apiRequest("POST", "/api/addresses/validate", address);
-      return response as AddressValidationResult;
+      return await apiRequest("POST", "/api/addresses/validate", address) as AddressValidationResult;
     },
     onSuccess: (result) => {
       setLastValidationResult(result);
