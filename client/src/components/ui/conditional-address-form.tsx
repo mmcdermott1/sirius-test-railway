@@ -69,10 +69,15 @@ export function ConditionalAddressForm({
     }
   }, [config]);
 
-  // Trigger validation for local mode
+  // Only validate when user stops typing (not on every keystroke)
   useEffect(() => {
     if (!isGoogleMode && !hasSelectedPlace) {
-      validation.validateAddressDebounced(formValues);
+      // Only validate if all required fields have some content
+      const hasContent = formValues.street?.trim() && formValues.city?.trim() && 
+                        formValues.state?.trim() && formValues.postalCode?.trim();
+      if (hasContent) {
+        validation.validateAddressDebounced(formValues);
+      }
     }
   }, [formValues, validation.validateAddressDebounced, isGoogleMode, hasSelectedPlace]);
 

@@ -154,8 +154,16 @@ class AddressValidationService {
     const warnings: string[] = [];
     const suggestions: any = {};
 
-    // Validate country
-    if (!config.local.countries.includes(address.country.toUpperCase())) {
+    // Validate country - normalize country names to codes
+    const normalizeCountry = (country: string): string => {
+      const normalized = country.toUpperCase();
+      if (normalized === "UNITED STATES" || normalized === "USA") return "US";
+      if (normalized === "CANADA") return "CA";
+      return normalized;
+    };
+
+    const countryCode = normalizeCountry(address.country);
+    if (!config.local.countries.includes(countryCode)) {
       if (config.local.strictValidation) {
         errors.push(`Country "${address.country}" is not supported for validation`);
       } else {
@@ -164,7 +172,7 @@ class AddressValidationService {
     }
 
     // US-specific validation
-    if (address.country.toUpperCase() === "US") {
+    if (countryCode === "US") {
       // Validate state
       const stateCode = address.state.toUpperCase();
       if (!US_STATES[stateCode as keyof typeof US_STATES]) {
