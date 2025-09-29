@@ -1,22 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PostalAddress, InsertPostalAddress, insertPostalAddressSchema } from "@shared/schema";
+import { PostalAddress, InsertPostalAddress } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2, MapPin, Star } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { useAddressValidation } from "@/hooks/useAddressValidation";
-import { AddressValidationDisplay } from "@/components/ui/address-validation";
+import { ConditionalAddressForm } from "@/components/ui/conditional-address-form";
 
 interface AddressManagementProps {
   workerId: string;
@@ -30,10 +23,6 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
   const [editingAddress, setEditingAddress] = useState<PostalAddress | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Address validation hooks for add and edit forms
-  const addValidation = useAddressValidation();
-  const editValidation = useAddressValidation();
 
   // Fetch addresses for this contact
   const { data: addresses = [], isLoading, error } = useQuery<PostalAddress[]>({
@@ -137,127 +126,12 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
     },
   });
 
-  const addressFormSchema = insertPostalAddressSchema.omit({ contactId: true });
-
-  // Form for adding addresses
-  const addForm = useForm<AddressFormData>({
-    resolver: zodResolver(addressFormSchema),
-    defaultValues: {
-      street: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "",
-      isPrimary: false,
-      isActive: true,
-    },
-  });
-
-  // Form for editing addresses
-  const editForm = useForm<AddressFormData>({
-    resolver: zodResolver(addressFormSchema),
-  });
-
-  // Watch form values for validation
-  const addFormValues = addForm.watch();
-  const editFormValues = editForm.watch();
-  
-  // Track last validated snapshots to prevent unnecessary validation
-  const lastAddValidationRef = useRef<string>("");
-  const lastEditValidationRef = useRef<string>("");
-
-  // Trigger debounced validation when form values actually change
-  useEffect(() => {
-    const currentSnapshot = JSON.stringify(addFormValues);
-    if (currentSnapshot !== lastAddValidationRef.current) {
-      lastAddValidationRef.current = currentSnapshot;
-      addValidation.validateAddressDebounced(addFormValues);
-    }
-  }, [addFormValues, addValidation.validateAddressDebounced]);
-
-  useEffect(() => {
-    const currentSnapshot = JSON.stringify(editFormValues);
-    if (currentSnapshot !== lastEditValidationRef.current) {
-      lastEditValidationRef.current = currentSnapshot;
-      editValidation.validateAddressDebounced(editFormValues);
-    }
-  }, [editFormValues, editValidation.validateAddressDebounced]);
-
-  // Handle applying validation suggestions
-  const handleApplyAddSuggestion = (field: string, value: string) => {
-    addForm.setValue(field as keyof AddressFormData, value);
-  };
-
-  const handleApplyEditSuggestion = (field: string, value: string) => {
-    editForm.setValue(field as keyof AddressFormData, value);
-  };
-
-  const onAddSubmit = (data: AddressFormData) => {
-    // Block submission if validation is in progress
-    if (addValidation.isValidating) {
-      toast({
-        title: "Validation in Progress",
-        description: "Please wait while we validate the address...",
-      });
-      return;
-    }
-
-    // Check if we have a valid result that matches current data
-    if (!addValidation.isAddressValidForSaving(data)) {
-      // If we have a validation result but it doesn't match current data, or it's invalid
-      if (addValidation.hasValidationResult) {
-        toast({
-          title: "Invalid Address",
-          description: "Please fix the address validation errors before saving.",
-          variant: "destructive",
-        });
-      } else {
-        // No validation result yet, trigger validation
-        addValidation.validateAddress(data);
-        toast({
-          title: "Validating Address",
-          description: "Please wait while we validate the address...",
-        });
-      }
-      return;
-    }
-
-    // Address is valid and matches validated snapshot, proceed with submission
+  const handleAddSubmit = (data: AddressFormData) => {
     addAddressMutation.mutate(data);
   };
 
-  const onEditSubmit = (data: AddressFormData) => {
+  const handleEditSubmit = (data: AddressFormData) => {
     if (editingAddress) {
-      // Block submission if validation is in progress
-      if (editValidation.isValidating) {
-        toast({
-          title: "Validation in Progress",
-          description: "Please wait while we validate the address...",
-        });
-        return;
-      }
-
-      // Check if we have a valid result that matches current data
-      if (!editValidation.isAddressValidForSaving(data)) {
-        // If we have a validation result but it doesn't match current data, or it's invalid
-        if (editValidation.hasValidationResult) {
-          toast({
-            title: "Invalid Address",
-            description: "Please fix the address validation errors before saving.",
-            variant: "destructive",
-          });
-        } else {
-          // No validation result yet, trigger validation
-          editValidation.validateAddress(data);
-          toast({
-            title: "Validating Address",
-            description: "Please wait while we validate the address...",
-          });
-        }
-        return;
-      }
-
-      // Address is valid and matches validated snapshot, proceed with submission
       updateAddressMutation.mutate({
         id: editingAddress.id,
         updates: data,
@@ -267,15 +141,6 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
 
   const handleEdit = (address: PostalAddress) => {
     setEditingAddress(address);
-    editForm.reset({
-      street: address.street,
-      city: address.city,
-      state: address.state,
-      postalCode: address.postalCode,
-      country: address.country,
-      isPrimary: address.isPrimary,
-      isActive: address.isActive,
-    });
   };
 
   const handleDelete = (addressId: string) => {
@@ -321,139 +186,21 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
             <DialogHeader>
               <DialogTitle>Add New Address</DialogTitle>
             </DialogHeader>
-            <Form {...addForm}>
-              <form onSubmit={addForm.handleSubmit(onAddSubmit)} className="space-y-4">
-                <FormField
-                  control={addForm.control}
-                  name="street"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Street Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Main St" data-testid="input-street" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={addForm.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="New York" data-testid="input-city" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={addForm.control}
-                    name="state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>State</FormLabel>
-                        <FormControl>
-                          <Input placeholder="NY" data-testid="input-state" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={addForm.control}
-                    name="postalCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Postal Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="10001" data-testid="input-postal-code" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={addForm.control}
-                    name="country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Country</FormLabel>
-                        <FormControl>
-                          <Input placeholder="United States" data-testid="input-country" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <FormField
-                    control={addForm.control}
-                    name="isPrimary"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="switch-is-primary"
-                          />
-                        </FormControl>
-                        <FormLabel>Primary address</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={addForm.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2">
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="switch-is-active"
-                          />
-                        </FormControl>
-                        <FormLabel>Active</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                {/* Address Validation Display */}
-                <AddressValidationDisplay
-                  validationResult={addValidation.validationResult}
-                  isValidating={addValidation.isValidating}
-                  onApplySuggestion={handleApplyAddSuggestion}
-                  className="my-4"
-                />
-                
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsAddDialogOpen(false)}
-                    data-testid="button-cancel-add"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={addAddressMutation.isPending}
-                    data-testid="button-save-address"
-                  >
-                    {addAddressMutation.isPending ? "Adding..." : "Add Address"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
+            <ConditionalAddressForm
+              defaultValues={{
+                street: "",
+                city: "",
+                state: "",
+                postalCode: "",
+                country: "United States",
+                isPrimary: false,
+                isActive: true,
+              }}
+              onSubmit={handleAddSubmit}
+              onCancel={() => setIsAddDialogOpen(false)}
+              isSubmitting={addAddressMutation.isPending}
+              submitLabel="Add Address"
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -539,139 +286,23 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
           <DialogHeader>
             <DialogTitle>Edit Address</DialogTitle>
           </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              <FormField
-                control={editForm.control}
-                name="street"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street Address</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123 Main St" data-testid="input-edit-street" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={editForm.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input placeholder="New York" data-testid="input-edit-city" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input placeholder="NY" data-testid="input-edit-state" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={editForm.control}
-                  name="postalCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Postal Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="10001" data-testid="input-edit-postal-code" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input placeholder="United States" data-testid="input-edit-country" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <FormField
-                  control={editForm.control}
-                  name="isPrimary"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-testid="switch-edit-is-primary"
-                        />
-                      </FormControl>
-                      <FormLabel>Primary address</FormLabel>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-testid="switch-edit-is-active"
-                        />
-                      </FormControl>
-                      <FormLabel>Active</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Address Validation Display */}
-              <AddressValidationDisplay
-                validationResult={editValidation.validationResult}
-                isValidating={editValidation.isValidating}
-                onApplySuggestion={handleApplyEditSuggestion}
-                className="my-4"
-              />
-              
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingAddress(null)}
-                  data-testid="button-cancel-edit"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateAddressMutation.isPending}
-                  data-testid="button-update-address"
-                >
-                  {updateAddressMutation.isPending ? "Updating..." : "Update Address"}
-                </Button>
-              </div>
-            </form>
-          </Form>
+          {editingAddress && (
+            <ConditionalAddressForm
+              defaultValues={{
+                street: editingAddress.street,
+                city: editingAddress.city,
+                state: editingAddress.state,
+                postalCode: editingAddress.postalCode,
+                country: editingAddress.country,
+                isPrimary: editingAddress.isPrimary,
+                isActive: editingAddress.isActive,
+              }}
+              onSubmit={handleEditSubmit}
+              onCancel={() => setEditingAddress(null)}
+              isSubmitting={updateAddressMutation.isPending}
+              submitLabel="Update Address"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

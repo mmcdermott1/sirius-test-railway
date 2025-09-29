@@ -6,6 +6,7 @@ import { registerUserRoutes } from "./modules/users";
 import { registerVariableRoutes } from "./modules/variables";
 import { registerPostalAddressRoutes } from "./modules/postal-addresses";
 import { registerAddressValidationRoutes } from "./modules/address-validation";
+import { addressValidationService } from "./services/address-validation";
 
 // Session type extension
 declare module "express-session" {
@@ -132,6 +133,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete worker" });
+    }
+  });
+
+  // GET /api/variables/address_validation_config - Get address validation configuration
+  app.get("/api/variables/address_validation_config", requireAuth, async (req, res) => {
+    try {
+      const config = await addressValidationService.getConfig();
+      res.json(config);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch address validation configuration" });
     }
   });
 
