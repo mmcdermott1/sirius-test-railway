@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PostalAddress, InsertPostalAddress, insertPostalAddressSchema } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -161,33 +161,27 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
   // Watch form values for validation
   const addFormValues = addForm.watch();
   const editFormValues = editForm.watch();
+  
+  // Track last validated snapshots to prevent unnecessary validation
+  const lastAddValidationRef = useRef<string>("");
+  const lastEditValidationRef = useRef<string>("");
 
-  // Trigger validation when form values change
+  // Trigger debounced validation when form values actually change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (addFormValues.street && addFormValues.city && addFormValues.state && 
-          addFormValues.postalCode && addFormValues.country) {
-        addValidation.validateAddress(addFormValues);
-      } else {
-        addValidation.clearValidation();
-      }
-    }, 1000); // Debounce validation by 1 second
-    
-    return () => clearTimeout(timer);
-  }, [addFormValues, addValidation]);
+    const currentSnapshot = JSON.stringify(addFormValues);
+    if (currentSnapshot !== lastAddValidationRef.current) {
+      lastAddValidationRef.current = currentSnapshot;
+      addValidation.validateAddressDebounced(addFormValues);
+    }
+  }, [addFormValues, addValidation.validateAddressDebounced]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (editFormValues.street && editFormValues.city && editFormValues.state && 
-          editFormValues.postalCode && editFormValues.country) {
-        editValidation.validateAddress(editFormValues);
-      } else {
-        editValidation.clearValidation();
-      }
-    }, 1000); // Debounce validation by 1 second
-    
-    return () => clearTimeout(timer);
-  }, [editFormValues, editValidation]);
+    const currentSnapshot = JSON.stringify(editFormValues);
+    if (currentSnapshot !== lastEditValidationRef.current) {
+      lastEditValidationRef.current = currentSnapshot;
+      editValidation.validateAddressDebounced(editFormValues);
+    }
+  }, [editFormValues, editValidation.validateAddressDebounced]);
 
   // Handle applying validation suggestions
   const handleApplyAddSuggestion = (field: string, value: string) => {
@@ -199,11 +193,71 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
   };
 
   const onAddSubmit = (data: AddressFormData) => {
+    // Block submission if validation is in progress
+    if (addValidation.isValidating) {
+      toast({
+        title: "Validation in Progress",
+        description: "Please wait while we validate the address...",
+      });
+      return;
+    }
+
+    // Check if we have a valid result that matches current data
+    if (!addValidation.isAddressValidForSaving(data)) {
+      // If we have a validation result but it doesn't match current data, or it's invalid
+      if (addValidation.hasValidationResult) {
+        toast({
+          title: "Invalid Address",
+          description: "Please fix the address validation errors before saving.",
+          variant: "destructive",
+        });
+      } else {
+        // No validation result yet, trigger validation
+        addValidation.validateAddress(data);
+        toast({
+          title: "Validating Address",
+          description: "Please wait while we validate the address...",
+        });
+      }
+      return;
+    }
+
+    // Address is valid and matches validated snapshot, proceed with submission
     addAddressMutation.mutate(data);
   };
 
   const onEditSubmit = (data: AddressFormData) => {
     if (editingAddress) {
+      // Block submission if validation is in progress
+      if (editValidation.isValidating) {
+        toast({
+          title: "Validation in Progress",
+          description: "Please wait while we validate the address...",
+        });
+        return;
+      }
+
+      // Check if we have a valid result that matches current data
+      if (!editValidation.isAddressValidForSaving(data)) {
+        // If we have a validation result but it doesn't match current data, or it's invalid
+        if (editValidation.hasValidationResult) {
+          toast({
+            title: "Invalid Address",
+            description: "Please fix the address validation errors before saving.",
+            variant: "destructive",
+          });
+        } else {
+          // No validation result yet, trigger validation
+          editValidation.validateAddress(data);
+          toast({
+            title: "Validating Address",
+            description: "Please wait while we validate the address...",
+          });
+        }
+        return;
+      }
+
+      // Address is valid and matches validated snapshot, proceed with submission
       updateAddressMutation.mutate({
         id: editingAddress.id,
         updates: data,
