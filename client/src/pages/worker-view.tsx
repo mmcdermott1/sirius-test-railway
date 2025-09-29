@@ -5,6 +5,8 @@ import { Worker } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AddressManagement from "@/components/worker/AddressManagement";
 
 export default function WorkerView() {
   const { id } = useParams<{ id: string }>();
@@ -167,41 +169,54 @@ export default function WorkerView() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Basic Information */}
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-3">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                  <p className="text-foreground" data-testid={`text-worker-full-name-${worker.id}`}>
-                    {worker.name}
-                  </p>
+          <CardContent>
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details" data-testid="tab-worker-details">Details</TabsTrigger>
+                <TabsTrigger value="addresses" data-testid="tab-worker-addresses">Addresses</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="details" className="space-y-6 mt-6">
+                {/* Basic Information */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-3">Basic Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">Full Name</label>
+                      <p className="text-foreground" data-testid={`text-worker-full-name-${worker.id}`}>
+                        {worker.name}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">Worker ID</label>
+                      <p className="text-foreground font-mono text-sm" data-testid={`text-worker-uuid-${worker.id}`}>
+                        {worker.id}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Worker ID</label>
-                  <p className="text-foreground font-mono text-sm" data-testid={`text-worker-uuid-${worker.id}`}>
-                    {worker.id}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            {/* Actions */}
-            <div className="pt-4 border-t border-border">
-              <div className="flex items-center space-x-3">
-                <Link href={`/workers/${worker.id}/edit`}>
-                  <Button variant="default" data-testid={`button-edit-worker-${worker.id}`}>
-                    Edit Worker
-                  </Button>
-                </Link>
-                <Link href="/workers">
-                  <Button variant="outline" data-testid="button-back-to-list">
-                    Back to List
-                  </Button>
-                </Link>
-              </div>
-            </div>
+                {/* Actions */}
+                <div className="pt-4 border-t border-border">
+                  <div className="flex items-center space-x-3">
+                    <Link href={`/workers/${worker.id}/edit`}>
+                      <Button variant="default" data-testid={`button-edit-worker-${worker.id}`}>
+                        Edit Worker
+                      </Button>
+                    </Link>
+                    <Link href="/workers">
+                      <Button variant="outline" data-testid="button-back-to-list">
+                        Back to List
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="addresses" className="space-y-6 mt-6">
+                <AddressManagement workerId={worker.id} contactId={worker.contactId} />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </main>

@@ -80,6 +80,7 @@ export interface IStorage {
   createPostalAddress(address: InsertPostalAddress): Promise<PostalAddress>;
   updatePostalAddress(id: string, address: Partial<InsertPostalAddress>): Promise<PostalAddress | undefined>;
   deletePostalAddress(id: string): Promise<boolean>;
+  setAddressAsPrimary(addressId: string, contactId: string): Promise<PostalAddress | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -470,6 +471,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPostalAddress(insertPostalAddress: InsertPostalAddress): Promise<PostalAddress> {
+    // If creating a primary address, first unset any existing primary addresses for this contact
+    if (insertPostalAddress.isPrimary) {
+      await db
+        .update(postalAddresses)
+        .set({ isPrimary: false })
+        .where(eq(postalAddresses.contactId, insertPostalAddress.contactId));
+    }
+    
     const [address] = await db
       .insert(postalAddresses)
       .values(insertPostalAddress)
@@ -478,6 +487,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updatePostalAddress(id: string, addressUpdate: Partial<InsertPostalAddress>): Promise<PostalAddress | undefined> {
+    // If setting as primary, first get the current address to know the contactId
+    if (addressUpdate.isPrimary) {
+      const currentAddress = await this.getPostalAddress(id);
+      if (currentAddress) {
+        // Unset any existing primary addresses for this contact
+        await db
+          .update(postalAddresses)
+          .set({ isPrimary: false })
+          .where(eq(postalAddresses.contactId, currentAddress.contactId));
+      }
+    }
+    
     const [address] = await db
       .update(postalAddresses)
       .set(addressUpdate)
@@ -490,6 +511,23 @@ export class DatabaseStorage implements IStorage {
   async deletePostalAddress(id: string): Promise<boolean> {
     const result = await db.delete(postalAddresses).where(eq(postalAddresses.id, id)).returning();
     return result.length > 0;
+  }
+
+  async setAddressAsPrimary(addressId: string, contactId: string): Promise<PostalAddress | undefined> {
+    // First, unset all primary addresses for this contact
+    await db
+      .update(postalAddresses)
+      .set({ isPrimary: false })
+      .where(eq(postalAddresses.contactId, contactId));
+    
+    // Then set the specified address as primary
+    const [address] = await db
+      .update(postalAddresses)
+      .set({ isPrimary: true })
+      .where(and(eq(postalAddresses.id, addressId), eq(postalAddresses.contactId, contactId)))
+      .returning();
+    
+    return address || undefined;
   }
 }
 

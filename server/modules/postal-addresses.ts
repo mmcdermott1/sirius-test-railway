@@ -1,0 +1,122 @@
+import type { Express, Request, Response, NextFunction } from "express";
+import { storage } from "../storage";
+import { insertPostalAddressSchema } from "@shared/schema";
+
+// Type for middleware functions that we'll accept from the main routes
+type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+
+export function registerPostalAddressRoutes(
+  app: Express, 
+  requireAuth: AuthMiddleware, 
+  requirePermission: PermissionMiddleware
+) {
+  
+  // GET /api/contacts/:contactId/addresses - Get all addresses for a contact
+  app.get("/api/contacts/:contactId/addresses", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      const addresses = await storage.getPostalAddressesByContact(contactId);
+      res.json(addresses);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch addresses" });
+    }
+  });
+
+  // GET /api/addresses/:id - Get specific address
+  app.get("/api/addresses/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const address = await storage.getPostalAddress(id);
+      
+      if (!address) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      res.json(address);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch address" });
+    }
+  });
+
+  // POST /api/contacts/:contactId/addresses - Create new address for a contact
+  app.post("/api/contacts/:contactId/addresses", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      const addressData = insertPostalAddressSchema.parse({ 
+        ...req.body, 
+        contactId 
+      });
+      
+      const newAddress = await storage.createPostalAddress(addressData);
+      res.status(201).json(newAddress);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid address data", errors: error });
+      }
+      res.status(500).json({ message: "Failed to create address" });
+    }
+  });
+
+  // PUT /api/addresses/:id - Update address
+  app.put("/api/addresses/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Parse the update data, but don't require contactId since it shouldn't change
+      const updateData = insertPostalAddressSchema.partial().omit({ contactId: true }).parse(req.body);
+      
+      const updatedAddress = await storage.updatePostalAddress(id, updateData);
+      
+      if (!updatedAddress) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      res.json(updatedAddress);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid address data", errors: error });
+      }
+      res.status(500).json({ message: "Failed to update address" });
+    }
+  });
+
+  // PUT /api/addresses/:id/set-primary - Set address as primary
+  app.put("/api/addresses/:id/set-primary", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // First get the address to know the contactId
+      const currentAddress = await storage.getPostalAddress(id);
+      if (!currentAddress) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      const updatedAddress = await storage.setAddressAsPrimary(id, currentAddress.contactId);
+      
+      if (!updatedAddress) {
+        return res.status(404).json({ message: "Failed to set address as primary" });
+      }
+      
+      res.json(updatedAddress);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to set address as primary" });
+    }
+  });
+
+  // DELETE /api/addresses/:id - Delete address
+  app.delete("/api/addresses/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deletePostalAddress(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete address" });
+    }
+  });
+}

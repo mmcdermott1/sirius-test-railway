@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertWorkerSchema } from "@shared/schema";
 import { registerUserRoutes } from "./modules/users";
 import { registerVariableRoutes } from "./modules/variables";
+import { registerPostalAddressRoutes } from "./modules/postal-addresses";
 
 // Session type extension
 declare module "express-session" {
@@ -43,6 +44,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register variable management routes
   registerVariableRoutes(app, requireAuth, requirePermission);
+  
+  // Register postal address management routes
+  registerPostalAddressRoutes(app, requireAuth, requirePermission);
 
   // Worker routes (protected with authentication and permissions)
   
