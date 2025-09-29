@@ -54,10 +54,11 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
         description: "Address added successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to add address";
       toast({
         title: "Error",
-        description: "Failed to add address",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -76,10 +77,11 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
         description: "Address updated successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to update address";
       toast({
         title: "Error",
-        description: "Failed to update address",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -97,10 +99,11 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
         description: "Address deleted successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to delete address";
       toast({
         title: "Error",
-        description: "Failed to delete address",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -118,10 +121,11 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
         description: "Primary address updated successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to set primary address";
       toast({
         title: "Error",
-        description: "Failed to set primary address",
+        description: errorMessage,
         variant: "destructive",
       });
     },
