@@ -1,12 +1,13 @@
-import { Star, User, ArrowLeft, Mail, Phone } from "lucide-react";
+import { Star, User, ArrowLeft } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Worker } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import AddressManagement from "@/components/worker/AddressManagement";
 
-export default function WorkerView() {
+export default function WorkerAddresses() {
   const { id } = useParams<{ id: string }>();
   
   const { data: worker, isLoading, error } = useQuery<Worker>({
@@ -32,7 +33,7 @@ export default function WorkerView() {
                   <Star className="text-primary-foreground" size={16} />
                 </div>
                 <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-                <span className="text-muted-foreground text-sm font-medium">Worker Details</span>
+                <span className="text-muted-foreground text-sm font-medium">Worker Addresses</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link href="/workers">
@@ -52,14 +53,8 @@ export default function WorkerView() {
               <Skeleton className="h-8 w-48" />
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-32" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-6 w-40" />
-              </div>
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full" />
             </CardContent>
           </Card>
         </main>
@@ -79,7 +74,7 @@ export default function WorkerView() {
                   <Star className="text-primary-foreground" size={16} />
                 </div>
                 <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-                <span className="text-muted-foreground text-sm font-medium">Worker Details</span>
+                <span className="text-muted-foreground text-sm font-medium">Worker Addresses</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link href="/workers">
@@ -136,7 +131,7 @@ export default function WorkerView() {
                 <Star className="text-primary-foreground" size={16} />
               </div>
               <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-              <span className="text-muted-foreground text-sm font-medium">Worker Details</span>
+              <span className="text-muted-foreground text-sm font-medium">Worker Addresses</span>
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/workers">
@@ -170,52 +165,19 @@ export default function WorkerView() {
               
               {/* Navigation Links */}
               <div className="flex items-center space-x-2">
-                <Button variant="default" size="sm" data-testid="button-worker-details">
-                  Details
-                </Button>
-                <Link href={`/workers/${worker.id}/addresses`}>
-                  <Button variant="outline" size="sm" data-testid="button-worker-addresses">
-                    Addresses
+                <Link href={`/workers/${worker.id}`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-details">
+                    Details
                   </Button>
                 </Link>
+                <Button variant="default" size="sm" data-testid="button-worker-addresses">
+                  Addresses
+                </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Basic Information */}
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-3">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                  <p className="text-foreground" data-testid={`text-worker-full-name-${worker.id}`}>
-                    {worker.name}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Worker ID</label>
-                  <p className="text-foreground font-mono text-sm" data-testid={`text-worker-uuid-${worker.id}`}>
-                    {worker.id}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="pt-4 border-t border-border">
-              <div className="flex items-center space-x-3">
-                <Link href={`/workers/${worker.id}/edit`}>
-                  <Button variant="default" data-testid={`button-edit-worker-${worker.id}`}>
-                    Edit Worker
-                  </Button>
-                </Link>
-                <Link href="/workers">
-                  <Button variant="outline" data-testid="button-back-to-list">
-                    Back to List
-                  </Button>
-                </Link>
-              </div>
-            </div>
+          <CardContent>
+            <AddressManagement workerId={worker.id} contactId={worker.contactId} />
           </CardContent>
         </Card>
       </main>
