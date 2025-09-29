@@ -44,9 +44,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register user management routes
   registerUserRoutes(app, requireAuth, requirePermission);
   
-  // Register variable management routes
-  registerVariableRoutes(app, requireAuth, requirePermission);
-  
   // Register postal address management routes
   registerPostalAddressRoutes(app, requireAuth, requirePermission);
   
@@ -136,6 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // IMPORTANT: Register specific variable routes BEFORE generic variable routes
   // GET /api/variables/address_validation_config - Get address validation configuration
   app.get("/api/variables/address_validation_config", requireAuth, async (req, res) => {
     try {
@@ -171,6 +169,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update address validation configuration" });
     }
   });
+
+  // Register generic variable management routes (MUST come after specific routes)
+  registerVariableRoutes(app, requireAuth, requirePermission);
 
 
   const httpServer = createServer(app);
