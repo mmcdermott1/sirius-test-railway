@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpDown, User, Edit, Trash2, Eye } from "lucide-react";
+import { ArrowUpDown, User, Edit, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Worker } from "@shared/schema";
-import { DeleteWorkerModal } from "./delete-worker-modal";
 import { Link } from "wouter";
 
 interface WorkersTableProps {
@@ -27,8 +26,6 @@ const avatarColors = [
 export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [workerToDelete, setWorkerToDelete] = useState<Worker | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   
   const { toast } = useToast();
@@ -55,27 +52,6 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     },
   });
 
-  const deleteWorkerMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/workers/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/workers"] });
-      setDeleteModalOpen(false);
-      setWorkerToDelete(null);
-      toast({
-        title: "Success",
-        description: "Worker deleted successfully!",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete worker. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
 
   const sortedWorkers = [...workers].sort((a, b) => {
     if (sortOrder === "asc") {
@@ -102,16 +78,6 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     setEditingName("");
   };
 
-  const handleDelete = (worker: Worker) => {
-    setWorkerToDelete(worker);
-    setDeleteModalOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (workerToDelete) {
-      deleteWorkerMutation.mutate(workerToDelete.id);
-    }
-  };
 
   const toggleSort = () => {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -233,16 +199,6 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                           <Eye size={12} />
                         </Button>
                       </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(worker)}
-                        title="Delete worker"
-                        data-testid={`button-delete-worker-${worker.id}`}
-                      >
-                        <Trash2 size={12} />
-                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -267,13 +223,6 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
         )}
       </Card>
 
-      <DeleteWorkerModal
-        open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
-        worker={workerToDelete}
-        onConfirm={confirmDelete}
-        isDeleting={deleteWorkerMutation.isPending}
-      />
     </>
   );
 }
