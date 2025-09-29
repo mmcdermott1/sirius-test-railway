@@ -138,3 +138,61 @@ export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type AssignRole = z.infer<typeof assignRoleSchema>;
 export type AssignPermission = z.infer<typeof assignPermissionSchema>;
+
+// Address parsing schemas
+export const parseAddressRequestSchema = z.object({
+  rawAddress: z.string().min(1, "Address cannot be empty"),
+  context: z.object({
+    country: z.string().optional(),
+    region: z.string().optional(),
+  }).optional(),
+});
+
+export const structuredAddressSchema = z.object({
+  street: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  postalCode: z.string().optional(),
+  country: z.string().optional(),
+  // Additional fields for international support
+  sublocality: z.string().optional(),
+  province: z.string().optional(),
+  locality: z.string().optional(),
+});
+
+export const addressSuggestionSchema = z.object({
+  field: z.string(),
+  value: z.string(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+
+export const addressParseValidationSchema = z.object({
+  isValid: z.boolean(),
+  errors: z.array(z.string()),
+  warnings: z.array(z.string()),
+  source: z.enum(["local", "google"]),
+  confidence: z.number().min(0).max(1).optional(),
+  suggestions: z.array(addressSuggestionSchema).optional(),
+  providerMetadata: z.record(z.any()).optional(),
+});
+
+// Discriminated union for success/failure responses
+export const parseAddressResponseSchema = z.discriminatedUnion("success", [
+  z.object({
+    success: z.literal(true),
+    structuredAddress: structuredAddressSchema,
+    validation: addressParseValidationSchema,
+  }),
+  z.object({
+    success: z.literal(false),
+    validation: addressParseValidationSchema,
+    message: z.string(),
+  }),
+]);
+
+// Address parsing types
+export type ParseAddressRequest = z.infer<typeof parseAddressRequestSchema>;
+export type StructuredAddress = z.infer<typeof structuredAddressSchema>;
+export type AddressSuggestion = z.infer<typeof addressSuggestionSchema>;
+export type AddressParseValidation = z.infer<typeof addressParseValidationSchema>;
+export type ParseAddressResponse = z.infer<typeof parseAddressResponseSchema>;
