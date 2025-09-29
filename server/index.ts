@@ -5,6 +5,7 @@ import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializePermissions } from "@shared/permissions";
+import { addressValidationService } from "./services/address-validation";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -65,6 +66,10 @@ app.use((req, res, next) => {
   // Initialize the permission system
   initializePermissions();
   log("Permission system initialized with core permissions");
+  
+  // Initialize address validation service (loads or creates config)
+  await addressValidationService.getConfig();
+  log("Address validation service initialized");
 
   const server = await registerRoutes(app);
 

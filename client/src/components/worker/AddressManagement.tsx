@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PostalAddress, InsertPostalAddress, insertPostalAddressSchema } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2, MapPin, Star } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useAddressValidation } from "@/hooks/useAddressValidation";
+import { AddressValidationDisplay } from "@/components/ui/address-validation";
 
 interface AddressManagementProps {
   workerId: string;
@@ -28,6 +30,10 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
   const [editingAddress, setEditingAddress] = useState<PostalAddress | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Address validation hooks for add and edit forms
+  const addValidation = useAddressValidation();
+  const editValidation = useAddressValidation();
 
   // Fetch addresses for this contact
   const { data: addresses = [], isLoading, error } = useQuery<PostalAddress[]>({
@@ -151,6 +157,46 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
   const editForm = useForm<AddressFormData>({
     resolver: zodResolver(addressFormSchema),
   });
+
+  // Watch form values for validation
+  const addFormValues = addForm.watch();
+  const editFormValues = editForm.watch();
+
+  // Trigger validation when form values change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (addFormValues.street && addFormValues.city && addFormValues.state && 
+          addFormValues.postalCode && addFormValues.country) {
+        addValidation.validateAddress(addFormValues);
+      } else {
+        addValidation.clearValidation();
+      }
+    }, 1000); // Debounce validation by 1 second
+    
+    return () => clearTimeout(timer);
+  }, [addFormValues, addValidation]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (editFormValues.street && editFormValues.city && editFormValues.state && 
+          editFormValues.postalCode && editFormValues.country) {
+        editValidation.validateAddress(editFormValues);
+      } else {
+        editValidation.clearValidation();
+      }
+    }, 1000); // Debounce validation by 1 second
+    
+    return () => clearTimeout(timer);
+  }, [editFormValues, editValidation]);
+
+  // Handle applying validation suggestions
+  const handleApplyAddSuggestion = (field: string, value: string) => {
+    addForm.setValue(field as keyof AddressFormData, value);
+  };
+
+  const handleApplyEditSuggestion = (field: string, value: string) => {
+    editForm.setValue(field as keyof AddressFormData, value);
+  };
 
   const onAddSubmit = (data: AddressFormData) => {
     addAddressMutation.mutate(data);
@@ -326,6 +372,15 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
                     )}
                   />
                 </div>
+                
+                {/* Address Validation Display */}
+                <AddressValidationDisplay
+                  validationResult={addValidation.validationResult}
+                  isValidating={addValidation.isValidating}
+                  onApplySuggestion={handleApplyAddSuggestion}
+                  className="my-4"
+                />
+                
                 <div className="flex justify-end space-x-2">
                   <Button
                     type="button"
@@ -535,6 +590,15 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
                   )}
                 />
               </div>
+              
+              {/* Address Validation Display */}
+              <AddressValidationDisplay
+                validationResult={editValidation.validationResult}
+                isValidating={editValidation.isValidating}
+                onApplySuggestion={handleApplyEditSuggestion}
+                className="my-4"
+              />
+              
               <div className="flex justify-end space-x-2">
                 <Button
                   type="button"
