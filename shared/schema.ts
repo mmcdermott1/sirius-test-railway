@@ -62,6 +62,7 @@ export const postalAddresses = pgTable("postal_addresses", {
   country: text("country").notNull(),
   isPrimary: boolean("is_primary").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  validationResponse: jsonb("validation_response"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
