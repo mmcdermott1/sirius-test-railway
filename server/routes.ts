@@ -188,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PUT /api/variables/phone_validation_config - Update phone validation configuration
   app.put("/api/variables/phone_validation_config", requireAuth, requirePermission("admin.manage"), async (req, res) => {
     try {
-      const { mode, local, twilio } = req.body;
+      const { mode, local, twilio, fallback } = req.body;
       
       if (!mode || (mode !== "local" && mode !== "twilio")) {
         return res.status(400).json({ message: "Invalid validation mode. Must be 'local' or 'twilio'." });
@@ -202,11 +202,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid twilio configuration." });
       }
       
-      await storage.setVariable('phone_validation_config', req.body);
+      if (!fallback || typeof fallback.useLocalOnTwilioFailure !== "boolean") {
+        return res.status(400).json({ message: "Invalid fallback configuration." });
+      }
+      
+      const configVar = await storage.getVariableByName('phone_validation_config');
+      if (configVar) {
+        await storage.updateVariable(configVar.id, {
+          value: req.body,
+        });
+      } else {
+        await storage.createVariable({
+          name: 'phone_validation_config',
+          value: req.body,
+        });
+      }
+      
       const updatedConfig = await phoneValidationService.loadConfig();
       res.json(updatedConfig);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update phone validation configuration" });
+      console.error('Error updating phone validation config:', error);
+      res.status(500).json({ 
+        message: "Failed to update phone validation configuration",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
