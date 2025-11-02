@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -89,7 +89,9 @@ export const workerIds = pgTable("worker_ids", {
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
   typeId: varchar("type_id").notNull().references(() => optionsWorkerIdType.id, { onDelete: 'cascade' }),
   value: text("value").notNull(),
-});
+}, (table) => ({
+  uniqueTypeValue: unique().on(table.typeId, table.value),
+}));
 
 export const postalAddresses = pgTable("postal_addresses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

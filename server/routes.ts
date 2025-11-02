@@ -816,6 +816,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(newWorkerId);
     } catch (error: any) {
       console.error("Error creating worker ID:", error);
+      
+      // Check for unique constraint violation
+      if (error.code === '23505' && error.constraint === 'worker_ids_type_id_value_unique') {
+        return res.status(409).json({ 
+          message: "This ID value already exists for this type. Worker IDs must be unique." 
+        });
+      }
+      
       res.status(500).json({ message: "Failed to create worker ID" });
     }
   });
@@ -883,6 +891,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(updatedWorkerId);
     } catch (error: any) {
+      console.error("Error updating worker ID:", error);
+      
+      // Check for unique constraint violation
+      if (error.code === '23505' && error.constraint === 'worker_ids_type_id_value_unique') {
+        return res.status(409).json({ 
+          message: "This ID value already exists for this type. Worker IDs must be unique." 
+        });
+      }
+      
       res.status(500).json({ message: "Failed to update worker ID" });
     }
   });
