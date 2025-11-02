@@ -193,6 +193,11 @@ export default function WorkerView() {
                     Addresses
                   </Button>
                 </Link>
+                <Link href={`/workers/${worker.id}/phone-numbers`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-phone-numbers">
+                    Phone Numbers
+                  </Button>
+                </Link>
               </div>
             </div>
           </CardHeader>

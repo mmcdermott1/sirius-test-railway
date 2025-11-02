@@ -5,9 +5,9 @@ import { Worker } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import AddressManagement from "@/components/worker/AddressManagement";
+import { PhoneNumberManagement } from "@/components/worker/PhoneNumberManagement";
 
-export default function WorkerAddresses() {
+export default function WorkerPhoneNumbers() {
   const { id } = useParams<{ id: string }>();
   
   const { data: worker, isLoading, error } = useQuery<Worker>({
@@ -33,7 +33,7 @@ export default function WorkerAddresses() {
                   <Star className="text-primary-foreground" size={16} />
                 </div>
                 <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-                <span className="text-muted-foreground text-sm font-medium">Worker Addresses</span>
+                <span className="text-muted-foreground text-sm font-medium">Worker Phone Numbers</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link href="/workers">
@@ -74,7 +74,7 @@ export default function WorkerAddresses() {
                   <Star className="text-primary-foreground" size={16} />
                 </div>
                 <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-                <span className="text-muted-foreground text-sm font-medium">Worker Addresses</span>
+                <span className="text-muted-foreground text-sm font-medium">Worker Phone Numbers</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link href="/workers">
@@ -131,7 +131,7 @@ export default function WorkerAddresses() {
                 <Star className="text-primary-foreground" size={16} />
               </div>
               <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-              <span className="text-muted-foreground text-sm font-medium">Worker Addresses</span>
+              <span className="text-muted-foreground text-sm font-medium">Worker Phone Numbers</span>
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/workers">
@@ -170,19 +170,19 @@ export default function WorkerAddresses() {
                     Details
                   </Button>
                 </Link>
-                <Button variant="default" size="sm" data-testid="button-worker-addresses">
-                  Addresses
-                </Button>
-                <Link href={`/workers/${worker.id}/phone-numbers`}>
-                  <Button variant="outline" size="sm" data-testid="button-worker-phone-numbers">
-                    Phone Numbers
+                <Link href={`/workers/${worker.id}/addresses`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-addresses">
+                    Addresses
                   </Button>
                 </Link>
+                <Button variant="default" size="sm" data-testid="button-worker-phone-numbers">
+                  Phone Numbers
+                </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <AddressManagement workerId={worker.id} contactId={worker.contactId} />
+            <PhoneNumberManagement contactId={worker.contactId} />
           </CardContent>
         </Card>
       </main>
