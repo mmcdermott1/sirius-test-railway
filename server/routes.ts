@@ -623,6 +623,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Worker ID Type routes
+  
+  // GET /api/worker-id-types - Get all worker ID types (requires workers.view permission)
+  app.get("/api/worker-id-types", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const workerIdTypes = await storage.getAllWorkerIdTypes();
+      res.json(workerIdTypes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch worker ID types" });
+    }
+  });
+
+  // GET /api/worker-id-types/:id - Get a specific worker ID type (requires workers.view permission)
+  app.get("/api/worker-id-types/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const workerIdType = await storage.getWorkerIdType(id);
+      
+      if (!workerIdType) {
+        res.status(404).json({ message: "Worker ID type not found" });
+        return;
+      }
+      
+      res.json(workerIdType);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch worker ID type" });
+    }
+  });
+
+  // POST /api/worker-id-types - Create a new worker ID type (requires variables.manage permission)
+  app.post("/api/worker-id-types", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { name, sequence, validator } = req.body;
+      
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ message: "Name is required" });
+      }
+      
+      const workerIdType = await storage.createWorkerIdType({
+        name: name.trim(),
+        sequence: typeof sequence === 'number' ? sequence : 0,
+        validator: validator && typeof validator === 'string' ? validator.trim() : null,
+      });
+      
+      res.status(201).json(workerIdType);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to create worker ID type" });
+    }
+  });
+
+  // PUT /api/worker-id-types/:id - Update a worker ID type (requires variables.manage permission)
+  app.put("/api/worker-id-types/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, sequence, validator } = req.body;
+      
+      const updates: any = {};
+      
+      if (name !== undefined) {
+        if (typeof name !== 'string' || !name.trim()) {
+          return res.status(400).json({ message: "Name must be a non-empty string" });
+        }
+        updates.name = name.trim();
+      }
+      
+      if (sequence !== undefined) {
+        if (typeof sequence !== 'number') {
+          return res.status(400).json({ message: "Sequence must be a number" });
+        }
+        updates.sequence = sequence;
+      }
+      
+      if (validator !== undefined) {
+        if (validator === null || validator === '') {
+          updates.validator = null;
+        } else if (typeof validator === 'string') {
+          updates.validator = validator.trim();
+        } else {
+          return res.status(400).json({ message: "Validator must be a string or null" });
+        }
+      }
+      
+      const workerIdType = await storage.updateWorkerIdType(id, updates);
+      
+      if (!workerIdType) {
+        res.status(404).json({ message: "Worker ID type not found" });
+        return;
+      }
+      
+      res.json(workerIdType);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update worker ID type" });
+    }
+  });
+
+  // DELETE /api/worker-id-types/:id - Delete a worker ID type (requires variables.manage permission)
+  app.delete("/api/worker-id-types/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteWorkerIdType(id);
+      
+      if (!deleted) {
+        res.status(404).json({ message: "Worker ID type not found" });
+        return;
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete worker ID type" });
+    }
+  });
+
   // Register generic variable management routes (MUST come after specific routes)
   registerVariableRoutes(app, requireAuth, requirePermission);
 
