@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Star, User, Building2 } from "lucide-react";
 import { EmployersTable } from "@/components/employers/employers-table";
 import { Link, useLocation } from "wouter";
@@ -7,8 +8,21 @@ import { Employer } from "@shared/schema";
 
 export default function Employers() {
   const [location] = useLocation();
+  const [includeInactive, setIncludeInactive] = useState(false);
+  
   const { data: employers = [], isLoading } = useQuery<Employer[]>({
-    queryKey: ["/api/employers"],
+    queryKey: ["/api/employers", includeInactive],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (includeInactive) {
+        params.append('includeInactive', 'true');
+      }
+      const response = await fetch(`/api/employers?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch employers');
+      }
+      return response.json();
+    },
   });
 
   const tabs = [
@@ -61,7 +75,12 @@ export default function Employers() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <EmployersTable employers={employers} isLoading={isLoading} />
+        <EmployersTable 
+          employers={employers} 
+          isLoading={isLoading} 
+          includeInactive={includeInactive}
+          onToggleInactive={() => setIncludeInactive(!includeInactive)}
+        />
       </main>
     </div>
   );

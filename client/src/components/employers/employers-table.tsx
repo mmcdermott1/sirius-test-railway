@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Employer } from "@shared/schema";
 import { Link } from "wouter";
 
 interface EmployersTableProps {
   employers: Employer[];
   isLoading: boolean;
+  includeInactive: boolean;
+  onToggleInactive: () => void;
 }
 
 const avatarColors = [
@@ -20,7 +24,7 @@ const avatarColors = [
   "bg-red-100 text-red-600",
 ];
 
-export function EmployersTable({ employers, isLoading }: EmployersTableProps) {
+export function EmployersTable({ employers, isLoading, includeInactive, onToggleInactive }: EmployersTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -87,7 +91,7 @@ export function EmployersTable({ employers, isLoading }: EmployersTableProps) {
           </div>
           
           {/* Search Input */}
-          <div className="relative">
+          <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
             <Input
               type="text"
@@ -97,6 +101,22 @@ export function EmployersTable({ employers, isLoading }: EmployersTableProps) {
               className="pl-10"
               data-testid="input-search-employers"
             />
+          </div>
+          
+          {/* Include Inactive Toggle */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="include-inactive"
+              checked={includeInactive}
+              onCheckedChange={onToggleInactive}
+              data-testid="checkbox-include-inactive"
+            />
+            <Label
+              htmlFor="include-inactive"
+              className="text-sm text-muted-foreground cursor-pointer"
+            >
+              Include inactive employers
+            </Label>
           </div>
         </div>
 
@@ -118,6 +138,9 @@ export function EmployersTable({ employers, isLoading }: EmployersTableProps) {
                     <span>Employer Name</span>
                     <ArrowUpDown size={12} />
                   </div>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <span>Status</span>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <span>Actions</span>
@@ -147,6 +170,18 @@ export function EmployersTable({ employers, isLoading }: EmployersTableProps) {
                         {employer.name}
                       </span>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span 
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        employer.isActive 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                      data-testid={`status-employer-${employer.id}`}
+                    >
+                      {employer.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="flex items-center space-x-2">
