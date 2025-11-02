@@ -217,6 +217,11 @@ export default function WorkerView() {
                 <Button variant="default" size="sm" data-testid="button-worker-details">
                   Details
                 </Button>
+                <Link href={`/workers/${worker.id}/name`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-name">
+                    Name
+                  </Button>
+                </Link>
                 <Link href={`/workers/${worker.id}/addresses`}>
                   <Button variant="outline" size="sm" data-testid="button-worker-addresses">
                     Addresses

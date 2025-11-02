@@ -5,9 +5,9 @@ import { Worker, Contact } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PhoneNumberManagement } from "@/components/worker/PhoneNumberManagement";
+import NameManagement from "@/components/worker/NameManagement";
 
-export default function WorkerPhoneNumbers() {
+export default function WorkerName() {
   const { id } = useParams<{ id: string }>();
   
   const { data: worker, isLoading, error } = useQuery<Worker>({
@@ -46,7 +46,7 @@ export default function WorkerPhoneNumbers() {
                   <Star className="text-primary-foreground" size={16} />
                 </div>
                 <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-                <span className="text-muted-foreground text-sm font-medium">Worker Phone Numbers</span>
+                <span className="text-muted-foreground text-sm font-medium">Worker Name</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link href="/workers">
@@ -67,7 +67,6 @@ export default function WorkerPhoneNumbers() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
             </CardContent>
           </Card>
         </main>
@@ -87,7 +86,7 @@ export default function WorkerPhoneNumbers() {
                   <Star className="text-primary-foreground" size={16} />
                 </div>
                 <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-                <span className="text-muted-foreground text-sm font-medium">Worker Phone Numbers</span>
+                <span className="text-muted-foreground text-sm font-medium">Worker Name</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link href="/workers">
@@ -144,7 +143,7 @@ export default function WorkerPhoneNumbers() {
                 <Star className="text-primary-foreground" size={16} />
               </div>
               <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-              <span className="text-muted-foreground text-sm font-medium">Worker Phone Numbers</span>
+              <span className="text-muted-foreground text-sm font-medium">Worker Name</span>
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/workers">
@@ -183,24 +182,24 @@ export default function WorkerPhoneNumbers() {
                     Details
                   </Button>
                 </Link>
-                <Link href={`/workers/${worker.id}/name`}>
-                  <Button variant="outline" size="sm" data-testid="button-worker-name">
-                    Name
-                  </Button>
-                </Link>
+                <Button variant="default" size="sm" data-testid="button-worker-name">
+                  Name
+                </Button>
                 <Link href={`/workers/${worker.id}/addresses`}>
                   <Button variant="outline" size="sm" data-testid="button-worker-addresses">
                     Addresses
                   </Button>
                 </Link>
-                <Button variant="default" size="sm" data-testid="button-worker-phone-numbers">
-                  Phone Numbers
-                </Button>
+                <Link href={`/workers/${worker.id}/phone-numbers`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-phone-numbers">
+                    Phone Numbers
+                  </Button>
+                </Link>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <PhoneNumberManagement contactId={worker.contactId} />
+            <NameManagement workerId={worker.id} contactId={worker.contactId} />
           </CardContent>
         </Card>
       </main>

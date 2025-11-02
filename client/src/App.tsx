@@ -9,6 +9,7 @@ import Header from "@/components/layout/Header";
 import LoginPage from "@/pages/login";
 import Workers from "@/pages/workers";
 import WorkerView from "@/pages/worker-view";
+import WorkerName from "@/pages/worker-name";
 import WorkerAddresses from "@/pages/worker-addresses";
 import WorkerPhoneNumbers from "@/pages/worker-phone-numbers";
 import AdminUsersPage from "@/pages/admin/users";
@@ -52,6 +53,14 @@ function Router() {
         <ProtectedRoute permission="workers.view">
           <AuthenticatedLayout>
             <WorkerAddresses />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/workers/:id/name">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerName />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

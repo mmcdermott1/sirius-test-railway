@@ -1,7 +1,7 @@
 import { Star, User, ArrowLeft } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Worker } from "@shared/schema";
+import { Worker, Contact } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +19,19 @@ export default function WorkerAddresses() {
       }
       return response.json();
     },
+  });
+
+  // Fetch contact for the worker
+  const { data: contact } = useQuery<Contact>({
+    queryKey: ["/api/contacts", worker?.contactId],
+    queryFn: async () => {
+      const response = await fetch(`/api/contacts/${worker?.contactId}`);
+      if (!response.ok) {
+        throw new Error("Contact not found");
+      }
+      return response.json();
+    },
+    enabled: !!worker?.contactId,
   });
 
   if (isLoading) {
@@ -155,7 +168,7 @@ export default function WorkerAddresses() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl font-bold text-foreground" data-testid={`text-worker-name-${worker.id}`}>
-                    {worker.name}
+                    {contact?.name || 'Loading...'}
                   </CardTitle>
                   <p className="text-muted-foreground text-sm mt-1" data-testid={`text-worker-id-${worker.id}`}>
                     ID: {worker.id}
@@ -168,6 +181,11 @@ export default function WorkerAddresses() {
                 <Link href={`/workers/${worker.id}`}>
                   <Button variant="outline" size="sm" data-testid="button-worker-details">
                     Details
+                  </Button>
+                </Link>
+                <Link href={`/workers/${worker.id}/name`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-name">
+                    Name
                   </Button>
                 </Link>
                 <Button variant="default" size="sm" data-testid="button-worker-addresses">
