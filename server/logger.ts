@@ -22,27 +22,28 @@ const transports: winston.transport[] = [
 ];
 
 // Add PostgreSQL transport if DATABASE_URL is available
-if (process.env.DATABASE_URL) {
-  try {
-    const pgTransport = new PostgresTransport({
-      connectionString: process.env.DATABASE_URL,
-      tableName: "winston_logs",
-      level: "http", // Capture HTTP logs and above (http, info, warn, error)
-      maxPool: 10,
-      tableColumns: [
-        { name: "id", dataType: "SERIAL", primaryKey: true, unique: true },
-        { name: "level", dataType: "VARCHAR(20)" },
-        { name: "message", dataType: "TEXT" },
-        { name: "timestamp", dataType: "TIMESTAMP DEFAULT NOW()" },
-        { name: "source", dataType: "VARCHAR(50)" },
-        { name: "meta", dataType: "JSONB" },
-      ],
-    });
-    transports.push(pgTransport);
-  } catch (error) {
-    console.error("Failed to initialize PostgreSQL transport for Winston:", error);
-  }
-}
+// COMMENTED OUT: Database logging disabled for now - only console logging active
+// if (process.env.DATABASE_URL) {
+//   try {
+//     const pgTransport = new PostgresTransport({
+//       connectionString: process.env.DATABASE_URL,
+//       tableName: "winston_logs",
+//       level: "http", // Capture HTTP logs and above (http, info, warn, error)
+//       maxPool: 10,
+//       tableColumns: [
+//         { name: "id", dataType: "SERIAL", primaryKey: true, unique: true },
+//         { name: "level", dataType: "VARCHAR(20)" },
+//         { name: "message", dataType: "TEXT" },
+//         { name: "timestamp", dataType: "TIMESTAMP DEFAULT NOW()" },
+//         { name: "source", dataType: "VARCHAR(50)" },
+//         { name: "meta", dataType: "JSONB" },
+//       ],
+//     });
+//     transports.push(pgTransport);
+//   } catch (error) {
+//     console.error("Failed to initialize PostgreSQL transport for Winston:", error);
+//   }
+// }
 
 // Create the logger
 export const logger = winston.createLogger({
