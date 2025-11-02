@@ -46,6 +46,9 @@ export const contacts = pgTable("contacts", {
   displayName: text("display_name").notNull(),
   email: text("email"),
   birthDate: date("birth_date"),
+  gender: varchar("gender").references(() => optionsGender.id, { onDelete: 'set null' }),
+  genderNota: text("gender_nota"),
+  genderCalc: text("gender_calc"),
 });
 
 export const workers = pgTable("workers", {
