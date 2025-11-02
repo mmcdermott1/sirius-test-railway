@@ -64,6 +64,14 @@ export interface IStorage {
   getWorker(id: string): Promise<Worker | undefined>;
   createWorker(name: string): Promise<Worker>;
   updateWorkerContactName(id: string, name: string): Promise<Worker | undefined>;
+  updateWorkerContactNameComponents(id: string, components: {
+    title?: string;
+    given?: string;
+    middle?: string;
+    family?: string;
+    generational?: string;
+    credentials?: string;
+  }): Promise<Worker | undefined>;
   deleteWorker(id: string): Promise<boolean>;
 
   // Variable CRUD operations
@@ -411,6 +419,46 @@ export class DatabaseStorage implements IStorage {
         given: given || null,
         family: family || null,
         displayName: name,
+      })
+      .where(eq(contacts.id, currentWorker.contactId));
+    
+    return currentWorker;
+  }
+
+  async updateWorkerContactNameComponents(
+    workerId: string,
+    components: {
+      title?: string;
+      given?: string;
+      middle?: string;
+      family?: string;
+      generational?: string;
+      credentials?: string;
+    }
+  ): Promise<Worker | undefined> {
+    // Get the current worker to find its contact
+    const currentWorker = await this.getWorker(workerId);
+    if (!currentWorker) {
+      return undefined;
+    }
+    
+    // Import the generateDisplayName function
+    const { generateDisplayName } = await import("@shared/schema");
+    
+    // Generate display name from components
+    const displayName = generateDisplayName(components);
+    
+    // Update the contact's name components
+    await db
+      .update(contacts)
+      .set({
+        title: components.title?.trim() || null,
+        given: components.given?.trim() || null,
+        middle: components.middle?.trim() || null,
+        family: components.family?.trim() || null,
+        generational: components.generational?.trim() || null,
+        credentials: components.credentials?.trim() || null,
+        displayName,
       })
       .where(eq(contacts.id, currentWorker.contactId));
     

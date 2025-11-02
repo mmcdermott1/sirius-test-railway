@@ -14,10 +14,26 @@ interface NameManagementProps {
   contactId: string;
 }
 
+interface NameComponents {
+  title: string;
+  given: string;
+  middle: string;
+  family: string;
+  generational: string;
+  credentials: string;
+}
+
 export default function NameManagement({ workerId, contactId }: NameManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [editedName, setEditedName] = useState<string>("");
+  const [nameComponents, setNameComponents] = useState<NameComponents>({
+    title: "",
+    given: "",
+    middle: "",
+    family: "",
+    generational: "",
+    credentials: "",
+  });
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch contact information
@@ -35,8 +51,8 @@ export default function NameManagement({ workerId, contactId }: NameManagementPr
 
   // Update name mutation
   const updateNameMutation = useMutation({
-    mutationFn: async (name: string) => {
-      return apiRequest("PUT", `/api/workers/${workerId}`, { name });
+    mutationFn: async (components: NameComponents) => {
+      return apiRequest("PUT", `/api/workers/${workerId}`, { nameComponents: components });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workers"] });
@@ -58,19 +74,38 @@ export default function NameManagement({ workerId, contactId }: NameManagementPr
   });
 
   const handleEdit = () => {
-    setEditedName(contact?.displayName || "");
+    setNameComponents({
+      title: contact?.title || "",
+      given: contact?.given || "",
+      middle: contact?.middle || "",
+      family: contact?.family || "",
+      generational: contact?.generational || "",
+      credentials: contact?.credentials || "",
+    });
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    if (editedName.trim()) {
-      updateNameMutation.mutate(editedName.trim());
+    // At least given or family name should be provided
+    if (nameComponents.given.trim() || nameComponents.family.trim()) {
+      updateNameMutation.mutate(nameComponents);
     }
   };
 
   const handleCancel = () => {
-    setEditedName("");
+    setNameComponents({
+      title: "",
+      given: "",
+      middle: "",
+      family: "",
+      generational: "",
+      credentials: "",
+    });
     setIsEditing(false);
+  };
+
+  const updateField = (field: keyof NameComponents, value: string) => {
+    setNameComponents(prev => ({ ...prev, [field]: value }));
   };
 
   if (isLoading) {
@@ -118,16 +153,68 @@ export default function NameManagement({ workerId, contactId }: NameManagementPr
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                placeholder="Enter worker name"
-                autoFocus
-                data-testid="input-edit-name"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={nameComponents.title}
+                  onChange={(e) => updateField("title", e.target.value)}
+                  placeholder="Mr., Ms., Dr., etc."
+                  data-testid="input-title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="given">First Name</Label>
+                <Input
+                  id="given"
+                  value={nameComponents.given}
+                  onChange={(e) => updateField("given", e.target.value)}
+                  placeholder="John"
+                  autoFocus
+                  data-testid="input-given"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middle">Middle Name</Label>
+                <Input
+                  id="middle"
+                  value={nameComponents.middle}
+                  onChange={(e) => updateField("middle", e.target.value)}
+                  placeholder="Optional"
+                  data-testid="input-middle"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="family">Last Name</Label>
+                <Input
+                  id="family"
+                  value={nameComponents.family}
+                  onChange={(e) => updateField("family", e.target.value)}
+                  placeholder="Doe"
+                  data-testid="input-family"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="generational">Generational Suffix</Label>
+                <Input
+                  id="generational"
+                  value={nameComponents.generational}
+                  onChange={(e) => updateField("generational", e.target.value)}
+                  placeholder="Jr., Sr., III, etc."
+                  data-testid="input-generational"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="credentials">Credentials</Label>
+                <Input
+                  id="credentials"
+                  value={nameComponents.credentials}
+                  onChange={(e) => updateField("credentials", e.target.value)}
+                  placeholder="MD, PhD, etc."
+                  data-testid="input-credentials"
+                />
+              </div>
             </div>
             <div className="flex justify-end space-x-2">
               <Button
@@ -140,7 +227,7 @@ export default function NameManagement({ workerId, contactId }: NameManagementPr
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={!editedName.trim() || updateNameMutation.isPending}
+                disabled={(!nameComponents.given.trim() && !nameComponents.family.trim()) || updateNameMutation.isPending}
                 data-testid="button-save-name"
               >
                 {updateNameMutation.isPending ? (
