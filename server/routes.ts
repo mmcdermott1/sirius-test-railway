@@ -190,6 +190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { mode, local, twilio, fallback } = req.body;
       
+      console.log('Received phone validation config update:', JSON.stringify(req.body, null, 2));
+      
       if (!mode || (mode !== "local" && mode !== "twilio")) {
         return res.status(400).json({ message: "Invalid validation mode. Must be 'local' or 'twilio'." });
       }
@@ -208,10 +210,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const configVar = await storage.getVariableByName('phone_validation_config');
       if (configVar) {
+        console.log('Updating existing config variable:', configVar.id);
         await storage.updateVariable(configVar.id, {
           value: req.body,
         });
       } else {
+        console.log('Creating new config variable');
         await storage.createVariable({
           name: 'phone_validation_config',
           value: req.body,
@@ -219,6 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedConfig = await phoneValidationService.loadConfig();
+      console.log('Loaded config after update:', JSON.stringify(updatedConfig, null, 2));
       res.json(updatedConfig);
     } catch (error) {
       console.error('Error updating phone validation config:', error);
