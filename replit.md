@@ -59,6 +59,11 @@ Preferred communication style: Simple, everyday language.
 - **Drizzle Zod**: Integration between Drizzle ORM and Zod validation
 - **libphonenumber-js**: Phone number parsing, validation, and formatting
 
+### Third-Party Integrations
+- **Twilio**: Phone number lookup and validation via Twilio Lookup API
+  - Managed through Replit connectors for secure credential management
+  - Provides carrier information, caller name, and line type intelligence
+
 ### API and State Management
 - **TanStack Query**: Server state management with caching and synchronization
 - **Date-fns**: Date utility functions
@@ -78,3 +83,11 @@ Preferred communication style: Simple, everyday language.
 - **Frontend Validation**: Client-side validation provides immediate feedback to users
   - Zod schema validation prevents submission of invalid phone numbers
   - Clear error messages guide users to correct format
+- **Validation Modes**: Configurable phone validation with local or Twilio options
+  - Configuration page at `/config/phone-numbers` allows switching between validation modes
+  - Local mode: Pattern-based validation using libphonenumber-js (no API calls)
+  - Twilio mode: Real-time validation using Twilio Lookup API with carrier and caller name data
+  - Fallback mechanism: Can fall back to local validation if Twilio API fails
+  - Lookup fields are configurable (carrier, caller-name, line type intelligence)
+  - Configuration changes take effect immediately without requiring server restart
+  - Full validation response data stored in JSONB field for auditing
