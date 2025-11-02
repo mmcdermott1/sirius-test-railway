@@ -30,6 +30,7 @@ import UserManagementConfigPage from "@/pages/config/users";
 import PostalAddressesConfigPage from "@/pages/config/addresses";
 import PhoneNumbersConfigPage from "@/pages/config/phone-numbers";
 import GenderOptionsPage from "@/pages/config/gender-options";
+import WorkerIDTypesPage from "@/pages/config/worker-id-types";
 import SiteInformation from "@/pages/site-information";
 import NotFound from "@/pages/not-found";
 
@@ -201,6 +202,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <GenderOptionsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/config/worker-id-types">
+        <ProtectedRoute permission="variables.manage">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <WorkerIDTypesPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

@@ -47,6 +47,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       testId: "nav-config-gender-options",
       permission: "variables.manage",
     },
+    {
+      path: "/config/worker-id-types",
+      label: "Worker ID Types",
+      icon: List,
+      testId: "nav-config-worker-id-types",
+      permission: "variables.manage",
+    },
   ];
 
   return (

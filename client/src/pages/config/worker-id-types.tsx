@@ -216,129 +216,124 @@ export default function WorkerIDTypesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Worker ID Types</CardTitle>
+          <CardTitle>Worker ID Types Management</CardTitle>
           <CardDescription>
-            Manage the types of identification numbers that can be assigned to workers.
+            Manage the types of identification numbers that can be assigned to workers. Use the arrows to reorder types.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {workerIdTypes.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-muted-foreground" data-testid="text-no-types">
               No worker ID types configured yet. Click "Add Worker ID Type" to create one.
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Order</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Validator (Regex)</TableHead>
-                  <TableHead className="w-[100px]">Order</TableHead>
-                  <TableHead className="w-[150px] text-right">Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {workerIdTypes.map((type) => (
+                {workerIdTypes.map((type, index) => (
                   <TableRow key={type.id} data-testid={`row-worker-id-type-${type.id}`}>
-                    {editingId === type.id ? (
-                      <>
-                        <TableCell>
-                          <Input
-                            value={formName}
-                            onChange={(e) => setFormName(e.target.value)}
-                            placeholder="Name"
-                            data-testid="input-edit-name"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={formValidator}
-                            onChange={(e) => setFormValidator(e.target.value)}
-                            placeholder="Regex pattern (optional)"
-                            data-testid="input-edit-validator"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-muted-foreground">{type.sequence}</span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={handleSaveEdit}
-                              disabled={updateMutation.isPending}
-                              data-testid="button-save-edit"
-                            >
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveUp(type)}
+                          disabled={index === 0}
+                          data-testid={`button-move-up-${type.id}`}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveDown(type)}
+                          disabled={index === workerIdTypes.length - 1}
+                          data-testid={`button-move-down-${type.id}`}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell data-testid={`text-name-${type.id}`}>
+                      {editingId === type.id ? (
+                        <Input
+                          value={formName}
+                          onChange={(e) => setFormName(e.target.value)}
+                          placeholder="Name"
+                          data-testid={`input-edit-name-${type.id}`}
+                        />
+                      ) : (
+                        type.name
+                      )}
+                    </TableCell>
+                    <TableCell data-testid={`text-validator-${type.id}`}>
+                      {editingId === type.id ? (
+                        <Input
+                          value={formValidator}
+                          onChange={(e) => setFormValidator(e.target.value)}
+                          placeholder="Regex pattern (optional)"
+                          data-testid={`input-edit-validator-${type.id}`}
+                        />
+                      ) : (
+                        type.validator ? (
+                          <code className="text-xs bg-muted px-2 py-1 rounded">{type.validator}</code>
+                        ) : (
+                          <span className="text-muted-foreground italic">None</span>
+                        )
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {editingId === type.id ? (
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            onClick={handleSaveEdit}
+                            disabled={updateMutation.isPending}
+                            data-testid={`button-save-${type.id}`}
+                          >
+                            {updateMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
                               <Save className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={handleCancelEdit}
-                              disabled={updateMutation.isPending}
-                              data-testid="button-cancel-edit"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </>
-                    ) : (
-                      <>
-                        <TableCell className="font-medium" data-testid={`text-name-${type.id}`}>
-                          {type.name}
-                        </TableCell>
-                        <TableCell data-testid={`text-validator-${type.id}`}>
-                          {type.validator ? (
-                            <code className="text-xs bg-muted px-2 py-1 rounded">{type.validator}</code>
-                          ) : (
-                            <span className="text-muted-foreground italic">None</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => moveUp(type)}
-                              disabled={workerIdTypes.findIndex(t => t.id === type.id) === 0}
-                              data-testid={`button-move-up-${type.id}`}
-                            >
-                              <ArrowUp className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => moveDown(type)}
-                              disabled={workerIdTypes.findIndex(t => t.id === type.id) === workerIdTypes.length - 1}
-                              data-testid={`button-move-down-${type.id}`}
-                            >
-                              <ArrowDown className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEdit(type)}
-                              data-testid={`button-edit-${type.id}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setDeleteId(type.id)}
-                              data-testid={`button-delete-${type.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </>
-                    )}
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelEdit}
+                            data-testid={`button-cancel-edit-${type.id}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(type)}
+                            data-testid={`button-edit-${type.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setDeleteId(type.id)}
+                            data-testid={`button-delete-${type.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -395,27 +390,18 @@ export default function WorkerIDTypesPage() {
             <Button
               onClick={handleCreate}
               disabled={createMutation.isPending}
-              data-testid="button-confirm-add"
+              data-testid="button-submit-add"
             >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add
-                </>
-              )}
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add Type
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent data-testid="dialog-delete-worker-id-type">
+      <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent data-testid="dialog-delete-confirm">
           <DialogHeader>
             <DialogTitle>Delete Worker ID Type</DialogTitle>
             <DialogDescription>
@@ -436,14 +422,8 @@ export default function WorkerIDTypesPage() {
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
+              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
