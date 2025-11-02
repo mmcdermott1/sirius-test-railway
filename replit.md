@@ -120,6 +120,34 @@ Preferred communication style: Simple, everyday language.
   - Applied to all worker pages (Details, Name, Email, IDs, Addresses, Phone Numbers)
   - Provides better visual indication that these pages are for individual workers
 
+### Contact Birth Date Management (November 2, 2025)
+- **Birth Date Field**: Contacts table now includes a birth date field
+  - Stored as PostgreSQL `date` type (not timestamp) for calendar dates
+  - Birth date is optional and can be left empty
+  - Validated using YYYY-MM-DD format with proper calendar validation
+- **Birth Date Tab**: New "Birth Date" tab added under Identity section for managing birth dates
+  - Displays current birth date formatted as "Month Day, Year" (e.g., "January 15, 1990")
+  - Edit mode uses HTML5 date picker (input type="date")
+  - Backend and frontend both validate date format and calendar validity
+  - Clear error messages for invalid dates (e.g., February 30)
+- **Details Display**: Birth date now appears on the main worker Details page
+  - Shown in the Basic Information section alongside name and worker ID
+  - Displayed with calendar icon for visual clarity
+  - Shows "No birth date set" if not configured
+- **Timezone-Safe Display**: Birth dates are displayed without timezone conversion
+  - Uses string parsing instead of Date objects to avoid off-by-one day issues
+  - Ensures displayed date matches exactly what's stored in database
+- **Backend Validation**: Comprehensive server-side validation prevents invalid dates
+  - Regex validation for YYYY-MM-DD format
+  - Calendar-accurate validation including leap year calculation
+  - Month range validation (1-12)
+  - Day range validation based on month and leap years
+  - Rejects invalid dates like 2024-02-30 or 2024-13-01
+- **Navigation**: Identity section groups Name, IDs, and Birth Date tabs
+  - Route: `/workers/:id/birth-date`
+  - BirthDateManagement component handles viewing and editing
+  - Backend API: PUT `/api/workers/:id` with `birthDate` field updates contact birth date
+
 ## Recent Changes (Prior)
 
 ### Contact Name Components (November 2, 2025)
