@@ -73,9 +73,9 @@ function WorkerDetailsContent() {
   return (
     <Card>
       <CardContent className="space-y-6">
-        {/* Basic Information */}
+        {/* Identity */}
         <div>
-          <h3 className="text-lg font-semibold text-foreground mb-3">Basic Information</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-3">Identity</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Full Name</label>
