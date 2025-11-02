@@ -56,6 +56,7 @@ export const workers = pgTable("workers", {
 export const employers = pgTable("employers", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
 });
 
 export const variables = pgTable("variables", {
