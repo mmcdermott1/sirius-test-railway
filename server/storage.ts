@@ -473,14 +473,22 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Invalid SSN format");
     }
     
-    // Update the worker's SSN
-    const [updatedWorker] = await db
-      .update(workers)
-      .set({ ssn: cleanSSN || null })
-      .where(eq(workers.id, workerId))
-      .returning();
-    
-    return updatedWorker || undefined;
+    try {
+      // Update the worker's SSN
+      const [updatedWorker] = await db
+        .update(workers)
+        .set({ ssn: cleanSSN || null })
+        .where(eq(workers.id, workerId))
+        .returning();
+      
+      return updatedWorker || undefined;
+    } catch (error: any) {
+      // Check for unique constraint violation
+      if (error.code === '23505' && error.constraint === 'workers_ssn_unique') {
+        throw new Error("SSN already exists for another worker");
+      }
+      throw error;
+    }
   }
 
   async deleteWorker(id: string): Promise<boolean> {

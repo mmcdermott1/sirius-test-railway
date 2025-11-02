@@ -106,14 +106,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Handle SSN updates
       if (ssn !== undefined) {
-        const worker = await storage.updateWorkerSSN(id, ssn);
-        
-        if (!worker) {
-          res.status(404).json({ message: "Worker not found" });
-          return;
+        try {
+          const worker = await storage.updateWorkerSSN(id, ssn);
+          
+          if (!worker) {
+            res.status(404).json({ message: "Worker not found" });
+            return;
+          }
+          
+          res.json(worker);
+        } catch (error: any) {
+          if (error.message === "SSN already exists for another worker") {
+            res.status(409).json({ message: "This SSN is already assigned to another worker" });
+            return;
+          }
+          throw error;
         }
-        
-        res.json(worker);
       }
       // Support both old format (name) and new format (nameComponents)
       else if (nameComponents) {

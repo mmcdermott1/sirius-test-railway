@@ -48,10 +48,11 @@ export default function IDsManagement({ workerId }: IDsManagementProps) {
         description: "SSN updated successfully!",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to update SSN. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to update SSN. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },

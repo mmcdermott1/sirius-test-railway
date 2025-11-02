@@ -49,7 +49,7 @@ export const contacts = pgTable("contacts", {
 export const workers = pgTable("workers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  ssn: text("ssn"),
+  ssn: text("ssn").unique(),
 });
 
 export const variables = pgTable("variables", {

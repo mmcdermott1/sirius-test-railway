@@ -113,11 +113,14 @@ Preferred communication style: Simple, everyday language.
   - Stored as unformatted 9-digit string (e.g., "008621234")
   - Displayed in formatted XXX-XX-XXXX format (e.g., "008-62-1234")
   - Helper functions `formatSSN()` and `unformatSSN()` in shared schema handle formatting
+  - SSN field has a unique constraint - no two workers can have the same SSN
+  - Duplicate SSN attempts return a 409 Conflict error with a clear message
 - **IDs Tab**: New "IDs" tab added to worker detail pages for managing identification numbers
   - Displays current SSN with formatted display
   - Edit mode provides validation and auto-formatting as user types
   - Backend validation ensures SSN is exactly 9 digits
   - SSN field is optional and can be cleared
+  - Shows error message if trying to use an SSN already assigned to another worker
 - **Navigation**: All worker detail pages now include "IDs" tab alongside Details, Name, Addresses, and Phone Numbers
   - Route: `/workers/:id/ids`
   - IDsManagement component handles viewing and editing SSN
