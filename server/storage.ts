@@ -1,6 +1,6 @@
 // Database storage implementation based on blueprint:javascript_database
 import { 
-  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, optionsGender,
+  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, optionsGender, optionsWorkerIdType,
   type User, type InsertUser, type Worker, type InsertWorker,
   type Contact, type InsertContact,
   type Role, type InsertRole, type Variable, type InsertVariable,
@@ -8,6 +8,7 @@ import {
   type PhoneNumber, type InsertPhoneNumber,
   type Employer, type InsertEmployer,
   type GenderOption, type InsertGenderOption,
+  type WorkerIdType, type InsertWorkerIdType,
   type UserRole, type RolePermission, type AssignRole, type AssignPermission
 } from "@shared/schema";
 import { permissionRegistry, type PermissionDefinition } from "@shared/permissions";
@@ -120,6 +121,14 @@ export interface IStorage {
   updateGenderOption(id: string, genderOption: Partial<InsertGenderOption>): Promise<GenderOption | undefined>;
   deleteGenderOption(id: string): Promise<boolean>;
   updateGenderOptionSequence(id: string, sequence: number): Promise<GenderOption | undefined>;
+
+  // Worker ID Type CRUD operations
+  getAllWorkerIdTypes(): Promise<WorkerIdType[]>;
+  getWorkerIdType(id: string): Promise<WorkerIdType | undefined>;
+  createWorkerIdType(workerIdType: InsertWorkerIdType): Promise<WorkerIdType>;
+  updateWorkerIdType(id: string, workerIdType: Partial<InsertWorkerIdType>): Promise<WorkerIdType | undefined>;
+  deleteWorkerIdType(id: string): Promise<boolean>;
+  updateWorkerIdTypeSequence(id: string, sequence: number): Promise<WorkerIdType | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -997,6 +1006,42 @@ export class DatabaseStorage implements IStorage {
 
   async updateGenderOptionSequence(id: string, sequence: number): Promise<GenderOption | undefined> {
     return this.updateGenderOption(id, { sequence });
+  }
+
+  // Worker ID Type CRUD operations
+  async getAllWorkerIdTypes(): Promise<WorkerIdType[]> {
+    return db.select().from(optionsWorkerIdType).orderBy(optionsWorkerIdType.sequence);
+  }
+
+  async getWorkerIdType(id: string): Promise<WorkerIdType | undefined> {
+    const [workerIdType] = await db.select().from(optionsWorkerIdType).where(eq(optionsWorkerIdType.id, id));
+    return workerIdType || undefined;
+  }
+
+  async createWorkerIdType(insertWorkerIdType: InsertWorkerIdType): Promise<WorkerIdType> {
+    const [workerIdType] = await db
+      .insert(optionsWorkerIdType)
+      .values(insertWorkerIdType)
+      .returning();
+    return workerIdType;
+  }
+
+  async updateWorkerIdType(id: string, workerIdTypeUpdate: Partial<InsertWorkerIdType>): Promise<WorkerIdType | undefined> {
+    const [workerIdType] = await db
+      .update(optionsWorkerIdType)
+      .set(workerIdTypeUpdate)
+      .where(eq(optionsWorkerIdType.id, id))
+      .returning();
+    return workerIdType || undefined;
+  }
+
+  async deleteWorkerIdType(id: string): Promise<boolean> {
+    const result = await db.delete(optionsWorkerIdType).where(eq(optionsWorkerIdType.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async updateWorkerIdTypeSequence(id: string, sequence: number): Promise<WorkerIdType | undefined> {
+    return this.updateWorkerIdType(id, { sequence });
   }
 }
 

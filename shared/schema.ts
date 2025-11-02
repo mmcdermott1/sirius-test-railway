@@ -162,6 +162,10 @@ export const insertGenderOptionSchema = createInsertSchema(optionsGender).omit({
   id: true,
 });
 
+export const insertWorkerIdTypeSchema = createInsertSchema(optionsWorkerIdType).omit({
+  id: true,
+});
+
 export const assignRoleSchema = z.object({
   userId: z.string(),
   roleId: z.string(),
@@ -201,6 +205,9 @@ export type PhoneNumber = typeof phoneNumbers.$inferSelect;
 
 export type InsertGenderOption = z.infer<typeof insertGenderOptionSchema>;
 export type GenderOption = typeof optionsGender.$inferSelect;
+
+export type InsertWorkerIdType = z.infer<typeof insertWorkerIdTypeSchema>;
+export type WorkerIdType = typeof optionsWorkerIdType.$inferSelect;
 
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
