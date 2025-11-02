@@ -44,6 +44,7 @@ export const contacts = pgTable("contacts", {
   generational: text("generational"),
   credentials: text("credentials"),
   displayName: text("display_name").notNull(),
+  email: text("email"),
 });
 
 export const workers = pgTable("workers", {

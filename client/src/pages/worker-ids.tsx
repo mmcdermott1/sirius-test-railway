@@ -182,6 +182,11 @@ export default function WorkerIDs() {
                     Name
                   </Button>
                 </Link>
+                <Link href={`/workers/${worker.id}/email`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-email">
+                    Email
+                  </Button>
+                </Link>
                 <Button variant="default" size="sm" data-testid="button-worker-ids">
                   IDs
                 </Button>

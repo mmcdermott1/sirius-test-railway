@@ -72,6 +72,7 @@ export interface IStorage {
     generational?: string;
     credentials?: string;
   }): Promise<Worker | undefined>;
+  updateWorkerContactEmail(id: string, email: string): Promise<Worker | undefined>;
   updateWorkerSSN(id: string, ssn: string): Promise<Worker | undefined>;
   deleteWorker(id: string): Promise<boolean>;
 
@@ -461,6 +462,29 @@ export class DatabaseStorage implements IStorage {
         credentials: components.credentials?.trim() || null,
         displayName,
       })
+      .where(eq(contacts.id, currentWorker.contactId));
+    
+    return currentWorker;
+  }
+
+  async updateWorkerContactEmail(workerId: string, email: string): Promise<Worker | undefined> {
+    // Get the current worker to find its contact
+    const currentWorker = await this.getWorker(workerId);
+    if (!currentWorker) {
+      return undefined;
+    }
+    
+    const cleanEmail = email.trim();
+    
+    // Basic email validation
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw new Error("Invalid email format");
+    }
+    
+    // Update the contact's email
+    await db
+      .update(contacts)
+      .set({ email: cleanEmail || null })
       .where(eq(contacts.id, currentWorker.contactId));
     
     return currentWorker;

@@ -108,6 +108,25 @@ Preferred communication style: Simple, everyday language.
   - Configuration changes take effect immediately without requiring server restart
   - Full validation response data stored in JSONB field for auditing
 
+### Contact Email Management (November 2, 2025)
+- **Email Field**: Contacts table now includes an email address field
+  - Stored as text in the database
+  - Validated using standard email format regex (basic validation)
+  - Email field is optional and can be left empty
+- **Email Tab**: New "Email" tab added to worker detail pages for managing email addresses
+  - Displays current email address with Mail icon
+  - Edit mode provides validation before saving
+  - Backend and frontend both validate email format
+  - Clear error messages for invalid email formats
+- **Details Display**: Email address now appears on the main worker Details page
+  - Shown in the Contact Information section
+  - Displayed alongside phone number and address
+  - Shows "No email address set" if not configured
+- **Navigation**: All worker detail pages now include "Email" tab alongside Details, Name, IDs, Addresses, and Phone Numbers
+  - Route: `/workers/:id/email`
+  - EmailManagement component handles viewing and editing email
+  - Backend API: PUT `/api/workers/:id` with `email` field updates contact email
+
 ### Worker SSN Management (November 2, 2025)
 - **SSN Field**: Workers table now includes an SSN (Social Security Number) field
   - Stored as unformatted 9-digit string (e.g., "008621234")

@@ -222,6 +222,11 @@ export default function WorkerView() {
                     Name
                   </Button>
                 </Link>
+                <Link href={`/workers/${worker.id}/email`}>
+                  <Button variant="outline" size="sm" data-testid="button-worker-email">
+                    Email
+                  </Button>
+                </Link>
                 <Link href={`/workers/${worker.id}/ids`}>
                   <Button variant="outline" size="sm" data-testid="button-worker-ids">
                     IDs
@@ -264,26 +269,19 @@ export default function WorkerView() {
             <div className="pt-4 border-t border-border">
               <h3 className="text-lg font-semibold text-foreground mb-3">Contact Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Primary Address */}
+                {/* Email Address */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <MapPin size={14} />
-                    Primary Address
+                    <Mail size={14} />
+                    Email Address
                   </label>
-                  {primaryAddress ? (
-                    <div className="text-foreground" data-testid="text-primary-address">
-                      {primaryAddress.friendlyName && (
-                        <p className="font-medium text-sm text-muted-foreground mb-1">
-                          {primaryAddress.friendlyName}
-                        </p>
-                      )}
-                      <p>{primaryAddress.street}</p>
-                      <p>{primaryAddress.city}, {primaryAddress.state} {primaryAddress.postalCode}</p>
-                      <p className="text-sm text-muted-foreground">{primaryAddress.country}</p>
-                    </div>
+                  {contact?.email ? (
+                    <p className="text-foreground" data-testid="text-worker-email">
+                      {contact.email}
+                    </p>
                   ) : (
-                    <p className="text-muted-foreground text-sm" data-testid="text-no-primary-address">
-                      No primary address set
+                    <p className="text-muted-foreground text-sm" data-testid="text-no-email">
+                      No email address set
                     </p>
                   )}
                 </div>
@@ -306,6 +304,30 @@ export default function WorkerView() {
                   ) : (
                     <p className="text-muted-foreground text-sm" data-testid="text-no-primary-phone">
                       No primary phone number set
+                    </p>
+                  )}
+                </div>
+
+                {/* Primary Address */}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <MapPin size={14} />
+                    Primary Address
+                  </label>
+                  {primaryAddress ? (
+                    <div className="text-foreground" data-testid="text-primary-address">
+                      {primaryAddress.friendlyName && (
+                        <p className="font-medium text-sm text-muted-foreground mb-1">
+                          {primaryAddress.friendlyName}
+                        </p>
+                      )}
+                      <p>{primaryAddress.street}</p>
+                      <p>{primaryAddress.city}, {primaryAddress.state} {primaryAddress.postalCode}</p>
+                      <p className="text-sm text-muted-foreground">{primaryAddress.country}</p>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm" data-testid="text-no-primary-address">
+                      No primary address set
                     </p>
                   )}
                 </div>
