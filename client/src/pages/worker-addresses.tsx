@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import AddressManagement from "@/components/worker/AddressManagement";
+import { PhoneNumberManagement } from "@/components/worker/PhoneNumberManagement";
 
 export default function WorkerAddresses() {
   const { id } = useParams<{ id: string }>();
@@ -176,8 +177,11 @@ export default function WorkerAddresses() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-8">
             <AddressManagement workerId={worker.id} contactId={worker.contactId} />
+            <div className="pt-8 border-t border-border">
+              <PhoneNumberManagement contactId={worker.contactId} />
+            </div>
           </CardContent>
         </Card>
       </main>
