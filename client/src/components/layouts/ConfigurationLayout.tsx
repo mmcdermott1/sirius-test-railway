@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ConfigurationLayoutProps {
@@ -39,6 +39,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       icon: Phone,
       testId: "nav-config-phone-numbers",
       permission: "admin.manage",
+    },
+    {
+      path: "/config/gender-options",
+      label: "Gender Options",
+      icon: List,
+      testId: "nav-config-gender-options",
+      permission: "variables.manage",
     },
   ];
 

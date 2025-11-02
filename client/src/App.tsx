@@ -28,6 +28,7 @@ import ConfigurationLayout from "@/components/layouts/ConfigurationLayout";
 import UserManagementConfigPage from "@/pages/config/users";
 import PostalAddressesConfigPage from "@/pages/config/addresses";
 import PhoneNumbersConfigPage from "@/pages/config/phone-numbers";
+import GenderOptionsPage from "@/pages/config/gender-options";
 import SiteInformation from "@/pages/site-information";
 import NotFound from "@/pages/not-found";
 
@@ -181,6 +182,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PhoneNumbersConfigPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/config/gender-options">
+        <ProtectedRoute permission="variables.manage">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <GenderOptionsPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
