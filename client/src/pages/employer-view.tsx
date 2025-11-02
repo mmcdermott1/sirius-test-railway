@@ -100,15 +100,15 @@ export default function EmployerView() {
               <h3 className="text-lg font-semibold text-foreground mb-3">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Employer ID</label>
-                  <p className="text-foreground font-mono text-sm" data-testid="text-employer-id">
-                    {employer.id}
-                  </p>
-                </div>
-                <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Employer Name</label>
                   <p className="text-foreground" data-testid="text-employer-name-field">
                     {employer.name}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Record ID</label>
+                  <p className="text-foreground font-mono text-sm" data-testid="text-employer-id">
+                    {employer.id}
                   </p>
                 </div>
                 <div className="space-y-2">
