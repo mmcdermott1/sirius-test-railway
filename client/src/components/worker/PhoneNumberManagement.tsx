@@ -379,12 +379,6 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
                       <CardTitle className="text-base">
                         {phoneNumber.friendlyName || formatPhoneNumberForDisplay(phoneNumber.phoneNumber)}
                       </CardTitle>
-                      {phoneNumber.isPrimary && (
-                        <Badge variant="default" className="flex items-center space-x-1">
-                          <Star size={12} />
-                          <span>Primary</span>
-                        </Badge>
-                      )}
                       {!phoneNumber.isActive && (
                         <Badge variant="secondary">Inactive</Badge>
                       )}
@@ -394,17 +388,16 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
                     )}
                   </div>
                   <div className="flex items-center space-x-2">
-                    {!phoneNumber.isPrimary && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSetPrimary(phoneNumber.id)}
-                        disabled={setPrimaryMutation.isPending}
-                        data-testid={`button-set-primary-phone-${phoneNumber.id}`}
-                      >
-                        <Star size={14} />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSetPrimary(phoneNumber.id)}
+                      disabled={setPrimaryMutation.isPending}
+                      data-testid={`button-set-primary-phone-${phoneNumber.id}`}
+                      className={phoneNumber.isPrimary ? "text-yellow-500 hover:text-yellow-600" : ""}
+                    >
+                      <Star size={16} fill={phoneNumber.isPrimary ? "currentColor" : "none"} />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

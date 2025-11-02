@@ -264,12 +264,6 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
                       <CardTitle className="text-base">
                         {address.friendlyName || address.street}
                       </CardTitle>
-                      {address.isPrimary && (
-                        <Badge variant="default" className="flex items-center space-x-1">
-                          <Star size={12} />
-                          <span>Primary</span>
-                        </Badge>
-                      )}
                       {!address.isActive && (
                         <Badge variant="secondary">Inactive</Badge>
                       )}
@@ -288,17 +282,16 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
                     >
                       <Eye size={14} />
                     </Button>
-                    {!address.isPrimary && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSetPrimary(address.id)}
-                        disabled={setPrimaryMutation.isPending}
-                        data-testid={`button-set-primary-${address.id}`}
-                      >
-                        <Star size={14} />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSetPrimary(address.id)}
+                      disabled={setPrimaryMutation.isPending}
+                      data-testid={`button-set-primary-${address.id}`}
+                      className={address.isPrimary ? "text-yellow-500 hover:text-yellow-600" : ""}
+                    >
+                      <Star size={16} fill={address.isPrimary ? "currentColor" : "none"} />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
