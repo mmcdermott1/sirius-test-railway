@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { insertPhoneNumberSchema } from "@shared/schema";
+import { phoneValidationService } from "../services/phone-validation";
 
 // Type for middleware functions
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -44,9 +45,21 @@ export function registerPhoneNumberRoutes(
     try {
       const { contactId } = req.params;
       
+      // Validate and format the phone number
+      const validationResult = phoneValidationService.validateAndFormat(req.body.phoneNumber);
+      
+      if (!validationResult.isValid) {
+        return res.status(400).json({ 
+          message: validationResult.error || "Invalid phone number",
+          error: validationResult.error
+        });
+      }
+      
       const phoneNumberData = insertPhoneNumberSchema.parse({ 
         ...req.body,
-        contactId 
+        phoneNumber: validationResult.e164Format,
+        contactId,
+        validationResponse: validationResult
       });
       
       const newPhoneNumber = await storage.createPhoneNumber(phoneNumberData);
@@ -67,10 +80,26 @@ export function registerPhoneNumberRoutes(
     try {
       const { id } = req.params;
       
-      // Parse the update data, but don't require contactId since it shouldn't change
-      const updateData = insertPhoneNumberSchema.partial().omit({ contactId: true }).parse(req.body);
+      // If phone number is being updated, validate and format it
+      let updateData: any = { ...req.body };
+      if (req.body.phoneNumber) {
+        const validationResult = phoneValidationService.validateAndFormat(req.body.phoneNumber);
+        
+        if (!validationResult.isValid) {
+          return res.status(400).json({ 
+            message: validationResult.error || "Invalid phone number",
+            error: validationResult.error
+          });
+        }
+        
+        updateData.phoneNumber = validationResult.e164Format;
+        updateData.validationResponse = validationResult;
+      }
       
-      const updatedPhoneNumber = await storage.updatePhoneNumber(id, updateData);
+      // Parse the update data, but don't require contactId since it shouldn't change
+      const parsedUpdateData = insertPhoneNumberSchema.partial().omit({ contactId: true }).parse(updateData);
+      
+      const updatedPhoneNumber = await storage.updatePhoneNumber(id, parsedUpdateData);
       
       if (!updatedPhoneNumber) {
         return res.status(404).json({ message: "Phone number not found" });
