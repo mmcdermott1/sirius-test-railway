@@ -15,6 +15,7 @@ import { insertPhoneNumberSchema } from "@shared/schema";
 import { Phone, Plus, Edit, Trash2, Star } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
+import { formatPhoneNumberForDisplay } from "@/lib/phone-utils";
 
 // Form schema that omits contactId since it's provided as a prop
 const phoneNumberFormSchema = insertPhoneNumberSchema.omit({ contactId: true });
@@ -371,7 +372,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2 flex-wrap gap-2">
                       <CardTitle className="text-base">
-                        {phoneNumber.friendlyName || phoneNumber.phoneNumber}
+                        {phoneNumber.friendlyName || formatPhoneNumberForDisplay(phoneNumber.phoneNumber)}
                       </CardTitle>
                       {phoneNumber.isPrimary && (
                         <Badge variant="default" className="flex items-center space-x-1">
@@ -384,7 +385,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
                       )}
                     </div>
                     {phoneNumber.friendlyName && (
-                      <p className="text-sm text-muted-foreground">{phoneNumber.phoneNumber}</p>
+                      <p className="text-sm text-muted-foreground">{formatPhoneNumberForDisplay(phoneNumber.phoneNumber)}</p>
                     )}
                   </div>
                   <div className="flex items-center space-x-2">
