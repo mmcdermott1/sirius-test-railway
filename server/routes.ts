@@ -98,15 +98,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PUT /api/workers/:id - Update a worker's contact name, email, or SSN (requires workers.manage permission)
+  // PUT /api/workers/:id - Update a worker's contact name, email, birth date, or SSN (requires workers.manage permission)
   app.put("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, nameComponents, email, ssn } = req.body;
+      const { name, nameComponents, email, birthDate, ssn } = req.body;
       
       // Handle email updates
       if (email !== undefined) {
         const worker = await storage.updateWorkerContactEmail(id, email);
+        
+        if (!worker) {
+          res.status(404).json({ message: "Worker not found" });
+          return;
+        }
+        
+        res.json(worker);
+      }
+      // Handle birth date updates
+      else if (birthDate !== undefined) {
+        const worker = await storage.updateWorkerContactBirthDate(id, birthDate);
         
         if (!worker) {
           res.status(404).json({ message: "Worker not found" });
@@ -156,7 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         res.json(worker);
       } else {
-        return res.status(400).json({ message: "Worker name, name components, or SSN are required" });
+        return res.status(400).json({ message: "Worker name, name components, email, birth date, or SSN are required" });
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to update worker" });

@@ -74,6 +74,7 @@ export interface IStorage {
     credentials?: string;
   }): Promise<Worker | undefined>;
   updateWorkerContactEmail(id: string, email: string): Promise<Worker | undefined>;
+  updateWorkerContactBirthDate(id: string, birthDate: string | null): Promise<Worker | undefined>;
   updateWorkerSSN(id: string, ssn: string): Promise<Worker | undefined>;
   deleteWorker(id: string): Promise<boolean>;
 
@@ -493,6 +494,47 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(contacts)
       .set({ email: cleanEmail || null })
+      .where(eq(contacts.id, currentWorker.contactId));
+    
+    return currentWorker;
+  }
+
+  async updateWorkerContactBirthDate(workerId: string, birthDate: string | null): Promise<Worker | undefined> {
+    // Get the current worker to find its contact
+    const currentWorker = await this.getWorker(workerId);
+    if (!currentWorker) {
+      return undefined;
+    }
+    
+    // Validate birth date format if provided
+    if (birthDate) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(birthDate)) {
+        throw new Error("Invalid date format. Expected YYYY-MM-DD");
+      }
+      
+      // Parse and validate calendar date
+      const [yearStr, monthStr, dayStr] = birthDate.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+      const day = parseInt(dayStr, 10);
+      
+      // Validate month range
+      if (month < 1 || month > 12) {
+        throw new Error("Invalid month. Must be between 1 and 12");
+      }
+      
+      // Validate day range based on month
+      const daysInMonth = [31, (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      if (day < 1 || day > daysInMonth[month - 1]) {
+        throw new Error(`Invalid day. Must be between 1 and ${daysInMonth[month - 1]} for the given month`);
+      }
+    }
+    
+    // Update the contact's birth date
+    await db
+      .update(contacts)
+      .set({ birthDate: birthDate || null })
       .where(eq(contacts.id, currentWorker.contactId));
     
     return currentWorker;

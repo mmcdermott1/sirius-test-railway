@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PostalAddress, PhoneNumber as PhoneNumberType } from "@shared/schema";
@@ -63,6 +63,26 @@ function WorkerDetailsContent() {
               <p className="text-foreground font-mono text-sm" data-testid={`text-worker-uuid-${worker.id}`}>
                 {worker.id}
               </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Calendar size={14} />
+                Birth Date
+              </label>
+              {contact?.birthDate ? (
+                <p className="text-foreground" data-testid="text-worker-birthdate">
+                  {(() => {
+                    const [year, month, day] = contact.birthDate.split('-');
+                    const monthNames = ["January", "February", "March", "April", "May", "June",
+                      "July", "August", "September", "October", "November", "December"];
+                    return `${monthNames[parseInt(month, 10) - 1]} ${parseInt(day, 10)}, ${year}`;
+                  })()}
+                </p>
+              ) : (
+                <p className="text-muted-foreground text-sm" data-testid="text-no-birthdate">
+                  No birth date set
+                </p>
+              )}
             </div>
           </div>
         </div>

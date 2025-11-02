@@ -13,6 +13,7 @@ import WorkerView from "@/pages/worker-view";
 import WorkerName from "@/pages/worker-name";
 import WorkerEmail from "@/pages/worker-email";
 import WorkerIDs from "@/pages/worker-ids";
+import WorkerBirthDate from "@/pages/worker-birth-date";
 import WorkerAddresses from "@/pages/worker-addresses";
 import WorkerPhoneNumbers from "@/pages/worker-phone-numbers";
 import Employers from "@/pages/employers";
@@ -92,6 +93,14 @@ function Router() {
         <ProtectedRoute permission="workers.view">
           <AuthenticatedLayout>
             <WorkerIDs />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/workers/:id/birth-date">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerBirthDate />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
