@@ -87,24 +87,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/workers - Create a new worker (requires workers.manage permission)
   app.post("/api/workers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
-      const validatedData = insertWorkerSchema.parse(req.body);
-      const worker = await storage.createWorker(validatedData);
+      const { name } = req.body;
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ message: "Worker name is required" });
+      }
+      const worker = await storage.createWorker(name.trim());
       res.status(201).json(worker);
     } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        res.status(400).json({ message: "Invalid worker data" });
-      } else {
-        res.status(500).json({ message: "Failed to create worker" });
-      }
+      res.status(500).json({ message: "Failed to create worker" });
     }
   });
 
-  // PUT /api/workers/:id - Update a worker (requires workers.manage permission)
+  // PUT /api/workers/:id - Update a worker's contact name (requires workers.manage permission)
   app.put("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const validatedData = insertWorkerSchema.partial().parse(req.body);
-      const worker = await storage.updateWorker(id, validatedData);
+      const { name } = req.body;
+      
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ message: "Worker name is required" });
+      }
+      
+      const worker = await storage.updateWorkerContactName(id, name.trim());
       
       if (!worker) {
         res.status(404).json({ message: "Worker not found" });
@@ -113,11 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(worker);
     } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        res.status(400).json({ message: "Invalid worker data" });
-      } else {
-        res.status(500).json({ message: "Failed to update worker" });
-      }
+      res.status(500).json({ message: "Failed to update worker" });
     }
   });
 
@@ -135,6 +135,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete worker" });
+    }
+  });
+
+  // GET /api/contacts/:id - Get a contact by ID (requires workers.view permission)
+  app.get("/api/contacts/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const contact = await storage.getContact(id);
+      
+      if (!contact) {
+        res.status(404).json({ message: "Contact not found" });
+        return;
+      }
+      
+      res.json(contact);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch contact" });
     }
   });
 

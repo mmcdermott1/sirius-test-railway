@@ -3,12 +3,17 @@ import { ArrowUpDown, User, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Worker } from "@shared/schema";
+import { Worker, Contact } from "@shared/schema";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 interface WorkersTableProps {
   workers: Worker[];
   isLoading: boolean;
+}
+
+interface WorkerWithContact extends Worker {
+  contactName?: string;
 }
 
 const avatarColors = [
@@ -22,11 +27,41 @@ const avatarColors = [
 export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const sortedWorkers = [...workers].sort((a, b) => {
+  // Fetch contacts for all workers
+  const contactIds = workers.map(w => w.contactId);
+  const { data: contacts = [] } = useQuery<Contact[]>({
+    queryKey: ["/api/contacts", contactIds],
+    queryFn: async () => {
+      // Fetch contacts individually for now - could be optimized with a batch endpoint
+      const contactPromises = contactIds.map(async (id) => {
+        const res = await fetch(`/api/contacts/${id}`);
+        if (res.ok) {
+          return res.json();
+        }
+        return null;
+      });
+      const results = await Promise.all(contactPromises);
+      return results.filter((c): c is Contact => c !== null);
+    },
+    enabled: contactIds.length > 0,
+  });
+
+  // Create a map of contactId to contact name
+  const contactMap = new Map(contacts.map(c => [c.id, c.name]));
+
+  // Add contact names to workers
+  const workersWithNames: WorkerWithContact[] = workers.map(worker => ({
+    ...worker,
+    contactName: contactMap.get(worker.contactId) || 'Unknown',
+  }));
+
+  const sortedWorkers = [...workersWithNames].sort((a, b) => {
+    const nameA = a.contactName || '';
+    const nameB = b.contactName || '';
     if (sortOrder === "asc") {
-      return a.name.localeCompare(b.name);
+      return nameA.localeCompare(nameB);
     }
-    return b.name.localeCompare(a.name);
+    return nameB.localeCompare(nameA);
   });
 
   const toggleSort = () => {
@@ -111,7 +146,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                         className="text-sm font-medium text-foreground"
                         data-testid={`text-worker-name-${worker.id}`}
                       >
-                        {worker.name}
+                        {worker.contactName}
                       </span>
                     </div>
                   </td>

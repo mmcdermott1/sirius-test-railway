@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { insertWorkerSchema } from "@shared/schema";
 
 export function AddWorkerForm() {
   const [name, setName] = useState("");
@@ -15,8 +14,7 @@ export function AddWorkerForm() {
 
   const addWorkerMutation = useMutation({
     mutationFn: async (workerData: { name: string }) => {
-      const validatedData = insertWorkerSchema.parse(workerData);
-      return apiRequest("POST", "/api/workers", validatedData);
+      return apiRequest("POST", "/api/workers", workerData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workers"] });

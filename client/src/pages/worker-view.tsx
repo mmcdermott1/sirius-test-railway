@@ -1,7 +1,7 @@
 import { Star, User, ArrowLeft, Mail, Phone, Edit, MapPin } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Worker, PostalAddress, PhoneNumber as PhoneNumberType } from "@shared/schema";
+import { Worker, PostalAddress, PhoneNumber as PhoneNumberType, Contact } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +22,19 @@ export default function WorkerView() {
       }
       return response.json();
     },
+  });
+
+  // Fetch contact for the worker
+  const { data: contact } = useQuery<Contact>({
+    queryKey: ["/api/contacts", worker?.contactId],
+    queryFn: async () => {
+      const response = await fetch(`/api/contacts/${worker?.contactId}`);
+      if (!response.ok) {
+        throw new Error("Contact not found");
+      }
+      return response.json();
+    },
+    enabled: !!worker?.contactId,
   });
 
   // Fetch primary address
@@ -181,7 +194,7 @@ export default function WorkerView() {
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
                     <CardTitle className="text-2xl font-bold text-foreground" data-testid={`text-worker-name-${worker.id}`}>
-                      {worker.name}
+                      {contact?.name || 'Loading...'}
                     </CardTitle>
                     <Button
                       size="sm"
@@ -225,7 +238,7 @@ export default function WorkerView() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Full Name</label>
                   <p className="text-foreground" data-testid={`text-worker-full-name-${worker.id}`}>
-                    {worker.name}
+                    {contact?.name || 'Loading...'}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -307,6 +320,7 @@ export default function WorkerView() {
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         worker={worker}
+        contactName={contact?.name || ''}
       />
     </div>
   );

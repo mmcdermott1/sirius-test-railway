@@ -19,9 +19,10 @@ interface EditWorkerNameModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   worker: Worker | null;
+  contactName: string;
 }
 
-export function EditWorkerNameModal({ open, onOpenChange, worker }: EditWorkerNameModalProps) {
+export function EditWorkerNameModal({ open, onOpenChange, worker, contactName }: EditWorkerNameModalProps) {
   const [name, setName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -31,9 +32,12 @@ export function EditWorkerNameModal({ open, onOpenChange, worker }: EditWorkerNa
       return apiRequest("PUT", `/api/workers/${id}`, { name });
     },
     onSuccess: (_, variables) => {
-      // Use the worker ID from mutation variables to ensure correct cache invalidation
+      // Invalidate worker queries and contact queries
       queryClient.invalidateQueries({ queryKey: ["/api/workers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workers", variables.id] });
+      if (worker?.contactId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/contacts", worker.contactId] });
+      }
       onOpenChange(false);
       toast({
         title: "Success",
@@ -49,12 +53,12 @@ export function EditWorkerNameModal({ open, onOpenChange, worker }: EditWorkerNa
     },
   });
 
-  // Initialize name when modal opens with worker data
+  // Initialize name when modal opens with contact name
   useEffect(() => {
-    if (worker && open) {
-      setName(worker.name);
+    if (contactName && open) {
+      setName(contactName);
     }
-  }, [worker, open]);
+  }, [contactName, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +68,7 @@ export function EditWorkerNameModal({ open, onOpenChange, worker }: EditWorkerNa
   };
 
   const handleCancel = () => {
-    setName(worker?.name || "");
+    setName(contactName || "");
     onOpenChange(false);
   };
 

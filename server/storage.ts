@@ -62,8 +62,8 @@ export interface IStorage {
   // Worker CRUD operations
   getAllWorkers(): Promise<Worker[]>;
   getWorker(id: string): Promise<Worker | undefined>;
-  createWorker(worker: InsertWorker): Promise<Worker>;
-  updateWorker(id: string, worker: Partial<InsertWorker>): Promise<Worker | undefined>;
+  createWorker(name: string): Promise<Worker>;
+  updateWorkerContactName(id: string, name: string): Promise<Worker | undefined>;
   deleteWorker(id: string): Promise<boolean>;
 
   // Variable CRUD operations
@@ -359,8 +359,7 @@ export class DatabaseStorage implements IStorage {
 
   // Worker operations
   async getAllWorkers(): Promise<Worker[]> {
-    const allWorkers = await db.select().from(workers);
-    return allWorkers.sort((a, b) => a.name.localeCompare(b.name));
+    return await db.select().from(workers);
   }
 
   async getWorker(id: string): Promise<Worker | undefined> {
@@ -368,45 +367,36 @@ export class DatabaseStorage implements IStorage {
     return worker || undefined;
   }
 
-  async createWorker(insertWorker: InsertWorker): Promise<Worker> {
-    // Create contact first with the same name as the worker
+  async createWorker(name: string): Promise<Worker> {
+    // Create contact first with the provided name
     const [contact] = await db
       .insert(contacts)
-      .values({ name: insertWorker.name })
+      .values({ name })
       .returning();
     
     // Create worker with the contact reference
     const [worker] = await db
       .insert(workers)
-      .values({ ...insertWorker, contactId: contact.id })
+      .values({ contactId: contact.id })
       .returning();
     
     return worker;
   }
 
-  async updateWorker(id: string, workerUpdate: Partial<InsertWorker>): Promise<Worker | undefined> {
+  async updateWorkerContactName(workerId: string, name: string): Promise<Worker | undefined> {
     // Get the current worker to find its contact
-    const currentWorker = await this.getWorker(id);
+    const currentWorker = await this.getWorker(workerId);
     if (!currentWorker) {
       return undefined;
     }
     
-    // Update the worker
-    const [worker] = await db
-      .update(workers)
-      .set(workerUpdate)
-      .where(eq(workers.id, id))
-      .returning();
+    // Update the contact's name
+    await db
+      .update(contacts)
+      .set({ name })
+      .where(eq(contacts.id, currentWorker.contactId));
     
-    // If the name was updated, also update the corresponding contact
-    if (workerUpdate.name && worker) {
-      await db
-        .update(contacts)
-        .set({ name: workerUpdate.name })
-        .where(eq(contacts.id, worker.contactId));
-    }
-    
-    return worker || undefined;
+    return currentWorker;
   }
 
   async deleteWorker(id: string): Promise<boolean> {
@@ -425,6 +415,12 @@ export class DatabaseStorage implements IStorage {
     }
     
     return result.length > 0;
+  }
+
+  // Contact operations
+  async getContact(id: string): Promise<Contact | undefined> {
+    const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+    return contact || undefined;
   }
 
   // Variable operations
