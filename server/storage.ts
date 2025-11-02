@@ -76,6 +76,7 @@ export interface IStorage {
   }): Promise<Worker | undefined>;
   updateWorkerContactEmail(id: string, email: string): Promise<Worker | undefined>;
   updateWorkerContactBirthDate(id: string, birthDate: string | null): Promise<Worker | undefined>;
+  updateWorkerContactGender(id: string, gender: string | null, genderNota: string | null): Promise<Worker | undefined>;
   updateWorkerSSN(id: string, ssn: string): Promise<Worker | undefined>;
   deleteWorker(id: string): Promise<boolean>;
 
@@ -544,6 +545,63 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(contacts)
       .set({ birthDate: birthDate || null })
+      .where(eq(contacts.id, currentWorker.contactId));
+    
+    return currentWorker;
+  }
+
+  async updateWorkerContactGender(workerId: string, gender: string | null, genderNota: string | null): Promise<Worker | undefined> {
+    // Get the current worker to find its contact
+    const currentWorker = await this.getWorker(workerId);
+    if (!currentWorker) {
+      return undefined;
+    }
+    
+    // If clearing gender, clear all gender fields
+    if (!gender) {
+      await db
+        .update(contacts)
+        .set({ 
+          gender: null,
+          genderNota: null,
+          genderCalc: null
+        })
+        .where(eq(contacts.id, currentWorker.contactId));
+      
+      return currentWorker;
+    }
+    
+    // Fetch the gender option to check if it's nota
+    const genderOption = await this.getGenderOption(gender);
+    if (!genderOption) {
+      throw new Error("Invalid gender option");
+    }
+    
+    // Calculate gender_calc based on whether it's nota or not
+    let genderCalc: string;
+    let finalGenderNota: string | null = null;
+    
+    if (genderOption.nota) {
+      // For nota options, use the genderNota value
+      const cleanGenderNota = genderNota?.trim() || "";
+      if (!cleanGenderNota) {
+        throw new Error("Gender specification is required for this option");
+      }
+      genderCalc = cleanGenderNota;
+      finalGenderNota = cleanGenderNota;
+    } else {
+      // For regular options, use the option name
+      genderCalc = genderOption.name;
+    }
+    
+    // Update the contact's gender fields
+    await db
+      .update(contacts)
+      .set({ 
+        gender,
+        genderNota: finalGenderNota,
+        genderCalc
+      })
       .where(eq(contacts.id, currentWorker.contactId));
     
     return currentWorker;

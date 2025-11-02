@@ -98,11 +98,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PUT /api/workers/:id - Update a worker's contact name, email, birth date, or SSN (requires workers.manage permission)
+  // PUT /api/workers/:id - Update a worker's contact name, email, birth date, SSN, or gender (requires workers.manage permission)
   app.put("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, nameComponents, email, birthDate, ssn } = req.body;
+      const { name, nameComponents, email, birthDate, ssn, gender, genderNota } = req.body;
       
       // Handle email updates
       if (email !== undefined) {
@@ -144,6 +144,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           throw error;
         }
+      }
+      // Handle gender updates
+      else if (gender !== undefined || genderNota !== undefined) {
+        const worker = await storage.updateWorkerContactGender(id, gender, genderNota);
+        
+        if (!worker) {
+          res.status(404).json({ message: "Worker not found" });
+          return;
+        }
+        
+        res.json(worker);
       }
       // Support both old format (name) and new format (nameComponents)
       else if (nameComponents) {
