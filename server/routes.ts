@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertWorkerSchema } from "@shared/schema";
+import { insertWorkerSchema, type InsertEmployer } from "@shared/schema";
 import { registerUserRoutes } from "./modules/users";
 import { registerVariableRoutes } from "./modules/variables";
 import { registerPostalAddressRoutes } from "./modules/postal-addresses";
@@ -185,7 +185,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/employers - Get all employers (requires workers.view permission)
   app.get("/api/employers", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
-      const employers = await storage.getAllEmployers();
+      const includeInactive = req.query.includeInactive === 'true';
+      const allEmployers = await storage.getAllEmployers();
+      
+      // Filter to active only by default
+      const employers = includeInactive 
+        ? allEmployers 
+        : allEmployers.filter(emp => emp.isActive);
+      
       res.json(employers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch employers" });
@@ -212,7 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/employers - Create a new employer (requires workers.manage permission)
   app.post("/api/employers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
-      const { id, name } = req.body;
+      const { id, name, isActive = true } = req.body;
       
       if (!id || typeof id !== 'string' || !id.trim()) {
         return res.status(400).json({ message: "Employer ID is required" });
@@ -224,7 +231,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const employer = await storage.createEmployer({ 
         id: id.trim(), 
-        name: name.trim() 
+        name: name.trim(),
+        isActive: typeof isActive === 'boolean' ? isActive : true
       });
       
       res.status(201).json(employer);
@@ -240,13 +248,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/employers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name } = req.body;
+      const { name, isActive } = req.body;
       
-      if (!name || typeof name !== 'string' || !name.trim()) {
-        return res.status(400).json({ message: "Employer name is required" });
+      const updates: Partial<InsertEmployer> = {};
+      
+      if (name !== undefined) {
+        if (!name || typeof name !== 'string' || !name.trim()) {
+          return res.status(400).json({ message: "Employer name cannot be empty" });
+        }
+        updates.name = name.trim();
       }
       
-      const employer = await storage.updateEmployer(id, { name: name.trim() });
+      if (isActive !== undefined) {
+        if (typeof isActive !== 'boolean') {
+          return res.status(400).json({ message: "isActive must be a boolean" });
+        }
+        updates.isActive = isActive;
+      }
+      
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No fields to update" });
+      }
+      
+      const employer = await storage.updateEmployer(id, updates);
       
       if (!employer) {
         res.status(404).json({ message: "Employer not found" });
