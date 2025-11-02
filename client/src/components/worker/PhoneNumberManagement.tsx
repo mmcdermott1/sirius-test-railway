@@ -14,6 +14,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhoneNumberSchema } from "@shared/schema";
 import { Phone, Plus, Edit, Trash2, Star } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { z } from "zod";
+
+// Form schema that omits contactId since it's provided as a prop
+const phoneNumberFormSchema = insertPhoneNumberSchema.omit({ contactId: true });
+type PhoneNumberFormData = z.infer<typeof phoneNumberFormSchema>;
 
 interface PhoneNumberManagementProps {
   contactId: string;
@@ -30,8 +35,8 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
     enabled: !!contactId,
   });
 
-  const form = useForm<InsertPhoneNumber>({
-    resolver: zodResolver(insertPhoneNumberSchema.omit({ contactId: true })),
+  const form = useForm<PhoneNumberFormData>({
+    resolver: zodResolver(phoneNumberFormSchema),
     defaultValues: {
       friendlyName: "",
       phoneNumber: "",
@@ -42,8 +47,9 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
 
   // Add phone number mutation
   const addPhoneNumberMutation = useMutation({
-    mutationFn: async (data: InsertPhoneNumber) => {
-      const response = await apiRequest("POST", `/api/contacts/${contactId}/phone-numbers`, data);
+    mutationFn: async (data: PhoneNumberFormData) => {
+      const payload: InsertPhoneNumber = { ...data, contactId };
+      const response = await apiRequest("POST", `/api/contacts/${contactId}/phone-numbers`, payload);
       return response.json();
     },
     onSuccess: () => {
@@ -66,7 +72,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
 
   // Update phone number mutation
   const updatePhoneNumberMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertPhoneNumber> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<PhoneNumberFormData> }) => {
       const response = await apiRequest("PUT", `/api/phone-numbers/${id}`, data);
       return response.json();
     },
@@ -130,7 +136,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
     },
   });
 
-  const handleAdd = (data: InsertPhoneNumber) => {
+  const handleAdd = (data: PhoneNumberFormData) => {
     addPhoneNumberMutation.mutate(data);
   };
 
@@ -144,7 +150,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
     });
   };
 
-  const handleUpdate = (data: InsertPhoneNumber) => {
+  const handleUpdate = (data: PhoneNumberFormData) => {
     if (editingPhoneNumber) {
       updatePhoneNumberMutation.mutate({ id: editingPhoneNumber.id, data });
     }
