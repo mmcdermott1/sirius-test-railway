@@ -1,12 +1,13 @@
 // Database storage implementation based on blueprint:javascript_database
 import { 
-  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers,
+  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, optionsGender,
   type User, type InsertUser, type Worker, type InsertWorker,
   type Contact, type InsertContact,
   type Role, type InsertRole, type Variable, type InsertVariable,
   type PostalAddress, type InsertPostalAddress,
   type PhoneNumber, type InsertPhoneNumber,
   type Employer, type InsertEmployer,
+  type GenderOption, type InsertGenderOption,
   type UserRole, type RolePermission, type AssignRole, type AssignPermission
 } from "@shared/schema";
 import { permissionRegistry, type PermissionDefinition } from "@shared/permissions";
@@ -110,6 +111,14 @@ export interface IStorage {
   updatePhoneNumber(id: string, phoneNumber: Partial<InsertPhoneNumber>): Promise<PhoneNumber | undefined>;
   deletePhoneNumber(id: string): Promise<boolean>;
   setPhoneNumberAsPrimary(phoneNumberId: string, contactId: string): Promise<PhoneNumber | undefined>;
+
+  // Gender Option CRUD operations
+  getAllGenderOptions(): Promise<GenderOption[]>;
+  getGenderOption(id: string): Promise<GenderOption | undefined>;
+  createGenderOption(genderOption: InsertGenderOption): Promise<GenderOption>;
+  updateGenderOption(id: string, genderOption: Partial<InsertGenderOption>): Promise<GenderOption | undefined>;
+  deleteGenderOption(id: string): Promise<boolean>;
+  updateGenderOptionSequence(id: string, sequence: number): Promise<GenderOption | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -894,6 +903,42 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return phoneNumber || undefined;
+  }
+
+  // Gender Option CRUD operations
+  async getAllGenderOptions(): Promise<GenderOption[]> {
+    return db.select().from(optionsGender).orderBy(optionsGender.sequence);
+  }
+
+  async getGenderOption(id: string): Promise<GenderOption | undefined> {
+    const [genderOption] = await db.select().from(optionsGender).where(eq(optionsGender.id, id));
+    return genderOption || undefined;
+  }
+
+  async createGenderOption(insertGenderOption: InsertGenderOption): Promise<GenderOption> {
+    const [genderOption] = await db
+      .insert(optionsGender)
+      .values(insertGenderOption)
+      .returning();
+    return genderOption;
+  }
+
+  async updateGenderOption(id: string, genderOptionUpdate: Partial<InsertGenderOption>): Promise<GenderOption | undefined> {
+    const [genderOption] = await db
+      .update(optionsGender)
+      .set(genderOptionUpdate)
+      .where(eq(optionsGender.id, id))
+      .returning();
+    return genderOption || undefined;
+  }
+
+  async deleteGenderOption(id: string): Promise<boolean> {
+    const result = await db.delete(optionsGender).where(eq(optionsGender.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async updateGenderOptionSequence(id: string, sequence: number): Promise<GenderOption | undefined> {
+    return this.updateGenderOption(id, { sequence });
   }
 }
 
