@@ -112,15 +112,22 @@ Preferred communication style: Simple, everyday language.
 - **SSN Field**: Workers table now includes an SSN (Social Security Number) field
   - Stored as unformatted 9-digit string (e.g., "008621234")
   - Displayed in formatted XXX-XX-XXXX format (e.g., "008-62-1234")
-  - Helper functions `formatSSN()` and `unformatSSN()` in shared schema handle formatting
+  - Helper functions `formatSSN()`, `unformatSSN()`, and `validateSSN()` in shared schema handle formatting and validation
   - SSN field has a unique constraint - no two workers can have the same SSN
   - Duplicate SSN attempts return a 409 Conflict error with a clear message
+- **SSN Validation**: SSNs are validated against standard Social Security Administration rules
+  - Cannot begin with 000 (invalid area number)
+  - Cannot begin with 666 (never assigned)
+  - Cannot begin with 900-999 (reserved for specific purposes)
+  - Middle two digits cannot be 00 (invalid group number)
+  - Last four digits cannot be 0000 (invalid serial number)
+  - Both frontend and backend validate against these rules with clear error messages
 - **IDs Tab**: New "IDs" tab added to worker detail pages for managing identification numbers
   - Displays current SSN with formatted display
   - Edit mode provides validation and auto-formatting as user types
-  - Backend validation ensures SSN is exactly 9 digits
+  - Backend validation ensures SSN follows all standard rules
   - SSN field is optional and can be cleared
-  - Shows error message if trying to use an SSN already assigned to another worker
+  - Shows error message if trying to use an SSN already assigned to another worker or if SSN violates standard rules
 - **Navigation**: All worker detail pages now include "IDs" tab alongside Details, Name, Addresses, and Phone Numbers
   - Route: `/workers/:id/ids`
   - IDsManagement component handles viewing and editing SSN

@@ -269,3 +269,46 @@ export function formatSSN(ssn: string | null | undefined): string {
 export function unformatSSN(ssn: string): string {
   return ssn.replace(/\D/g, '');
 }
+
+// Helper function to validate SSN against standard rules
+export function validateSSN(ssn: string): { valid: boolean; error?: string } {
+  // Remove any formatting
+  const digits = ssn.replace(/\D/g, '');
+  
+  // Must be exactly 9 digits
+  if (digits.length !== 9) {
+    return { valid: false, error: "SSN must be exactly 9 digits" };
+  }
+  
+  // Extract area, group, and serial numbers
+  const area = parseInt(digits.slice(0, 3), 10);
+  const group = parseInt(digits.slice(3, 5), 10);
+  const serial = parseInt(digits.slice(5, 9), 10);
+  
+  // Area number cannot be 000
+  if (area === 0) {
+    return { valid: false, error: "SSN cannot begin with 000" };
+  }
+  
+  // Area number cannot be 666
+  if (area === 666) {
+    return { valid: false, error: "SSN cannot begin with 666" };
+  }
+  
+  // Area number cannot be between 900-999 (reserved)
+  if (area >= 900) {
+    return { valid: false, error: "SSN cannot begin with 900-999 (reserved)" };
+  }
+  
+  // Group number cannot be 00
+  if (group === 0) {
+    return { valid: false, error: "SSN middle two digits cannot be 00" };
+  }
+  
+  // Serial number cannot be 0000
+  if (serial === 0) {
+    return { valid: false, error: "SSN last four digits cannot be 0000" };
+  }
+  
+  return { valid: true };
+}

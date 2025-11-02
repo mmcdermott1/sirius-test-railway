@@ -467,17 +467,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateWorkerSSN(workerId: string, ssn: string): Promise<Worker | undefined> {
-    // Validate SSN format (9 digits, no formatting)
     const cleanSSN = ssn.trim();
-    if (cleanSSN && !/^\d{9}$/.test(cleanSSN)) {
-      throw new Error("Invalid SSN format");
+    
+    // Allow clearing the SSN
+    if (!cleanSSN) {
+      const [updatedWorker] = await db
+        .update(workers)
+        .set({ ssn: null })
+        .where(eq(workers.id, workerId))
+        .returning();
+      
+      return updatedWorker || undefined;
+    }
+    
+    // Import the validateSSN function
+    const { validateSSN } = await import("@shared/schema");
+    
+    // Validate SSN format and rules
+    const validation = validateSSN(cleanSSN);
+    if (!validation.valid) {
+      throw new Error(validation.error || "Invalid SSN");
     }
     
     try {
       // Update the worker's SSN
       const [updatedWorker] = await db
         .update(workers)
-        .set({ ssn: cleanSSN || null })
+        .set({ ssn: cleanSSN })
         .where(eq(workers.id, workerId))
         .returning();
       
@@ -485,7 +501,7 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       // Check for unique constraint violation
       if (error.code === '23505' && error.constraint === 'workers_ssn_unique') {
-        throw new Error("SSN already exists for another worker");
+        throw new Error("This SSN is already assigned to another worker");
       }
       throw error;
     }

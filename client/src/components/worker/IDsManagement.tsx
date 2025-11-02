@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Worker, formatSSN, unformatSSN } from "@shared/schema";
+import { Worker, formatSSN, unformatSSN, validateSSN } from "@shared/schema";
 import { Loader2, Save, CreditCard } from "lucide-react";
 
 interface IDsManagementProps {
@@ -65,19 +65,25 @@ export default function IDsManagement({ workerId }: IDsManagementProps) {
 
   const handleSave = () => {
     const unformatted = unformatSSN(editedSSN);
-    // Validate SSN format (9 digits)
-    if (unformatted.length === 9 && /^\d{9}$/.test(unformatted)) {
-      updateSSNMutation.mutate(editedSSN);
-    } else if (unformatted.length === 0) {
-      // Allow clearing the SSN
+    
+    // Allow clearing the SSN
+    if (unformatted.length === 0) {
       updateSSNMutation.mutate("");
-    } else {
+      return;
+    }
+    
+    // Validate SSN using standard rules
+    const validation = validateSSN(unformatted);
+    if (!validation.valid) {
       toast({
         title: "Invalid SSN",
-        description: "SSN must be 9 digits (e.g., 123-45-6789)",
+        description: validation.error,
         variant: "destructive",
       });
+      return;
     }
+    
+    updateSSNMutation.mutate(editedSSN);
   };
 
   const handleCancel = () => {
