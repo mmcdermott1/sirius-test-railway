@@ -159,11 +159,16 @@ export function UnifiedAddressInput({
           const result = await response.json();
           
           if (result.success && result.validationResponse) {
-            // Update the form's validationResponse field
+            // Update the form's validationResponse field with fresh geocoded data
             form.setValue("validationResponse", result.validationResponse);
+          } else {
+            // Clear stale validationResponse when geocoding fails
+            form.setValue("validationResponse", undefined);
           }
         } catch (error) {
           console.error("Auto-geocoding failed:", error);
+          // Clear stale validationResponse on error
+          form.setValue("validationResponse", undefined);
         } finally {
           setIsGeocoding(false);
         }
