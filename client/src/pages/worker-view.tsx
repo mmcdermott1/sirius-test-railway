@@ -63,8 +63,15 @@ export default function WorkerView() {
     enabled: !!worker?.contactId,
   });
 
-  const primaryAddress = addresses.find(addr => addr.isPrimary && addr.isActive);
-  const primaryPhone = phoneNumbers.find(phone => phone.isPrimary && phone.isActive);
+  // Find primary address (prefer primary+active, then just primary, then just active)
+  const primaryAddress = addresses.find(addr => addr.isPrimary && addr.isActive) 
+    || addresses.find(addr => addr.isPrimary)
+    || addresses.find(addr => addr.isActive);
+  
+  // Find primary phone (prefer primary+active, then just primary, then just active)
+  const primaryPhone = phoneNumbers.find(phone => phone.isPrimary && phone.isActive)
+    || phoneNumbers.find(phone => phone.isPrimary)
+    || phoneNumbers.find(phone => phone.isActive);
 
 
   if (isLoading) {
