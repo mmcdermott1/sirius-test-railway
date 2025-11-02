@@ -203,7 +203,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.setVariable('phone_validation_config', req.body);
-      phoneValidationService['config'] = null;
       const updatedConfig = await phoneValidationService.loadConfig();
       res.json(updatedConfig);
     } catch (error) {
