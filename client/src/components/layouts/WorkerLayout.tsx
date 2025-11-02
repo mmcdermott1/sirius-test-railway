@@ -145,14 +145,22 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   }
 
   // Success state - render layout with tabs
-  const tabs = [
+  const mainTabs = [
     { id: "details", label: "Details", href: `/workers/${worker.id}` },
     { id: "name", label: "Name", href: `/workers/${worker.id}/name` },
-    { id: "email", label: "Email", href: `/workers/${worker.id}/email` },
     { id: "ids", label: "IDs", href: `/workers/${worker.id}/ids` },
+    { id: "contact", label: "Contact", href: `/workers/${worker.id}/email` },
+  ];
+
+  const contactSubTabs = [
+    { id: "email", label: "Email", href: `/workers/${worker.id}/email` },
     { id: "addresses", label: "Addresses", href: `/workers/${worker.id}/addresses` },
     { id: "phone-numbers", label: "Phone Numbers", href: `/workers/${worker.id}/phone-numbers` },
   ];
+
+  // Determine if we're in a contact sub-tab
+  const isContactSubTab = ["email", "addresses", "phone-numbers"].includes(activeTab);
+  const showContactSubTabs = isContactSubTab;
 
   const contextValue: WorkerLayoutContextValue = {
     worker,
@@ -188,12 +196,13 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
           </div>
         </header>
 
-        {/* Tab Navigation */}
+        {/* Main Tab Navigation */}
         <div className="bg-card border-b border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-2 py-3">
-              {tabs.map((tab) => (
-                tab.id === activeTab ? (
+              {mainTabs.map((tab) => {
+                const isActive = tab.id === activeTab || (tab.id === "contact" && isContactSubTab);
+                return isActive ? (
                   <Button
                     key={tab.id}
                     variant="default"
@@ -212,11 +221,43 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
                       {tab.label}
                     </Button>
                   </Link>
-                )
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
+
+        {/* Contact Sub-Tab Navigation */}
+        {showContactSubTabs && (
+          <div className="bg-muted/30 border-b border-border">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center space-x-2 py-2 pl-4">
+                {contactSubTabs.map((tab) => (
+                  tab.id === activeTab ? (
+                    <Button
+                      key={tab.id}
+                      variant="secondary"
+                      size="sm"
+                      data-testid={`button-worker-${tab.id}`}
+                    >
+                      {tab.label}
+                    </Button>
+                  ) : (
+                    <Link key={tab.id} href={tab.href}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`button-worker-${tab.id}`}
+                      >
+                        {tab.label}
+                      </Button>
+                    </Link>
+                  )
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
