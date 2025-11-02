@@ -57,8 +57,24 @@ Preferred communication style: Simple, everyday language.
 - **Zod**: Runtime type validation and schema definition
 - **TypeScript**: Static type checking across the entire application
 - **Drizzle Zod**: Integration between Drizzle ORM and Zod validation
+- **libphonenumber-js**: Phone number parsing, validation, and formatting
 
 ### API and State Management
 - **TanStack Query**: Server state management with caching and synchronization
 - **Date-fns**: Date utility functions
 - **ESBuild**: Fast JavaScript bundler for production builds
+
+## Recent Changes
+
+### Phone Number Management (November 2, 2025)
+- **Phone Number Validation**: All phone numbers are validated and stored in E.164 format
+  - Backend validation service uses libphonenumber-js to parse and validate phone numbers
+  - Invalid phone numbers are rejected with clear error messages
+  - Phone numbers are automatically canonicalized to E.164 format before storage
+- **Display Formatting**: Phone numbers are displayed in U.S. national format for better readability
+  - List view shows formatted phone numbers (e.g., (555) 123-4567)
+  - Edit dialog pre-fills with formatted phone numbers
+  - Internal storage remains in E.164 format for consistency and international compatibility
+- **Frontend Validation**: Client-side validation provides immediate feedback to users
+  - Zod schema validation prevents submission of invalid phone numbers
+  - Clear error messages guide users to correct format
