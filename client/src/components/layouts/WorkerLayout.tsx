@@ -56,48 +56,10 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   });
 
   const isLoading = workerLoading || contactLoading;
-  const isError = !!workerError || !worker;
+  const isError = !!workerError;
 
-  // Loading state
-  if (isLoading || !worker) {
-    return (
-      <div className="bg-background text-foreground min-h-screen">
-        <header className="bg-card border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <Star className="text-primary-foreground" size={16} />
-                </div>
-                <Skeleton className="h-6 w-48" />
-              </div>
-              <div className="flex items-center space-x-4">
-                <Link href="/workers">
-                  <Button variant="ghost" size="sm" data-testid="button-back-to-workers">
-                    <ArrowLeft size={16} className="mr-2" />
-                    Back to Workers
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Skeleton className="h-16 w-16 rounded-full mb-4" />
-              <Skeleton className="h-6 w-48 mb-2" />
-              <Skeleton className="h-4 w-64" />
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  // Error/Not found state
-  if (isError) {
+  // Error/Not found state - check this BEFORE loading
+  if (workerError) {
     return (
       <div className="bg-background text-foreground min-h-screen">
         <header className="bg-card border-b border-border">
@@ -137,6 +99,44 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
                   Return to Workers
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  // Loading state - check this AFTER error handling
+  if (isLoading || !worker) {
+    return (
+      <div className="bg-background text-foreground min-h-screen">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <Star className="text-primary-foreground" size={16} />
+                </div>
+                <Skeleton className="h-6 w-48" />
+              </div>
+              <div className="flex items-center space-x-4">
+                <Link href="/workers">
+                  <Button variant="ghost" size="sm" data-testid="button-back-to-workers">
+                    <ArrowLeft size={16} className="mr-2" />
+                    Back to Workers
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Skeleton className="h-16 w-16 rounded-full mb-4" />
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-64" />
             </CardContent>
           </Card>
         </main>
