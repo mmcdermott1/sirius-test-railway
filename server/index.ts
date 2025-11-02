@@ -6,6 +6,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializePermissions } from "@shared/permissions";
 import { addressValidationService } from "./services/address-validation";
+import { logger } from "./logger";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -46,16 +47,34 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      const logMessage = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      const meta: Record<string, any> = {
+        source: "express",
+        method: req.method,
+        path,
+        statusCode: res.statusCode,
+        duration,
+        ip: req.ip,
+      };
+
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        // Truncate response for display but keep full response in meta
+        let responsePreview = JSON.stringify(capturedJsonResponse);
+        if (responsePreview.length > 100) {
+          responsePreview = responsePreview.slice(0, 99) + "…";
+        }
+        meta.response = capturedJsonResponse;
+        meta.responsePreview = responsePreview;
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      // Log at appropriate level based on status code
+      if (res.statusCode >= 500) {
+        logger.error(logMessage, meta);
+      } else if (res.statusCode >= 400) {
+        logger.warn(logMessage, meta);
+      } else {
+        logger.http(logMessage, meta);
       }
-
-      log(logLine);
     }
   });
 
@@ -65,17 +84,26 @@ app.use((req, res, next) => {
 (async () => {
   // Initialize the permission system
   initializePermissions();
-  log("Permission system initialized with core permissions");
+  logger.info("Permission system initialized with core permissions", { source: "startup" });
   
   // Initialize address validation service (loads or creates config)
   await addressValidationService.getConfig();
-  log("Address validation service initialized");
+  logger.info("Address validation service initialized", { source: "startup" });
 
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+
+    // Log the error with Winston
+    logger.error(`Error: ${message}`, {
+      source: "express",
+      statusCode: status,
+      error: err.stack || err.toString(),
+      url: _req.url,
+      method: _req.method,
+    });
 
     res.status(status).json({ message });
     throw err;
