@@ -12,8 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhoneNumberSchema } from "@shared/schema";
-import { Phone, Plus, Edit, Trash2, Star } from "lucide-react";
+import { Phone, Plus, Edit, Trash2, Star, Copy, FileJson } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { z } from "zod";
 import { formatPhoneNumberForDisplay, validatePhoneNumber } from "@/lib/phone-utils";
 
@@ -34,6 +35,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPhoneNumber, setEditingPhoneNumber] = useState<PhoneNumber | null>(null);
+  const [jsonViewPhoneNumber, setJsonViewPhoneNumber] = useState<PhoneNumber | null>(null);
 
   // Fetch phone numbers for this contact
   const { data: phoneNumbers = [], isLoading } = useQuery<PhoneNumber[]>({
@@ -170,6 +172,14 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
 
   const handleSetPrimary = (id: string) => {
     setPrimaryMutation.mutate(id);
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied to clipboard",
+      description: `${label} has been copied to clipboard.`,
+    });
   };
 
   if (isLoading) {
@@ -354,6 +364,44 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
         </DialogContent>
       </Dialog>
 
+      {/* View JSON Response Dialog */}
+      <Dialog open={jsonViewPhoneNumber !== null} onOpenChange={() => setJsonViewPhoneNumber(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Validation API Response</DialogTitle>
+          </DialogHeader>
+          {jsonViewPhoneNumber && (
+            <div className="space-y-4">
+              {jsonViewPhoneNumber.validationResponse ? (
+                <>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">
+                      Full response from {(jsonViewPhoneNumber.validationResponse as any)?.twilioData ? 'Twilio Lookup API' : 'local validation'}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(JSON.stringify(jsonViewPhoneNumber.validationResponse, null, 2), "JSON response")}
+                      data-testid="button-copy-json"
+                    >
+                      <Copy size={14} className="mr-2" />
+                      Copy All
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-[500px] w-full rounded-md border p-4 bg-muted/50">
+                    <pre className="text-xs font-mono">
+                      {JSON.stringify(jsonViewPhoneNumber.validationResponse, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground py-8 text-center">No API response data available</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {phoneNumbers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -418,6 +466,19 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
                   </div>
                 </div>
               </CardHeader>
+              {phoneNumber.validationResponse ? (
+                <CardContent className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setJsonViewPhoneNumber(phoneNumber)}
+                    data-testid={`button-view-api-response-${phoneNumber.id}`}
+                  >
+                    <FileJson size={14} className="mr-2" />
+                    View API Response
+                  </Button>
+                </CardContent>
+              ) : null}
             </Card>
           ))}
         </div>
