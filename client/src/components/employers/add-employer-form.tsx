@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -12,12 +13,13 @@ import { useLocation } from "wouter";
 export function AddEmployerForm() {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
   const addEmployerMutation = useMutation({
-    mutationFn: async (employerData: { id: string; name: string }) => {
+    mutationFn: async (employerData: { id: string; name: string; isActive: boolean }) => {
       const response = await apiRequest("POST", "/api/employers", employerData);
       return response.json();
     },
@@ -25,6 +27,7 @@ export function AddEmployerForm() {
       queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
       setId("");
       setName("");
+      setIsActive(true);
       toast({
         title: "Success",
         description: "Employer added successfully!",
@@ -45,7 +48,7 @@ export function AddEmployerForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (id.trim() && name.trim()) {
-      addEmployerMutation.mutate({ id: id.trim(), name: name.trim() });
+      addEmployerMutation.mutate({ id: id.trim(), name: name.trim(), isActive });
     }
   };
 
@@ -87,6 +90,20 @@ export function AddEmployerForm() {
                   data-testid="input-employer-name"
                 />
               </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="employer-active"
+                checked={isActive}
+                onCheckedChange={(checked) => setIsActive(checked === true)}
+                data-testid="checkbox-employer-active"
+              />
+              <Label
+                htmlFor="employer-active"
+                className="text-sm font-medium text-foreground cursor-pointer"
+              >
+                Active
+              </Label>
             </div>
             <Button
               type="submit"
