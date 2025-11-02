@@ -70,3 +70,25 @@ Preferred communication style: Simple, everyday language.
 - **Date-fns**: Date utility functions.
 - **ESBuild**: JavaScript bundler.
 - **@innova2/winston-pg**: Winston transport for PostgreSQL logging.
+
+# Recent Changes
+
+## Worker ID Management (November 2, 2025)
+- **Worker ID Types Configuration**: New configuration page at `/config/worker-id-types`
+  - Manages types of identification numbers that can be assigned to workers
+  - Full CRUD operations (Create, Read, Update, Delete)
+  - Sequence-based sorting with up/down arrow controls
+  - Optional regex validator field for each ID type enforced client-side and server-side
+  - Database Table: `options_worker_id_type` (id, name, sequence, validator)
+  - Navigation: Added to configuration sidebar (requires variables.manage permission)
+- **Worker IDs Management**: Enhanced worker detail IDs tab
+  - Allows creating multiple identification numbers per worker
+  - Each ID has a type (from configured ID types) and a value
+  - Database Table: `worker_ids` (id, workerId, typeId, value)
+  - Client-side and server-side regex validation based on ID type
+  - Inline editing and deletion with comprehensive error messaging
+  - UI displays validation pattern to users when selecting ID type
+- **API Routes**:
+  - Worker ID Types: GET/POST/PUT/DELETE `/api/worker-id-types` (requires variables.manage)
+  - Worker IDs: GET `/api/workers/:workerId/ids`, POST `/api/workers/:workerId/ids`, PUT/DELETE `/api/worker-ids/:id` (requires workers.manage)
+- **Data-testid Compliance**: All interactive elements include required data-testid attributes for automated testing
