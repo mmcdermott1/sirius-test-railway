@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -64,6 +64,14 @@ export const variables = pgTable("variables", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   value: jsonb("value").notNull(),
+});
+
+export const optionsGender = pgTable("options_gender", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: varchar("code").notNull().unique(),
+  nota: boolean("nota").default(false).notNull(),
+  sequence: integer("sequence").notNull().default(0),
 });
 
 export const postalAddresses = pgTable("postal_addresses", {
@@ -140,6 +148,10 @@ export const insertPhoneNumberSchema = createInsertSchema(phoneNumbers).omit({
   createdAt: true,
 });
 
+export const insertGenderOptionSchema = createInsertSchema(optionsGender).omit({
+  id: true,
+});
+
 export const assignRoleSchema = z.object({
   userId: z.string(),
   roleId: z.string(),
@@ -176,6 +188,9 @@ export type PostalAddress = typeof postalAddresses.$inferSelect;
 
 export type InsertPhoneNumber = z.infer<typeof insertPhoneNumberSchema>;
 export type PhoneNumber = typeof phoneNumbers.$inferSelect;
+
+export type InsertGenderOption = z.infer<typeof insertGenderOptionSchema>;
+export type GenderOption = typeof optionsGender.$inferSelect;
 
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
