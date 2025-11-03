@@ -199,7 +199,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <div className="flex items-center space-x-2">
-                    <span>ID</span>
+                    <span>Sirius ID</span>
                   </div>
                 </th>
                 <th 
@@ -227,7 +227,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
               {sortedWorkers.map((worker, index) => (
                 <tr key={worker.id} className="hover:bg-muted/30 transition-colors" data-testid={`row-worker-${worker.id}`}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-muted-foreground">
-                    {String(index + 1).padStart(3, "0")}
+                    {worker.siriusId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-3">

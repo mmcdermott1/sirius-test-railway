@@ -36,8 +36,9 @@ export function EmployersTable({ employers, isLoading, includeInactive, onToggle
     return employers.filter(employer => {
       const id = employer.id.toLowerCase();
       const name = employer.name.toLowerCase();
+      const siriusId = String(employer.siriusId);
       
-      return id.includes(query) || name.includes(query);
+      return id.includes(query) || name.includes(query) || siriusId.includes(query);
     });
   }, [employers, searchQuery]);
 
@@ -95,7 +96,7 @@ export function EmployersTable({ employers, isLoading, includeInactive, onToggle
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
             <Input
               type="text"
-              placeholder="Search by ID or name..."
+              placeholder="Search by Sirius ID, Record ID, or name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -126,7 +127,7 @@ export function EmployersTable({ employers, isLoading, includeInactive, onToggle
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <div className="flex items-center space-x-2">
-                    <span>ID</span>
+                    <span>Sirius ID</span>
                   </div>
                 </th>
                 <th 
@@ -153,9 +154,9 @@ export function EmployersTable({ employers, isLoading, includeInactive, onToggle
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span 
                       className="text-sm font-medium text-muted-foreground"
-                      data-testid={`text-employer-id-${employer.id}`}
+                      data-testid={`text-employer-sirius-id-${employer.id}`}
                     >
-                      {employer.id}
+                      {employer.siriusId}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
