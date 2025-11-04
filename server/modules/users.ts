@@ -6,6 +6,8 @@ import {
   assignRoleSchema,
   assignPermissionSchema
 } from "@shared/schema";
+import { requireAccess } from "../accessControl";
+import { policies } from "../policies";
 
 // Type for middleware functions that we'll accept from the main routes
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -19,7 +21,8 @@ export function registerUserRoutes(
   // Admin routes for user management
   
   // GET /api/admin/users - Get all users (admin only)
-  app.get("/api/admin/users", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  // MIGRATED to new access control system
+  app.get("/api/admin/users", requireAccess(policies.adminManage), async (req, res) => {
     try {
       const usersWithRoles = await storage.getAllUsersWithRoles();
       
@@ -45,7 +48,8 @@ export function registerUserRoutes(
   });
 
   // POST /api/admin/users - Create user (admin only, email-based provisioning)
-  app.post("/api/admin/users", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  // MIGRATED to new access control system
+  app.post("/api/admin/users", requireAccess(policies.adminManage), async (req, res) => {
     try {
       const userData = createUserSchema.parse(req.body);
       
@@ -77,7 +81,8 @@ export function registerUserRoutes(
   });
 
   // GET /api/admin/users/:id - Get user details (admin only)
-  app.get("/api/admin/users/:id", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  // MIGRATED to new access control system
+  app.get("/api/admin/users/:id", requireAccess(policies.adminManage), async (req, res) => {
     try {
       const { id } = req.params;
       const user = await storage.getUser(id);
@@ -104,7 +109,8 @@ export function registerUserRoutes(
   });
 
   // PUT /api/admin/users/:id/status - Update user status (admin only)
-  app.put("/api/admin/users/:id/status", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  // MIGRATED to new access control system
+  app.put("/api/admin/users/:id/status", requireAccess(policies.adminManage), async (req, res) => {
     try {
       const { id } = req.params;
       const { isActive } = req.body;
@@ -131,7 +137,8 @@ export function registerUserRoutes(
   // Role management routes
   
   // GET /api/admin/roles - Get all roles (admin only)
-  app.get("/api/admin/roles", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  // MIGRATED to new access control system
+  app.get("/api/admin/roles", requireAccess(policies.adminManage), async (req, res) => {
     try {
       const roles = await storage.getAllRoles();
       res.json(roles);
@@ -141,7 +148,8 @@ export function registerUserRoutes(
   });
 
   // POST /api/admin/roles - Create role (admin only)
-  app.post("/api/admin/roles", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  // MIGRATED to new access control system
+  app.post("/api/admin/roles", requireAccess(policies.adminManage), async (req, res) => {
     try {
       const validatedData = insertRoleSchema.parse(req.body);
       const role = await storage.createRole(validatedData);
