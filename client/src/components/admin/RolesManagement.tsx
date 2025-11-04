@@ -271,7 +271,6 @@ export default function RolesManagement() {
               <TableHead>Order</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Created At</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -308,9 +307,6 @@ export default function RolesManagement() {
                 </TableCell>
                 <TableCell data-testid={`text-role-description-${role.id}`}>
                   {role.description || 'No description provided'}
-                </TableCell>
-                <TableCell data-testid={`text-role-created-${role.id}`}>
-                  {new Date(role.createdAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
