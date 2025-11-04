@@ -42,6 +42,7 @@ export interface IStorage {
   createRole(role: InsertRole): Promise<Role>;
   updateRole(id: string, role: Partial<InsertRole>): Promise<Role | undefined>;
   deleteRole(id: string): Promise<boolean>;
+  updateRoleSequence(id: string, sequence: number): Promise<Role | undefined>;
   
   // Permission operations (now using registry)
   getAllPermissions(): Promise<PermissionDefinition[]>;
@@ -320,6 +321,10 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  async updateRoleSequence(id: string, sequence: number): Promise<Role | undefined> {
+    return this.updateRole(id, { sequence });
+  }
+
   // Permission operations (now using registry)
   async getAllPermissions(): Promise<PermissionDefinition[]> {
     return permissionRegistry.getAll();
@@ -356,11 +361,13 @@ export class DatabaseStorage implements IStorage {
         id: roles.id,
         name: roles.name,
         description: roles.description,
+        sequence: roles.sequence,
         createdAt: roles.createdAt,
       })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
-      .where(eq(userRoles.userId, userId));
+      .where(eq(userRoles.userId, userId))
+      .orderBy(roles.sequence, roles.name);
     return result;
   }
 
