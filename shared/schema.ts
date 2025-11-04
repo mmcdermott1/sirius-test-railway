@@ -16,10 +16,12 @@ export const sessions = pgTable(
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  replitUserId: varchar("replit_user_id").unique(),
+  email: varchar("email").notNull().unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  accountStatus: varchar("account_status").default("pending").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
@@ -167,10 +169,9 @@ export const upsertUserSchema = createInsertSchema(users).omit({
   isActive: true,
 });
 
-// For admin user creation
+// For admin user creation (email-based provisioning)
 export const createUserSchema = z.object({
-  id: z.string().min(1, "Replit User ID is required"),
-  email: z.string().email().optional().nullable(),
+  email: z.string().email("Valid email is required"),
   firstName: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
