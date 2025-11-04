@@ -148,6 +148,43 @@ export function registerUserRoutes(
     }
   });
 
+  // PUT /api/admin/roles/:id - Update role (admin only)
+  app.put("/api/admin/roles/:id", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertRoleSchema.partial().parse(req.body);
+      
+      const role = await storage.updateRole(id, validatedData);
+      if (!role) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      
+      res.json(role);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        res.status(400).json({ message: "Invalid role data" });
+      } else {
+        res.status(500).json({ message: "Failed to update role" });
+      }
+    }
+  });
+
+  // DELETE /api/admin/roles/:id - Delete role (admin only)
+  app.delete("/api/admin/roles/:id", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteRole(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete role" });
+    }
+  });
+
   // Permission management routes
   
   // GET /api/admin/permissions - Get all permissions (admin only)

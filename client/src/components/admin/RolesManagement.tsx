@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Loader2, Shield } from 'lucide-react';
+import { Plus, Loader2, Shield, Pencil, Trash2 } from 'lucide-react';
 
 interface Role {
   id: string;
@@ -21,6 +22,9 @@ export default function RolesManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDescription, setNewRoleDescription] = useState('');
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [editRoleName, setEditRoleName] = useState('');
+  const [editRoleDescription, setEditRoleDescription] = useState('');
   const { toast } = useToast();
 
   const { data: roles = [], isLoading } = useQuery<Role[]>({
@@ -51,6 +55,50 @@ export default function RolesManagement() {
     },
   });
 
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ id, name, description }: { id: string; name: string; description: string }) => {
+      const response = await apiRequest('PUT', `/api/admin/roles/${id}`, { name, description });
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/roles'] });
+      setEditingRole(null);
+      setEditRoleName('');
+      setEditRoleDescription('');
+      toast({
+        title: 'Success',
+        description: 'Role updated successfully',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message.replace(/^\d+:\s*/, '') : 'Failed to update role',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/admin/roles/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/roles'] });
+      toast({
+        title: 'Success',
+        description: 'Role deleted successfully',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message.replace(/^\d+:\s*/, '') : 'Failed to delete role',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleCreateRole = () => {
     if (!newRoleName) {
       toast({
@@ -61,6 +109,32 @@ export default function RolesManagement() {
       return;
     }
     createRoleMutation.mutate({ name: newRoleName, description: newRoleDescription });
+  };
+
+  const handleEditRole = (role: Role) => {
+    setEditingRole(role);
+    setEditRoleName(role.name);
+    setEditRoleDescription(role.description);
+  };
+
+  const handleUpdateRole = () => {
+    if (!editingRole || !editRoleName) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a role name',
+        variant: 'destructive',
+      });
+      return;
+    }
+    updateRoleMutation.mutate({ 
+      id: editingRole.id, 
+      name: editRoleName, 
+      description: editRoleDescription 
+    });
+  };
+
+  const handleDeleteRole = (roleId: string) => {
+    deleteRoleMutation.mutate(roleId);
   };
 
   if (isLoading) {
@@ -138,6 +212,7 @@ export default function RolesManagement() {
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Created At</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -155,11 +230,102 @@ export default function RolesManagement() {
                 <TableCell data-testid={`text-role-created-${role.id}`}>
                   {new Date(role.createdAt).toLocaleDateString()}
                 </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditRole(role)}
+                      data-testid={`button-edit-role-${role.id}`}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Rename
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-testid={`button-delete-role-${role.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Role</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete the role "{role.name}"? This action cannot be undone and will remove all permission assignments for this role.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel data-testid={`button-cancel-delete-${role.id}`}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteRole(role.id)}
+                            data-testid={`button-confirm-delete-${role.id}`}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={editingRole !== null} onOpenChange={(open) => !open && setEditingRole(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription>
+              Update the role name and description.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editRoleName">Role Name</Label>
+              <Input
+                id="editRoleName"
+                value={editRoleName}
+                onChange={(e) => setEditRoleName(e.target.value)}
+                placeholder="Enter role name"
+                data-testid="input-edit-role-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editRoleDescription">Description</Label>
+              <Textarea
+                id="editRoleDescription"
+                value={editRoleDescription}
+                onChange={(e) => setEditRoleDescription(e.target.value)}
+                placeholder="Describe what this role can do..."
+                rows={3}
+                data-testid="input-edit-role-description"
+              />
+            </div>
+            <Button 
+              onClick={handleUpdateRole}
+              disabled={updateRoleMutation.isPending}
+              data-testid="button-submit-edit-role"
+            >
+              {updateRoleMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Role'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
