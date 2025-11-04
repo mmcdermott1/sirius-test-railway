@@ -73,11 +73,35 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## Email-Based User Provisioning (November 4, 2025)
+- **User Provisioning Workflow**: Users are now provisioned by email instead of Replit ID
+  - **How it works**: 
+    1. Admin provisions user by entering their email address (and optionally name)
+    2. User record is created with `accountStatus='pending'` and `replitUserId=null`
+    3. When user logs in with Replit, system matches by email and links their Replit ID
+    4. Account status changes to `linked` and subsequent logins use Replit ID lookup
+  - **Database Schema Changes**:
+    - Added: `replitUserId` varchar unique nullable field (stores Replit user ID after linking)
+    - Modified: `id` field now stores a generated UUID (not Replit ID)
+    - Modified: `email` field is now NOT NULL and unique
+    - Added: `accountStatus` varchar field (values: 'pending' or 'linked')
+  - **Backend Changes**:
+    - New storage methods: `getUserByReplitId()`, `getUserByEmail()`, `linkReplitAccount()`
+    - Updated OAuth callback to match users by email on first login
+    - Fixed `requirePermission` middleware to resolve database user ID from Replit ID
+    - Updated user creation API to accept email instead of Replit ID
+  - **Frontend Changes**:
+    - User creation form now asks for email (required) and name (optional)
+    - Added "Account Status" filter showing pending/linked accounts
+    - User table shows account status badge and Replit user ID when linked
+    - Removed Replit ID input field from user creation dialog
+  - **Benefits**: Admins only need to know a user's email address to provision them, making onboarding much easier
+
 ## Replit Auth Migration (November 4, 2025)
 - **Authentication System Overhaul**: Migrated from username/password to Replit Login (OAuth)
   - **Restricted Access Model**: Users must be pre-created by administrators before they can log in
   - **Database Schema Changes**:
-    - Removed: `username` and `password_hash` fields from users table
+    - Removed: `username` and `password_hash` fields from users table (now uses `email`, `replitUserId` instead)
     - Added: `email`, `firstName`, `lastName`, `profileImageUrl`, `updatedAt` fields
     - Added: `sessions` table for PostgreSQL-based session storage
   - **Replit Auth Implementation** (server/replitAuth.ts):

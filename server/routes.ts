@@ -22,8 +22,14 @@ const requirePermission = (permissionKey: string) => {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    const userId = user.claims.sub;
-    const hasPermission = await storage.userHasPermission(userId, permissionKey);
+    // Get database user ID from Replit user ID
+    const replitUserId = user.claims.sub;
+    const dbUser = await storage.getUserByReplitId(replitUserId);
+    if (!dbUser) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    const hasPermission = await storage.userHasPermission(dbUser.id, permissionKey);
     if (!hasPermission) {
       return res.status(403).json({ message: "Insufficient permissions" });
     }
@@ -77,9 +83,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/user", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      const userId = user.claims.sub;
+      const replitUserId = user.claims.sub;
       
-      const dbUser = await storage.getUser(userId);
+      const dbUser = await storage.getUserByReplitId(replitUserId);
       if (!dbUser) {
         return res.status(404).json({ message: "User not found" });
       }
