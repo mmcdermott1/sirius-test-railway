@@ -5,6 +5,8 @@ import { initializePermissions } from "@shared/permissions";
 import { addressValidationService } from "./services/address-validation";
 import { logger } from "./logger";
 import { setupAuth } from "./replitAuth";
+import { initAccessControl } from "./accessControl";
+import { storage } from "./storage";
 
 // Helper function to redact sensitive data from responses before logging
 function redactSensitiveData(data: any): any {
@@ -87,6 +89,18 @@ app.use((req, res, next) => {
   // Initialize the permission system
   initializePermissions();
   logger.info("Permission system initialized with core permissions", { source: "startup" });
+  
+  // Initialize access control system
+  initAccessControl({
+    getUserPermissions: async (userId: string) => {
+      const permissions = await storage.getUserPermissions(userId);
+      return permissions.map(p => p.key);
+    },
+    hasPermission: async (userId: string, permissionKey: string) => {
+      return storage.userHasPermission(userId, permissionKey);
+    },
+  });
+  logger.info("Access control system initialized", { source: "startup" });
   
   // Initialize address validation service (loads or creates config)
   await addressValidationService.getConfig();
