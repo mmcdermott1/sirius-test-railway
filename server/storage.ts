@@ -255,6 +255,7 @@ export class DatabaseStorage implements IStorage {
         roleId: roles.id,
         roleName: roles.name,
         roleDescription: roles.description,
+        roleSequence: roles.sequence,
         roleCreatedAt: roles.createdAt,
       })
       .from(userRoles)
@@ -269,6 +270,7 @@ export class DatabaseStorage implements IStorage {
         id: row.roleId,
         name: row.roleName,
         description: row.roleDescription,
+        sequence: row.roleSequence,
         createdAt: row.roleCreatedAt,
       });
       return acc;
@@ -288,7 +290,7 @@ export class DatabaseStorage implements IStorage {
 
   // Role operations
   async getAllRoles(): Promise<Role[]> {
-    return db.select().from(roles);
+    return db.select().from(roles).orderBy(roles.sequence, roles.name);
   }
 
   async getRole(id: string): Promise<Role | undefined> {
@@ -425,11 +427,13 @@ export class DatabaseStorage implements IStorage {
         id: roles.id,
         name: roles.name,
         description: roles.description,
+        sequence: roles.sequence,
         createdAt: roles.createdAt,
       })
       .from(rolePermissions)
       .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
-      .where(eq(rolePermissions.permissionKey, permissionKey));
+      .where(eq(rolePermissions.permissionKey, permissionKey))
+      .orderBy(roles.sequence, roles.name);
     return result;
   }
 
