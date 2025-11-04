@@ -90,6 +90,17 @@ export const trustBenefits = pgTable("trust_benefits", {
   description: text("description"),
 });
 
+export const trustWmb = pgTable("trust_wmb", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
+  employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
+  benefitId: varchar("benefit_id").notNull().references(() => trustBenefits.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  uniqueWorkerEmployerBenefitMonthYear: unique().on(table.workerId, table.employerId, table.benefitId, table.month, table.year),
+}));
+
 export const variables = pgTable("variables", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
@@ -200,6 +211,10 @@ export const insertTrustBenefitSchema = createInsertSchema(trustBenefits).omit({
   id: true,
 });
 
+export const insertTrustWmbSchema = createInsertSchema(trustWmb).omit({
+  id: true,
+});
+
 export const insertVariableSchema = createInsertSchema(variables).omit({
   id: true,
 });
@@ -260,6 +275,9 @@ export type Employer = typeof employers.$inferSelect;
 
 export type InsertTrustBenefit = z.infer<typeof insertTrustBenefitSchema>;
 export type TrustBenefit = typeof trustBenefits.$inferSelect;
+
+export type InsertTrustWmb = z.infer<typeof insertTrustWmbSchema>;
+export type TrustWmb = typeof trustWmb.$inferSelect;
 
 export type InsertVariable = z.infer<typeof insertVariableSchema>;
 export type Variable = typeof variables.$inferSelect;
