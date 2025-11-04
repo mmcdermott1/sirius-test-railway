@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Header from "@/components/layout/Header";
 import LoginPage from "@/pages/login";
+import UnauthorizedPage from "@/pages/unauthorized";
 import Workers from "@/pages/workers";
 import WorkersAdd from "@/pages/workers-add";
 import WorkerView from "@/pages/worker-view";
@@ -54,8 +55,9 @@ function Router() {
 
   return (
     <Switch>
-      {/* Public login route */}
+      {/* Public routes */}
       <Route path="/login" component={LoginPage} />
+      <Route path="/unauthorized" component={UnauthorizedPage} />
       
       {/* Protected routes */}
       <Route path="/workers/add">
