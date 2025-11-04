@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful API with structured error handling.
 - **Middleware**: Custom logging middleware.
 - **Development**: Vite integration for hot module replacement.
-- **Authentication**: Basic session management using Connect-pg-simple for PostgreSQL session storage.
+- **Authentication**: Replit Auth (OAuth via OpenID Connect) with restricted access - users must be pre-created by admins. Session management using Connect-pg-simple for PostgreSQL session storage.
 
 ## Data Storage
 - **Database**: PostgreSQL (Neon Database for serverless hosting).
@@ -72,6 +72,35 @@ Preferred communication style: Simple, everyday language.
 - **@innova2/winston-pg**: Winston transport for PostgreSQL logging.
 
 # Recent Changes
+
+## Replit Auth Migration (November 4, 2025)
+- **Authentication System Overhaul**: Migrated from username/password to Replit Login (OAuth)
+  - **Restricted Access Model**: Users must be pre-created by administrators before they can log in
+  - **Database Schema Changes**:
+    - Removed: `username` and `password_hash` fields from users table
+    - Added: `email`, `firstName`, `lastName`, `profileImageUrl`, `updatedAt` fields
+    - Added: `sessions` table for PostgreSQL-based session storage
+  - **Replit Auth Implementation** (server/replitAuth.ts):
+    - Uses OpenID Connect for OAuth authentication
+    - Implements `upsertUser` to update user information on each login
+    - Validates that authenticated Replit users exist in the database before granting access
+    - Session security configured for both development (HTTP) and production (HTTPS)
+  - **Backend Changes**:
+    - Removed Passport Local strategy and bcrypt dependency
+    - Updated `requirePermission` middleware to extract userId from `req.user.claims.sub`
+    - Added GET `/api/auth/user` endpoint for client authentication state
+    - Added `/unauthorized` route for access denied scenarios
+    - Removed POST `/api/login` and POST `/api/register` routes
+  - **Frontend Changes**:
+    - Updated login page with "Sign in with Replit" button
+    - Modified `AuthContext` to use Replit Auth redirects
+    - Updated admin user management to show Replit user fields (ID, email, name)
+    - Removed password change functionality from user account page
+    - Created `authUtils.ts` with `isUnauthorizedError` helper function
+  - **Session Configuration**:
+    - `SESSION_SECRET` required in production, fallback provided for development
+    - Cookies flagged `secure: true` only in production to support HTTP in development
+  - **RBAC Preserved**: All existing role and permission checks remain functional
 
 ## Sequential ID Field Addition (November 3, 2025)
 - **New Field**: Added `sirius_id` to both Workers and Employers tables
