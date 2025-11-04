@@ -122,12 +122,12 @@ export function TrustBenefitsTable({ benefits, isLoading, includeInactive, onTog
             <Label htmlFor="filter-type" className="text-sm text-muted-foreground mb-2 block">
               Filter by Type
             </Label>
-            <Select value={selectedTypeId} onValueChange={onTypeChange}>
+            <Select value={selectedTypeId || "all"} onValueChange={(val) => onTypeChange(val === "all" ? "" : val)}>
               <SelectTrigger id="filter-type" data-testid="select-filter-type">
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="" data-testid="option-filter-type-all">
+                <SelectItem value="all" data-testid="option-filter-type-all">
                   All types
                 </SelectItem>
                 {benefitTypes.map((type) => (

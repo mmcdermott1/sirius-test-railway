@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -109,16 +109,17 @@ export function AddTrustBenefitForm() {
 
             <div>
               <Label htmlFor="benefit-description" className="text-sm font-medium text-foreground mb-2 block">
-                Description (HTML)
+                Description
               </Label>
-              <Textarea
-                id="benefit-description"
-                placeholder="Enter benefit description (HTML supported)..."
+              <SimpleHtmlEditor
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full min-h-[120px]"
-                data-testid="textarea-benefit-description"
+                onChange={setDescription}
+                placeholder="Enter benefit description..."
+                data-testid="editor-benefit-description"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Supports basic formatting: bold, italic, lists
+              </p>
             </div>
 
             <div className="flex items-center space-x-2">

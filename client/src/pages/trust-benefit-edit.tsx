@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Save } from "lucide-react";
@@ -103,16 +103,17 @@ function TrustBenefitEditContent() {
 
             <div className="space-y-2">
               <Label htmlFor="edit-benefit-description" className="text-sm font-medium text-foreground">
-                Description (HTML)
+                Description
               </Label>
-              <Textarea
-                id="edit-benefit-description"
-                placeholder="Enter benefit description (HTML supported)..."
+              <SimpleHtmlEditor
                 value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                className="w-full min-h-[120px]"
-                data-testid="textarea-edit-benefit-description"
+                onChange={setEditDescription}
+                placeholder="Enter benefit description..."
+                data-testid="editor-edit-benefit-description"
               />
+              <p className="text-xs text-muted-foreground">
+                Supports basic formatting: bold, italic, lists
+              </p>
             </div>
 
             <div className="flex items-center space-x-2">
