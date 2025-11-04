@@ -250,6 +250,16 @@ export function registerUserRoutes(
     }
   });
 
+  // GET /api/admin/role-permissions - Get all role-permission assignments (admin only)
+  app.get("/api/admin/role-permissions", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+    try {
+      const rolePermissions = await storage.getAllRolePermissions();
+      res.json(rolePermissions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch role-permission assignments" });
+    }
+  });
+
   // POST /api/admin/roles/:roleId/permissions - Assign permission to role (admin only)
   app.post("/api/admin/roles/:roleId/permissions", requireAuth, requirePermission("admin.manage"), async (req, res) => {
     try {
@@ -266,6 +276,22 @@ export function registerUserRoutes(
       } else {
         res.status(500).json({ message: "Failed to assign permission" });
       }
+    }
+  });
+
+  // DELETE /api/admin/roles/:roleId/permissions/:permissionKey - Unassign permission from role (admin only)
+  app.delete("/api/admin/roles/:roleId/permissions/:permissionKey", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+    try {
+      const { roleId, permissionKey } = req.params;
+      const success = await storage.unassignPermissionFromRole(roleId, permissionKey);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Permission assignment not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unassign permission" });
     }
   });
 }

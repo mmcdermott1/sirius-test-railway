@@ -60,6 +60,7 @@ export interface IStorage {
   unassignPermissionFromRole(roleId: string, permissionKey: string): Promise<boolean>;
   getRolePermissions(roleId: string): Promise<PermissionDefinition[]>;
   getRolesWithPermission(permissionKey: string): Promise<Role[]>;
+  getAllRolePermissions(): Promise<(RolePermission & { role: Role })[]>;
   
   // Authorization helpers
   getUserPermissions(userId: string): Promise<PermissionDefinition[]>;
@@ -442,6 +443,32 @@ export class DatabaseStorage implements IStorage {
       .where(eq(rolePermissions.permissionKey, permissionKey))
       .orderBy(roles.sequence, roles.name);
     return result;
+  }
+
+  async getAllRolePermissions(): Promise<(RolePermission & { role: Role })[]> {
+    const result = await db
+      .select({
+        roleId: rolePermissions.roleId,
+        permissionKey: rolePermissions.permissionKey,
+        assignedAt: rolePermissions.assignedAt,
+        role: {
+          id: roles.id,
+          name: roles.name,
+          description: roles.description,
+          sequence: roles.sequence,
+          createdAt: roles.createdAt,
+        }
+      })
+      .from(rolePermissions)
+      .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
+      .orderBy(roles.sequence, roles.name);
+    
+    return result.map(row => ({
+      roleId: row.roleId,
+      permissionKey: row.permissionKey,
+      assignedAt: row.assignedAt,
+      role: row.role
+    }));
   }
 
   // Authorization helpers

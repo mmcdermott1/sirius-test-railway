@@ -23,9 +23,9 @@ interface Role {
 }
 
 interface RolePermission {
-  id: string;
   roleId: string;
   permissionKey: string;
+  assignedAt: string;
   role: Role;
 }
 
@@ -36,7 +36,7 @@ export default function PermissionsManagement() {
 
   // Fetch available permissions from registry
   const { data: permissions = [], isLoading: permissionsLoading } = useQuery<Permission[]>({
-    queryKey: ['/api/admin/permissions/registry'],
+    queryKey: ['/api/admin/permissions'],
   });
 
   // Fetch available roles
