@@ -1,6 +1,6 @@
 // Database storage implementation based on blueprint:javascript_database
 import { 
-  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, optionsGender, optionsWorkerIdType, workerIds,
+  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, optionsGender, optionsWorkerIdType, workerIds, optionsTrustBenefitType,
   type User, type InsertUser, type Worker, type InsertWorker,
   type Contact, type InsertContact,
   type Role, type InsertRole, type Variable, type InsertVariable,
@@ -10,6 +10,7 @@ import {
   type GenderOption, type InsertGenderOption,
   type WorkerIdType, type InsertWorkerIdType,
   type WorkerId, type InsertWorkerId,
+  type TrustBenefitType, type InsertTrustBenefitType,
   type UserRole, type RolePermission, type AssignRole, type AssignPermission
 } from "@shared/schema";
 import { permissionRegistry, type PermissionDefinition } from "@shared/permissions";
@@ -122,6 +123,14 @@ export interface IStorage {
   updateGenderOption(id: string, genderOption: Partial<InsertGenderOption>): Promise<GenderOption | undefined>;
   deleteGenderOption(id: string): Promise<boolean>;
   updateGenderOptionSequence(id: string, sequence: number): Promise<GenderOption | undefined>;
+
+  // Trust Benefit Type CRUD operations
+  getAllTrustBenefitTypes(): Promise<TrustBenefitType[]>;
+  getTrustBenefitType(id: string): Promise<TrustBenefitType | undefined>;
+  createTrustBenefitType(trustBenefitType: InsertTrustBenefitType): Promise<TrustBenefitType>;
+  updateTrustBenefitType(id: string, trustBenefitType: Partial<InsertTrustBenefitType>): Promise<TrustBenefitType | undefined>;
+  deleteTrustBenefitType(id: string): Promise<boolean>;
+  updateTrustBenefitTypeSequence(id: string, sequence: number): Promise<TrustBenefitType | undefined>;
 
   // Worker ID Type CRUD operations
   getAllWorkerIdTypes(): Promise<WorkerIdType[]>;
@@ -1082,6 +1091,42 @@ export class DatabaseStorage implements IStorage {
   async deleteWorkerId(id: string): Promise<boolean> {
     const result = await db.delete(workerIds).where(eq(workerIds.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Trust Benefit Type CRUD operations
+  async getAllTrustBenefitTypes(): Promise<TrustBenefitType[]> {
+    return db.select().from(optionsTrustBenefitType).orderBy(optionsTrustBenefitType.sequence);
+  }
+
+  async getTrustBenefitType(id: string): Promise<TrustBenefitType | undefined> {
+    const [trustBenefitType] = await db.select().from(optionsTrustBenefitType).where(eq(optionsTrustBenefitType.id, id));
+    return trustBenefitType || undefined;
+  }
+
+  async createTrustBenefitType(insertTrustBenefitType: InsertTrustBenefitType): Promise<TrustBenefitType> {
+    const [trustBenefitType] = await db
+      .insert(optionsTrustBenefitType)
+      .values(insertTrustBenefitType)
+      .returning();
+    return trustBenefitType;
+  }
+
+  async updateTrustBenefitType(id: string, trustBenefitTypeUpdate: Partial<InsertTrustBenefitType>): Promise<TrustBenefitType | undefined> {
+    const [trustBenefitType] = await db
+      .update(optionsTrustBenefitType)
+      .set(trustBenefitTypeUpdate)
+      .where(eq(optionsTrustBenefitType.id, id))
+      .returning();
+    return trustBenefitType || undefined;
+  }
+
+  async deleteTrustBenefitType(id: string): Promise<boolean> {
+    const result = await db.delete(optionsTrustBenefitType).where(eq(optionsTrustBenefitType.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async updateTrustBenefitTypeSequence(id: string, sequence: number): Promise<TrustBenefitType | undefined> {
+    return this.updateTrustBenefitType(id, { sequence });
   }
 }
 

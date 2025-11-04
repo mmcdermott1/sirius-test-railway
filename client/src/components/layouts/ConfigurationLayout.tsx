@@ -54,6 +54,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       testId: "nav-config-worker-id-types",
       permission: "variables.manage",
     },
+    {
+      path: "/config/trust-benefit-types",
+      label: "Trust Benefit Types",
+      icon: List,
+      testId: "nav-config-trust-benefit-types",
+      permission: "variables.manage",
+    },
   ];
 
   return (

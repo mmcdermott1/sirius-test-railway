@@ -86,6 +86,12 @@ export const optionsWorkerIdType = pgTable("options_worker_id_type", {
   validator: text("validator"),
 });
 
+export const optionsTrustBenefitType = pgTable("options_trust_benefit_type", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  sequence: integer("sequence").notNull().default(0),
+});
+
 export const workerIds = pgTable("worker_ids", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
@@ -183,6 +189,10 @@ export const insertWorkerIdSchema = createInsertSchema(workerIds).omit({
   id: true,
 });
 
+export const insertTrustBenefitTypeSchema = createInsertSchema(optionsTrustBenefitType).omit({
+  id: true,
+});
+
 export const assignRoleSchema = z.object({
   userId: z.string(),
   roleId: z.string(),
@@ -228,6 +238,9 @@ export type WorkerIdType = typeof optionsWorkerIdType.$inferSelect;
 
 export type InsertWorkerId = z.infer<typeof insertWorkerIdSchema>;
 export type WorkerId = typeof workerIds.$inferSelect;
+
+export type InsertTrustBenefitType = z.infer<typeof insertTrustBenefitTypeSchema>;
+export type TrustBenefitType = typeof optionsTrustBenefitType.$inferSelect;
 
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
