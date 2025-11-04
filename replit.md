@@ -73,6 +73,21 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## Masquerade Module Refactoring (November 4, 2025)
+- **Code Organization**: Refactored masquerade functionality into a separate module
+  - **New Module**: `server/modules/masquerade.ts` - Contains all masquerade-related logic
+  - **Exported Components**:
+    - `registerMasqueradeRoutes()`: Registers masquerade start/stop endpoints
+    - `getEffectiveUser()`: Helper function to resolve the effective user (masqueraded or original)
+  - **Route Registration**: Masquerade routes now registered via module like other features
+  - **Simplified Routes**: `/api/auth/user` route now uses `getEffectiveUser()` helper instead of inline masquerade logic
+  - **Consistency**: Follows the same pattern as other feature modules (users, postal addresses, phone numbers)
+  - **Benefits**:
+    - Better code organization and maintainability
+    - Reusable helper function for masquerade logic
+    - Easier to test masquerade functionality in isolation
+    - Cleaner separation of concerns
+
 ## Centralized Access Control System (November 4, 2025)
 - **Architecture Overhaul**: Replaced hardcoded `requireAuth`/`requirePermission` middleware with centralized access control module
   - **Core Components**:

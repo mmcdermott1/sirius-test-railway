@@ -7,6 +7,7 @@ import { registerVariableRoutes } from "./modules/variables";
 import { registerPostalAddressRoutes } from "./modules/postal-addresses";
 import { registerPhoneNumberRoutes } from "./modules/phone-numbers";
 import { registerAddressValidationRoutes } from "./modules/address-validation";
+import { registerMasqueradeRoutes, getEffectiveUser } from "./modules/masquerade";
 import { addressValidationService } from "./services/address-validation";
 import { phoneValidationService } from "./services/phone-validation";
 import { isAuthenticated } from "./replitAuth";
@@ -163,44 +164,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const replitUserId = user.claims.sub;
       const session = req.session as any;
       
-      // Check if masquerading
-      let dbUser;
-      let originalUser = null;
+      // Get effective user (handles masquerading)
+      const { dbUser, originalUser } = await getEffectiveUser(session, replitUserId);
       
-      if (session.masqueradeUserId) {
-        // Get masqueraded user
-        dbUser = await storage.getUser(session.masqueradeUserId);
-        if (!dbUser) {
-          // Clear invalid masquerade session and fall back to original user
-          delete session.masqueradeUserId;
-          delete session.originalUserId;
-          await new Promise((resolve, reject) => {
-            session.save((err: any) => err ? reject(err) : resolve(undefined));
-          });
-          
-          // Fall back to the original user
-          dbUser = await storage.getUserByReplitId(replitUserId);
-          if (!dbUser) {
-            return res.status(404).json({ message: "User not found" });
-          }
-        } else {
-          // Get original user info
-          const origUser = await storage.getUserByReplitId(replitUserId);
-          if (origUser) {
-            originalUser = {
-              id: origUser.id,
-              email: origUser.email,
-              firstName: origUser.firstName,
-              lastName: origUser.lastName,
-            };
-          }
-        }
-      } else {
-        // Normal authentication
-        dbUser = await storage.getUserByReplitId(replitUserId);
-        if (!dbUser) {
-          return res.status(404).json({ message: "User not found" });
-        }
+      if (!dbUser) {
+        return res.status(404).json({ message: "User not found" });
       }
 
       const userPermissions = await storage.getUserPermissions(dbUser.id);
@@ -217,7 +185,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         permissions: userPermissions.map(p => p.key),
         masquerade: session.masqueradeUserId ? {
           isMasquerading: true,
-          originalUser: originalUser
+          originalUser: originalUser ? {
+            id: originalUser.id,
+            email: originalUser.email,
+            firstName: originalUser.firstName,
+            lastName: originalUser.lastName,
+          } : null
         } : {
           isMasquerading: false
         }
@@ -227,80 +200,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/auth/masquerade/start - Start masquerading as another user (admin only)
-  app.post("/api/auth/masquerade/start", requireAuth, requirePermission("admin.manage"), async (req, res) => {
-    try {
-      const { userId } = req.body;
-      const user = req.user as any;
-      const replitUserId = user.claims.sub;
-      const session = req.session as any;
-      
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-      }
-      
-      // Verify the original user
-      const originalUser = await storage.getUserByReplitId(replitUserId);
-      if (!originalUser) {
-        return res.status(404).json({ message: "Original user not found" });
-      }
-      
-      // Verify the target user exists
-      const targetUser = await storage.getUser(userId);
-      if (!targetUser) {
-        return res.status(404).json({ message: "Target user not found" });
-      }
-      
-      // Prevent masquerading if already masquerading
-      if (session.masqueradeUserId) {
-        return res.status(400).json({ message: "Already masquerading. Stop current masquerade first." });
-      }
-      
-      // Start masquerade session
-      session.originalUserId = originalUser.id;
-      session.masqueradeUserId = userId;
-      
-      await new Promise((resolve, reject) => {
-        session.save((err: any) => err ? reject(err) : resolve(undefined));
-      });
-      
-      res.json({ 
-        message: "Masquerade started successfully",
-        masqueradingAs: {
-          id: targetUser.id,
-          email: targetUser.email,
-          firstName: targetUser.firstName,
-          lastName: targetUser.lastName,
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to start masquerade" });
-    }
-  });
-
-  // POST /api/auth/masquerade/stop - Stop masquerading
-  app.post("/api/auth/masquerade/stop", requireAuth, async (req, res) => {
-    try {
-      const session = req.session as any;
-      
-      if (!session.masqueradeUserId) {
-        return res.status(400).json({ message: "Not currently masquerading" });
-      }
-      
-      // Clear masquerade session
-      delete session.masqueradeUserId;
-      delete session.originalUserId;
-      
-      await new Promise((resolve, reject) => {
-        session.save((err: any) => err ? reject(err) : resolve(undefined));
-      });
-      
-      res.json({ message: "Masquerade stopped successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to stop masquerade" });
-    }
-  });
-
+  // Register masquerade routes
+  registerMasqueradeRoutes(app, requireAuth, requirePermission);
+  
   // Register user management routes
   registerUserRoutes(app, requireAuth, requirePermission);
   
