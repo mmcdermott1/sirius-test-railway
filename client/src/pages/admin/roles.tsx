@@ -21,7 +21,7 @@ export default function AdminRolesPage() {
             Roles
           </CardTitle>
           <CardDescription>
-            Define system roles and their descriptions
+            Define system roles and their descriptions. Use the arrows to reorder roles.
           </CardDescription>
         </CardHeader>
         <CardContent>

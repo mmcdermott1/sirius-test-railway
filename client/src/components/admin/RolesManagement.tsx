@@ -9,12 +9,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Loader2, Shield, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Shield, Pencil, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface Role {
   id: string;
   name: string;
   description: string;
+  sequence: number;
   createdAt: string;
 }
 
@@ -33,7 +34,12 @@ export default function RolesManagement() {
 
   const createRoleMutation = useMutation({
     mutationFn: async ({ name, description }: { name: string; description: string }) => {
-      const response = await apiRequest('POST', '/api/admin/roles', { name, description });
+      const maxSequence = roles.reduce((max, role) => Math.max(max, role.sequence), -1);
+      const response = await apiRequest('POST', '/api/admin/roles', { 
+        name, 
+        description,
+        sequence: maxSequence + 1
+      });
       return await response.json();
     },
     onSuccess: () => {
@@ -98,6 +104,35 @@ export default function RolesManagement() {
       });
     },
   });
+
+  const updateSequenceMutation = useMutation({
+    mutationFn: async (data: { id: string; sequence: number }) => {
+      return apiRequest('PUT', `/api/admin/roles/${data.id}`, {
+        sequence: data.sequence,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/roles'] });
+    },
+  });
+
+  const moveUp = (role: Role) => {
+    const currentIndex = roles.findIndex(r => r.id === role.id);
+    if (currentIndex > 0) {
+      const prevRole = roles[currentIndex - 1];
+      updateSequenceMutation.mutate({ id: role.id, sequence: prevRole.sequence });
+      updateSequenceMutation.mutate({ id: prevRole.id, sequence: role.sequence });
+    }
+  };
+
+  const moveDown = (role: Role) => {
+    const currentIndex = roles.findIndex(r => r.id === role.id);
+    if (currentIndex < roles.length - 1) {
+      const nextRole = roles[currentIndex + 1];
+      updateSequenceMutation.mutate({ id: role.id, sequence: nextRole.sequence });
+      updateSequenceMutation.mutate({ id: nextRole.id, sequence: role.sequence });
+    }
+  };
 
   const handleCreateRole = () => {
     if (!newRoleName) {
@@ -209,6 +244,7 @@ export default function RolesManagement() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Order</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Created At</TableHead>
@@ -216,8 +252,30 @@ export default function RolesManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {roles.map((role: Role) => (
+            {roles.map((role: Role, index) => (
               <TableRow key={role.id} data-testid={`row-role-${role.id}`}>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => moveUp(role)}
+                      disabled={index === 0}
+                      data-testid={`button-move-up-${role.id}`}
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => moveDown(role)}
+                      disabled={index === roles.length - 1}
+                      data-testid={`button-move-down-${role.id}`}
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
                 <TableCell className="font-medium" data-testid={`text-role-name-${role.id}`}>
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-muted-foreground" />
