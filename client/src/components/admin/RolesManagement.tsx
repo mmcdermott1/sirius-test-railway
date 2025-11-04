@@ -116,21 +116,45 @@ export default function RolesManagement() {
     },
   });
 
-  const moveUp = (role: Role) => {
+  const moveUp = async (role: Role) => {
     const currentIndex = roles.findIndex(r => r.id === role.id);
     if (currentIndex > 0) {
       const prevRole = roles[currentIndex - 1];
-      updateSequenceMutation.mutate({ id: role.id, sequence: prevRole.sequence });
-      updateSequenceMutation.mutate({ id: prevRole.id, sequence: role.sequence });
+      const currentSeq = role.sequence;
+      const prevSeq = prevRole.sequence;
+      
+      try {
+        await apiRequest('PUT', `/api/admin/roles/${role.id}`, { sequence: prevSeq });
+        await apiRequest('PUT', `/api/admin/roles/${prevRole.id}`, { sequence: currentSeq });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/roles'] });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to reorder roles',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
-  const moveDown = (role: Role) => {
+  const moveDown = async (role: Role) => {
     const currentIndex = roles.findIndex(r => r.id === role.id);
     if (currentIndex < roles.length - 1) {
       const nextRole = roles[currentIndex + 1];
-      updateSequenceMutation.mutate({ id: role.id, sequence: nextRole.sequence });
-      updateSequenceMutation.mutate({ id: nextRole.id, sequence: role.sequence });
+      const currentSeq = role.sequence;
+      const nextSeq = nextRole.sequence;
+      
+      try {
+        await apiRequest('PUT', `/api/admin/roles/${role.id}`, { sequence: nextSeq });
+        await apiRequest('PUT', `/api/admin/roles/${nextRole.id}`, { sequence: currentSeq });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/roles'] });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to reorder roles',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
