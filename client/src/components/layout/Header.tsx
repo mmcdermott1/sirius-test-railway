@@ -1,9 +1,18 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Link, useLocation } from 'wouter';
-import { LogOut, User, Settings, Users, Building2, Heart, UserCog } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Link, useLocation } from "wouter";
+import {
+  LogOut,
+  User,
+  Settings,
+  Users,
+  Building2,
+  Heart,
+  UserCog,
+  Home,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface SiteSettings {
   siteName: string;
@@ -22,7 +31,7 @@ export default function Header() {
     try {
       await logout();
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
@@ -30,25 +39,25 @@ export default function Header() {
     try {
       await stopMasquerade();
       toast({
-        title: 'Masquerade Stopped',
-        description: 'You are now viewing as your original account.',
+        title: "Masquerade Stopped",
+        description: "You are now viewing as your original account.",
       });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to stop masquerade',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to stop masquerade",
+        variant: "destructive",
       });
     }
   };
 
   const getUserDisplayName = () => {
-    if (!user) return '';
+    if (!user) return "";
     const nameParts = [user.firstName, user.lastName].filter(Boolean);
     if (nameParts.length > 0) {
-      return nameParts.join(' ');
+      return nameParts.join(" ");
     }
-    return user.email || 'User';
+    return user.email || "User";
   };
 
   return (
@@ -60,8 +69,14 @@ export default function Header() {
             <UserCog className="h-4 w-4" />
             <span>
               <strong>Masquerading as {getUserDisplayName()}</strong>
-              {' • '}
-              Original user: {[masquerade.originalUser.firstName, masquerade.originalUser.lastName].filter(Boolean).join(' ') || masquerade.originalUser.email}
+              {" • "}
+              Original user:{" "}
+              {[
+                masquerade.originalUser.firstName,
+                masquerade.originalUser.lastName,
+              ]
+                .filter(Boolean)
+                .join(" ") || masquerade.originalUser.email}
             </span>
           </div>
           <Button
@@ -74,20 +89,34 @@ export default function Header() {
           </Button>
         </div>
       )}
-      
+
       <div className="flex items-center justify-between h-16 px-6">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100" data-testid="text-site-name">
+            <h1
+              className="text-xl font-bold text-gray-900 dark:text-gray-100"
+              data-testid="text-site-name"
+            >
               {settings?.siteName || "Sirius"}
             </h1>
           </div>
 
           {/* Navigation Links */}
           <nav className="flex items-center space-x-4">
+            <Link href="/">
+              <Button
+                variant={location === "/" ? "default" : "ghost"}
+                size="sm"
+                data-testid="nav-home"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Home
+              </Button>
+            </Link>
+
             <Link href="/workers">
-              <Button 
-                variant={location === "/workers" ? "default" : "ghost"} 
+              <Button
+                variant={location === "/workers" ? "default" : "ghost"}
                 size="sm"
                 data-testid="nav-workers"
               >
@@ -95,10 +124,10 @@ export default function Header() {
                 Workers
               </Button>
             </Link>
-            
+
             <Link href="/employers">
-              <Button 
-                variant={location === "/employers" ? "default" : "ghost"} 
+              <Button
+                variant={location === "/employers" ? "default" : "ghost"}
                 size="sm"
                 data-testid="nav-employers"
               >
@@ -106,10 +135,10 @@ export default function Header() {
                 Employers
               </Button>
             </Link>
-            
+
             <Link href="/trust-benefits">
-              <Button 
-                variant={location === "/trust-benefits" ? "default" : "ghost"} 
+              <Button
+                variant={location === "/trust-benefits" ? "default" : "ghost"}
                 size="sm"
                 data-testid="nav-trust-benefits"
               >
@@ -117,11 +146,11 @@ export default function Header() {
                 Trust Benefits
               </Button>
             </Link>
-            
-            {hasPermission('admin.manage') && (
+
+            {hasPermission("admin.manage") && (
               <Link href="/config">
-                <Button 
-                  variant={location.startsWith("/config") ? "default" : "ghost"} 
+                <Button
+                  variant={location.startsWith("/config") ? "default" : "ghost"}
                   size="sm"
                   data-testid="nav-config"
                 >
@@ -138,14 +167,9 @@ export default function Header() {
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <User className="h-4 w-4" />
               <span data-testid="text-username">{getUserDisplayName()}</span>
-              {hasPermission('admin.manage') && (
-                <span className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
-                  Admin
-                </span>
-              )}
             </div>
           )}
-          
+
           <Button
             variant="ghost"
             size="sm"
