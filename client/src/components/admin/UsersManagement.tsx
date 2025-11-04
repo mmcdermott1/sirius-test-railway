@@ -22,10 +22,12 @@ interface Role {
 
 interface User {
   id: string;
-  email: string | null;
+  replitUserId: string | null;
+  email: string;
   firstName: string | null;
   lastName: string | null;
   profileImageUrl: string | null;
+  accountStatus: string;
   isActive: boolean;
   createdAt: string;
   lastLogin?: string;
@@ -37,9 +39,12 @@ type SortDirection = 'asc' | 'desc';
 
 export default function UsersManagement() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newReplitUserId, setNewReplitUserId] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserFirstName, setNewUserFirstName] = useState('');
+  const [newUserLastName, setNewUserLastName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'pending' | 'linked'>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('email');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -69,11 +74,15 @@ export default function UsersManagement() {
         (statusFilter === 'active' && user.isActive) ||
         (statusFilter === 'inactive' && !user.isActive);
       
+      // Filter by account status
+      const matchesAccountStatus = accountStatusFilter === 'all' ||
+        user.accountStatus === accountStatusFilter;
+      
       // Filter by role
       const matchesRole = roleFilter === 'all' || 
         user.roles.some(role => role.id === roleFilter);
       
-      return matchesSearch && matchesStatus && matchesRole;
+      return matchesSearch && matchesStatus && matchesAccountStatus && matchesRole;
     });
 
     // Sort users
@@ -112,7 +121,7 @@ export default function UsersManagement() {
     });
 
     return filtered;
-  }, [users, searchQuery, statusFilter, roleFilter, sortField, sortDirection]);
+  }, [users, searchQuery, statusFilter, accountStatusFilter, roleFilter, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -124,17 +133,19 @@ export default function UsersManagement() {
   };
 
   const createUserMutation = useMutation({
-    mutationFn: async ({ replitUserId }: { replitUserId: string }) => {
-      const response = await apiRequest('POST', '/api/admin/users', { replitUserId });
+    mutationFn: async (userData: { email: string; firstName?: string; lastName?: string }) => {
+      const response = await apiRequest('POST', '/api/admin/users', userData);
       return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      setNewReplitUserId('');
+      setNewUserEmail('');
+      setNewUserFirstName('');
+      setNewUserLastName('');
       setIsCreateOpen(false);
       toast({
         title: 'Success',
-        description: 'User created successfully',
+        description: 'User provisioned successfully. They can now log in with their Replit account.',
       });
     },
     onError: (error) => {
@@ -148,15 +159,19 @@ export default function UsersManagement() {
 
 
   const handleCreateUser = () => {
-    if (!newReplitUserId) {
+    if (!newUserEmail) {
       toast({
         title: 'Error',
-        description: 'Please enter a Replit user ID',
+        description: 'Please enter an email address',
         variant: 'destructive',
       });
       return;
     }
-    createUserMutation.mutate({ replitUserId: newReplitUserId });
+    createUserMutation.mutate({ 
+      email: newUserEmail,
+      firstName: newUserFirstName || undefined,
+      lastName: newUserLastName || undefined,
+    });
   };
 
 
@@ -187,24 +202,45 @@ export default function UsersManagement() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New User</DialogTitle>
+              <DialogTitle>Provision New User</DialogTitle>
               <DialogDescription>
-                Create a new user account using their Replit user ID. The user will be able to log in with Replit Auth.
+                Provision a user by email. They can log in with their Replit account once provisioned.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="replitUserId">Replit User ID</Label>
+                <Label htmlFor="email">Email Address *</Label>
                 <Input
-                  id="replitUserId"
-                  value={newReplitUserId}
-                  onChange={(e) => setNewReplitUserId(e.target.value)}
-                  placeholder="Enter Replit user ID (e.g., 45808420)"
-                  data-testid="input-new-replit-user-id"
+                  id="email"
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  data-testid="input-new-user-email"
                 />
                 <p className="text-sm text-muted-foreground">
-                  Find the user's ID in their Replit profile URL
+                  Must match their Replit account email
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name (Optional)</Label>
+                <Input
+                  id="firstName"
+                  value={newUserFirstName}
+                  onChange={(e) => setNewUserFirstName(e.target.value)}
+                  placeholder="John"
+                  data-testid="input-new-user-firstname"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name (Optional)</Label>
+                <Input
+                  id="lastName"
+                  value={newUserLastName}
+                  onChange={(e) => setNewUserLastName(e.target.value)}
+                  placeholder="Doe"
+                  data-testid="input-new-user-lastname"
+                />
               </div>
               <Button 
                 onClick={handleCreateUser}
@@ -214,10 +250,10 @@ export default function UsersManagement() {
                 {createUserMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
+                    Provisioning...
                   </>
                 ) : (
-                  'Create User'
+                  'Provision User'
                 )}
               </Button>
             </div>
@@ -245,6 +281,16 @@ export default function UsersManagement() {
             <SelectItem value="all">All Users</SelectItem>
             <SelectItem value="active">Active Only</SelectItem>
             <SelectItem value="inactive">Inactive Only</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={accountStatusFilter} onValueChange={(value: 'all' | 'pending' | 'linked') => setAccountStatusFilter(value)}>
+          <SelectTrigger className="w-44" data-testid="select-account-status-filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Accounts</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="linked">Linked</SelectItem>
           </SelectContent>
         </Select>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -276,7 +322,7 @@ export default function UsersManagement() {
                   {getSortIcon('email')}
                 </div>
               </TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Account Status</TableHead>
               <TableHead>Roles</TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50 select-none"
@@ -320,12 +366,29 @@ export default function UsersManagement() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge 
-                    variant={user.isActive ? 'default' : 'secondary'}
-                    data-testid={`status-user-${user.id}`}
-                  >
-                    {user.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
+                  <div className="flex flex-col gap-1">
+                    <Badge 
+                      variant={user.accountStatus === 'linked' ? 'default' : 'outline'}
+                      data-testid={`status-account-${user.id}`}
+                      className="w-fit"
+                    >
+                      {user.accountStatus === 'linked' ? 'Linked' : 'Pending'}
+                    </Badge>
+                    {!user.isActive && (
+                      <Badge 
+                        variant="secondary"
+                        data-testid={`status-active-${user.id}`}
+                        className="w-fit"
+                      >
+                        Inactive
+                      </Badge>
+                    )}
+                    {user.accountStatus === 'linked' && user.replitUserId && (
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {user.replitUserId}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell data-testid={`text-roles-${user.id}`}>
                   <div className="flex flex-wrap gap-1">
