@@ -207,6 +207,7 @@ function WorkerDetailsContent() {
                     <p>{primaryAddress.city}, {primaryAddress.state} {primaryAddress.postalCode}</p>
                     <p className="text-sm text-muted-foreground">{primaryAddress.country}</p>
                   </div>
+                  {/* Map temporarily hidden - will be used later
                   {primaryAddress.latitude !== null && primaryAddress.latitude !== undefined && 
                    primaryAddress.longitude !== null && primaryAddress.longitude !== undefined && (
                     <GoogleMap
@@ -217,6 +218,7 @@ function WorkerDetailsContent() {
                       markerTitle={primaryAddress.friendlyName || "Primary Address"}
                     />
                   )}
+                  */}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm" data-testid="text-no-primary-address">
