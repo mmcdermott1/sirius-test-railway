@@ -34,6 +34,7 @@ export interface IStorage {
   deleteUser(id: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
   getAllUsersWithRoles(): Promise<(User & { roles: Role[] })[]>;
+  hasAnyUsers(): Promise<boolean>; // Check if any users exist (for bootstrap)
   
   // Role operations
   getAllRoles(): Promise<Role[]>;
@@ -278,6 +279,11 @@ export class DatabaseStorage implements IStorage {
       ...user,
       roles: rolesByUser[user.id] || []
     }));
+  }
+
+  async hasAnyUsers(): Promise<boolean> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(users);
+    return (result?.count ?? 0) > 0;
   }
 
   // Role operations
