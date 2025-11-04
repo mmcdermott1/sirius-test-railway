@@ -99,6 +99,12 @@ app.use((req, res, next) => {
     hasPermission: async (userId: string, permissionKey: string) => {
       return storage.userHasPermission(userId, permissionKey);
     },
+    getUserByReplitId: async (replitUserId: string) => {
+      return storage.getUserByReplitId(replitUserId);
+    },
+    getUser: async (userId: string) => {
+      return storage.getUser(userId);
+    },
   });
   logger.info("Access control system initialized", { source: "startup" });
   

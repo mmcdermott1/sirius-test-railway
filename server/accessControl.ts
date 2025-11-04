@@ -50,6 +50,8 @@ export interface AccessResult {
 export interface AccessControlStorage {
   getUserPermissions(userId: string): Promise<string[]>;
   hasPermission(userId: string, permissionKey: string): Promise<boolean>;
+  getUserByReplitId(replitUserId: string): Promise<User | undefined>;
+  getUser(userId: string): Promise<User | undefined>;
 }
 
 let storage: AccessControlStorage | null = null;
@@ -63,10 +65,34 @@ export function initAccessControl(storageImpl: AccessControlStorage) {
 
 /**
  * Build access context from an Express request
+ * Handles Replit Auth and masquerading
  */
-export function buildContext(req: Request): AccessContext {
+export async function buildContext(req: Request): Promise<AccessContext> {
+  let user: User | null = null;
+
+  // Check if user is authenticated via Replit
+  const replitUser = (req as any).user;
+  if (replitUser && replitUser.claims && storage) {
+    const replitUserId = replitUser.claims.sub;
+    const session = (req as any).session;
+
+    // Check if masquerading
+    if (session?.masqueradeUserId) {
+      const masqueradeUser = await storage.getUser(session.masqueradeUserId);
+      if (masqueradeUser) {
+        user = masqueradeUser;
+      }
+    } else {
+      // Normal authentication - look up database user by Replit ID
+      const dbUser = await storage.getUserByReplitId(replitUserId);
+      if (dbUser) {
+        user = dbUser;
+      }
+    }
+  }
+
   return {
-    user: (req as any).user || null,
+    user,
     route: req.route?.path || req.path,
     method: req.method,
     params: req.params,
@@ -225,7 +251,7 @@ export async function evaluatePolicy(
 export function requireAccess(policy: AccessPolicy) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const context = buildContext(req);
+      const context = await buildContext(req);
       const result = await evaluatePolicy(policy, context);
 
       if (!result.granted) {
