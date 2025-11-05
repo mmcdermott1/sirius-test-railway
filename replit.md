@@ -34,9 +34,11 @@ Preferred communication style: Simple, everyday language.
     - **Site Information**: Configurable site name.
     - **Phone Number Validation**: Configurable validation via `libphonenumber-js` or Twilio Lookup API.
     - **Welcome Messages**: Role-specific dashboard welcome messages with HTML formatting (sanitized with DOMPurify).
+    - **Dashboard Plugins**: Extensible plugin system for customizing the dashboard display.
 - **User Provisioning**: Email-based user provisioning workflow, linking Replit accounts upon first login.
 - **Data Validation**: Extensive Zod schema validation across the application, `libphonenumber-js` for phone numbers, and custom SSN/date validation.
 - **Employers**: Employer management with auto-generated UUIDs for identification.
+- **Dashboard Plugin System**: Extensible architecture allowing admins to enable/disable dashboard widgets. Plugins can display role-specific content and check user permissions.
 
 # External Dependencies
 
@@ -64,3 +66,32 @@ Preferred communication style: Simple, everyday language.
 
 ## Security
 - **DOMPurify**: HTML sanitization for user-generated content.
+
+# Dashboard Plugin System
+
+## Architecture
+- **Registry Pattern**: Centralized plugin registry in `client/src/plugins/registry.ts`
+- **Plugin Types**: Type definitions in `client/src/plugins/types.ts`
+- **Plugin Props**: Each plugin receives `userId`, `userRoles` (full Role objects), and `userPermissions`
+- **Configuration Storage**: Plugin enabled/disabled state stored in `variables` table as `dashboard_plugin_{pluginId}`
+
+## Plugin Structure
+Each plugin is defined in its own folder under `client/src/plugins/` with:
+- Plugin component (React component)
+- Plugin registration (added to registry)
+- Plugin metadata (id, name, description, order, requiredPermissions, enabledByDefault)
+
+## Current Plugins
+- **WelcomeMessagesPlugin**: Displays role-specific welcome messages for authenticated users. Shows all messages for roles the user belongs to, with HTML formatting support.
+
+## Adding New Plugins
+1. Create plugin folder in `client/src/plugins/`
+2. Implement plugin component with `DashboardPluginProps` interface
+3. Register plugin in `client/src/plugins/registry.ts` with metadata
+4. Plugin will automatically appear in admin configuration page
+
+## Plugin Configuration
+- Admins can enable/disable plugins via `/config/dashboard-plugins`
+- Plugins respect user permissions via `requiredPermissions` field
+- Plugins are displayed in order specified by `order` field
+- Default state controlled by `enabledByDefault` field
