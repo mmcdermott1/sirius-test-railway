@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Star, User, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { EmployersTable } from "@/components/employers/employers-table";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Employer } from "@shared/schema";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function Employers() {
   const [location] = useLocation();
@@ -32,28 +33,15 @@ export default function Employers() {
 
   return (
     <div className="bg-background text-foreground min-h-screen">
-      {/* Header */}
-      <header className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Star className="text-primary-foreground" size={16} />
-              </div>
-              <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
-              <span className="text-muted-foreground text-sm font-medium">Employer Management</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-muted-foreground" data-testid="text-employer-count">
-                {employers.length} Employers
-              </span>
-              <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-                <User className="text-muted-foreground" size={12} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PageHeader 
+        title="Employers" 
+        icon={<Building2 className="text-primary-foreground" size={16} />}
+        actions={
+          <span className="text-sm text-muted-foreground" data-testid="text-employer-count">
+            {employers.length} Employers
+          </span>
+        }
+      />
 
       {/* Tab Navigation */}
       <div className="bg-card border-b border-border">
