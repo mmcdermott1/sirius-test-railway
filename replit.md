@@ -18,7 +18,7 @@ Preferred communication style: Simple, everyday language.
 ## Backend
 - **Framework**: Express.js with TypeScript.
 - **API Design**: RESTful API with structured error handling.
-- **Module Structure**: Feature-based modules in `server/modules/` with `registerXRoutes()` functions. Each module handles related routes (users, variables, dashboard, postal addresses, phone numbers, address validation, masquerade).
+- **Module Structure**: Feature-based modules in `server/modules/` with `registerXRoutes()` functions. Each module handles related routes (users, variables, dashboard, postal addresses, phone numbers, address validation, masquerade, bookmarks).
 - **Authentication**: Replit Auth (OAuth via OpenID Connect) with restricted, pre-provisioned user access. Session management uses Connect-pg-simple for PostgreSQL storage.
 - **Access Control**: Centralized, declarative access control system with role-based permissions and policy definitions.
 - **Logging**: Winston logging with PostgreSQL database backend (`@innova2/winston-pg`) for detailed API and error logs.
@@ -39,6 +39,7 @@ Preferred communication style: Simple, everyday language.
 - **User Provisioning**: Email-based user provisioning workflow, linking Replit accounts upon first login.
 - **Data Validation**: Extensive Zod schema validation across the application, `libphonenumber-js` for phone numbers, and custom SSN/date validation.
 - **Employers**: Employer management with auto-generated UUIDs for identification.
+- **Bookmarks**: Entity-agnostic bookmark system allowing users to save workers and employers for quick access. Requires the `bookmark` permission (or admin access). Bookmarks are user-specific and stored with entity type and ID for flexible associations.
 - **Dashboard Plugin System**: Extensible architecture allowing admins to enable/disable dashboard widgets. Plugins can display role-specific content and check user permissions.
 
 # External Dependencies
@@ -96,3 +97,32 @@ Each plugin is defined in its own folder under `client/src/plugins/` with:
 - Plugins respect user permissions via `requiredPermissions` field
 - Plugins are displayed in order specified by `order` field
 - Default state controlled by `enabledByDefault` field
+
+# Access Control
+
+## Permissions
+The system uses a centralized permission registry (`shared/permissions.ts`) with core permissions including:
+- `admin.manage`: Administrative functions, users, roles, and permissions management
+- `workers.manage`: Create, update, and delete worker records
+- `workers.view`: View worker records and information
+- `variables.manage`: Create, update, and delete system variables
+- `bookmark`: Create and manage bookmarks for workers and employers
+- `masquerade`: Ability to masquerade as other users
+- `admin`: Administrator level access (bypasses all access checks)
+
+## Policies
+Access policies (`server/policies.ts`) define declarative access control requirements:
+- `authenticated`: Requires user authentication
+- `adminManage`: Requires `admin.manage` permission
+- `workersView`: Requires `workers.view` permission
+- `workersManage`: Requires `workers.manage` permission
+- `employersView`: Requires `employers.view` permission
+- `employersManage`: Requires `employers.manage` permission
+- `variablesView`: Requires `variables.view` permission
+- `variablesManage`: Requires `variables.manage` permission
+- `benefitsView`: Requires `benefits.view` permission
+- `benefitsManage`: Requires `benefits.manage` permission
+- `bookmark`: Requires `bookmark` permission
+- `masquerade`: Requires `masquerade` or `admin` permission
+
+All policies automatically grant access to users with the `admin` permission.

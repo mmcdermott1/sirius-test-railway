@@ -112,6 +112,18 @@ export const benefitsManage: AccessPolicy = {
 };
 
 /**
+ * Bookmark policy
+ */
+export const bookmark: AccessPolicy = {
+  name: 'Bookmark',
+  description: 'Requires bookmark permission',
+  requirements: [
+    { type: 'authenticated' },
+    { type: 'permission', key: 'bookmark' },
+  ],
+};
+
+/**
  * Masquerade policy
  */
 export const masquerade: AccessPolicy = {
@@ -155,6 +167,7 @@ export const policies = {
   variablesManage,
   benefitsView,
   benefitsManage,
+  bookmark,
   masquerade,
   workersViewOrManage,
 };

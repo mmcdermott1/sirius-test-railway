@@ -166,6 +166,11 @@ export function initializePermissions(): void {
       module: 'core'
     },
     {
+      key: 'bookmark',
+      description: 'Create and manage bookmarks for workers and employers',
+      module: 'core'
+    },
+    {
       key: 'masquerade',
       description: 'Ability to masquerade as other users',
       module: 'core'

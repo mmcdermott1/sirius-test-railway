@@ -3,6 +3,7 @@ import { Bookmark, BookmarkCheck } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
 
 interface BookmarkButtonProps {
@@ -14,6 +15,15 @@ interface BookmarkButtonProps {
 export function BookmarkButton({ entityType, entityId, entityName }: BookmarkButtonProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
+  
+  // Check if user has bookmark permission or admin access
+  const canBookmark = hasPermission('bookmark') || hasPermission('admin');
+  
+  // Don't render the button if user doesn't have permission
+  if (!canBookmark) {
+    return null;
+  }
 
   const { data: bookmarkStatus } = useQuery({
     queryKey: ["/api/bookmarks/check", entityType, entityId],
