@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Collapsible,
@@ -24,6 +24,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Site Information",
       icon: Globe,
       testId: "nav-config-site",
+      permission: "variables.manage",
+    },
+    {
+      path: "/config/welcome-messages",
+      label: "Welcome Messages",
+      icon: MessageSquare,
+      testId: "nav-config-welcome-messages",
       permission: "variables.manage",
     },
     {

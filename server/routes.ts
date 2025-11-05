@@ -762,6 +762,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Welcome Messages routes - Manage role-specific dashboard welcome messages
+  // GET /api/welcome-messages - Get all welcome messages (returns object with roleId as key)
+  app.get("/api/welcome-messages", requireAuth, async (req, res) => {
+    try {
+      const roles = await storage.getAllRoles();
+      const welcomeMessages: Record<string, string> = {};
+      
+      for (const role of roles) {
+        const variableName = `welcome_message_${role.id}`;
+        const variable = await storage.getVariableByName(variableName);
+        welcomeMessages[role.id] = variable ? (variable.value as string) : "";
+      }
+      
+      res.json(welcomeMessages);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch welcome messages" });
+    }
+  });
+
+  // PUT /api/welcome-messages/:roleId - Update a role's welcome message
+  app.put("/api/welcome-messages/:roleId", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { roleId } = req.params;
+      const { message } = req.body;
+      
+      if (typeof message !== "string") {
+        res.status(400).json({ message: "Invalid message format" });
+        return;
+      }
+      
+      // Verify role exists
+      const role = await storage.getRole(roleId);
+      if (!role) {
+        res.status(404).json({ message: "Role not found" });
+        return;
+      }
+      
+      const variableName = `welcome_message_${roleId}`;
+      const existingVariable = await storage.getVariableByName(variableName);
+      
+      if (existingVariable) {
+        await storage.updateVariable(existingVariable.id, { value: message });
+      } else {
+        await storage.createVariable({ name: variableName, value: message });
+      }
+      
+      res.json({ message });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update welcome message" });
+    }
+  });
+
   // Gender Options routes
   // GET /api/gender-options - Get all gender options (requires workers.view permission)
   app.get("/api/gender-options", requireAuth, requirePermission("workers.view"), async (req, res) => {
