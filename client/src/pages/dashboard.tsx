@@ -9,12 +9,12 @@ import { PluginConfig } from "@/plugins/types";
 export default function Dashboard() {
   const { user, permissions } = useAuth();
   
-  const { data: userRoles = [] } = useQuery<Role[]>({
-    queryKey: ["/api/users", user?.id, "roles"],
+  const { data: userRoles = [], isLoading: rolesLoading } = useQuery<Role[]>({
+    queryKey: [`/api/users/${user?.id}/roles`],
     enabled: !!user?.id,
   });
 
-  const { data: pluginConfigs = [] } = useQuery<PluginConfig[]>({
+  const { data: pluginConfigs = [], isLoading: configsLoading } = useQuery<PluginConfig[]>({
     queryKey: ["/api/dashboard-plugins/config"],
   });
 
@@ -43,19 +43,32 @@ export default function Dashboard() {
     <div className="bg-background text-foreground min-h-screen">
       <PageHeader title="Dashboard" icon={<Home className="text-primary-foreground" size={16} />} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {enabledPlugins.map(plugin => {
-            const PluginComponent = plugin.component;
-            return (
-              <PluginComponent
-                key={plugin.id}
-                userId={user?.id || ""}
-                userRoles={userRoles}
-                userPermissions={permissions}
-              />
-            );
-          })}
-        </div>
+        {rolesLoading || configsLoading ? (
+          <div className="text-center text-muted-foreground py-8">
+            <p>Loading dashboard...</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {enabledPlugins.map(plugin => {
+                const PluginComponent = plugin.component;
+                return (
+                  <PluginComponent
+                    key={plugin.id}
+                    userId={user?.id || ""}
+                    userRoles={userRoles}
+                    userPermissions={permissions}
+                  />
+                );
+              })}
+            </div>
+            {enabledPlugins.length === 0 && (
+              <div className="text-center text-muted-foreground">
+                <p>No plugins are currently enabled for your dashboard.</p>
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   );
