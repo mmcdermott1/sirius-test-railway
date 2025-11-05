@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
 ## Backend
 - **Framework**: Express.js with TypeScript.
 - **API Design**: RESTful API with structured error handling.
+- **Module Structure**: Feature-based modules in `server/modules/` with `registerXRoutes()` functions. Each module handles related routes (users, variables, dashboard, postal addresses, phone numbers, address validation, masquerade).
 - **Authentication**: Replit Auth (OAuth via OpenID Connect) with restricted, pre-provisioned user access. Session management uses Connect-pg-simple for PostgreSQL storage.
 - **Access Control**: Centralized, declarative access control system with role-based permissions and policy definitions.
 - **Logging**: Winston logging with PostgreSQL database backend (`@innova2/winston-pg`) for detailed API and error logs.
