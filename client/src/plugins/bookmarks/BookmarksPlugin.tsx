@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bookmark, User, Building } from "lucide-react";
 import { Link } from "wouter";
 import { DashboardPluginProps } from "../types";
-import type { Bookmark as BookmarkType, Worker, Employer } from "@shared/schema";
+import type { Bookmark as BookmarkType, Worker, Employer, Contact } from "@shared/schema";
 
 interface EnrichedBookmark extends BookmarkType {
   displayName?: string;
@@ -28,6 +28,23 @@ export function BookmarksPlugin({ userPermissions }: DashboardPluginProps) {
     enabled: hasBookmarkPermission && bookmarks.some(b => b.entityType === 'employer'),
   });
 
+  const contactIds = workers.map(w => w.contactId);
+  const { data: contacts = [] } = useQuery<Contact[]>({
+    queryKey: ["/api/contacts", contactIds],
+    queryFn: async () => {
+      const contactPromises = contactIds.map(async (id) => {
+        const res = await fetch(`/api/contacts/${id}`);
+        if (res.ok) {
+          return res.json();
+        }
+        return null;
+      });
+      const results = await Promise.all(contactPromises);
+      return results.filter((c): c is Contact => c !== null);
+    },
+    enabled: hasBookmarkPermission && contactIds.length > 0,
+  });
+
   if (!hasBookmarkPermission || bookmarksLoading) {
     return null;
   }
@@ -44,9 +61,11 @@ export function BookmarksPlugin({ userPermissions }: DashboardPluginProps) {
     if (bookmark.entityType === 'worker') {
       const worker = workers.find(w => w.id === bookmark.entityId);
       if (worker) {
+        const contact = contacts.find(c => c.id === worker.contactId);
+        const name = contact?.displayName || `Worker #${worker.siriusId}`;
         return {
           ...bookmark,
-          displayName: `Worker #${worker.siriusId}`,
+          displayName: name,
           displayIcon: User,
         };
       }

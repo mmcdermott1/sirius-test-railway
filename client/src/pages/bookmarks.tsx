@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
-import type { Bookmark as BookmarkType, Worker, Employer } from "@shared/schema";
+import type { Bookmark as BookmarkType, Worker, Employer, Contact } from "@shared/schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +40,23 @@ export default function Bookmarks() {
     enabled: bookmarks.some(b => b.entityType === 'employer'),
   });
 
+  const contactIds = workers.map(w => w.contactId);
+  const { data: contacts = [] } = useQuery<Contact[]>({
+    queryKey: ["/api/contacts", contactIds],
+    queryFn: async () => {
+      const contactPromises = contactIds.map(async (id) => {
+        const res = await fetch(`/api/contacts/${id}`);
+        if (res.ok) {
+          return res.json();
+        }
+        return null;
+      });
+      const results = await Promise.all(contactPromises);
+      return results.filter((c): c is Contact => c !== null);
+    },
+    enabled: contactIds.length > 0,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (bookmarkId: string) => {
       return apiRequest("DELETE", `/api/bookmarks/${bookmarkId}`);
@@ -64,7 +81,11 @@ export default function Bookmarks() {
   const getBookmarkName = (bookmark: BookmarkType): string => {
     if (bookmark.entityType === 'worker') {
       const worker = workers.find(w => w.id === bookmark.entityId);
-      return worker ? `Worker #${worker.siriusId}` : `Worker #${bookmark.entityId.slice(0, 8)}`;
+      if (worker) {
+        const contact = contacts.find(c => c.id === worker.contactId);
+        return contact?.displayName || `Worker #${worker.siriusId}`;
+      }
+      return `Worker #${bookmark.entityId.slice(0, 8)}`;
     }
     
     if (bookmark.entityType === 'employer') {
