@@ -1,6 +1,6 @@
 // Database storage implementation based on blueprint:javascript_database
 import { 
-  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, trustBenefits, trustWmb, optionsGender, optionsWorkerIdType, workerIds, optionsTrustBenefitType, bookmarks,
+  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, trustBenefits, trustWmb, optionsGender, optionsWorkerIdType, workerIds, optionsTrustBenefitType, bookmarks, ledgerStripePaymentMethods,
   type User, type InsertUser, type UpsertUser, type Worker, type InsertWorker,
   type Contact, type InsertContact,
   type Role, type InsertRole, type Variable, type InsertVariable,
@@ -14,6 +14,7 @@ import {
   type WorkerId, type InsertWorkerId,
   type TrustBenefitType, type InsertTrustBenefitType,
   type Bookmark, type InsertBookmark,
+  type LedgerStripePaymentMethod, type InsertLedgerStripePaymentMethod,
   type UserRole, type RolePermission, type AssignRole, type AssignPermission
 } from "@shared/schema";
 import { permissionRegistry, type PermissionDefinition } from "@shared/permissions";
@@ -164,6 +165,14 @@ export interface IStorage {
   findBookmark(userId: string, entityType: string, entityId: string): Promise<Bookmark | undefined>;
   createBookmark(bookmark: InsertBookmark): Promise<Bookmark>;
   deleteBookmark(id: string): Promise<boolean>;
+
+  // Ledger Stripe Payment Method CRUD operations
+  getPaymentMethodsByEntity(entityType: string, entityId: string): Promise<LedgerStripePaymentMethod[]>;
+  getPaymentMethod(id: string): Promise<LedgerStripePaymentMethod | undefined>;
+  createPaymentMethod(paymentMethod: InsertLedgerStripePaymentMethod): Promise<LedgerStripePaymentMethod>;
+  updatePaymentMethod(id: string, paymentMethod: Partial<InsertLedgerStripePaymentMethod>): Promise<LedgerStripePaymentMethod | undefined>;
+  deletePaymentMethod(id: string): Promise<boolean>;
+  setPaymentMethodAsDefault(id: string, entityType: string, entityId: string): Promise<LedgerStripePaymentMethod | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1316,6 +1325,7 @@ export class DatabaseStorage implements IStorage {
           siriusId: employers.siriusId,
           name: employers.name,
           isActive: employers.isActive,
+          stripeCustomerId: employers.stripeCustomerId,
         },
         benefit: {
           id: trustBenefits.id,
@@ -1393,6 +1403,61 @@ export class DatabaseStorage implements IStorage {
   async deleteBookmark(id: string): Promise<boolean> {
     const result = await db.delete(bookmarks).where(eq(bookmarks.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Ledger Stripe Payment Method CRUD operations
+  async getPaymentMethodsByEntity(entityType: string, entityId: string): Promise<LedgerStripePaymentMethod[]> {
+    return await db.select().from(ledgerStripePaymentMethods)
+      .where(and(
+        eq(ledgerStripePaymentMethods.entityType, entityType),
+        eq(ledgerStripePaymentMethods.entityId, entityId)
+      ))
+      .orderBy(desc(ledgerStripePaymentMethods.isDefault), desc(ledgerStripePaymentMethods.createdAt));
+  }
+
+  async getPaymentMethod(id: string): Promise<LedgerStripePaymentMethod | undefined> {
+    const [paymentMethod] = await db.select().from(ledgerStripePaymentMethods)
+      .where(eq(ledgerStripePaymentMethods.id, id));
+    return paymentMethod || undefined;
+  }
+
+  async createPaymentMethod(insertPaymentMethod: InsertLedgerStripePaymentMethod): Promise<LedgerStripePaymentMethod> {
+    const [paymentMethod] = await db.insert(ledgerStripePaymentMethods)
+      .values(insertPaymentMethod)
+      .returning();
+    return paymentMethod;
+  }
+
+  async updatePaymentMethod(id: string, paymentMethodUpdate: Partial<InsertLedgerStripePaymentMethod>): Promise<LedgerStripePaymentMethod | undefined> {
+    const [paymentMethod] = await db.update(ledgerStripePaymentMethods)
+      .set(paymentMethodUpdate)
+      .where(eq(ledgerStripePaymentMethods.id, id))
+      .returning();
+    return paymentMethod || undefined;
+  }
+
+  async deletePaymentMethod(id: string): Promise<boolean> {
+    const result = await db.delete(ledgerStripePaymentMethods)
+      .where(eq(ledgerStripePaymentMethods.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async setPaymentMethodAsDefault(id: string, entityType: string, entityId: string): Promise<LedgerStripePaymentMethod | undefined> {
+    // First, unset all other payment methods as default for this entity
+    await db.update(ledgerStripePaymentMethods)
+      .set({ isDefault: false })
+      .where(and(
+        eq(ledgerStripePaymentMethods.entityType, entityType),
+        eq(ledgerStripePaymentMethods.entityId, entityId)
+      ));
+    
+    // Then set the specified payment method as default
+    const [paymentMethod] = await db.update(ledgerStripePaymentMethods)
+      .set({ isDefault: true })
+      .where(eq(ledgerStripePaymentMethods.id, id))
+      .returning();
+    return paymentMethod || undefined;
   }
 }
 

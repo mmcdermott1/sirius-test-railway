@@ -226,4 +226,232 @@ export function registerLedgerStripeRoutes(app: Express) {
       });
     }
   });
+
+  // List payment methods for an employer
+  app.get("/api/employers/:id/ledger/stripe/payment-methods", requireAccess(policies.ledgerStripeEmployer), async (req: Request, res: Response) => {
+    try {
+      const { id: employerId } = req.params;
+      
+      const employer = await storage.getEmployer(employerId);
+      if (!employer) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ 
+          message: "Stripe is not configured",
+          error: "STRIPE_SECRET_KEY is not set",
+        });
+      }
+
+      // Get payment methods from database
+      const paymentMethods = await storage.getPaymentMethodsByEntity('employer', employerId);
+      
+      // Get Stripe customer ID
+      const customerId = employer.stripeCustomerId;
+      
+      // If customer exists, fetch payment method details from Stripe
+      let enrichedPaymentMethods = [];
+      if (customerId) {
+        const stripeClient = getStripeClient();
+        
+        for (const pm of paymentMethods) {
+          try {
+            const stripePaymentMethod = await stripeClient.paymentMethods.retrieve(pm.paymentMethod);
+            enrichedPaymentMethods.push({
+              ...pm,
+              stripeDetails: {
+                type: stripePaymentMethod.type,
+                card: stripePaymentMethod.card ? {
+                  brand: stripePaymentMethod.card.brand,
+                  last4: stripePaymentMethod.card.last4,
+                  expMonth: stripePaymentMethod.card.exp_month,
+                  expYear: stripePaymentMethod.card.exp_year,
+                } : null,
+                billing_details: stripePaymentMethod.billing_details,
+              },
+            });
+          } catch (error: any) {
+            // If payment method no longer exists in Stripe, include it with error flag
+            enrichedPaymentMethods.push({
+              ...pm,
+              stripeError: 'Payment method not found in Stripe',
+            });
+          }
+        }
+      } else {
+        enrichedPaymentMethods = paymentMethods;
+      }
+
+      res.json(enrichedPaymentMethods);
+    } catch (error: any) {
+      res.status(500).json({ 
+        message: "Failed to fetch payment methods",
+        error: error.message,
+      });
+    }
+  });
+
+  // Attach a payment method to an employer
+  app.post("/api/employers/:id/ledger/stripe/payment-methods", requireAccess(policies.ledgerStripeEmployer), async (req: Request, res: Response) => {
+    try {
+      const { id: employerId } = req.params;
+      const { paymentMethodId } = req.body;
+      
+      if (!paymentMethodId) {
+        return res.status(400).json({ message: "paymentMethodId is required" });
+      }
+
+      const employer = await storage.getEmployer(employerId);
+      if (!employer) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ 
+          message: "Stripe is not configured",
+          error: "STRIPE_SECRET_KEY is not set",
+        });
+      }
+
+      const stripeClient = getStripeClient();
+      
+      // Ensure customer exists
+      let customerId = employer.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripeClient.customers.create({
+          name: employer.name,
+          metadata: {
+            employer_id: employer.id,
+            sirius_id: employer.siriusId.toString(),
+          },
+        });
+        customerId = customer.id;
+        await storage.updateEmployer(employer.id, {
+          stripeCustomerId: customerId,
+        });
+      }
+
+      // Attach payment method to customer in Stripe
+      await stripeClient.paymentMethods.attach(paymentMethodId, {
+        customer: customerId,
+      });
+
+      // Check if this is the first payment method for this entity
+      const existingMethods = await storage.getPaymentMethodsByEntity('employer', employerId);
+      const isFirst = existingMethods.length === 0;
+
+      // Save to database
+      const paymentMethod = await storage.createPaymentMethod({
+        entityType: 'employer',
+        entityId: employerId,
+        paymentMethod: paymentMethodId,
+        isActive: true,
+        isDefault: isFirst, // Set as default if it's the first one
+      });
+
+      res.json(paymentMethod);
+    } catch (error: any) {
+      res.status(500).json({ 
+        message: "Failed to attach payment method",
+        error: error.message,
+      });
+    }
+  });
+
+  // Update payment method (enable/disable)
+  app.patch("/api/employers/:id/ledger/stripe/payment-methods/:pmId", requireAccess(policies.ledgerStripeEmployer), async (req: Request, res: Response) => {
+    try {
+      const { id: employerId, pmId } = req.params;
+      const { isActive } = req.body;
+
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ message: "isActive must be a boolean" });
+      }
+
+      const paymentMethod = await storage.getPaymentMethod(pmId);
+      if (!paymentMethod) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+
+      if (paymentMethod.entityId !== employerId) {
+        return res.status(403).json({ message: "Payment method does not belong to this employer" });
+      }
+
+      const updated = await storage.updatePaymentMethod(pmId, { isActive });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ 
+        message: "Failed to update payment method",
+        error: error.message,
+      });
+    }
+  });
+
+  // Set payment method as default
+  app.post("/api/employers/:id/ledger/stripe/payment-methods/:pmId/set-default", requireAccess(policies.ledgerStripeEmployer), async (req: Request, res: Response) => {
+    try {
+      const { id: employerId, pmId } = req.params;
+
+      const paymentMethod = await storage.getPaymentMethod(pmId);
+      if (!paymentMethod) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+
+      if (paymentMethod.entityId !== employerId) {
+        return res.status(403).json({ message: "Payment method does not belong to this employer" });
+      }
+
+      const updated = await storage.setPaymentMethodAsDefault(pmId, 'employer', employerId);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ 
+        message: "Failed to set payment method as default",
+        error: error.message,
+      });
+    }
+  });
+
+  // Delete payment method
+  app.delete("/api/employers/:id/ledger/stripe/payment-methods/:pmId", requireAccess(policies.ledgerStripeEmployer), async (req: Request, res: Response) => {
+    try {
+      const { id: employerId, pmId } = req.params;
+
+      const paymentMethod = await storage.getPaymentMethod(pmId);
+      if (!paymentMethod) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+
+      if (paymentMethod.entityId !== employerId) {
+        return res.status(403).json({ message: "Payment method does not belong to this employer" });
+      }
+
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(503).json({ 
+          message: "Stripe is not configured",
+          error: "STRIPE_SECRET_KEY is not set",
+        });
+      }
+
+      const stripeClient = getStripeClient();
+      
+      // Detach payment method from Stripe customer
+      try {
+        await stripeClient.paymentMethods.detach(paymentMethod.paymentMethod);
+      } catch (error: any) {
+        // If payment method doesn't exist in Stripe, we still delete from database
+        console.warn(`Failed to detach payment method from Stripe: ${error.message}`);
+      }
+
+      // Delete from database
+      await storage.deletePaymentMethod(pmId);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ 
+        message: "Failed to delete payment method",
+        error: error.message,
+      });
+    }
+  });
 }
