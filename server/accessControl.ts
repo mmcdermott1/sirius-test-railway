@@ -22,6 +22,7 @@ export type AccessRequirement =
   | { type: 'permission'; key: string }
   | { type: 'anyPermission'; keys: string[] }
   | { type: 'allPermissions'; keys: string[] }
+  | { type: 'component'; componentId: string }
   | { type: 'ownership'; resourceType: string; resourceIdParam?: string }
   | { type: 'anyOf'; options: AccessRequirement[] }
   | { type: 'allOf'; options: AccessRequirement[] }
@@ -176,6 +177,15 @@ async function evaluateRequirement(
         }
       }
       return { granted: true };
+    }
+
+    case 'component': {
+      // Import dynamically to avoid circular dependency
+      const { isComponentEnabled } = await import('./modules/components');
+      const enabled = await isComponentEnabled(requirement.componentId);
+      return enabled
+        ? { granted: true }
+        : { granted: false, reason: `Component '${requirement.componentId}' is not enabled` };
     }
 
     case 'ownership': {
