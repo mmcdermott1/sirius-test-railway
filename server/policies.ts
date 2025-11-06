@@ -124,6 +124,19 @@ export const components: AccessPolicy = {
 };
 
 /**
+ * Ledger Stripe administration policy
+ */
+export const ledgerStripeAdmin: AccessPolicy = {
+  name: 'Ledger Stripe Administration',
+  description: 'Requires admin permission and ledger.stripe component',
+  requirements: [
+    { type: 'authenticated' },
+    { type: 'permission', key: 'admin' },
+    { type: 'component', componentId: 'ledger.stripe' },
+  ],
+};
+
+/**
  * Bookmark policy
  */
 export const bookmark: AccessPolicy = {
@@ -180,6 +193,7 @@ export const policies = {
   benefitsView,
   benefitsManage,
   components,
+  ledgerStripeAdmin,
   bookmark,
   masquerade,
   workersViewOrManage,

@@ -47,6 +47,8 @@ import MasqueradePage from "@/pages/config/masquerade";
 import WelcomeMessagesConfigPage from "@/pages/config/welcome-messages";
 import DashboardPluginsConfigPage from "@/pages/config/dashboard-plugins";
 import ComponentsConfigPage from "@/pages/config/components";
+import StripeTestPage from "@/pages/config/ledger/stripe/test";
+import PaymentTypesPage from "@/pages/config/ledger/stripe/payment-types";
 import SiteInformation from "@/pages/site-information";
 import NotFound from "@/pages/not-found";
 
@@ -376,6 +378,26 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <MasqueradePage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/config/ledger/stripe/test">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <StripeTestPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/config/ledger/stripe/payment-types">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <PaymentTypesPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

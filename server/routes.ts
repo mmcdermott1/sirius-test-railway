@@ -11,6 +11,7 @@ import { registerMasqueradeRoutes, getEffectiveUser } from "./modules/masquerade
 import { registerDashboardRoutes } from "./modules/dashboard";
 import { registerBookmarkRoutes } from "./modules/bookmarks";
 import { registerComponentRoutes } from "./modules/components";
+import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
 import { addressValidationService } from "./services/address-validation";
 import { phoneValidationService } from "./services/phone-validation";
 import { isAuthenticated } from "./replitAuth";
@@ -226,6 +227,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register component configuration routes
   registerComponentRoutes(app, requireAuth, requirePermission);
+
+  // Register ledger/stripe routes
+  registerLedgerStripeRoutes(app);
 
   // Worker routes (protected with authentication and permissions)
   

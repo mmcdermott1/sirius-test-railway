@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Collapsible,
@@ -17,6 +17,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
   const [location] = useLocation();
   const { hasPermission } = useAuth();
   const [isDropDownListsOpen, setIsDropDownListsOpen] = useState(false);
+  const [isLedgerStripeOpen, setIsLedgerStripeOpen] = useState(false);
 
   const regularNavItems = [
     {
@@ -108,8 +109,30 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
     },
   ];
 
+  const ledgerStripeItems = [
+    {
+      path: "/config/ledger/stripe/test",
+      label: "Test Connection",
+      icon: Activity,
+      testId: "nav-ledger-stripe-test",
+      permission: "admin",
+    },
+    {
+      path: "/config/ledger/stripe/payment-types",
+      label: "Payment Types",
+      icon: CreditCard,
+      testId: "nav-ledger-stripe-payment-types",
+      permission: "admin",
+    },
+  ];
+
   // Check if any dropdown list item is active
   const isDropDownListActive = dropDownListItems.some(
+    (item) => location === item.path || location.startsWith(item.path + "/")
+  );
+
+  // Check if any ledger/stripe item is active
+  const isLedgerStripeActive = ledgerStripeItems.some(
     (item) => location === item.path || location.startsWith(item.path + "/")
   );
 
@@ -161,6 +184,47 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
                 </CollapsibleTrigger>
                 <CollapsibleContent className="ml-4 mt-2 space-y-2">
                   {dropDownListItems.filter((item) => hasPermission(item.permission)).map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.path || location.startsWith(item.path + "/");
+                    
+                    return (
+                      <Link key={item.path} href={item.path}>
+                        <Button
+                          variant={isActive ? "secondary" : "ghost"}
+                          className="w-full justify-start text-sm"
+                          data-testid={item.testId}
+                        >
+                          <Icon className="mr-2 h-4 w-4" />
+                          {item.label}
+                        </Button>
+                      </Link>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Ledger/Stripe Group */}
+            {ledgerStripeItems.some((item) => hasPermission(item.permission)) && (
+              <Collapsible
+                open={isLedgerStripeOpen || isLedgerStripeActive}
+                onOpenChange={setIsLedgerStripeOpen}
+              >
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant={isLedgerStripeActive ? "default" : "ghost"}
+                    className="w-full justify-start"
+                    data-testid="nav-config-ledger-stripe"
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Ledger / Stripe
+                    <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200" 
+                      style={{ transform: (isLedgerStripeOpen || isLedgerStripeActive) ? 'rotate(180deg)' : 'rotate(0deg)' }} 
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="ml-4 mt-2 space-y-2">
+                  {ledgerStripeItems.filter((item) => hasPermission(item.permission)).map((item) => {
                     const Icon = item.icon;
                     const isActive = location === item.path || location.startsWith(item.path + "/");
                     
