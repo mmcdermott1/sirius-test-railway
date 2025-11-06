@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Info } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { getAllComponents, ComponentDefinition, ComponentConfig } from "../../../shared/components";
+import { getAllComponents, ComponentDefinition, ComponentConfig } from "@shared/components";
 
 export default function ComponentsConfigPage() {
   const { toast } = useToast();
@@ -24,7 +24,7 @@ export default function ComponentsConfigPage() {
   useEffect(() => {
     // Initialize local states from configs or defaults
     const states: Record<string, boolean> = {};
-    allComponents.forEach(component => {
+    allComponents.forEach((component: ComponentDefinition) => {
       const config = componentConfigs.find(c => c.componentId === component.id);
       states[component.id] = config ? config.enabled : component.enabledByDefault;
     });
@@ -68,7 +68,7 @@ export default function ComponentsConfigPage() {
 
   // Group components by category
   const componentsByCategory: Record<string, ComponentDefinition[]> = {};
-  allComponents.forEach(component => {
+  allComponents.forEach((component: ComponentDefinition) => {
     const category = component.category || 'other';
     if (!componentsByCategory[category]) {
       componentsByCategory[category] = [];

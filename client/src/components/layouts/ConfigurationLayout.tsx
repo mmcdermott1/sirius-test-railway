@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Collapsible,
@@ -31,6 +31,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Dashboard Plugins",
       icon: Puzzle,
       testId: "nav-config-dashboard-plugins",
+      permission: "variables.manage",
+    },
+    {
+      path: "/config/components",
+      label: "Components",
+      icon: Package,
+      testId: "nav-config-components",
       permission: "variables.manage",
     },
     {
