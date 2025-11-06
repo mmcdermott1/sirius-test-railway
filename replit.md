@@ -98,6 +98,53 @@ Each plugin is defined in its own folder under `client/src/plugins/` with:
 - Plugins are displayed in order specified by `order` field
 - Default state controlled by `enabledByDefault` field
 
+# Components Feature Flag System
+
+## Architecture
+- **Registry Pattern**: Centralized component registry in `shared/components.ts`
+- **Component Types**: Type definitions for `ComponentDefinition` and `ComponentConfig` in `shared/components.ts`
+- **Configuration Storage**: Component enabled/disabled state stored in `variables` table with `component_` prefix
+- **Access Control Integration**: Policies can check component enablement using `{ type: 'component', componentId: 'xxx' }`
+
+## Component Structure
+Each component is defined in the registry with:
+- `id`: Unique identifier (e.g., "ledger", "ledger.stripe")
+- `name`: Human-readable display name
+- `description`: Brief explanation of the component's purpose
+- `category`: Group classification (core, ledger, sitespecific, cardcheck, login)
+- `enabledByDefault`: Boolean flag for default state
+- `dependencies`: Optional array of component IDs that must be enabled
+
+## Current Components
+- **ledger**: Core ledger functionality
+- **ledger.stripe**: Stripe payment integration for ledger
+- **cardcheck**: Card verification system
+- **sitespecific.gbhet**: Site-specific features for GBHET
+- **sitespecific.btu**: Site-specific features for BTU
+- **employer.login**: Employer login portal
+- **worker.login**: Worker login portal
+
+## Component Management
+- Admins can enable/disable components via `/config/components`
+- Components are organized by category for easier management
+- Component states persist across sessions
+- Dependency chains ensure related components work together
+- Requires `variables.manage` permission to configure
+
+## API Endpoints
+- `GET /api/components/config`: Retrieve all component configurations
+- `PUT /api/components/config/:componentId`: Update a component's enabled state
+
+## Using Components in Policies
+Components can be used in access control policies to restrict features:
+```typescript
+{
+  type: 'component',
+  componentId: 'ledger'
+}
+```
+This allows routes and features to be conditionally enabled based on component state.
+
 # Access Control
 
 ## Permissions
