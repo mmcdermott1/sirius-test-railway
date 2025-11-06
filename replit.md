@@ -108,6 +108,8 @@ The system uses a centralized permission registry (`shared/permissions.ts`) with
 - `variables.manage`: Create, update, and delete system variables
 - `bookmark`: Create and manage bookmarks for workers and employers
 - `masquerade`: Ability to masquerade as other users
+- `ledger.employer`: Access to employer ledger functionality
+- `ledger.staff`: Access to staff ledger functionality
 - `admin`: Administrator level access (bypasses all access checks)
 
 ## Policies
