@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity, BookOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Collapsible,
@@ -110,6 +110,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
   ];
 
   const ledgerStripeItems = [
+    {
+      path: "/config/ledger/accounts",
+      label: "Accounts",
+      icon: BookOpen,
+      testId: "nav-ledger-accounts",
+      permission: "ledger.staff",
+    },
     {
       path: "/config/ledger/stripe/test",
       label: "Test Connection",

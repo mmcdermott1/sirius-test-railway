@@ -1,6 +1,6 @@
 // Database storage implementation based on blueprint:javascript_database
 import { 
-  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, trustBenefits, trustWmb, optionsGender, optionsWorkerIdType, workerIds, optionsTrustBenefitType, bookmarks, ledgerStripePaymentMethods,
+  users, workers, contacts, roles, userRoles, rolePermissions, variables, postalAddresses, phoneNumbers, employers, trustBenefits, trustWmb, optionsGender, optionsWorkerIdType, workerIds, optionsTrustBenefitType, bookmarks, ledgerStripePaymentMethods, ledgerAccounts,
   type User, type InsertUser, type UpsertUser, type Worker, type InsertWorker,
   type Contact, type InsertContact,
   type Role, type InsertRole, type Variable, type InsertVariable,
@@ -15,6 +15,7 @@ import {
   type TrustBenefitType, type InsertTrustBenefitType,
   type Bookmark, type InsertBookmark,
   type LedgerStripePaymentMethod, type InsertLedgerStripePaymentMethod,
+  type LedgerAccount, type InsertLedgerAccount,
   type UserRole, type RolePermission, type AssignRole, type AssignPermission
 } from "@shared/schema";
 import { permissionRegistry, type PermissionDefinition } from "@shared/permissions";
@@ -173,6 +174,13 @@ export interface IStorage {
   updatePaymentMethod(id: string, paymentMethod: Partial<InsertLedgerStripePaymentMethod>): Promise<LedgerStripePaymentMethod | undefined>;
   deletePaymentMethod(id: string): Promise<boolean>;
   setPaymentMethodAsDefault(id: string, entityType: string, entityId: string): Promise<LedgerStripePaymentMethod | undefined>;
+
+  // Ledger Account CRUD operations
+  getAllLedgerAccounts(): Promise<LedgerAccount[]>;
+  getLedgerAccount(id: string): Promise<LedgerAccount | undefined>;
+  createLedgerAccount(account: InsertLedgerAccount): Promise<LedgerAccount>;
+  updateLedgerAccount(id: string, account: Partial<InsertLedgerAccount>): Promise<LedgerAccount | undefined>;
+  deleteLedgerAccount(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1458,6 +1466,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(ledgerStripePaymentMethods.id, id))
       .returning();
     return paymentMethod || undefined;
+  }
+
+  // Ledger Account CRUD operations
+  async getAllLedgerAccounts(): Promise<LedgerAccount[]> {
+    const results = await db.select().from(ledgerAccounts);
+    return results;
+  }
+
+  async getLedgerAccount(id: string): Promise<LedgerAccount | undefined> {
+    const [account] = await db.select().from(ledgerAccounts).where(eq(ledgerAccounts.id, id));
+    return account || undefined;
+  }
+
+  async createLedgerAccount(insertAccount: InsertLedgerAccount): Promise<LedgerAccount> {
+    const [account] = await db.insert(ledgerAccounts).values(insertAccount).returning();
+    return account;
+  }
+
+  async updateLedgerAccount(id: string, accountUpdate: Partial<InsertLedgerAccount>): Promise<LedgerAccount | undefined> {
+    const [account] = await db.update(ledgerAccounts)
+      .set(accountUpdate)
+      .where(eq(ledgerAccounts.id, id))
+      .returning();
+    return account || undefined;
+  }
+
+  async deleteLedgerAccount(id: string): Promise<boolean> {
+    const result = await db.delete(ledgerAccounts).where(eq(ledgerAccounts.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 

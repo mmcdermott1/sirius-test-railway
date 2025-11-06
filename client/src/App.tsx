@@ -51,6 +51,7 @@ import DashboardPluginsConfigPage from "@/pages/config/dashboard-plugins";
 import ComponentsConfigPage from "@/pages/config/components";
 import StripeTestPage from "@/pages/config/ledger/stripe/test";
 import PaymentTypesPage from "@/pages/config/ledger/stripe/payment-types";
+import LedgerAccountsPage from "@/pages/config/ledger/accounts";
 import SiteInformation from "@/pages/site-information";
 import NotFound from "@/pages/not-found";
 
@@ -416,6 +417,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PaymentTypesPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/config/ledger/accounts">
+        <ProtectedRoute permission="ledger.staff">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <LedgerAccountsPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

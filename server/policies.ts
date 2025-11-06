@@ -153,6 +153,19 @@ export const ledgerStripeEmployer: AccessPolicy = {
 };
 
 /**
+ * Ledger staff access policy
+ */
+export const ledgerStaff: AccessPolicy = {
+  name: 'Ledger Staff Access',
+  description: 'Requires ledger component and ledger.staff permission',
+  requirements: [
+    { type: 'authenticated' },
+    { type: 'component', componentId: 'ledger' },
+    { type: 'permission', key: 'ledger.staff' },
+  ],
+};
+
+/**
  * Bookmark policy
  */
 export const bookmark: AccessPolicy = {
@@ -211,6 +224,7 @@ export const policies = {
   components,
   ledgerStripeAdmin,
   ledgerStripeEmployer,
+  ledgerStaff,
   bookmark,
   masquerade,
   workersViewOrManage,
