@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Collapsible,
@@ -19,6 +19,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
   const [isDropDownListsOpen, setIsDropDownListsOpen] = useState(false);
 
   const regularNavItems = [
+    {
+      path: "/trust-benefits",
+      label: "Trust Benefits",
+      icon: Heart,
+      testId: "nav-trust-benefits",
+      permission: "workers.view",
+    },
     {
       path: "/config/site",
       label: "Site Information",
