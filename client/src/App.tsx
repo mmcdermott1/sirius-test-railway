@@ -291,16 +291,6 @@ function Router() {
       </Route>
       
       {/* Configuration routes with nested navigation */}
-      <Route path="/config/users/:id">
-        <ProtectedRoute permission="admin.manage">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <UserAccountPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-      
       <Route path="/config/users/list">
         <ProtectedRoute permission="admin.manage">
           <AuthenticatedLayout>
@@ -512,13 +502,26 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      {/* User detail page */}
+      <Route path="/users/:id">
+        <ProtectedRoute permission="admin.manage">
+          <AuthenticatedLayout>
+            <UserAccountPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
       {/* Legacy admin routes - redirect to configuration */}
       <Route path="/admin/users/:id">
-        <Redirect to="/config/users/:id" />
+        <Redirect to="/users/:id" />
       </Route>
       
       <Route path="/admin/users">
         <Redirect to="/config/users/list" />
+      </Route>
+      
+      <Route path="/config/users/:id">
+        <Redirect to="/users/:id" />
       </Route>
       
       <Route path="/admin/roles">
