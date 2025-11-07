@@ -209,6 +209,22 @@ export const ledgerPayments = pgTable("ledger_payments", {
   details: jsonb("details"),
 });
 
+export const winstonLogs = pgTable("winston_logs", {
+  id: serial("id").primaryKey(),
+  level: varchar("level", { length: 20 }),
+  message: text("message"),
+  timestamp: timestamp("timestamp").default(sql`now()`),
+  source: varchar("source", { length: 50 }),
+  meta: jsonb("meta"),
+  module: varchar("module", { length: 100 }),
+  operation: varchar("operation", { length: 100 }),
+  entityId: varchar("entity_id", { length: 255 }),
+}, (table) => [
+  index("idx_winston_logs_entity_id").on(table.entityId),
+  index("idx_winston_logs_module").on(table.module),
+  index("idx_winston_logs_operation").on(table.operation),
+]);
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

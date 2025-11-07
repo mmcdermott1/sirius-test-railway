@@ -37,7 +37,7 @@
  * this.workers = withStorageLogging(createWorkerStorage(), workerLoggingConfig);
  */
 
-import { logger } from "../../logger";
+import { storageLogger } from "../../logger";
 
 /**
  * Configuration for logging a single storage method
@@ -122,14 +122,8 @@ export function withStorageLogging<T extends Record<string, any>>(
         const entityId = methodConfig.getEntityId?.(args, result);
 
         const logData: Record<string, any> = {
-          module: config.module,
-          operation: String(key),
           args,
         };
-
-        if (entityId !== undefined) {
-          logData.entityId = entityId;
-        }
 
         if (beforeState !== undefined) {
           logData.before = beforeState;
@@ -144,7 +138,12 @@ export function withStorageLogging<T extends Record<string, any>>(
         }
 
         setImmediate(() => {
-          logger.info(`Storage operation: ${config.module}.${String(key)}`, logData);
+          storageLogger.info(`Storage operation: ${config.module}.${String(key)}`, {
+            ...logData,
+            module: config.module,
+            operation: String(key),
+            entity_id: entityId,
+          });
         });
 
         return result;
@@ -153,8 +152,6 @@ export function withStorageLogging<T extends Record<string, any>>(
 
         const entityId = methodConfig.getEntityId?.(args);
         const logData: Record<string, any> = {
-          module: config.module,
-          operation: String(key),
           args,
           error: error instanceof Error ? {
             message: error.message,
@@ -163,16 +160,17 @@ export function withStorageLogging<T extends Record<string, any>>(
           } : error,
         };
 
-        if (entityId !== undefined) {
-          logData.entityId = entityId;
-        }
-
         if (beforeState !== undefined) {
           logData.before = beforeState;
         }
 
         setImmediate(() => {
-          logger.error(`Storage operation failed: ${config.module}.${String(key)}`, logData);
+          storageLogger.error(`Storage operation failed: ${config.module}.${String(key)}`, {
+            ...logData,
+            module: config.module,
+            operation: String(key),
+            entity_id: entityId,
+          });
         });
 
         throw err;
