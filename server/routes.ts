@@ -13,6 +13,7 @@ import { registerBookmarkRoutes } from "./modules/bookmarks";
 import { registerComponentRoutes } from "./modules/components";
 import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
 import { registerLedgerAccountRoutes } from "./modules/ledger/accounts";
+import { registerAccessPolicyRoutes } from "./modules/access-policies";
 import { addressValidationService } from "./services/address-validation";
 import { phoneValidationService } from "./services/phone-validation";
 import { isAuthenticated } from "./replitAuth";
@@ -205,6 +206,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Register access policy evaluation routes
+  registerAccessPolicyRoutes(app);
+  
   // Register masquerade routes
   registerMasqueradeRoutes(app, requireAuth, requirePermission);
   

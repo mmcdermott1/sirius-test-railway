@@ -46,6 +46,31 @@ export interface AccessResult {
 }
 
 /**
+ * Detailed requirement evaluation result
+ */
+export interface RequirementEvaluation {
+  type: string;
+  description: string;
+  status: 'passed' | 'failed' | 'skipped';
+  reason?: string;
+  details?: any;
+}
+
+/**
+ * Detailed policy evaluation result
+ */
+export interface DetailedPolicyResult {
+  policy: {
+    name: string;
+    description?: string;
+  };
+  allowed: boolean;
+  evaluatedAt: string;
+  adminBypass: boolean;
+  requirements: RequirementEvaluation[];
+}
+
+/**
  * Storage interface for access control
  */
 export interface AccessControlStorage {
@@ -111,6 +136,34 @@ async function hasAdminPermission(userId: string): Promise<boolean> {
     throw new Error('Access control storage not initialized');
   }
   return storage.hasPermission(userId, 'admin');
+}
+
+/**
+ * Get a human-readable description for a requirement
+ */
+function getRequirementDescription(requirement: AccessRequirement): string {
+  switch (requirement.type) {
+    case 'authenticated':
+      return 'Must be logged in';
+    case 'permission':
+      return `Requires permission: ${requirement.key}`;
+    case 'anyPermission':
+      return `Requires any of: ${requirement.keys.join(', ')}`;
+    case 'allPermissions':
+      return `Requires all of: ${requirement.keys.join(', ')}`;
+    case 'component':
+      return `Component '${requirement.componentId}' must be enabled`;
+    case 'ownership':
+      return 'Must own the resource';
+    case 'anyOf':
+      return 'Requires at least one condition to be met';
+    case 'allOf':
+      return 'Requires all conditions to be met';
+    case 'custom':
+      return requirement.reason || 'Custom check required';
+    default:
+      return 'Unknown requirement';
+  }
 }
 
 /**
@@ -253,6 +306,85 @@ export async function evaluatePolicy(
   }
 
   return { granted: true };
+}
+
+/**
+ * Evaluate a policy and return detailed requirement results
+ */
+export async function evaluatePolicyDetailed(
+  policy: AccessPolicy,
+  context: AccessContext
+): Promise<DetailedPolicyResult> {
+  const requirements: RequirementEvaluation[] = [];
+  let allowed = true;
+  let adminBypass = false;
+
+  // Check for admin bypass
+  if (context.user) {
+    const isAdmin = await hasAdminPermission(context.user.id);
+    if (isAdmin) {
+      adminBypass = true;
+      allowed = true;
+      // Mark all requirements as skipped due to admin bypass
+      for (const requirement of policy.requirements) {
+        requirements.push({
+          type: requirement.type,
+          description: getRequirementDescription(requirement),
+          status: 'skipped',
+          reason: 'Admin bypass - user has admin permission',
+        });
+      }
+      
+      return {
+        policy: {
+          name: policy.name,
+          description: policy.description,
+        },
+        allowed,
+        evaluatedAt: new Date().toISOString(),
+        adminBypass,
+        requirements,
+      };
+    }
+  }
+
+  // Evaluate each requirement
+  for (const requirement of policy.requirements) {
+    const result = await evaluateRequirement(requirement, context);
+    const evaluation: RequirementEvaluation = {
+      type: requirement.type,
+      description: getRequirementDescription(requirement),
+      status: result.granted ? 'passed' : 'failed',
+      reason: result.reason,
+    };
+
+    // Add specific details based on requirement type
+    if (requirement.type === 'component') {
+      evaluation.details = { componentId: requirement.componentId };
+    } else if (requirement.type === 'permission') {
+      evaluation.details = { permissionKey: requirement.key };
+    } else if (requirement.type === 'anyPermission' || requirement.type === 'allPermissions') {
+      evaluation.details = { permissionKeys: requirement.keys };
+    }
+
+    requirements.push(evaluation);
+
+    if (!result.granted) {
+      allowed = false;
+      // Don't break - evaluate all requirements to show user what's missing
+    }
+  }
+
+  return {
+    policy: {
+      name: policy.name,
+      description: policy.description,
+    },
+    allowed,
+    evaluatedAt: new Date().toISOString(),
+    adminBypass,
+    requirements,
+  };
 }
 
 /**

@@ -425,7 +425,7 @@ function Router() {
       </Route>
       
       <Route path="/config/ledger/accounts">
-        <ProtectedRoute permission="ledger.staff">
+        <ProtectedRoute policy="ledgerStaff">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <LedgerAccountsPage />
