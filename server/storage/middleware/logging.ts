@@ -121,28 +121,28 @@ export function withStorageLogging<T extends Record<string, any>>(
 
         const entityId = methodConfig.getEntityId?.(args, result);
 
-        const logData: Record<string, any> = {
+        const details: Record<string, any> = {
           args,
         };
 
         if (beforeState !== undefined) {
-          logData.before = beforeState;
+          details.before = beforeState;
         }
 
         if (afterState !== undefined) {
-          logData.after = afterState;
+          details.after = afterState;
         }
 
         if (beforeState !== undefined && afterState !== undefined) {
-          logData.changes = calculateChanges(beforeState, afterState);
+          details.changes = calculateChanges(beforeState, afterState);
         }
 
         setImmediate(() => {
           storageLogger.info(`Storage operation: ${config.module}.${String(key)}`, {
-            ...logData,
             module: config.module,
             operation: String(key),
             entity_id: entityId,
+            meta: details, // Nest details under 'meta' to match JSONB column
           });
         });
 
@@ -151,7 +151,7 @@ export function withStorageLogging<T extends Record<string, any>>(
         error = err;
 
         const entityId = methodConfig.getEntityId?.(args);
-        const logData: Record<string, any> = {
+        const details: Record<string, any> = {
           args,
           error: error instanceof Error ? {
             message: error.message,
@@ -161,15 +161,15 @@ export function withStorageLogging<T extends Record<string, any>>(
         };
 
         if (beforeState !== undefined) {
-          logData.before = beforeState;
+          details.before = beforeState;
         }
 
         setImmediate(() => {
           storageLogger.error(`Storage operation failed: ${config.module}.${String(key)}`, {
-            ...logData,
             module: config.module,
             operation: String(key),
             entity_id: entityId,
+            meta: details, // Nest details under 'meta' to match JSONB column
           });
         });
 
