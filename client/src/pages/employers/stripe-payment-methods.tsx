@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { CreditCard, Plus, Trash2, Check, X, Star, Loader2 } from "lucide-react";
+import { CreditCard, Plus, Trash2, Check, X, Star, Loader2, Building2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,12 @@ interface PaymentMethod {
       last4: string;
       expMonth: number;
       expYear: number;
+    };
+    us_bank_account?: {
+      bank_name: string | null;
+      last4: string;
+      account_holder_type: string;
+      account_type: string;
     };
     billing_details?: {
       name: string | null;
