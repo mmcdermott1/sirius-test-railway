@@ -12,7 +12,7 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      setLocation('/');
+      setLocation('/dashboard');
     }
   }, [isAuthenticated, isLoading, setLocation]);
 

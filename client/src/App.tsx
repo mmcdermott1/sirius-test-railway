@@ -473,13 +473,18 @@ function Router() {
         <Redirect to="/config/users" />
       </Route>
       
-      {/* Root route - dashboard for authenticated users */}
-      <Route path="/">
+      {/* Dashboard route */}
+      <Route path="/dashboard">
         <ProtectedRoute>
           <AuthenticatedLayout>
             <Dashboard />
           </AuthenticatedLayout>
         </ProtectedRoute>
+      </Route>
+      
+      {/* Root route - redirect to dashboard */}
+      <Route path="/">
+        <Redirect to="/dashboard" />
       </Route>
       
       {/* 404 for unmatched routes */}
