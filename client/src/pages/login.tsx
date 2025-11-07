@@ -12,7 +12,14 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      setLocation('/dashboard');
+      // Check if there's a saved redirect path
+      const redirectTo = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectTo) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        setLocation(redirectTo);
+      } else {
+        setLocation('/dashboard');
+      }
     }
   }, [isAuthenticated, isLoading, setLocation]);
 

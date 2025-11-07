@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { Redirect } from 'wouter';
+import { Redirect, useLocation } from 'wouter';
 import AccessDenied from './AccessDenied';
 
 interface ProtectedRouteProps {
@@ -29,9 +29,7 @@ interface DetailedPolicyResult {
 
 export default function ProtectedRoute({ children, permission, policy }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, authReady, hasPermission } = useAuth();
-
-  // Debug logging
-  console.log('[ProtectedRoute] Rendered with:', { permission, policy, isAuthenticated, authReady });
+  const [location] = useLocation();
 
   // Check policy via API if policy prop is provided
   const { data: policyResult, isLoading: isPolicyLoading, isError: isPolicyError } = useQuery<DetailedPolicyResult>({
@@ -40,8 +38,6 @@ export default function ProtectedRoute({ children, permission, policy }: Protect
     staleTime: 30000, // 30 seconds
     retry: 2,
   });
-
-  console.log('[ProtectedRoute] Policy check:', { policy, policyResult, isPolicyLoading, isPolicyError });
 
   // Show loading state while auth is not ready
   if (!authReady || isLoading) {
@@ -57,6 +53,10 @@ export default function ProtectedRoute({ children, permission, policy }: Protect
 
   // If auth is ready and user is not authenticated, redirect to login
   if (!isAuthenticated) {
+    // Save the current location to redirect back after login
+    if (location !== '/login') {
+      sessionStorage.setItem('redirectAfterLogin', location);
+    }
     return <Redirect to="/login" />;
   }
 
