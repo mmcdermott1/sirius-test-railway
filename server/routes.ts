@@ -752,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/site-settings - Get site settings (no auth required for public settings)
   app.get("/api/site-settings", async (req, res) => {
     try {
-      const siteNameVar = await storage.getVariableByName("siteName");
+      const siteNameVar = await storage.getVariableByName("site_name");
       const siteName = siteNameVar ? (siteNameVar.value as string) : "Sirius";
       
       const siteFooterVar = await storage.getVariableByName("site_footer");
@@ -776,11 +776,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
-        const existingVariable = await storage.getVariableByName("siteName");
+        const existingVariable = await storage.getVariableByName("site_name");
         if (existingVariable) {
           await storage.updateVariable(existingVariable.id, { value: siteName });
         } else {
-          await storage.createVariable({ name: "siteName", value: siteName });
+          await storage.createVariable({ name: "site_name", value: siteName });
         }
       }
       
@@ -800,7 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Return updated values
-      const siteNameVar = await storage.getVariableByName("siteName");
+      const siteNameVar = await storage.getVariableByName("site_name");
       const finalSiteName = siteNameVar ? (siteNameVar.value as string) : "Sirius";
       
       const siteFooterVar = await storage.getVariableByName("site_footer");
