@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity, BookOpen, Wallet } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity, BookOpen, Wallet, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -146,6 +146,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
   ];
 
   const stripeItems = [
+    {
+      path: "/config/ledger/stripe/settings",
+      label: "Settings",
+      icon: Settings,
+      testId: "nav-ledger-stripe-settings",
+      policy: "ledgerStripeAdmin" as const,
+    },
     {
       path: "/config/ledger/stripe/test",
       label: "Test Connection",
