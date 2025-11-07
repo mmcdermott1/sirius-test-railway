@@ -189,3 +189,26 @@ All policies automatically grant access to users with the `admin` permission.
   - Not nested under `/config/` to provide cleaner URLs
   - Includes UUID validation to prevent invalid route matches
   - Legacy routes (`/config/users/:id`, `/admin/users/:id`) redirect to new location
+
+## Ledger Routes
+- **Configuration Pages**: Located under `/config/ledger/` for ledger settings
+  - `/config/ledger/accounts`: Ledger accounts list and management
+  - `/config/ledger/payment-types`: Payment types configuration
+  - `/config/ledger/stripe/test`: Stripe connection test
+  - `/config/ledger/stripe/payment-types`: Stripe payment methods configuration
+- **Ledger Account Detail Pages**: Located at `/ledger/accounts/:id` for individual accounts
+  - Not nested under `/config/` to provide cleaner URLs
+  - Includes view and edit tabs
+  - Legacy routes (`/config/ledger/accounts/:id`) redirect to new location
+
+# Ledger System
+
+## Ledger Payments Table
+The `ledger_payments` table stores payment transaction records with the following fields:
+- `id`: UUID primary key (auto-generated)
+- `status`: Payment status - one of: `draft`, `canceled`, `cleared`, `error`
+- `allocated`: Boolean flag indicating if payment has been allocated
+- `payer_type`: Type of payer - must be either `worker` or `employer`
+- `payer_id`: UUID of the payer (worker or employer)
+- `account`: Foreign key reference to `ledger_accounts.id`
+- `details`: JSONB field for storing additional payment metadata

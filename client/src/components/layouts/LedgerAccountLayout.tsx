@@ -86,7 +86,7 @@ export function LedgerAccountLayout({ activeTab, children }: LedgerAccountLayout
               <p className="text-muted-foreground text-center">
                 The ledger account you're looking for doesn't exist or has been removed.
               </p>
-              <Link href="/config/ledger/accounts">
+              <Link href="/ledger/accounts">
                 <Button className="mt-4" data-testid="button-return-to-accounts">
                   Return to Accounts
                 </Button>
