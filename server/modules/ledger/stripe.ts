@@ -58,7 +58,7 @@ export function registerLedgerStripeRoutes(app: Express) {
 
   app.get("/api/ledger/stripe/payment-types", requireAccess(policies.ledgerStripeAdmin), async (req: Request, res: Response) => {
     try {
-      const variable = await storage.getVariableByName('stripe_payment_types');
+      const variable = await storage.getVariableByName('stripe_payment_methods');
       const paymentTypes = variable?.value || ['card'];
       
       res.json({ paymentTypes });
@@ -116,16 +116,16 @@ export function registerLedgerStripeRoutes(app: Express) {
         });
       }
 
-      const existingVariable = await storage.getVariableByName('stripe_payment_types');
+      const existingVariable = await storage.getVariableByName('stripe_payment_methods');
       
       if (existingVariable) {
         await storage.updateVariable(existingVariable.id, {
-          name: 'stripe_payment_types',
+          name: 'stripe_payment_methods',
           value: paymentTypes,
         });
       } else {
         await storage.createVariable({
-          name: 'stripe_payment_types',
+          name: 'stripe_payment_methods',
           value: paymentTypes,
         });
       }
@@ -328,7 +328,7 @@ export function registerLedgerStripeRoutes(app: Express) {
       }
 
       // Get configured payment types
-      const paymentTypesVariable = await storage.getVariableByName('stripe_payment_types');
+      const paymentTypesVariable = await storage.getVariableByName('stripe_payment_methods');
       const paymentTypes = (Array.isArray(paymentTypesVariable?.value) ? paymentTypesVariable.value : ['card']) as string[];
 
       // Create SetupIntent for collecting payment method

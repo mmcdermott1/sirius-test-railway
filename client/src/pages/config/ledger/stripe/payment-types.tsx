@@ -71,14 +71,14 @@ export default function PaymentTypesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/ledger/stripe/payment-types"] });
       toast({
-        title: "Payment Types Updated",
-        description: "Stripe payment types have been updated successfully.",
+        title: "Payment Methods Updated",
+        description: "Stripe payment methods have been updated successfully.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Update Failed",
-        description: error?.message || "Failed to update payment types.",
+        description: error?.message || "Failed to update payment methods.",
         variant: "destructive",
       });
     },
@@ -98,7 +98,7 @@ export default function PaymentTypesPage() {
     if (selectedTypes.length === 0) {
       toast({
         title: "Selection Required",
-        description: "Please select at least one payment type.",
+        description: "Please select at least one payment method.",
         variant: "destructive",
       });
       return;
@@ -113,7 +113,7 @@ export default function PaymentTypesPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Stripe Payment Types
+            Stripe Payment Methods
           </h1>
           <p className="text-muted-foreground mt-2">Loading...</p>
         </div>
@@ -126,7 +126,7 @@ export default function PaymentTypesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Stripe Payment Types
+            Stripe Payment Methods
           </h1>
           <p className="text-muted-foreground mt-2">
             Select which payment methods you want to accept through Stripe
