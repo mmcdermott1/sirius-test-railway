@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity, BookOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,11 +14,28 @@ interface ConfigurationLayoutProps {
   children: React.ReactNode;
 }
 
+interface ComponentConfig {
+  componentId: string;
+  enabled: boolean;
+}
+
 export default function ConfigurationLayout({ children }: ConfigurationLayoutProps) {
   const [location] = useLocation();
   const { hasPermission } = useAuth();
   const [isDropDownListsOpen, setIsDropDownListsOpen] = useState(false);
   const [isLedgerStripeOpen, setIsLedgerStripeOpen] = useState(false);
+
+  // Fetch component configuration
+  const { data: componentConfig = [] } = useQuery<ComponentConfig[]>({
+    queryKey: ["/api/components/config"],
+    staleTime: 60000, // 1 minute
+  });
+
+  // Helper to check if a component is enabled
+  const isComponentEnabled = (componentId: string) => {
+    const config = componentConfig.find(c => c.componentId === componentId);
+    return config?.enabled ?? false;
+  };
 
   const regularNavItems = [
     {
@@ -116,6 +134,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       icon: BookOpen,
       testId: "nav-ledger-accounts",
       permission: "ledger.staff",
+      requiresComponent: "ledger", // Matches ledgerStaff policy requirement
     },
     {
       path: "/config/ledger/stripe/test",
@@ -212,7 +231,11 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
             )}
 
             {/* Ledger/Stripe Group */}
-            {ledgerStripeItems.some((item) => hasPermission(item.permission)) && (
+            {ledgerStripeItems.some((item) => {
+              const hasPermissionCheck = hasPermission(item.permission);
+              const hasComponentCheck = !item.requiresComponent || isComponentEnabled(item.requiresComponent);
+              return hasPermissionCheck && hasComponentCheck;
+            }) && (
               <Collapsible
                 open={isLedgerStripeOpen || isLedgerStripeActive}
                 onOpenChange={setIsLedgerStripeOpen}
@@ -231,7 +254,11 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="ml-4 mt-2 space-y-2">
-                  {ledgerStripeItems.filter((item) => hasPermission(item.permission)).map((item) => {
+                  {ledgerStripeItems.filter((item) => {
+                    const hasPermissionCheck = hasPermission(item.permission);
+                    const hasComponentCheck = !item.requiresComponent || isComponentEnabled(item.requiresComponent);
+                    return hasPermissionCheck && hasComponentCheck;
+                  }).map((item) => {
                     const Icon = item.icon;
                     const isActive = location === item.path || location.startsWith(item.path + "/");
                     
