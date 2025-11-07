@@ -285,7 +285,11 @@ function PaymentMethodsContent() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4">
                       <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <CreditCard className="text-primary" size={24} />
+                        {pm.stripeDetails?.type === 'us_bank_account' || pm.stripeDetails?.us_bank_account ? (
+                          <Building2 className="text-primary" size={24} />
+                        ) : (
+                          <CreditCard className="text-primary" size={24} />
+                        )}
                       </div>
                       <div>
                         {pm.stripeDetails?.card ? (
@@ -306,6 +310,32 @@ function PaymentMethodsContent() {
                             </div>
                             <p className="text-sm text-muted-foreground">
                               Expires {pm.stripeDetails.card.expMonth}/{pm.stripeDetails.card.expYear}
+                            </p>
+                            {pm.stripeDetails.billing_details?.name && (
+                              <p className="text-sm text-muted-foreground">
+                                {pm.stripeDetails.billing_details.name}
+                              </p>
+                            )}
+                          </>
+                        ) : pm.stripeDetails?.us_bank_account ? (
+                          <>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-medium">
+                                {pm.stripeDetails.us_bank_account.bank_name || 'Bank Account'} •••• {pm.stripeDetails.us_bank_account.last4}
+                              </h4>
+                              {pm.isDefault && (
+                                <Badge variant="secondary" className="flex items-center space-x-1">
+                                  <Star className="h-3 w-3" />
+                                  <span>Default</span>
+                                </Badge>
+                              )}
+                              {!pm.isActive && (
+                                <Badge variant="outline">Disabled</Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {pm.stripeDetails.us_bank_account.account_type === 'checking' ? 'Checking' : 'Savings'} Account
+                              {pm.stripeDetails.us_bank_account.account_holder_type && ` • ${pm.stripeDetails.us_bank_account.account_holder_type === 'individual' ? 'Individual' : 'Company'}`}
                             </p>
                             {pm.stripeDetails.billing_details?.name && (
                               <p className="text-sm text-muted-foreground">
