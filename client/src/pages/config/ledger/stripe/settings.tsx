@@ -31,23 +31,33 @@ export default function StripeSettingsPage() {
   });
 
   // Fetch current setting
-  const { data: currentSetting, isLoading: isLoadingSettings } = useQuery<{ value: string | null }>({
+  const { data: currentSetting, isLoading: isLoadingSettings } = useQuery<{ id: string; value: { paymentTypeId: string } | null } | null>({
     queryKey: ["/api/variables/ledger_stripe_payment_type"],
   });
 
   // Update selected value when currentSetting loads
   useEffect(() => {
-    if (currentSetting?.value) {
-      setSelectedPaymentTypeId(currentSetting.value);
+    if (currentSetting?.value?.paymentTypeId) {
+      setSelectedPaymentTypeId(currentSetting.value.paymentTypeId);
     }
   }, [currentSetting]);
 
   const saveMutation = useMutation({
     mutationFn: async (paymentTypeId: string) => {
-      return apiRequest("POST", "/api/variables", {
-        key: "ledger_stripe_payment_type",
-        value: paymentTypeId,
-      });
+      // Check if variable already exists
+      if (currentSetting) {
+        // Update existing variable
+        const variableId = currentSetting.id || "ledger_stripe_payment_type";
+        return apiRequest("PUT", `/api/variables/${variableId}`, {
+          value: { paymentTypeId },
+        });
+      } else {
+        // Create new variable
+        return apiRequest("POST", "/api/variables", {
+          name: "ledger_stripe_payment_type",
+          value: { paymentTypeId },
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/variables/ledger_stripe_payment_type"] });
