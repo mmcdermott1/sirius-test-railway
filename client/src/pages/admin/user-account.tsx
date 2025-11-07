@@ -31,7 +31,7 @@ interface Role {
 }
 
 export default function UserAccountPage() {
-  const [, params] = useRoute('/config/users/:id');
+  const [, params] = useRoute('/users/:id');
   const userId = params?.id;
   const { toast } = useToast();
 
