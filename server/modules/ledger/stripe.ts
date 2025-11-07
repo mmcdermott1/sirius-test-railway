@@ -268,6 +268,12 @@ export function registerLedgerStripeRoutes(app: Express) {
                   expMonth: stripePaymentMethod.card.exp_month,
                   expYear: stripePaymentMethod.card.exp_year,
                 } : null,
+                us_bank_account: stripePaymentMethod.us_bank_account ? {
+                  bank_name: stripePaymentMethod.us_bank_account.bank_name,
+                  last4: stripePaymentMethod.us_bank_account.last4,
+                  account_holder_type: stripePaymentMethod.us_bank_account.account_holder_type,
+                  account_type: stripePaymentMethod.us_bank_account.account_type,
+                } : null,
                 billing_details: stripePaymentMethod.billing_details,
               },
             });
