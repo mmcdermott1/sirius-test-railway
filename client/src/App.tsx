@@ -425,18 +425,13 @@ function Router() {
       </Route>
       
       <Route path="/config/ledger/accounts">
-        {() => {
-          console.log("[APP] Route /config/ledger/accounts MATCHED!");
-          return (
-            <ProtectedRoute policy="ledgerStaff">
-              <AuthenticatedLayout>
-                <ConfigurationLayout>
-                  <LedgerAccountsPage />
-                </ConfigurationLayout>
-              </AuthenticatedLayout>
-            </ProtectedRoute>
-          );
-        }}
+        <ProtectedRoute permission="ledger.staff">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <LedgerAccountsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
       </Route>
       
       {/* Legacy admin routes - redirect to configuration */}
@@ -480,16 +475,11 @@ function Router() {
       
       {/* Root route - dashboard for authenticated users */}
       <Route path="/">
-        {() => {
-          console.log("[APP] Route / (dashboard) MATCHED!");
-          return (
-            <ProtectedRoute>
-              <AuthenticatedLayout>
-                <Dashboard />
-              </AuthenticatedLayout>
-            </ProtectedRoute>
-          );
-        }}
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <Dashboard />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
       </Route>
       
       {/* 404 for unmatched routes */}
