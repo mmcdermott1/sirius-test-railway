@@ -155,7 +155,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
     },
     {
       path: "/config/ledger/stripe/payment-types",
-      label: "Stripe Payment Methods",
+      label: "Payment Methods",
       icon: CreditCard,
       testId: "nav-ledger-stripe-payment-types",
       policy: "ledgerStripeAdmin" as const,
