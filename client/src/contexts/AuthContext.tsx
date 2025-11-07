@@ -30,6 +30,7 @@ interface AuthContextType {
   stopMasquerade: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
+  authReady: boolean; // True when auth state has been definitively resolved
   hasPermission: (permission: string) => boolean;
 }
 
@@ -111,6 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return permissions.includes(permission);
   };
 
+  const authReady = !isLoading; // Auth state is ready when loading is complete
+
   return (
     <AuthContext.Provider
       value={{
@@ -122,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         stopMasquerade,
         isLoading,
         isAuthenticated: !!user,
+        authReady,
         hasPermission,
       }}
     >

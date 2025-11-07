@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -29,17 +29,8 @@ interface DetailedPolicyResult {
 }
 
 export default function ProtectedRoute({ children, permission, policy }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, hasPermission } = useAuth();
+  const { isAuthenticated, isLoading, authReady, hasPermission } = useAuth();
   const [, setLocation] = useLocation();
-  const authResolvedRef = useRef(false);
-
-  // Track when auth has fully resolved (loading finished at least once)
-  // This prevents redirecting during the brief window between query completion and user state update
-  useEffect(() => {
-    if (!isLoading) {
-      authResolvedRef.current = true;
-    }
-  }, [isLoading]);
 
   // Check policy via API if policy prop is provided
   const { data: policyResult, isLoading: isPolicyLoading, isError: isPolicyError } = useQuery<DetailedPolicyResult>({
@@ -49,13 +40,13 @@ export default function ProtectedRoute({ children, permission, policy }: Protect
     retry: 2,
   });
 
-  // Only redirect to login after auth has fully resolved and user is definitely not authenticated
-  // We wait for authResolvedRef to prevent race conditions during auth hydration
+  // Only redirect to login after auth state is definitively resolved
+  // Wait for authReady to prevent race conditions during auth hydration
   useEffect(() => {
-    if (authResolvedRef.current && !isLoading && !isAuthenticated) {
+    if (authReady && !isAuthenticated) {
       setLocation('/login');
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [authReady, isAuthenticated, setLocation]);
 
   // Show loading state while checking authentication or policy
   // Also show loading if not authenticated (while redirect happens) to prevent route from being treated as unmatched
