@@ -52,8 +52,10 @@ The application uses a modular, namespace-based storage architecture organized b
 
 **Usage Pattern:**
 ```typescript
-// Namespace access instead of flat methods
+// Namespace access with simplified method names (Nov 2025 refactoring)
 storage.variables.getByName('site_name')
+storage.variables.create({ name: 'foo', value: 'bar' })
+storage.variables.update(id, { value: 'baz' })
 storage.users.getUser(userId)
 storage.workers.getWorker(workerId)
 storage.contacts.addresses.getPostalAddress(addressId)
@@ -61,6 +63,17 @@ storage.contacts.phoneNumbers.getPhoneNumber(phoneId)
 storage.options.gender.getAllGenderOptions()
 storage.ledger.accounts.get(accountId)
 ```
+
+**Naming Convention (Nov 2025):**
+Storage methods use simplified names since they're already namespaced:
+- `create` instead of `createVariable`, `createUser`, etc.
+- `update` instead of `updateVariable`, `updateUser`, etc.
+- `delete` instead of `deleteVariable`, `deleteUser`, etc.
+- `get` instead of `getVariable`, `getUser`, etc.
+- `getByName` instead of `getVariableByName`, etc.
+- `getAll` instead of `getAllVariables`, `getAllUsers`, etc.
+
+This convention applies to the `variables` module and should be adopted by other modules over time.
 
 **Module Pattern:**
 Each module exports:
