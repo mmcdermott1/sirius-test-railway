@@ -1337,7 +1337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const newWorkerId = await storage.workers.createWorkerId({
+      const newWorkerId = await storage.workerIds.createWorkerId({
         workerId,
         typeId: typeId.trim(),
         value: value.trim(),
@@ -1438,7 +1438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/worker-ids/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.workers.deleteWorkerId(id);
+      const deleted = await storage.workerIds.deleteWorkerId(id);
       
       if (!deleted) {
         res.status(404).json({ message: "Worker ID not found" });
