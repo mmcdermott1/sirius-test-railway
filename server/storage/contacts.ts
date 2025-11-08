@@ -277,6 +277,17 @@ export function createPhoneNumberStorage(): PhoneNumberStorage {
   };
 }
 
+/**
+ * Canonicalize a name component by capitalizing the first letter and making the rest lowercase
+ * Examples: "JOE" -> "Joe", "joe" -> "Joe", "SMITH" -> "Smith"
+ */
+function canonicalizeName(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 // Create Contact Storage implementation
 export function createContactStorage(): ContactStorage {
   return {
@@ -327,19 +338,29 @@ export function createContactStorage(): ContactStorage {
       // Import the generateDisplayName function
       const { generateDisplayName } = await import("@shared/schema");
       
-      // Generate display name from components
-      const displayName = generateDisplayName(components);
+      // Canonicalize all name components (capitalize first letter, rest lowercase)
+      const canonicalized = {
+        title: canonicalizeName(components.title),
+        given: canonicalizeName(components.given),
+        middle: canonicalizeName(components.middle),
+        family: canonicalizeName(components.family),
+        generational: canonicalizeName(components.generational),
+        credentials: canonicalizeName(components.credentials),
+      };
+      
+      // Generate display name from canonicalized components
+      const displayName = generateDisplayName(canonicalized);
       
       // Update the contact's name components
       const [contact] = await db
         .update(contacts)
         .set({
-          title: components.title?.trim() || null,
-          given: components.given?.trim() || null,
-          middle: components.middle?.trim() || null,
-          family: components.family?.trim() || null,
-          generational: components.generational?.trim() || null,
-          credentials: components.credentials?.trim() || null,
+          title: canonicalized.title,
+          given: canonicalized.given,
+          middle: canonicalized.middle,
+          family: canonicalized.family,
+          generational: canonicalized.generational,
+          credentials: canonicalized.credentials,
           displayName,
         })
         .where(eq(contacts.id, contactId))
