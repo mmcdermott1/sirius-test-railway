@@ -136,6 +136,12 @@ export const optionsLedgerPaymentType = pgTable("options_ledger_payment_type", {
   sequence: integer("sequence").notNull().default(0),
 });
 
+export const optionsEmployerContactType = pgTable("options_employer_contact_type", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+});
+
 export const workerIds = pgTable("worker_ids", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
@@ -327,6 +333,10 @@ export const insertLedgerPaymentTypeSchema = createInsertSchema(optionsLedgerPay
   id: true,
 });
 
+export const insertEmployerContactTypeSchema = createInsertSchema(optionsEmployerContactType).omit({
+  id: true,
+});
+
 export const assignRoleSchema = z.object({
   userId: z.string(),
   roleId: z.string(),
@@ -396,6 +406,9 @@ export type TrustBenefitType = typeof optionsTrustBenefitType.$inferSelect;
 
 export type InsertLedgerPaymentType = z.infer<typeof insertLedgerPaymentTypeSchema>;
 export type LedgerPaymentType = typeof optionsLedgerPaymentType.$inferSelect;
+
+export type InsertEmployerContactType = z.infer<typeof insertEmployerContactTypeSchema>;
+export type EmployerContactType = typeof optionsEmployerContactType.$inferSelect;
 
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
