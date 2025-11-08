@@ -311,7 +311,7 @@ function Router() {
       
       {/* Configuration routes with nested navigation */}
       <Route path="/config/users/list">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <UsersListPage />
@@ -321,7 +321,7 @@ function Router() {
       </Route>
       
       <Route path="/config/users/roles">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <RolesPage />
@@ -331,7 +331,7 @@ function Router() {
       </Route>
       
       <Route path="/config/users/permissions">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PermissionsPage />
@@ -341,7 +341,7 @@ function Router() {
       </Route>
       
       <Route path="/config/users/policies">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PoliciesPage />
@@ -356,7 +356,7 @@ function Router() {
       </Route>
       
       <Route path="/config/addresses">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PostalAddressesConfigPage />
@@ -366,7 +366,7 @@ function Router() {
       </Route>
       
       <Route path="/config/phone-numbers">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PhoneNumbersConfigPage />
@@ -524,7 +524,7 @@ function Router() {
       
       {/* User detail page */}
       <Route path="/users/:id">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <UserAccountPage />
           </AuthenticatedLayout>
@@ -562,7 +562,7 @@ function Router() {
       </Route>
       
       <Route path="/admin/roles">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <AdminLayout>
               <AdminRolesPage />
@@ -572,7 +572,7 @@ function Router() {
       </Route>
       
       <Route path="/admin/permissions">
-        <ProtectedRoute permission="admin.manage">
+        <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <AdminLayout>
               <AdminPermissionsPage />
