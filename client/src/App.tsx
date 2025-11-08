@@ -29,6 +29,7 @@ import Employers from "@/pages/employers";
 import EmployersAdd from "@/pages/employers-add";
 import EmployerView from "@/pages/employer-view";
 import EmployerEdit from "@/pages/employer-edit";
+import EmployerLogs from "@/pages/employer-logs";
 import StripeCustomerPage from "@/pages/employers/stripe-customer";
 import StripePaymentMethodsPage from "@/pages/employers/stripe-payment-methods";
 import TrustBenefits from "@/pages/trust-benefits";
@@ -247,6 +248,14 @@ function Router() {
         <ProtectedRoute policy="ledgerStripeEmployer">
           <AuthenticatedLayout>
             <StripePaymentMethodsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/employers/:id/logs">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <EmployerLogs />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

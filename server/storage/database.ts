@@ -237,6 +237,41 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
   }
 };
 
+/**
+ * Logging configuration for employer storage operations
+ * 
+ * Logs all employer mutations with full argument capture and change tracking.
+ */
+const employerLoggingConfig: StorageLoggingConfig<EmployerStorage> = {
+  module: 'employers',
+  methods: {
+    createEmployer: {
+      enabled: true,
+      getEntityId: (args, result) => result?.id || args[0]?.name || 'new employer',
+      after: async (args, result, storage) => {
+        return result; // Capture created employer
+      }
+    },
+    updateEmployer: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Employer ID
+      before: async (args, storage) => {
+        return await storage.getEmployer(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    },
+    deleteEmployer: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Employer ID
+      before: async (args, storage) => {
+        return await storage.getEmployer(args[0]); // Capture what's being deleted
+      }
+    }
+  }
+};
+
 export class DatabaseStorage implements IStorage {
   variables: VariableStorage;
   users: UserStorage;
@@ -257,7 +292,7 @@ export class DatabaseStorage implements IStorage {
       contactLoggingConfig
     );
     this.workers = createWorkerStorage(this.contacts);
-    this.employers = createEmployerStorage();
+    this.employers = withStorageLogging(createEmployerStorage(), employerLoggingConfig);
     this.options = createOptionsStorage();
     this.trustBenefits = createTrustBenefitStorage();
     this.workerIds = createWorkerIdStorage();
