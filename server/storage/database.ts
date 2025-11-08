@@ -602,6 +602,42 @@ const employerContactTypeLoggingConfig: StorageLoggingConfig<EmployerContactType
   }
 };
 
+/**
+ * Logging configuration for trust benefits storage operations
+ * 
+ * Logs all create/update/delete operations on trust benefits with full
+ * argument capture and change tracking.
+ */
+const trustBenefitLoggingConfig: StorageLoggingConfig<TrustBenefitStorage> = {
+  module: 'trustBenefits',
+  methods: {
+    createTrustBenefit: {
+      enabled: true,
+      getEntityId: (args) => args[0]?.name || 'new trust benefit',
+      after: async (args, result, storage) => {
+        return result; // Capture created trust benefit
+      }
+    },
+    updateTrustBenefit: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Trust benefit ID
+      before: async (args, storage) => {
+        return await storage.getTrustBenefit(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    },
+    deleteTrustBenefit: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Trust benefit ID
+      before: async (args, storage) => {
+        return await storage.getTrustBenefit(args[0]); // Capture what's being deleted
+      }
+    }
+  }
+};
+
 export class DatabaseStorage implements IStorage {
   variables: VariableStorage;
   users: UserStorage;
@@ -632,7 +668,10 @@ export class DatabaseStorage implements IStorage {
     );
     this.options = optionsStorage;
     
-    this.trustBenefits = createTrustBenefitStorage();
+    this.trustBenefits = withStorageLogging(
+      createTrustBenefitStorage(),
+      trustBenefitLoggingConfig
+    );
     this.workerIds = withStorageLogging(createWorkerIdStorage(), workerIdLoggingConfig);
     this.bookmarks = createBookmarkStorage();
     this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
