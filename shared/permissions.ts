@@ -201,6 +201,11 @@ export function initializePermissions(): void {
       module: 'core'
     },
     {
+      key: 'worker',
+      description: 'Worker level access',
+      module: 'core'
+    },
+    {
       key: 'admin',
       description: 'Administrator level access',
       module: 'core'
