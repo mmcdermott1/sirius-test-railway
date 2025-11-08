@@ -1265,6 +1265,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Employer Contact Type routes
+
+  // GET /api/employer-contact-types - Get all employer contact types (requires variables.manage permission)
+  app.get("/api/employer-contact-types", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const contactTypes = await storage.options.employerContactTypes.getAll();
+      res.json(contactTypes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch employer contact types" });
+    }
+  });
+
+  // GET /api/employer-contact-types/:id - Get a specific employer contact type (requires variables.manage permission)
+  app.get("/api/employer-contact-types/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const contactType = await storage.options.employerContactTypes.get(id);
+      
+      if (!contactType) {
+        res.status(404).json({ message: "Employer contact type not found" });
+        return;
+      }
+      
+      res.json(contactType);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch employer contact type" });
+    }
+  });
+
+  // POST /api/employer-contact-types - Create a new employer contact type (requires variables.manage permission)
+  app.post("/api/employer-contact-types", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { name, description } = req.body;
+      
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ message: "Name is required" });
+      }
+      
+      const contactType = await storage.options.employerContactTypes.create({
+        name: name.trim(),
+        description: description && typeof description === 'string' ? description.trim() : null,
+      });
+      
+      res.status(201).json(contactType);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to create employer contact type" });
+    }
+  });
+
+  // PUT /api/employer-contact-types/:id - Update an employer contact type (requires variables.manage permission)
+  app.put("/api/employer-contact-types/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description } = req.body;
+      
+      const updates: any = {};
+      
+      if (name !== undefined) {
+        if (typeof name !== 'string' || !name.trim()) {
+          return res.status(400).json({ message: "Name must be a non-empty string" });
+        }
+        updates.name = name.trim();
+      }
+      
+      if (description !== undefined) {
+        if (description === null || description === '') {
+          updates.description = null;
+        } else if (typeof description === 'string') {
+          updates.description = description.trim();
+        } else {
+          return res.status(400).json({ message: "Description must be a string or null" });
+        }
+      }
+      
+      const contactType = await storage.options.employerContactTypes.update(id, updates);
+      
+      if (!contactType) {
+        res.status(404).json({ message: "Employer contact type not found" });
+        return;
+      }
+      
+      res.json(contactType);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update employer contact type" });
+    }
+  });
+
+  // DELETE /api/employer-contact-types/:id - Delete an employer contact type (requires variables.manage permission)
+  app.delete("/api/employer-contact-types/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+    try {
+      const { id} = req.params;
+      const deleted = await storage.options.employerContactTypes.delete(id);
+      
+      if (!deleted) {
+        res.status(404).json({ message: "Employer contact type not found" });
+        return;
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete employer contact type" });
+    }
+  });
+
   // Worker ID routes
   
   // GET /api/workers/:workerId/ids - Get all IDs for a worker (requires worker policy: staff or worker with matching email)
