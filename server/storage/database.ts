@@ -272,6 +272,86 @@ const employerLoggingConfig: StorageLoggingConfig<EmployerStorage> = {
   }
 };
 
+/**
+ * Logging configuration for ledger account storage operations
+ * 
+ * Logs all ledger account mutations with full argument capture and change tracking.
+ */
+const ledgerAccountLoggingConfig: StorageLoggingConfig<import('./ledger').LedgerAccountStorage> = {
+  module: 'ledger.accounts',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args, result) => result?.id || args[0]?.name || 'new account',
+      after: async (args, result, storage) => {
+        return result; // Capture created account
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Account ID
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Account ID
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Capture what's being deleted
+      }
+    }
+  }
+};
+
+/**
+ * Logging configuration for Stripe payment method storage operations
+ * 
+ * Logs all Stripe payment method mutations with full argument capture and change tracking.
+ */
+const stripePaymentMethodLoggingConfig: StorageLoggingConfig<import('./ledger').StripePaymentMethodStorage> = {
+  module: 'ledger.stripePaymentMethods',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args, result) => result?.id || 'new payment method',
+      after: async (args, result, storage) => {
+        return result; // Capture created payment method
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Payment method ID
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Payment method ID
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Capture what's being deleted
+      }
+    },
+    setAsDefault: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Payment method ID
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    }
+  }
+};
+
 export class DatabaseStorage implements IStorage {
   variables: VariableStorage;
   users: UserStorage;
@@ -297,7 +377,7 @@ export class DatabaseStorage implements IStorage {
     this.trustBenefits = createTrustBenefitStorage();
     this.workerIds = createWorkerIdStorage();
     this.bookmarks = createBookmarkStorage();
-    this.ledger = createLedgerStorage();
+    this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
   }
 }
 

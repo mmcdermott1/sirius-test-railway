@@ -7,6 +7,7 @@ import type {
   InsertLedgerStripePaymentMethod
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 
 export interface LedgerAccountStorage {
   getAll(): Promise<LedgerAccount[]>;
@@ -131,9 +132,21 @@ export function createStripePaymentMethodStorage(): StripePaymentMethodStorage {
   };
 }
 
-export function createLedgerStorage(): LedgerStorage {
+export function createLedgerStorage(
+  accountLoggingConfig?: StorageLoggingConfig<LedgerAccountStorage>,
+  stripePaymentMethodLoggingConfig?: StorageLoggingConfig<StripePaymentMethodStorage>
+): LedgerStorage {
+  // Create nested storage instances with optional logging
+  const accountStorage = accountLoggingConfig
+    ? withStorageLogging(createLedgerAccountStorage(), accountLoggingConfig)
+    : createLedgerAccountStorage();
+  
+  const stripePaymentMethodStorage = stripePaymentMethodLoggingConfig
+    ? withStorageLogging(createStripePaymentMethodStorage(), stripePaymentMethodLoggingConfig)
+    : createStripePaymentMethodStorage();
+  
   return {
-    accounts: createLedgerAccountStorage(),
-    stripePaymentMethods: createStripePaymentMethodStorage()
+    accounts: accountStorage,
+    stripePaymentMethods: stripePaymentMethodStorage
   };
 }
