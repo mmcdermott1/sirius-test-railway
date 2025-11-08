@@ -31,9 +31,24 @@ export default function ProtectedRoute({ children, permission, policy }: Protect
   const { isAuthenticated, isLoading, authReady, hasPermission } = useAuth();
   const [location] = useLocation();
 
+  // Extract resource ID from URL path if present (e.g., /workers/:id)
+  const resourceId = location.split('/').filter(Boolean).pop();
+  
   // Check policy via API if policy prop is provided
   const { data: policyResult, isLoading: isPolicyLoading, isError: isPolicyError } = useQuery<DetailedPolicyResult>({
-    queryKey: ['/api/access/policies', policy],
+    queryKey: ['/api/access/policies', policy, resourceId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (resourceId) {
+        params.set('id', resourceId);
+      }
+      const url = `/api/access/policies/${policy}${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to check policy');
+      }
+      return response.json();
+    },
     enabled: isAuthenticated && !!policy,
     staleTime: 30000, // 30 seconds
     retry: 2,

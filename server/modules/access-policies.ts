@@ -44,6 +44,12 @@ export function registerAccessPolicyRoutes(app: Express) {
       // Build context from request
       const context = await buildContext(req);
       
+      // Merge query params into context params for resource-specific policy checks
+      // This allows passing resource IDs (e.g., workerId) from the frontend
+      if (req.query) {
+        context.params = { ...context.params, ...req.query };
+      }
+      
       // Evaluate policy with detailed results
       const result = await evaluatePolicyDetailed(policy, context);
       
