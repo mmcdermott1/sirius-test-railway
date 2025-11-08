@@ -214,6 +214,61 @@ export const staff: AccessPolicy = {
 };
 
 /**
+ * Worker access policy
+ * Grants access if user has staff permission, or if they have worker permission
+ * and their email matches the worker's contact email
+ */
+export const worker: AccessPolicy = {
+  name: 'Worker Access',
+  description: 'Requires staff permission, or worker permission with matching email',
+  requirements: [
+    { type: 'authenticated' },
+    {
+      type: 'anyOf',
+      options: [
+        // Option 1: Has staff permission
+        { type: 'permission', key: 'staff' },
+        // Option 2: Has worker permission AND email matches worker's contact email
+        {
+          type: 'allOf',
+          options: [
+            { type: 'permission', key: 'worker' },
+            {
+              type: 'custom',
+              reason: 'User email must match worker contact email',
+              check: async (ctx) => {
+                // Get worker ID from route params
+                const workerId = ctx.params?.id || ctx.params?.workerId;
+                if (!workerId) {
+                  return false;
+                }
+
+                // Import storage dynamically to avoid circular dependency
+                const { storage } = await import('./storage/database');
+                
+                // Get the worker and their contact
+                const worker = await storage.workers.getWorker(workerId);
+                if (!worker) {
+                  return false;
+                }
+
+                const contact = await storage.contacts.getContact(worker.contactId);
+                if (!contact || !contact.email) {
+                  return false;
+                }
+
+                // Check if user's email matches worker's contact email
+                return ctx.user?.email === contact.email;
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+/**
  * Example: Complex policy with multiple permission options
  */
 export const workersViewOrManage: AccessPolicy = {
@@ -250,5 +305,6 @@ export const policies = {
   bookmark,
   masquerade,
   staff,
+  worker,
   workersViewOrManage,
 };
