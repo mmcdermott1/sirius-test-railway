@@ -163,7 +163,7 @@ export const postalAddresses = pgTable("postal_addresses", {
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
-export const phoneNumbers = pgTable("phone_numbers", {
+export const phoneNumbers = pgTable("contact_phone", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
   friendlyName: text("friendly_name"),
