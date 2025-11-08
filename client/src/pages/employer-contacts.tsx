@@ -66,7 +66,7 @@ function EmployerContactsContent() {
   });
 
   const { data: contactTypes } = useQuery<EmployerContactType[]>({
-    queryKey: ["/api/config/employer-contact-types"],
+    queryKey: ["/api/employer-contact-types"],
   });
 
   const form = useForm<CreateContactFormData>({
