@@ -52,6 +52,9 @@ export interface MethodLoggingConfig<T = any> {
   /** Function to extract a human-readable entity ID from arguments or result */
   getEntityId?: (args: any[], result?: any) => string | undefined;
   
+  /** Custom function to generate a human-readable description of the operation */
+  getDescription?: (args: any[], result: any, beforeState: any, afterState: any, storage: T) => Promise<string> | string;
+  
   /** Whether to enable logging for this method (default: false) */
   enabled?: boolean;
 }
@@ -141,14 +144,19 @@ export function withStorageLogging<T extends Record<string, any>>(
           details.changes = changes;
         }
 
-        const description = generateDescription(
-          config.module,
-          String(key),
-          entityId,
-          beforeState,
-          afterState,
-          changes
-        );
+        let description: string;
+        if (methodConfig.getDescription) {
+          description = await methodConfig.getDescription(args, result, beforeState, afterState, storage);
+        } else {
+          description = generateDescription(
+            config.module,
+            String(key),
+            entityId,
+            beforeState,
+            afterState,
+            changes
+          );
+        }
 
         setImmediate(() => {
           storageLogger.info(`Storage operation: ${config.module}.${String(key)}`, {

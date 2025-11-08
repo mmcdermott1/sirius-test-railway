@@ -433,6 +433,14 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
       getEntityId: (args) => args[0]?.userId || 'user',
       after: async (args, result, storage) => {
         return result; // Capture role assignment
+      },
+      getDescription: async (args, result, beforeState, afterState, storage) => {
+        const assignment = args[0];
+        const user = await storage.getUser(assignment.userId);
+        const role = await storage.getRole(assignment.roleId);
+        const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown user';
+        const roleName = role?.name || 'Unknown role';
+        return `Assigned "${roleName}" to ${userName}`;
       }
     },
     unassignRoleFromUser: {
@@ -442,6 +450,15 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
         // Capture the roles before removal
         const roles = await storage.getUserRoles(args[0]);
         return { userId: args[0], roleId: args[1], roles };
+      },
+      getDescription: async (args, result, beforeState, afterState, storage) => {
+        const userId = args[0];
+        const roleId = args[1];
+        const user = await storage.getUser(userId);
+        const role = await storage.getRole(roleId);
+        const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Unknown user';
+        const roleName = role?.name || 'Unknown role';
+        return `Unassigned "${roleName}" from ${userName}`;
       }
     },
     assignPermissionToRole: {
