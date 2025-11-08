@@ -4,6 +4,7 @@ import {
   optionsWorkerIdType, 
   optionsTrustBenefitType, 
   optionsLedgerPaymentType,
+  optionsEmployerContactType,
   type GenderOption, 
   type InsertGenderOption,
   type WorkerIdType, 
@@ -11,7 +12,9 @@ import {
   type TrustBenefitType, 
   type InsertTrustBenefitType,
   type LedgerPaymentType, 
-  type InsertLedgerPaymentType
+  type InsertLedgerPaymentType,
+  type EmployerContactType,
+  type InsertEmployerContactType
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -51,11 +54,20 @@ export interface LedgerPaymentTypeStorage {
   updateLedgerPaymentTypeSequence(id: string, sequence: number): Promise<LedgerPaymentType | undefined>;
 }
 
+export interface EmployerContactTypeStorage {
+  getAll(): Promise<EmployerContactType[]>;
+  get(id: string): Promise<EmployerContactType | undefined>;
+  create(contactType: InsertEmployerContactType): Promise<EmployerContactType>;
+  update(id: string, contactType: Partial<InsertEmployerContactType>): Promise<EmployerContactType | undefined>;
+  delete(id: string): Promise<boolean>;
+}
+
 export interface OptionsStorage {
   gender: GenderOptionStorage;
   workerIdTypes: WorkerIdTypeStorage;
   trustBenefitTypes: TrustBenefitTypeStorage;
   ledgerPaymentTypes: LedgerPaymentTypeStorage;
+  employerContactTypes: EmployerContactTypeStorage;
 }
 
 export function createOptionsStorage(): OptionsStorage {
@@ -206,6 +218,74 @@ export function createOptionsStorage(): OptionsStorage {
       async updateLedgerPaymentTypeSequence(id: string, sequence: number): Promise<LedgerPaymentType | undefined> {
         return this.updateLedgerPaymentType(id, { sequence });
       }
+    },
+
+    employerContactTypes: {
+      async getAll(): Promise<EmployerContactType[]> {
+        return db.select().from(optionsEmployerContactType);
+      },
+
+      async get(id: string): Promise<EmployerContactType | undefined> {
+        const [contactType] = await db.select().from(optionsEmployerContactType).where(eq(optionsEmployerContactType.id, id));
+        return contactType || undefined;
+      },
+
+      async create(insertContactType: InsertEmployerContactType): Promise<EmployerContactType> {
+        const [contactType] = await db
+          .insert(optionsEmployerContactType)
+          .values(insertContactType)
+          .returning();
+        return contactType;
+      },
+
+      async update(id: string, contactTypeUpdate: Partial<InsertEmployerContactType>): Promise<EmployerContactType | undefined> {
+        const [contactType] = await db
+          .update(optionsEmployerContactType)
+          .set(contactTypeUpdate)
+          .where(eq(optionsEmployerContactType.id, id))
+          .returning();
+        return contactType || undefined;
+      },
+
+      async delete(id: string): Promise<boolean> {
+        const result = await db.delete(optionsEmployerContactType).where(eq(optionsEmployerContactType.id, id)).returning();
+        return result.length > 0;
+      }
+    }
+  };
+}
+
+export function createEmployerContactTypeStorage(): EmployerContactTypeStorage {
+  return {
+    async getAll(): Promise<EmployerContactType[]> {
+      return db.select().from(optionsEmployerContactType);
+    },
+
+    async get(id: string): Promise<EmployerContactType | undefined> {
+      const [contactType] = await db.select().from(optionsEmployerContactType).where(eq(optionsEmployerContactType.id, id));
+      return contactType || undefined;
+    },
+
+    async create(insertContactType: InsertEmployerContactType): Promise<EmployerContactType> {
+      const [contactType] = await db
+        .insert(optionsEmployerContactType)
+        .values(insertContactType)
+        .returning();
+      return contactType;
+    },
+
+    async update(id: string, contactTypeUpdate: Partial<InsertEmployerContactType>): Promise<EmployerContactType | undefined> {
+      const [contactType] = await db
+        .update(optionsEmployerContactType)
+        .set(contactTypeUpdate)
+        .where(eq(optionsEmployerContactType.id, id))
+        .returning();
+      return contactType || undefined;
+    },
+
+    async delete(id: string): Promise<boolean> {
+      const result = await db.delete(optionsEmployerContactType).where(eq(optionsEmployerContactType.id, id)).returning();
+      return result.length > 0;
     }
   };
 }

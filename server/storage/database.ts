@@ -3,7 +3,7 @@ import { type UserStorage, createUserStorage } from "./users";
 import { type WorkerStorage, createWorkerStorage } from "./workers";
 import { type EmployerStorage, createEmployerStorage } from "./employers";
 import { type ContactsStorage, createContactsStorage, type AddressStorage, type PhoneNumberStorage } from "./contacts";
-import { type OptionsStorage, createOptionsStorage } from "./options";
+import { type OptionsStorage, createOptionsStorage, createEmployerContactTypeStorage, type EmployerContactTypeStorage } from "./options";
 import { type TrustBenefitStorage, createTrustBenefitStorage } from "./trust-benefits";
 import { type WorkerIdStorage, createWorkerIdStorage } from "./worker-ids";
 import { type BookmarkStorage, createBookmarkStorage } from "./bookmarks";
@@ -567,6 +567,41 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
   }
 };
 
+/**
+ * Logging configuration for employer contact type storage operations
+ * 
+ * Logs all create/update/delete operations on employer contact types with full argument capture and change tracking.
+ */
+const employerContactTypeLoggingConfig: StorageLoggingConfig<EmployerContactTypeStorage> = {
+  module: 'options.employerContactTypes',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args) => args[0]?.name || 'new employer contact type',
+      after: async (args, result, storage) => {
+        return result; // Capture created contact type
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Contact type ID
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Contact type ID
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Capture what's being deleted
+      }
+    }
+  }
+};
+
 export class DatabaseStorage implements IStorage {
   variables: VariableStorage;
   users: UserStorage;
@@ -588,7 +623,15 @@ export class DatabaseStorage implements IStorage {
     );
     this.workers = createWorkerStorage(this.contacts);
     this.employers = withStorageLogging(createEmployerStorage(), employerLoggingConfig);
-    this.options = createOptionsStorage();
+    
+    // Create options storage with logged employer contact types
+    const optionsStorage = createOptionsStorage();
+    optionsStorage.employerContactTypes = withStorageLogging(
+      createEmployerContactTypeStorage(),
+      employerContactTypeLoggingConfig
+    );
+    this.options = optionsStorage;
+    
     this.trustBenefits = createTrustBenefitStorage();
     this.workerIds = withStorageLogging(createWorkerIdStorage(), workerIdLoggingConfig);
     this.bookmarks = createBookmarkStorage();
