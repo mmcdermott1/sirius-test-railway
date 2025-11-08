@@ -35,6 +35,7 @@ Preferred communication style: Simple, everyday language.
 -   **User Provisioning**: Email-based user provisioning integrated with Replit accounts.
 -   **Data Validation**: Extensive Zod schema validation, `libphonenumber-js` for phone numbers, and custom SSN/date validation.
 -   **Employers**: Management of employer records with UUIDs.
+-   **Employer Contacts**: Join table linking employers to contacts with optional contact type categorization (employer_contacts table).
 -   **Bookmarks**: User-specific, entity-agnostic bookmarking for workers and employers.
 -   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets, managed by admins.
 -   **Components Feature Flag System**: Manages enablement of application features (components) via a centralized registry, with dependency management and integration with access control policies.
