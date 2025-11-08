@@ -273,6 +273,41 @@ const employerLoggingConfig: StorageLoggingConfig<EmployerStorage> = {
 };
 
 /**
+ * Logging configuration for worker ID storage operations
+ * 
+ * Logs all worker ID mutations with full argument capture and change tracking.
+ */
+const workerIdLoggingConfig: StorageLoggingConfig<WorkerIdStorage> = {
+  module: 'workerIds',
+  methods: {
+    createWorkerId: {
+      enabled: true,
+      getEntityId: (args) => args[0]?.workerId || 'new worker ID',
+      after: async (args, result, storage) => {
+        return result; // Capture created worker ID
+      }
+    },
+    updateWorkerId: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Worker ID record ID
+      before: async (args, storage) => {
+        return await storage.getWorkerId(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    },
+    deleteWorkerId: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Worker ID record ID
+      before: async (args, storage) => {
+        return await storage.getWorkerId(args[0]); // Capture what's being deleted
+      }
+    }
+  }
+};
+
+/**
  * Logging configuration for ledger account storage operations
  * 
  * Logs all ledger account mutations with full argument capture and change tracking.
@@ -503,7 +538,7 @@ export class DatabaseStorage implements IStorage {
     this.employers = withStorageLogging(createEmployerStorage(), employerLoggingConfig);
     this.options = createOptionsStorage();
     this.trustBenefits = createTrustBenefitStorage();
-    this.workerIds = createWorkerIdStorage();
+    this.workerIds = withStorageLogging(createWorkerIdStorage(), workerIdLoggingConfig);
     this.bookmarks = createBookmarkStorage();
     this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
   }
