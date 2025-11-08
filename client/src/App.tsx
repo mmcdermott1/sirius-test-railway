@@ -198,7 +198,7 @@ function Router() {
       </Route>
       
       <Route path="/workers/:id">
-        <ProtectedRoute permission="workers.view">
+        <ProtectedRoute policy="worker">
           <AuthenticatedLayout>
             <WorkerView />
           </AuthenticatedLayout>
