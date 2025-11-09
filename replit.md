@@ -21,7 +21,9 @@ Preferred communication style: Simple, everyday language.
 -   **Module Structure**: Feature-based modules in `server/modules/` for organizing related routes and logic.
 -   **Authentication**: Replit Auth (OAuth via OpenID Connect) with restricted, pre-provisioned user access and PostgreSQL-based session management.
 -   **Access Control**: Centralized, declarative role-based access control system.
--   **Logging**: Winston logging with a PostgreSQL database backend.
+-   **Logging**: Winston logging with a PostgreSQL database backend for storage operations and authentication events.
+    -   **Storage Logging**: Comprehensive audit trail for all CRUD operations (variables, users, workers, contacts, employers, etc.) with before/after snapshots and automatic change detection.
+    -   **Authentication Logging**: Tracks login, logout, masquerade start/stop events with user details and context.
 
 ## Data Storage
 -   **Database**: PostgreSQL (Neon Database).
@@ -33,6 +35,7 @@ Preferred communication style: Simple, everyday language.
 -   **Worker Management**: Full CRUD for workers, including personal and contact information, with sequential `sirius_id`.
 -   **Configurable Settings**: Manages worker ID types, employer contact types, site information, phone number validation, welcome messages, and dashboard plugins.
 -   **User Provisioning**: Email-based user provisioning integrated with Replit accounts.
+-   **Employer User Settings**: Configurable required/optional role assignments for employer users via `/config/users/employer-settings`.
 -   **Data Validation**: Extensive Zod schema validation, `libphonenumber-js` for phone numbers, and custom SSN/date validation.
 -   **Employers**: Management of employer records with UUIDs.
 -   **Employer Contacts**: Join table linking employers to contacts with optional contact type categorization (employer_contacts table).

@@ -464,6 +464,30 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)
+      },
+      getDescription: async (args, result, beforeState, afterState) => {
+        const user = afterState || beforeState;
+        if (!user) return `Updated user ${args[0]}`;
+        const userName = user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.email;
+        
+        // Calculate what changed
+        const changes: string[] = [];
+        if (beforeState && afterState) {
+          const allKeys = Array.from(new Set([...Object.keys(beforeState), ...Object.keys(afterState)]));
+          for (const key of allKeys) {
+            if (JSON.stringify(beforeState[key]) !== JSON.stringify(afterState[key])) {
+              changes.push(key);
+            }
+          }
+        }
+        
+        if (changes.length === 0) {
+          return `Updated user "${userName}" (no changes detected)`;
+        }
+        
+        return `Updated user "${userName}" (changed: ${changes.join(', ')})`;
       }
     },
     deleteUser: {
@@ -471,6 +495,14 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
       getEntityId: (args) => args[0], // User ID
       before: async (args, storage) => {
         return await storage.getUser(args[0]); // Capture what's being deleted
+      },
+      getDescription: async (args, result, beforeState) => {
+        const user = beforeState;
+        if (!user) return `Deleted user ${args[0]}`;
+        const userName = user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.email;
+        return `Deleted user "${userName}"`;
       }
     },
     linkReplitAccount: {
@@ -481,6 +513,14 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)
+      },
+      getDescription: async (args, result, beforeState, afterState) => {
+        const user = afterState || beforeState;
+        if (!user) return `Linked Replit account for user ${args[0]}`;
+        const userName = user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.email;
+        return `Linked Replit account for "${userName}"`;
       }
     },
     createRole: {
