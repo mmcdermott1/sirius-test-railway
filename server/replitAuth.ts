@@ -5,11 +5,30 @@ import { Strategy, type VerifyFunction } from "openid-client/passport";
 
 import passport from "passport";
 import session from "express-session";
-import type { Express, RequestHandler } from "express";
+import type { Express, RequestHandler, Request } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
-import { storageLogger } from "./logger";
+import { storageLogger, logger } from "./logger";
+import { getRequestContext } from "./middleware/request-context";
+
+/**
+ * Extract client IP address from request
+ */
+function getClientIp(req: Request): string {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (forwardedFor) {
+    const ips = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
+    return ips.split(',')[0].trim();
+  }
+
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) {
+    return Array.isArray(realIp) ? realIp[0] : realIp;
+  }
+
+  return req.socket.remoteAddress || 'unknown';
+}
 
 const getOidcConfig = memoize(
   async () => {
@@ -114,11 +133,15 @@ async function checkUserAccess(
       replitUserId: replitUserId,
     };
     setImmediate(() => {
+      const context = getRequestContext();
       storageLogger.info("Authentication event: login", {
         module: "auth",
         operation: "login",
         entity_id: logData.userId,
         description: `User logged in: ${logData.userName}`,
+        user_id: logData.userId,
+        user_email: logData.email,
+        ip_address: context?.ipAddress,
         meta: {
           userId: logData.userId,
           email: logData.email,
@@ -167,11 +190,15 @@ async function checkUserAccess(
     replitUserId: replitUserId,
   };
   setImmediate(() => {
+    const context = getRequestContext();
     storageLogger.info("Authentication event: login", {
       module: "auth",
       operation: "login",
       entity_id: logData.userId,
       description: `User logged in (account linked): ${logData.userName}`,
+      user_id: logData.userId,
+      user_email: logData.email,
+      ip_address: context?.ipAddress,
       meta: {
         userId: logData.userId,
         email: logData.email,
@@ -196,7 +223,7 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
+    const user: any = {};
     updateUserSession(user, tokens);
     
     // MODIFIED: Check if user is allowed to access the system
@@ -206,6 +233,9 @@ export async function setupAuth(app: Express) {
       // User not authorized - they're not in our database or inactive
       return verified(new Error("Access denied. Please contact an administrator to set up your account."), false);
     }
+    
+    // Attach database user to session for downstream use (avoids repeated lookups)
+    user.dbUser = accessCheck.user;
     
     verified(null, user);
   };
@@ -232,7 +262,22 @@ export async function setupAuth(app: Express) {
   };
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser(async (user: Express.User, cb) => {
+    // Rehydrate dbUser if it exists in session but was lost during deserialization
+    const sessionUser = user as any;
+    if (sessionUser.claims?.sub && !sessionUser.dbUser) {
+      try {
+        const replitUserId = sessionUser.claims.sub;
+        const dbUser = await storage.users.getUserByReplitId(replitUserId);
+        if (dbUser) {
+          sessionUser.dbUser = dbUser;
+        }
+      } catch (error) {
+        logger.error('Failed to rehydrate dbUser during deserialization', { error });
+      }
+    }
+    cb(null, user);
+  });
 
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
@@ -299,11 +344,15 @@ export async function setupAuth(app: Express) {
           const name = logData!.firstName && logData!.lastName 
             ? `${logData!.firstName} ${logData!.lastName}` 
             : logData!.email;
+          const context = getRequestContext();
           storageLogger.info("Authentication event: logout", {
             module: "auth",
             operation: "logout",
             entity_id: logData!.userId,
             description: `User logged out: ${name}`,
+            user_id: logData!.userId,
+            user_email: logData!.email,
+            ip_address: context?.ipAddress,
             meta: {
               userId: logData!.userId,
               email: logData!.email,

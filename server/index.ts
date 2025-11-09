@@ -7,6 +7,7 @@ import { logger } from "./logger";
 import { setupAuth } from "./replitAuth";
 import { initAccessControl } from "./accessControl";
 import { storage } from "./storage";
+import { captureRequestContext } from "./middleware/request-context";
 
 // Helper function to redact sensitive data from responses before logging
 function redactSensitiveData(data: any): any {
@@ -115,6 +116,9 @@ app.use((req, res, next) => {
   // Setup Replit Auth
   await setupAuth(app);
   logger.info("Replit Auth initialized", { source: "startup" });
+
+  // Setup request context middleware (captures user and IP for logging)
+  app.use(captureRequestContext);
 
   const server = await registerRoutes(app);
 

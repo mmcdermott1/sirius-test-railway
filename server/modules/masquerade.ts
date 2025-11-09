@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
 import { storageLogger } from "../logger";
+import { getRequestContext } from "../middleware/request-context";
 
 // Type for middleware functions
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -110,11 +111,15 @@ export function registerMasqueradeRoutes(
         targetName,
       };
       setImmediate(() => {
+        const context = getRequestContext();
         storageLogger.info("Authentication event: masquerade_start", {
           module: "auth",
           operation: "masquerade_start",
           entity_id: logData.originalUserId,
           description: `${logData.originalName} started masquerading as ${logData.targetName}`,
+          user_id: logData.originalUserId,
+          user_email: logData.originalEmail,
+          ip_address: context?.ipAddress,
           meta: {
             originalUserId: logData.originalUserId,
             originalEmail: logData.originalEmail,
@@ -192,11 +197,15 @@ export function registerMasqueradeRoutes(
       // Log masquerade stop
       if (logData) {
         setImmediate(() => {
+          const context = getRequestContext();
           storageLogger.info("Authentication event: masquerade_stop", {
             module: "auth",
             operation: "masquerade_stop",
             entity_id: logData!.originalUserId,
             description: `${logData!.originalName} stopped masquerading as ${logData!.targetName}`,
+            user_id: logData!.originalUserId,
+            user_email: logData!.originalEmail,
+            ip_address: context?.ipAddress,
             meta: {
               originalUserId: logData!.originalUserId,
               originalEmail: logData!.originalEmail,

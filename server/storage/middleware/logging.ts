@@ -38,6 +38,7 @@
  */
 
 import { storageLogger } from "../../logger";
+import { getRequestContext } from "../../middleware/request-context";
 
 /**
  * Configuration for logging a single storage method
@@ -159,11 +160,15 @@ export function withStorageLogging<T extends Record<string, any>>(
         }
 
         setImmediate(() => {
+          const context = getRequestContext();
           storageLogger.info(`Storage operation: ${config.module}.${String(key)}`, {
             module: config.module,
             operation: String(key),
             entity_id: entityId,
             description,
+            user_id: context?.userId,
+            user_email: context?.userEmail,
+            ip_address: context?.ipAddress,
             meta: details, // Nest details under 'meta' to match JSONB column
           });
         });
@@ -189,11 +194,15 @@ export function withStorageLogging<T extends Record<string, any>>(
         const description = `Failed to ${String(key)} on ${config.module} "${entityId || 'unknown'}"`;
 
         setImmediate(() => {
+          const context = getRequestContext();
           storageLogger.error(`Storage operation failed: ${config.module}.${String(key)}`, {
             module: config.module,
             operation: String(key),
             entity_id: entityId,
             description,
+            user_id: context?.userId,
+            user_email: context?.userEmail,
+            ip_address: context?.ipAddress,
             meta: details, // Nest details under 'meta' to match JSONB column
           });
         });
