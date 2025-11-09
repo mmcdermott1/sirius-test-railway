@@ -69,8 +69,16 @@ export default function LogsPage() {
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
   // Fetch logs
+  const queryParams = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+    ...(moduleFilter && { module: moduleFilter }),
+    ...(operationFilter && { operation: operationFilter }),
+    ...(searchQuery && { search: searchQuery }),
+  });
+  
   const { data: logsData, isLoading } = useQuery<LogsResponse>({
-    queryKey: ["/api/logs", { page, limit, module: moduleFilter, operation: operationFilter, search: searchQuery }],
+    queryKey: [`/api/logs?${queryParams.toString()}`],
   });
 
   // Fetch filter options
