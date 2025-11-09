@@ -96,6 +96,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       testId: "nav-config-phone-numbers",
       permission: "admin.manage",
     },
+    {
+      path: "/config/logs",
+      label: "System Logs",
+      icon: FileText,
+      testId: "nav-config-logs",
+      permission: "logs.view",
+    },
   ];
 
   const userManagementItems = [

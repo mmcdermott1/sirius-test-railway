@@ -56,6 +56,7 @@ import WorkerIDTypesPage from "@/pages/config/worker-id-types";
 import TrustBenefitTypesPage from "@/pages/config/trust-benefit-types";
 import EmployerContactTypesPage from "@/pages/config/employer-contact-types";
 import MasqueradePage from "@/pages/config/masquerade";
+import LogsPage from "@/pages/config/logs";
 import WelcomeMessagesConfigPage from "@/pages/config/welcome-messages";
 import DashboardPluginsConfigPage from "@/pages/config/dashboard-plugins";
 import ComponentsConfigPage from "@/pages/config/components";
@@ -481,6 +482,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <MasqueradePage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/config/logs">
+        <ProtectedRoute permission="logs.view">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <LogsPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
