@@ -101,7 +101,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "System Logs",
       icon: FileText,
       testId: "nav-config-logs",
-      permission: "logs.view",
+      policy: "logsView" as const,
     },
   ];
 
@@ -217,10 +217,11 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
 
   // Combine for policy checks
   const allLedgerItems = [...ledgerItems, ...stripeItems];
+  const allNavItems = [...regularNavItems, ...userManagementItems, ...dropDownListItems, ...allLedgerItems];
 
   // Fetch policy checks for navigation items that use policies
-  const policiesNeeded = allLedgerItems
-    .filter((item): item is typeof allLedgerItems[number] & { policy: string } => 'policy' in item && typeof item.policy === 'string')
+  const policiesNeeded = allNavItems
+    .filter((item): item is typeof allNavItems[number] & { policy: string } => 'policy' in item && typeof item.policy === 'string')
     .map(item => item.policy);
 
   const { data: policyResults = {} } = useQuery<Record<string, { allowed: boolean }>>({
@@ -296,7 +297,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
             Configuration
           </h2>
           <nav className="space-y-2">
-            {regularNavItems.filter((item) => hasPermission(item.permission)).map((item) => {
+            {regularNavItems.filter(hasAccessToItem).map((item) => {
               const Icon = item.icon;
               const isActive = location === item.path || location.startsWith(item.path + "/");
               
