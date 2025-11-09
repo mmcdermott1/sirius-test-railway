@@ -1,16 +1,19 @@
 import { db } from "../db";
 import {
   workers,
+  contacts,
   type Worker,
   type InsertWorker,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { ContactsStorage } from "./contacts";
+import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 
 export interface WorkerStorage {
   getAllWorkers(): Promise<Worker[]>;
   getWorker(id: string): Promise<Worker | undefined>;
   createWorker(name: string): Promise<Worker>;
+  // Update methods that delegate to contact storage (contact storage already has logging)
   updateWorkerContactName(workerId: string, name: string): Promise<Worker | undefined>;
   updateWorkerContactNameComponents(workerId: string, components: {
     title?: string;
@@ -195,3 +198,72 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
     },
   };
 }
+
+/**
+ * Logging configuration for worker storage operations
+ * 
+ * Note: Only createWorker and deleteWorker are logged at the worker level.
+ * Update methods (updateWorkerContactName, updateWorkerContactEmail, updateWorkerSSN, etc.) 
+ * are not logged at the worker level to avoid redundant entries. Contact-related updates 
+ * are logged via the contact storage module, and SSN updates are simple field changes that 
+ * don't require separate logging.
+ * 
+ * The create and delete operations are logged here because they involve both worker
+ * and contact records, providing a clear entry point for tracking worker lifecycle.
+ */
+export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
+  module: 'workers',
+  methods: {
+    createWorker: {
+      enabled: true,
+      getEntityId: (args, result) => result?.id || 'new worker',
+      after: async (args, result, storage) => {
+        // Fetch the associated contact for enriched logging
+        const [contact] = await db.select().from(contacts).where(eq(contacts.id, result.contactId));
+        return {
+          worker: result,
+          contact: contact,
+          metadata: {
+            inputName: args[0],
+            workerId: result.id,
+            contactId: result.contactId,
+            siriusId: result.siriusId,
+            note: 'Worker creation also created an associated contact record (logged separately in contacts module)'
+          }
+        };
+      }
+    },
+    deleteWorker: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Worker ID
+      before: async (args, storage) => {
+        const worker = await storage.getWorker(args[0]);
+        if (!worker) {
+          return null;
+        }
+        
+        // Fetch the associated contact for enriched logging
+        const [contact] = await db.select().from(contacts).where(eq(contacts.id, worker.contactId));
+        return {
+          worker: worker,
+          contact: contact,
+          metadata: {
+            workerId: worker.id,
+            contactId: worker.contactId,
+            siriusId: worker.siriusId,
+            note: 'Worker deletion will also delete the associated contact record (logged separately in contacts module)'
+          }
+        };
+      },
+      after: async (args, result, storage) => {
+        return {
+          deleted: result,
+          workerId: args[0],
+          metadata: {
+            note: 'Worker and associated contact successfully deleted'
+          }
+        };
+      }
+    }
+  }
+};

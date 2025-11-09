@@ -1,6 +1,6 @@
 import { type VariableStorage, createVariableStorage } from "./variables";
 import { type UserStorage, createUserStorage } from "./users";
-import { type WorkerStorage, createWorkerStorage } from "./workers";
+import { type WorkerStorage, createWorkerStorage, workerLoggingConfig } from "./workers";
 import { type EmployerStorage, createEmployerStorage } from "./employers";
 import { type ContactsStorage, createContactsStorage, type AddressStorage, type PhoneNumberStorage } from "./contacts";
 import { type OptionsStorage, createOptionsStorage, createEmployerContactTypeStorage, type EmployerContactTypeStorage } from "./options";
@@ -660,7 +660,10 @@ export class DatabaseStorage implements IStorage {
       createContactsStorage(addressLoggingConfig, phoneNumberLoggingConfig), 
       contactLoggingConfig
     );
-    this.workers = createWorkerStorage(this.contacts);
+    this.workers = withStorageLogging(
+      createWorkerStorage(this.contacts),
+      workerLoggingConfig
+    );
     this.employers = withStorageLogging(createEmployerStorage(), employerLoggingConfig);
     
     // Create options storage with logged employer contact types
