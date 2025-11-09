@@ -9,6 +9,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { storageLogger } from "./logger";
 
 const getOidcConfig = memoize(
   async () => {
@@ -102,6 +103,30 @@ async function checkUserAccess(
     // Update last login
     await storage.users.updateUserLastLogin(user.id);
     
+    // Log successful login
+    const userName = updatedUser.firstName && updatedUser.lastName
+      ? `${updatedUser.firstName} ${updatedUser.lastName}`
+      : updatedUser.email;
+    const logData = {
+      userId: user.id,
+      email: updatedUser.email,
+      userName,
+      replitUserId: replitUserId,
+    };
+    setImmediate(() => {
+      storageLogger.info("Authentication event: login", {
+        module: "auth",
+        operation: "login",
+        entity_id: logData.userId,
+        description: `User logged in: ${logData.userName}`,
+        meta: {
+          userId: logData.userId,
+          email: logData.email,
+          replitUserId: logData.replitUserId,
+        },
+      });
+    });
+    
     return { allowed: true, user: updatedUser };
   }
   
@@ -130,6 +155,31 @@ async function checkUserAccess(
   
   // Update last login
   await storage.users.updateUserLastLogin(user.id);
+  
+  // Log successful login (first-time account linking)
+  const userName = linkedUser.firstName && linkedUser.lastName
+    ? `${linkedUser.firstName} ${linkedUser.lastName}`
+    : linkedUser.email;
+  const logData = {
+    userId: user.id,
+    email: linkedUser.email,
+    userName,
+    replitUserId: replitUserId,
+  };
+  setImmediate(() => {
+    storageLogger.info("Authentication event: login", {
+      module: "auth",
+      operation: "login",
+      entity_id: logData.userId,
+      description: `User logged in (account linked): ${logData.userName}`,
+      meta: {
+        userId: logData.userId,
+        email: logData.email,
+        replitUserId: logData.replitUserId,
+        accountLinked: true,
+      },
+    });
+  });
   
   return { allowed: true, user: linkedUser };
 }
@@ -207,8 +257,62 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/logout", (req, res) => {
+  app.get("/api/logout", async (req, res) => {
+    // Capture user info before logout for logging
+    const user = req.user as any;
+    const session = req.session as any;
+    let logData: { userId?: string; email?: string; firstName?: string; lastName?: string; wasMasquerading?: boolean } | null = null;
+    
+    if (user?.claims?.sub) {
+      try {
+        const replitUserId = user.claims.sub;
+        
+        // Check if masquerading
+        const wasMasquerading = !!session.masqueradeUserId;
+        
+        // Get the effective user (the one being logged out)
+        let dbUser;
+        if (session.masqueradeUserId) {
+          dbUser = await storage.users.getUser(session.masqueradeUserId);
+        } else {
+          dbUser = await storage.users.getUserByReplitId(replitUserId);
+        }
+        
+        if (dbUser) {
+          logData = {
+            userId: dbUser.id,
+            email: dbUser.email,
+            firstName: dbUser.firstName || undefined,
+            lastName: dbUser.lastName || undefined,
+            wasMasquerading,
+          };
+        }
+      } catch (error) {
+        console.error("Error capturing logout user info:", error);
+      }
+    }
+    
     req.logout(() => {
+      // Log logout event after session is destroyed
+      if (logData) {
+        setImmediate(() => {
+          const name = logData!.firstName && logData!.lastName 
+            ? `${logData!.firstName} ${logData!.lastName}` 
+            : logData!.email;
+          storageLogger.info("Authentication event: logout", {
+            module: "auth",
+            operation: "logout",
+            entity_id: logData!.userId,
+            description: `User logged out: ${name}`,
+            meta: {
+              userId: logData!.userId,
+              email: logData!.email,
+              wasMasquerading: logData!.wasMasquerading,
+            },
+          });
+        });
+      }
+      
       res.redirect(
         client.buildEndSessionUrl(config, {
           client_id: process.env.REPL_ID!,

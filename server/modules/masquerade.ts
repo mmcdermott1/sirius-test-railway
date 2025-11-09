@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
+import { storageLogger } from "../logger";
 
 // Type for middleware functions
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -93,6 +94,36 @@ export function registerMasqueradeRoutes(
         session.save((err: any) => err ? reject(err) : resolve(undefined));
       });
       
+      // Log masquerade start
+      const originalName = originalUser.firstName && originalUser.lastName
+        ? `${originalUser.firstName} ${originalUser.lastName}`
+        : originalUser.email;
+      const targetName = targetUser.firstName && targetUser.lastName
+        ? `${targetUser.firstName} ${targetUser.lastName}`
+        : targetUser.email;
+      const logData = {
+        originalUserId: originalUser.id,
+        originalEmail: originalUser.email,
+        originalName,
+        targetUserId: targetUser.id,
+        targetEmail: targetUser.email,
+        targetName,
+      };
+      setImmediate(() => {
+        storageLogger.info("Authentication event: masquerade_start", {
+          module: "auth",
+          operation: "masquerade_start",
+          entity_id: logData.originalUserId,
+          description: `${logData.originalName} started masquerading as ${logData.targetName}`,
+          meta: {
+            originalUserId: logData.originalUserId,
+            originalEmail: logData.originalEmail,
+            targetUserId: logData.targetUserId,
+            targetEmail: logData.targetEmail,
+          },
+        });
+      });
+      
       res.json({ 
         message: "Masquerade started successfully",
         masqueradingAs: {
@@ -116,6 +147,40 @@ export function registerMasqueradeRoutes(
         return res.status(400).json({ message: "Not currently masquerading" });
       }
       
+      // Capture user info before clearing masquerade session
+      let logData: { 
+        originalUserId?: string; 
+        originalEmail?: string; 
+        originalName?: string;
+        targetUserId?: string; 
+        targetEmail?: string; 
+        targetName?: string;
+      } | null = null;
+      
+      try {
+        const originalUser = await storage.users.getUser(session.originalUserId);
+        const targetUser = await storage.users.getUser(session.masqueradeUserId);
+        
+        if (originalUser && targetUser) {
+          const originalName = originalUser.firstName && originalUser.lastName
+            ? `${originalUser.firstName} ${originalUser.lastName}`
+            : originalUser.email;
+          const targetName = targetUser.firstName && targetUser.lastName
+            ? `${targetUser.firstName} ${targetUser.lastName}`
+            : targetUser.email;
+          logData = {
+            originalUserId: originalUser.id,
+            originalEmail: originalUser.email,
+            originalName,
+            targetUserId: targetUser.id,
+            targetEmail: targetUser.email,
+            targetName,
+          };
+        }
+      } catch (error) {
+        console.error("Error capturing masquerade stop user info:", error);
+      }
+      
       // Clear masquerade session
       delete session.masqueradeUserId;
       delete session.originalUserId;
@@ -123,6 +188,24 @@ export function registerMasqueradeRoutes(
       await new Promise((resolve, reject) => {
         session.save((err: any) => err ? reject(err) : resolve(undefined));
       });
+      
+      // Log masquerade stop
+      if (logData) {
+        setImmediate(() => {
+          storageLogger.info("Authentication event: masquerade_stop", {
+            module: "auth",
+            operation: "masquerade_stop",
+            entity_id: logData!.originalUserId,
+            description: `${logData!.originalName} stopped masquerading as ${logData!.targetName}`,
+            meta: {
+              originalUserId: logData!.originalUserId,
+              originalEmail: logData!.originalEmail,
+              targetUserId: logData!.targetUserId,
+              targetEmail: logData!.targetEmail,
+            },
+          });
+        });
+      }
       
       res.json({ message: "Masquerade stopped successfully" });
     } catch (error) {
