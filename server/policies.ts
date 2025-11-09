@@ -202,18 +202,6 @@ export const masquerade: AccessPolicy = {
 };
 
 /**
- * Logs access policy
- */
-export const logsView: AccessPolicy = {
-  name: 'View Logs',
-  description: 'Requires logs.view permission',
-  requirements: [
-    { type: 'authenticated' },
-    { type: 'permission', key: 'logs.view' },
-  ],
-};
-
-/**
  * Staff access policy
  */
 export const staff: AccessPolicy = {
@@ -316,7 +304,6 @@ export const policies = {
   ledgerStaff,
   bookmark,
   masquerade,
-  logsView,
   staff,
   worker,
   workersViewOrManage,

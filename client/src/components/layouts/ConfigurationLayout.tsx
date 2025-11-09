@@ -101,7 +101,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "System Logs",
       icon: FileText,
       testId: "nav-config-logs",
-      policy: "logsView" as const,
+      policy: "admin" as const,
     },
   ];
 

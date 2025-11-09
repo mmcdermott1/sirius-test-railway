@@ -15,7 +15,7 @@ const logsQuerySchema = z.object({
 });
 
 export function registerLogRoutes(app: Express) {
-  app.get("/api/logs", requireAccess(policies.logsView), async (req, res) => {
+  app.get("/api/logs", requireAccess(policies.admin), async (req, res) => {
     try {
       const params = logsQuerySchema.parse(req.query);
       const page = Math.max(1, params.page);
@@ -76,7 +76,7 @@ export function registerLogRoutes(app: Express) {
   });
 
   // Get unique modules and operations for filter dropdowns
-  app.get("/api/logs/filters", requireAccess(policies.logsView), async (req, res) => {
+  app.get("/api/logs/filters", requireAccess(policies.admin), async (req, res) => {
     try {
       const [modules, operations] = await Promise.all([
         db.selectDistinct({ module: winstonLogs.module })
@@ -103,7 +103,7 @@ export function registerLogRoutes(app: Express) {
   });
 
   // Get a single log by ID
-  app.get("/api/logs/:id", requireAccess(policies.logsView), async (req, res) => {
+  app.get("/api/logs/:id", requireAccess(policies.admin), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
