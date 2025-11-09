@@ -18,6 +18,7 @@ import { registerEmployerUserSettingsRoutes } from "./modules/employer-user-sett
 import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
 import { registerLedgerAccountRoutes } from "./modules/ledger/accounts";
 import { registerAccessPolicyRoutes } from "./modules/access-policies";
+import { registerLogRoutes } from "./modules/logs";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -247,6 +248,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register ledger/accounts routes
   registerLedgerAccountRoutes(app);
+
+  // Register log management routes
+  registerLogRoutes(app, requireAuth, requirePermission);
 
   // Worker routes (protected with authentication and permissions)
   

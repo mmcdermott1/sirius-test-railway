@@ -209,6 +209,11 @@ export function initializePermissions(): void {
       key: 'admin',
       description: 'Administrator level access',
       module: 'core'
+    },
+    {
+      key: 'logs.view',
+      description: 'View system logs and audit trail',
+      module: 'core'
     }
   ];
 
