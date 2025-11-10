@@ -806,6 +806,7 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
     createUser: {
       enabled: true,
       getEntityId: (args) => args[0]?.email || 'new user',
+      getHostEntityId: (args, result) => result?.id, // User ID is the host
       after: async (args, result, storage) => {
         return result; // Capture created user
       }
@@ -813,6 +814,7 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
     updateUser: {
       enabled: true,
       getEntityId: (args) => args[0], // User ID
+      getHostEntityId: (args) => args[0], // User ID is the host
       before: async (args, storage) => {
         return await storage.getUser(args[0]); // Current state
       },
@@ -847,6 +849,7 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
     deleteUser: {
       enabled: true,
       getEntityId: (args) => args[0], // User ID
+      getHostEntityId: (args, result, beforeState) => beforeState?.id || args[0], // User ID is the host
       before: async (args, storage) => {
         return await storage.getUser(args[0]); // Capture what's being deleted
       },
@@ -862,6 +865,7 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
     linkReplitAccount: {
       enabled: true,
       getEntityId: (args) => args[0], // User ID
+      getHostEntityId: (args) => args[0], // User ID is the host
       before: async (args, storage) => {
         return await storage.getUser(args[0]); // Current state
       },
@@ -914,6 +918,7 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
     assignRoleToUser: {
       enabled: true,
       getEntityId: (args) => args[0]?.userId || 'user',
+      getHostEntityId: (args, result) => result?.userId || args[0]?.userId, // User ID is the host
       after: async (args, result, storage) => {
         return result; // Capture role assignment
       },
@@ -929,6 +934,7 @@ const userLoggingConfig: StorageLoggingConfig<UserStorage> = {
     unassignRoleFromUser: {
       enabled: true,
       getEntityId: (args) => args[0], // User ID
+      getHostEntityId: (args) => args[0], // User ID is the host
       before: async (args, storage) => {
         // Capture the roles before removal
         const roles = await storage.getUserRoles(args[0]);
