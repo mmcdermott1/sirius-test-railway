@@ -2196,11 +2196,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Worker not found" });
       }
       
-      // Validate request body
-      const result = insertWorkerEmphistSchema.safeParse({
+      // Merge workerId from params into request body before validation
+      const dataWithWorkerId = {
         ...req.body,
         workerId
-      });
+      };
+      
+      // Validate request body
+      const result = insertWorkerEmphistSchema.safeParse(dataWithWorkerId);
       
       if (!result.success) {
         return res.status(400).json({ 
