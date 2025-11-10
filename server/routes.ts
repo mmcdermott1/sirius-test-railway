@@ -579,6 +579,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/employer-contacts/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
+      const { contactTypeId, email, nameComponents } = req.body;
+      
+      // Handle name component updates
+      if (nameComponents) {
+        const updated = await storage.employerContacts.updateContactName(id, nameComponents);
+        
+        if (!updated) {
+          res.status(404).json({ message: "Employer contact not found" });
+          return;
+        }
+        
+        res.json(updated);
+        return;
+      }
+      
+      // Validate and parse other fields
       const parsed = z.object({
         contactTypeId: z.string().uuid().nullable().optional(),
         email: z.string().email().or(z.literal("")).nullable().optional().transform(val => {

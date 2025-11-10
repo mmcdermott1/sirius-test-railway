@@ -721,7 +721,7 @@ export class DatabaseStorage implements IStorage {
     this.workerIds = withStorageLogging(createWorkerIdStorage(), workerIdLoggingConfig);
     this.bookmarks = createBookmarkStorage();
     this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
-    this.employerContacts = withStorageLogging(createEmployerContactStorage(), employerContactLoggingConfig);
+    this.employerContacts = withStorageLogging(createEmployerContactStorage(this.contacts), employerContactLoggingConfig);
   }
 }
 

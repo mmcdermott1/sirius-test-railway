@@ -2,6 +2,7 @@ import { db } from "../db";
 import { employerContacts, contacts, optionsEmployerContactType, type EmployerContact, type InsertEmployerContact, type Contact, type InsertContact } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
+import type { ContactsStorage } from "./contacts";
 
 export interface EmployerContactStorage {
   create(data: { employerId: string; contactData: InsertContact & { email: string }; contactTypeId?: string | null }): Promise<{ employerContact: EmployerContact; contact: Contact }>;
@@ -9,10 +10,18 @@ export interface EmployerContactStorage {
   get(id: string): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
   update(id: string, data: { contactTypeId?: string | null }): Promise<EmployerContact | null>;
   updateContactEmail(id: string, email: string | null): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
+  updateContactName(id: string, components: {
+    title?: string;
+    given?: string;
+    middle?: string;
+    family?: string;
+    generational?: string;
+    credentials?: string;
+  }): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
   delete(id: string): Promise<boolean>;
 }
 
-export function createEmployerContactStorage(): EmployerContactStorage {
+export function createEmployerContactStorage(contactsStorage: ContactsStorage): EmployerContactStorage {
   return {
     async create(data: { employerId: string; contactData: InsertContact & { email: string }; contactTypeId?: string | null }): Promise<{ employerContact: EmployerContact; contact: Contact }> {
       // Validate email is provided
@@ -111,6 +120,30 @@ export function createEmployerContactStorage(): EmployerContactStorage {
       return this.get(id);
     },
 
+    async updateContactName(
+      id: string,
+      components: {
+        title?: string;
+        given?: string;
+        middle?: string;
+        family?: string;
+        generational?: string;
+        credentials?: string;
+      }
+    ): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null> {
+      const employerContact = await db.query.employerContacts.findFirst({
+        where: eq(employerContacts.id, id),
+      });
+
+      if (!employerContact) {
+        return null;
+      }
+
+      await contactsStorage.updateNameComponents(employerContact.contactId, components);
+
+      return this.get(id);
+    },
+
     async delete(id: string): Promise<boolean> {
       const result = await db.delete(employerContacts).where(eq(employerContacts.id, id)).returning();
       return result.length > 0;
@@ -139,6 +172,16 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
       }
     },
     updateContactEmail: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => {
+        return await storage.get(args[0]);
+      },
+      after: async (args, result, storage) => {
+        return await storage.get(args[0]);
+      }
+    },
+    updateContactName: {
       enabled: true,
       getEntityId: (args) => args[0],
       before: async (args, storage) => {

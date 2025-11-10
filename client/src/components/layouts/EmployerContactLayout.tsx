@@ -15,6 +15,12 @@ interface EmployerContactDetail {
     id: string;
     displayName: string;
     email: string | null;
+    title: string | null;
+    given: string | null;
+    middle: string | null;
+    family: string | null;
+    generational: string | null;
+    credentials: string | null;
   };
   contactType?: {
     id: string;
@@ -40,7 +46,7 @@ export function useEmployerContactLayout() {
 }
 
 interface EmployerContactLayoutProps {
-  activeTab: "view" | "edit" | "email";
+  activeTab: "view" | "edit" | "email" | "name" | "phone-numbers" | "addresses";
   children: ReactNode;
 }
 
@@ -134,7 +140,10 @@ export function EmployerContactLayout({ activeTab, children }: EmployerContactLa
   const tabs = [
     { id: "view", label: "View", href: `/employer-contacts/${employerContact.id}` },
     { id: "edit", label: "Edit", href: `/employer-contacts/${employerContact.id}/edit` },
+    { id: "name", label: "Name", href: `/employer-contacts/${employerContact.id}/name` },
     { id: "email", label: "Email", href: `/employer-contacts/${employerContact.id}/email` },
+    { id: "phone-numbers", label: "Phone Numbers", href: `/employer-contacts/${employerContact.id}/phone-numbers` },
+    { id: "addresses", label: "Addresses", href: `/employer-contacts/${employerContact.id}/addresses` },
   ];
 
   const contextValue: EmployerContactLayoutContextValue = {
