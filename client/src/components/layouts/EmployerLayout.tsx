@@ -26,7 +26,7 @@ export function useEmployerLayout() {
 }
 
 interface EmployerLayoutProps {
-  activeTab: "details" | "edit" | "contacts" | "accounting" | "payment-methods" | "customer" | "logs";
+  activeTab: "details" | "edit" | "workers" | "contacts" | "accounting" | "payment-methods" | "customer" | "logs";
   children: ReactNode;
 }
 

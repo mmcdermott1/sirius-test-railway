@@ -30,6 +30,7 @@ import Employers from "@/pages/employers";
 import EmployersAdd from "@/pages/employers-add";
 import EmployerView from "@/pages/employer-view";
 import EmployerEdit from "@/pages/employer-edit";
+import EmployerWorkers from "@/pages/employer-workers";
 import EmployerContacts from "@/pages/employer-contacts";
 import AllEmployerContacts from "@/pages/all-employer-contacts";
 import EmployerContactView from "@/pages/employer-contact-view";
@@ -258,6 +259,14 @@ function Router() {
         <ProtectedRoute permission="workers.manage">
           <AuthenticatedLayout>
             <EmployerEdit />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/employers/:id/workers">
+        <ProtectedRoute policy="employerUser">
+          <AuthenticatedLayout>
+            <EmployerWorkers />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
