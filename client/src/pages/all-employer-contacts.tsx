@@ -21,9 +21,9 @@ interface EmployerContactWithDetails extends EmployerContact {
 }
 
 export default function AllEmployerContacts() {
-  const [employerFilter, setEmployerFilter] = useState<string>("");
+  const [employerFilter, setEmployerFilter] = useState<string>("all");
   const [contactNameFilter, setContactNameFilter] = useState<string>("");
-  const [contactTypeFilter, setContactTypeFilter] = useState<string>("");
+  const [contactTypeFilter, setContactTypeFilter] = useState<string>("all");
   const [debouncedContactName, setDebouncedContactName] = useState<string>("");
 
   useEffect(() => {
@@ -35,9 +35,9 @@ export default function AllEmployerContacts() {
   }, [contactNameFilter]);
 
   const filters = useMemo(() => ({
-    ...(employerFilter && { employerId: employerFilter }),
+    ...(employerFilter && employerFilter !== "all" && { employerId: employerFilter }),
     ...(debouncedContactName && { contactName: debouncedContactName }),
-    ...(contactTypeFilter && { contactTypeId: contactTypeFilter }),
+    ...(contactTypeFilter && contactTypeFilter !== "all" && { contactTypeId: contactTypeFilter }),
   }), [employerFilter, debouncedContactName, contactTypeFilter]);
 
   const queryKey = useMemo(() => ["/api/employer-contacts", filters], [filters]);
@@ -55,9 +55,9 @@ export default function AllEmployerContacts() {
   });
 
   const handleClearFilters = () => {
-    setEmployerFilter("");
+    setEmployerFilter("all");
     setContactNameFilter("");
-    setContactTypeFilter("");
+    setContactTypeFilter("all");
   };
 
   return (
@@ -91,7 +91,7 @@ export default function AllEmployerContacts() {
                   <SelectValue placeholder="All employers" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All employers</SelectItem>
+                  <SelectItem value="all">All employers</SelectItem>
                   {employers?.map((employer) => (
                     <SelectItem key={employer.id} value={employer.id}>
                       {employer.name}
@@ -130,7 +130,7 @@ export default function AllEmployerContacts() {
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="all">All types</SelectItem>
                   {contactTypes?.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       {type.name}
@@ -220,7 +220,7 @@ export default function AllEmployerContacts() {
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-500 dark:text-gray-400" data-testid="text-no-results">
-                No employer contacts found. {(employerFilter || debouncedContactName || contactTypeFilter) && "Try adjusting your filters."}
+                No employer contacts found. {(employerFilter !== "all" || debouncedContactName || contactTypeFilter !== "all") && "Try adjusting your filters."}
               </p>
             </div>
           )}
