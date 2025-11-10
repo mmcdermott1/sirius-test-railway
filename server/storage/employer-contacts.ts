@@ -6,6 +6,8 @@ import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logg
 export interface EmployerContactStorage {
   create(data: { employerId: string; contactData: InsertContact & { email: string }; contactTypeId?: string | null }): Promise<{ employerContact: EmployerContact; contact: Contact }>;
   listByEmployer(employerId: string): Promise<Array<EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }>>;
+  get(id: string): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
+  update(id: string, data: { contactTypeId?: string | null }): Promise<EmployerContact | null>;
   delete(id: string): Promise<boolean>;
 }
 
@@ -55,6 +57,40 @@ export function createEmployerContactStorage(): EmployerContactStorage {
       }));
     },
 
+    async get(id: string): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null> {
+      const results = await db
+        .select({
+          employerContact: employerContacts,
+          contact: contacts,
+          contactType: optionsEmployerContactType,
+        })
+        .from(employerContacts)
+        .innerJoin(contacts, eq(employerContacts.contactId, contacts.id))
+        .leftJoin(optionsEmployerContactType, eq(employerContacts.contactTypeId, optionsEmployerContactType.id))
+        .where(eq(employerContacts.id, id));
+
+      if (results.length === 0) {
+        return null;
+      }
+
+      const row = results[0];
+      return {
+        ...row.employerContact,
+        contact: row.contact,
+        contactType: row.contactType,
+      };
+    },
+
+    async update(id: string, data: { contactTypeId?: string | null }): Promise<EmployerContact | null> {
+      const [updated] = await db
+        .update(employerContacts)
+        .set({ contactTypeId: data.contactTypeId })
+        .where(eq(employerContacts.id, id))
+        .returning();
+
+      return updated || null;
+    },
+
     async delete(id: string): Promise<boolean> {
       const result = await db.delete(employerContacts).where(eq(employerContacts.id, id)).returning();
       return result.length > 0;
@@ -68,6 +104,16 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
     create: {
       enabled: true,
       getEntityId: (args) => args[0]?.employerId || 'new employer contact',
+      after: async (args, result, storage) => {
+        return result;
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => {
+        return await storage.get(args[0]);
+      },
       after: async (args, result, storage) => {
         return result;
       }

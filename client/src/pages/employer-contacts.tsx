@@ -10,7 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Edit } from "lucide-react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { EmployerContactType } from "@shared/schema";
@@ -343,15 +344,26 @@ function EmployerContactsContent() {
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteMutation.mutate(contact.id)}
-                    disabled={deleteMutation.isPending}
-                    data-testid={`button-delete-contact-${contact.id}`}
-                  >
-                    <Trash2 size={16} className="text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/employer-contacts/${contact.id}/edit`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`button-edit-contact-${contact.id}`}
+                      >
+                        <Edit size={16} />
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteMutation.mutate(contact.id)}
+                      disabled={deleteMutation.isPending}
+                      data-testid={`button-delete-contact-${contact.id}`}
+                    >
+                      <Trash2 size={16} className="text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

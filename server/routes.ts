@@ -558,6 +558,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/employer-contacts/:id - Get a single employer contact (requires workers.view or workers.manage permission)
+  app.get("/api/employer-contacts/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const employerContact = await storage.employerContacts.get(id);
+      
+      if (!employerContact) {
+        res.status(404).json({ message: "Employer contact not found" });
+        return;
+      }
+      
+      res.json(employerContact);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch employer contact" });
+    }
+  });
+
+  // PATCH /api/employer-contacts/:id - Update an employer contact (requires workers.manage permission)
+  app.patch("/api/employer-contacts/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const parsed = z.object({
+        contactTypeId: z.string().uuid().nullable().optional(),
+      }).safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid update data", errors: parsed.error.errors });
+      }
+      
+      // Normalize: if contactTypeId is explicitly null or undefined, pass null
+      const updateData = {
+        contactTypeId: parsed.data.contactTypeId === null || parsed.data.contactTypeId === undefined 
+          ? null 
+          : parsed.data.contactTypeId,
+      };
+      
+      const updated = await storage.employerContacts.update(id, updateData);
+      
+      if (!updated) {
+        res.status(404).json({ message: "Employer contact not found" });
+        return;
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update employer contact" });
+    }
+  });
+
   // DELETE /api/employer-contacts/:id - Delete an employer contact (requires workers.manage permission)
   app.delete("/api/employer-contacts/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
