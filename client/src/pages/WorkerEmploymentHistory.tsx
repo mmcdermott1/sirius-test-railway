@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { WorkerLayout } from "@/components/layouts/WorkerLayout";
@@ -41,6 +41,18 @@ export default function WorkerEmploymentHistory() {
     },
   });
 
+  const editForm = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      employerId: "" as any,
+      employmentStatus: null,
+      position: null,
+      date: null,
+      home: false,
+      note: null,
+    },
+  });
+
   const { data: emphist = [], isLoading: isLoadingEmphist } = useQuery<WorkerEmphist[]>({
     queryKey: ["/api/workers", workerId, "emphist"],
     enabled: !!workerId,
@@ -53,6 +65,24 @@ export default function WorkerEmploymentHistory() {
   const { data: employmentStatuses = [] } = useQuery<EmploymentStatus[]>({
     queryKey: ["/api/employment-statuses"],
   });
+
+  const editingRecord = useMemo(() => {
+    if (!editingId) return null;
+    return emphist.find((e) => e.id === editingId) || null;
+  }, [editingId, emphist]);
+
+  useEffect(() => {
+    if (editingRecord) {
+      editForm.reset({
+        employerId: editingRecord.employerId,
+        employmentStatus: editingRecord.employmentStatus,
+        position: editingRecord.position || "",
+        date: editingRecord.date || "",
+        home: editingRecord.home,
+        note: editingRecord.note || "",
+      });
+    }
+  }, [editingRecord, editForm]);
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -342,150 +372,133 @@ export default function WorkerEmploymentHistory() {
       </Dialog>
 
       {/* Edit Dialog */}
-      {editingId && (() => {
-        const record = emphist.find((e) => e.id === editingId);
-        if (!record) return null;
-
-        const editForm = useForm<FormData>({
-          resolver: zodResolver(formSchema),
-          defaultValues: {
-            employerId: record.employerId,
-            employmentStatus: record.employmentStatus,
-            position: record.position || "",
-            date: record.date || "",
-            home: record.home,
-            note: record.note || "",
-          },
-        });
-
-        return (
-          <Dialog open={true} onOpenChange={() => setEditingId(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Employment History Record</DialogTitle>
-                <DialogDescription>Update the employment history entry.</DialogDescription>
-              </DialogHeader>
-              <Form {...editForm}>
-                <form onSubmit={editForm.handleSubmit((data) => handleUpdate(editingId, data))} className="space-y-4">
-                  <FormField
-                    control={editForm.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date</FormLabel>
+      {editingRecord && (
+        <Dialog open={true} onOpenChange={() => setEditingId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Employment History Record</DialogTitle>
+              <DialogDescription>Update the employment history entry.</DialogDescription>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit((data) => handleUpdate(editingId!, data))} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} data-testid="input-edit-date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="employerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employer</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value || ""} data-testid="input-edit-date" />
+                          <SelectTrigger data-testid="select-edit-employer">
+                            <SelectValue placeholder="Select employer" />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="employerId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employer</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-employer">
-                              <SelectValue placeholder="Select employer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {employers.map((employer) => (
-                              <SelectItem key={employer.id} value={employer.id}>
-                                {employer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="position"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Position</FormLabel>
+                        <SelectContent>
+                          {employers.map((employer) => (
+                            <SelectItem key={employer.id} value={employer.id}>
+                              {employer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="position"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Position</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ""} data-testid="input-edit-position" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="employmentStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employment Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
-                          <Input {...field} value={field.value || ""} data-testid="input-edit-position" />
+                          <SelectTrigger data-testid="select-edit-employment-status">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="employmentStatus"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employment Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-employment-status">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {employmentStatuses.map((status) => (
-                              <SelectItem key={status.id} value={status.id}>
-                                {status.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="home"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="checkbox-edit-home"
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Home Employment</FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editForm.control}
-                    name="note"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Note</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} data-testid="input-edit-note" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setEditingId(null)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={updateMutation.isPending} data-testid="button-submit-edit">
-                      {updateMutation.isPending ? "Saving..." : "Save"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
+                        <SelectContent>
+                          {employmentStatuses.map((status) => (
+                            <SelectItem key={status.id} value={status.id}>
+                              {status.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="home"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="checkbox-edit-home"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Home Employment</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="note"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Note</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ""} data-testid="input-edit-note" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending} data-testid="button-submit-edit">
+                    {updateMutation.isPending ? "Saving..." : "Save"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {deleteId && (() => {
