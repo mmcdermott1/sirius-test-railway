@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 -   **User Provisioning**: Email-based user provisioning integrated with Replit accounts.
 -   **Employer User Settings**: Configurable required/optional role assignments for employer users via `/config/users/employer-settings`.
 -   **Data Validation**: Extensive Zod schema validation, `libphonenumber-js` for phone numbers, and custom SSN/date validation.
+-   **Contact Name Handling**: Name components (title, given, middle, family) are canonicalized with capitalized first letter and lowercase remainder. Generational suffix and credentials preserve original capitalization (e.g., "III" stays "III", not "Iii").
 -   **Employers**: Management of employer records with UUIDs.
 -   **Employer Contacts**: Join table linking employers to contacts with optional contact type categorization (employer_contacts table).
 -   **Bookmarks**: User-specific, entity-agnostic bookmarking for workers and employers.

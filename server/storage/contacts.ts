@@ -288,6 +288,17 @@ function canonicalizeName(value: string | undefined): string | null {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 }
 
+/**
+ * Trim a name component but preserve its original capitalization
+ * Examples: "III" -> "III", "Ph.D." -> "Ph.D.", "Jr." -> "Jr."
+ */
+function trimName(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed;
+}
+
 // Create Contact Storage implementation
 export function createContactStorage(): ContactStorage {
   return {
@@ -338,14 +349,15 @@ export function createContactStorage(): ContactStorage {
       // Import the generateDisplayName function
       const { generateDisplayName } = await import("@shared/schema");
       
-      // Canonicalize all name components (capitalize first letter, rest lowercase)
+      // Canonicalize name components (capitalize first letter, rest lowercase)
+      // EXCEPT generational suffix and credentials which preserve original capitalization
       const canonicalized = {
         title: canonicalizeName(components.title),
         given: canonicalizeName(components.given),
         middle: canonicalizeName(components.middle),
         family: canonicalizeName(components.family),
-        generational: canonicalizeName(components.generational),
-        credentials: canonicalizeName(components.credentials),
+        generational: trimName(components.generational),
+        credentials: trimName(components.credentials),
       };
       
       // Generate display name from canonicalized components
