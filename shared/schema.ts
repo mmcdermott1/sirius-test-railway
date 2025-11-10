@@ -315,6 +315,10 @@ export const insertEmployerContactSchema = createInsertSchema(employerContacts).
   id: true,
 });
 
+export const insertWorkerEmphistSchema = createInsertSchema(workerEmphist).omit({
+  id: true,
+});
+
 export const insertTrustBenefitSchema = createInsertSchema(trustBenefits).omit({
   id: true,
 });
@@ -441,6 +445,9 @@ export type Employer = typeof employers.$inferSelect;
 
 export type InsertEmployerContact = z.infer<typeof insertEmployerContactSchema>;
 export type EmployerContact = typeof employerContacts.$inferSelect;
+
+export type InsertWorkerEmphist = z.infer<typeof insertWorkerEmphistSchema>;
+export type WorkerEmphist = typeof workerEmphist.$inferSelect;
 
 export type InsertTrustBenefit = z.infer<typeof insertTrustBenefitSchema>;
 export type TrustBenefit = typeof trustBenefits.$inferSelect;
