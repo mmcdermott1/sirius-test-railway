@@ -228,6 +228,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
     createPostalAddress: {
       enabled: true,
       getEntityId: (args) => args[0]?.contactId || 'new address',
+      getHostEntityId: (args, result) => result?.contactId || args[0]?.contactId, // Contact ID is the host
       after: async (args, result, storage) => {
         return result; // Capture created address
       },
@@ -239,6 +240,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
     updatePostalAddress: {
       enabled: true,
       getEntityId: (args) => args[0], // Address ID
+      getHostEntityId: (args, result, beforeState) => result?.contactId || beforeState?.contactId, // Contact ID is the host
       before: async (args, storage) => {
         return await storage.getPostalAddress(args[0]); // Current state
       },
@@ -261,6 +263,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
     deletePostalAddress: {
       enabled: true,
       getEntityId: (args) => args[0], // Address ID
+      getHostEntityId: (args, result, beforeState) => beforeState?.contactId, // Contact ID is the host
       before: async (args, storage) => {
         return await storage.getPostalAddress(args[0]); // Capture what's being deleted
       },
@@ -272,6 +275,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
     setAddressAsPrimary: {
       enabled: true,
       getEntityId: (args) => args[0], // Address ID
+      getHostEntityId: (args, result, beforeState) => result?.contactId || beforeState?.contactId, // Contact ID is the host
       before: async (args, storage) => {
         return await storage.getPostalAddress(args[0]); // Current state
       },
@@ -344,6 +348,7 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
     createPhoneNumber: {
       enabled: true,
       getEntityId: (args) => args[0]?.contactId || 'new phone',
+      getHostEntityId: (args, result) => result?.contactId || args[0]?.contactId, // Contact ID is the host
       after: async (args, result, storage) => {
         return result; // Capture created phone number
       },
@@ -355,6 +360,7 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
     updatePhoneNumber: {
       enabled: true,
       getEntityId: (args) => args[0], // Phone number ID
+      getHostEntityId: (args, result, beforeState) => result?.contactId || beforeState?.contactId, // Contact ID is the host
       before: async (args, storage) => {
         return await storage.getPhoneNumber(args[0]); // Current state
       },
@@ -377,6 +383,7 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
     deletePhoneNumber: {
       enabled: true,
       getEntityId: (args) => args[0], // Phone number ID
+      getHostEntityId: (args, result, beforeState) => beforeState?.contactId, // Contact ID is the host
       before: async (args, storage) => {
         return await storage.getPhoneNumber(args[0]); // Capture what's being deleted
       },
@@ -388,6 +395,7 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
     setPhoneNumberAsPrimary: {
       enabled: true,
       getEntityId: (args) => args[0], // Phone number ID
+      getHostEntityId: (args, result, beforeState) => result?.contactId || beforeState?.contactId, // Contact ID is the host
       before: async (args, storage) => {
         return await storage.getPhoneNumber(args[0]); // Current state
       },
