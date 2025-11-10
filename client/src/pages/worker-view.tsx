@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Calendar, IdCard, Gift } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, IdCard, Gift, Building2, Home } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { PostalAddress, PhoneNumber as PhoneNumberType, WorkerId, WorkerIdType, TrustWmb, TrustBenefit, Employer } from "@shared/schema";
@@ -77,6 +77,18 @@ function WorkerDetailsContent() {
     },
   });
 
+  // Fetch all employers
+  const { data: allEmployers = [] } = useQuery<Employer[]>({
+    queryKey: ["/api/employers"],
+    queryFn: async () => {
+      const response = await fetch("/api/employers");
+      if (!response.ok) {
+        throw new Error("Failed to fetch employers");
+      }
+      return response.json();
+    },
+  });
+
   // Get current month and year
   const now = new Date();
   const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
@@ -86,6 +98,17 @@ function WorkerDetailsContent() {
   const currentBenefits = allBenefits.filter(
     (benefit) => benefit.month === currentMonth && benefit.year === currentYear
   );
+
+  // Get home employer and other employers from denormalized fields
+  const homeEmployer = worker.denormHomeEmployerId 
+    ? allEmployers.find(emp => emp.id === worker.denormHomeEmployerId)
+    : null;
+  
+  const otherEmployers = worker.denormEmployerIds && worker.denormEmployerIds.length > 0
+    ? allEmployers.filter(emp => 
+        worker.denormEmployerIds?.includes(emp.id) && emp.id !== worker.denormHomeEmployerId
+      )
+    : [];
 
   // Find primary address (prefer primary+active, then just primary, then just active)
   const primaryAddress = addresses.find(addr => addr.isPrimary && addr.isActive) 
@@ -172,6 +195,56 @@ function WorkerDetailsContent() {
             )}
           </div>
         </div>
+
+        {/* Employers */}
+        {(homeEmployer || otherEmployers.length > 0) && (
+          <div className="pt-4 border-t border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+              <Building2 size={18} />
+              Employers
+            </h3>
+            <div className="space-y-3">
+              {homeEmployer && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Home size={14} />
+                    Home Employer
+                  </label>
+                  <Link href={`/employers/${homeEmployer.id}`}>
+                    <Badge 
+                      variant="default" 
+                      className="text-sm py-1.5 px-3 cursor-pointer hover:bg-primary/90"
+                      data-testid={`badge-home-employer-${homeEmployer.id}`}
+                    >
+                      {homeEmployer.name}
+                    </Badge>
+                  </Link>
+                </div>
+              )}
+              {otherEmployers.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Building2 size={14} />
+                    Other Employers
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {otherEmployers.map((employer) => (
+                      <Link key={employer.id} href={`/employers/${employer.id}`}>
+                        <Badge 
+                          variant="secondary" 
+                          className="text-sm py-1.5 px-3 cursor-pointer hover:bg-secondary/80"
+                          data-testid={`badge-employer-${employer.id}`}
+                        >
+                          {employer.name}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Current Benefits */}
         {currentBenefits.length > 0 && (
