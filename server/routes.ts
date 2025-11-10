@@ -633,9 +633,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid update data", errors: parsed.error.errors });
       }
       
-      // Handle email updates
-      if (parsed.data.email !== undefined) {
-        const updated = await storage.employerContacts.updateContactEmail(id, parsed.data.email);
+      // Handle contactTypeId updates - check this FIRST before email
+      if ("contactTypeId" in req.body) {
+        const updateData = {
+          contactTypeId: parsed.data.contactTypeId === null || parsed.data.contactTypeId === undefined 
+            ? null 
+            : parsed.data.contactTypeId,
+        };
+        
+        const updated = await storage.employerContacts.update(id, updateData);
         
         if (!updated) {
           res.status(404).json({ message: "Employer contact not found" });
@@ -646,15 +652,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Handle contactTypeId updates
-      if (parsed.data.contactTypeId !== undefined) {
-        const updateData = {
-          contactTypeId: parsed.data.contactTypeId === null || parsed.data.contactTypeId === undefined 
-            ? null 
-            : parsed.data.contactTypeId,
-        };
-        
-        const updated = await storage.employerContacts.update(id, updateData);
+      // Handle email updates
+      if ("email" in req.body) {
+        const updated = await storage.employerContacts.updateContactEmail(id, parsed.data.email);
         
         if (!updated) {
           res.status(404).json({ message: "Employer contact not found" });
