@@ -348,7 +348,7 @@ function Router() {
       </Route>
 
       <Route path="/employers/:id">
-        <ProtectedRoute policy="employersView">
+        <ProtectedRoute policy="employerUser">
           <AuthenticatedLayout>
             <EmployerView />
           </AuthenticatedLayout>

@@ -418,8 +418,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/employers/:id - Get a specific employer (requires employersView policy)
-  app.get("/api/employers/:id", requireAuth, requireAccess(policies.employersView), async (req, res) => {
+  // GET /api/employers/:id - Get a specific employer (requires employerUser policy)
+  app.get("/api/employers/:id", requireAuth, requireAccess(policies.employerUser), async (req, res) => {
     try {
       const { id } = req.params;
       const employer = await storage.employers.getEmployer(id);
