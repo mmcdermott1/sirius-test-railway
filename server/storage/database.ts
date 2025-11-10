@@ -421,6 +421,7 @@ const employerLoggingConfig: StorageLoggingConfig<EmployerStorage> = {
     createEmployer: {
       enabled: true,
       getEntityId: (args, result) => result?.id || args[0]?.name || 'new employer',
+      getHostEntityId: (args, result) => result?.id, // Employer ID is the host
       after: async (args, result, storage) => {
         return result; // Capture created employer
       }
@@ -428,6 +429,7 @@ const employerLoggingConfig: StorageLoggingConfig<EmployerStorage> = {
     updateEmployer: {
       enabled: true,
       getEntityId: (args) => args[0], // Employer ID
+      getHostEntityId: (args) => args[0], // Employer ID is the host
       before: async (args, storage) => {
         return await storage.getEmployer(args[0]); // Current state
       },
@@ -438,6 +440,7 @@ const employerLoggingConfig: StorageLoggingConfig<EmployerStorage> = {
     deleteEmployer: {
       enabled: true,
       getEntityId: (args) => args[0], // Employer ID
+      getHostEntityId: (args, result, beforeState) => beforeState?.id || args[0], // Employer ID is the host
       before: async (args, storage) => {
         return await storage.getEmployer(args[0]); // Capture what's being deleted
       }

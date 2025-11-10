@@ -279,6 +279,7 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
     create: {
       enabled: true,
       getEntityId: (args) => args[0]?.employerId || 'new employer contact',
+      getHostEntityId: (args, result) => result?.employerId || args[0]?.employerId, // Employer ID is the host
       after: async (args, result, storage) => {
         return result;
       },
@@ -290,6 +291,7 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
     update: {
       enabled: true,
       getEntityId: (args) => args[0],
+      getHostEntityId: (args, result, beforeState) => result?.employerId || beforeState?.employerId, // Employer ID is the host
       before: async (args, storage) => {
         return await storage.get(args[0]);
       },
@@ -312,6 +314,7 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
     updateContactEmail: {
       enabled: true,
       getEntityId: (args) => args[0],
+      getHostEntityId: (args, result, beforeState) => result?.employerId || beforeState?.employerId, // Employer ID is the host
       before: async (args, storage) => {
         return await storage.get(args[0]);
       },
@@ -334,6 +337,7 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
     updateContactName: {
       enabled: true,
       getEntityId: (args) => args[0],
+      getHostEntityId: (args, result, beforeState) => result?.employerId || beforeState?.employerId, // Employer ID is the host
       before: async (args, storage) => {
         return await storage.get(args[0]);
       },
@@ -356,6 +360,7 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
     delete: {
       enabled: true,
       getEntityId: (args) => args[0],
+      getHostEntityId: (args, result, beforeState) => beforeState?.employerId, // Employer ID is the host
       before: async (args, storage) => {
         return await storage.get(args[0]);
       },
