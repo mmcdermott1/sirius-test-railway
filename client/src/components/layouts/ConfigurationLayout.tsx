@@ -24,6 +24,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
   const { hasPermission } = useAuth();
   const [isTrustOpen, setIsTrustOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [isContactOpen, setIsContactOpen] = useState(false);
   const [isDropDownListsOpen, setIsDropDownListsOpen] = useState(false);
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [isStripeOpen, setIsStripeOpen] = useState(false);
@@ -48,20 +49,6 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       icon: Package,
       testId: "nav-config-components",
       permission: "variables.manage",
-    },
-    {
-      path: "/config/addresses",
-      label: "Postal Addresses",
-      icon: MapPin,
-      testId: "nav-config-addresses",
-      permission: "admin.manage",
-    },
-    {
-      path: "/config/phone-numbers",
-      label: "Phone Numbers",
-      icon: Phone,
-      testId: "nav-config-phone-numbers",
-      permission: "admin.manage",
     },
     {
       path: "/config/logs",
@@ -113,6 +100,30 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
     },
   ];
 
+  const contactItems = [
+    {
+      path: "/config/addresses",
+      label: "Postal Addresses",
+      icon: MapPin,
+      testId: "nav-config-addresses",
+      permission: "admin.manage",
+    },
+    {
+      path: "/config/phone-numbers",
+      label: "Phone Numbers",
+      icon: Phone,
+      testId: "nav-config-phone-numbers",
+      permission: "admin.manage",
+    },
+    {
+      path: "/config/gender-options",
+      label: "Gender Options",
+      icon: List,
+      testId: "nav-config-gender-options",
+      permission: "variables.manage",
+    },
+  ];
+
   const userManagementItems = [
     {
       path: "/config/users/list",
@@ -159,13 +170,6 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
   ];
 
   const dropDownListItems = [
-    {
-      path: "/config/gender-options",
-      label: "Gender Options",
-      icon: List,
-      testId: "nav-config-gender-options",
-      permission: "variables.manage",
-    },
     {
       path: "/config/worker-id-types",
       label: "Worker ID Types",
@@ -225,7 +229,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
 
   // Combine for policy checks
   const allLedgerItems = [...ledgerItems, ...stripeItems];
-  const allNavItems = [...regularNavItems, ...trustItems, ...themeItems, ...userManagementItems, ...dropDownListItems, ...allLedgerItems];
+  const allNavItems = [...regularNavItems, ...trustItems, ...themeItems, ...contactItems, ...userManagementItems, ...dropDownListItems, ...allLedgerItems];
 
   // Fetch policy checks for navigation items that use policies
   const policiesNeeded = allNavItems
@@ -283,6 +287,11 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
 
   // Check if any theme item is active
   const isThemeActive = themeItems.some(
+    (item) => location === item.path || location.startsWith(item.path + "/")
+  );
+
+  // Check if any contact item is active
+  const isContactActive = contactItems.some(
     (item) => location === item.path || location.startsWith(item.path + "/")
   );
 
@@ -395,6 +404,47 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
                 </CollapsibleTrigger>
                 <CollapsibleContent className="ml-4 mt-2 space-y-2">
                   {themeItems.filter((item) => hasPermission(item.permission)).map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.path || location.startsWith(item.path + "/");
+                    
+                    return (
+                      <Link key={item.path} href={item.path}>
+                        <Button
+                          variant={isActive ? "secondary" : "ghost"}
+                          className="w-full justify-start text-sm"
+                          data-testid={item.testId}
+                        >
+                          <Icon className="mr-2 h-4 w-4" />
+                          {item.label}
+                        </Button>
+                      </Link>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Contact Group */}
+            {contactItems.some(hasAccessToItem) && (
+              <Collapsible
+                open={isContactOpen || isContactActive}
+                onOpenChange={setIsContactOpen}
+              >
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant={isContactActive ? "default" : "ghost"}
+                    className="w-full justify-start"
+                    data-testid="nav-config-contact"
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    Contact
+                    <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200" 
+                      style={{ transform: (isContactOpen || isContactActive) ? 'rotate(180deg)' : 'rotate(0deg)' }} 
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="ml-4 mt-2 space-y-2">
+                  {contactItems.filter(hasAccessToItem).map((item) => {
                     const Icon = item.icon;
                     const isActive = location === item.path || location.startsWith(item.path + "/");
                     
