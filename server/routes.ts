@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { insertWorkerSchema, insertTrustBenefitTypeSchema, insertTrustBenefitSchema, insertContactSchema, insertWorkerWsSchema, updateWorkerWsSchema, type InsertEmployer, type InsertTrustBenefit, type InsertContact, winstonLogs, type WorkerId, type PostalAddress, type PhoneNumber } from "@shared/schema";
+import { insertWorkerSchema, insertTrustBenefitTypeSchema, insertTrustBenefitSchema, insertContactSchema, insertWorkerWsSchema, updateWorkerWsSchema, insertEmploymentStatusSchema, updateEmploymentStatusSchema, type InsertEmployer, type InsertTrustBenefit, type InsertContact, winstonLogs, type WorkerId, type PostalAddress, type PhoneNumber } from "@shared/schema";
 import { eq, and, inArray, gte, lte, desc } from "drizzle-orm";
 import { z } from "zod";
 import { registerUserRoutes } from "./modules/users";
@@ -1874,6 +1874,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete worker work status" });
+    }
+  });
+
+  // Employment Status routes
+
+  // GET /api/employment-statuses - Get all employment statuses (requires admin permission)
+  app.get("/api/employment-statuses", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const statuses = await storage.options.employmentStatus.getAll();
+      res.json(statuses);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch employment statuses" });
+    }
+  });
+
+  // GET /api/employment-statuses/:id - Get a specific employment status (requires admin permission)
+  app.get("/api/employment-statuses/:id", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const status = await storage.options.employmentStatus.get(id);
+      
+      if (!status) {
+        res.status(404).json({ message: "Employment status not found" });
+        return;
+      }
+      
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch employment status" });
+    }
+  });
+
+  // POST /api/employment-statuses - Create a new employment status (requires admin permission)
+  app.post("/api/employment-statuses", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const validation = insertEmploymentStatusSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data",
+          errors: validation.error.errors 
+        });
+      }
+      
+      const status = await storage.options.employmentStatus.create(validation.data);
+      res.status(201).json(status);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to create employment status" });
+    }
+  });
+
+  // PUT /api/employment-statuses/:id - Update an employment status (requires admin permission)
+  app.put("/api/employment-statuses/:id", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validation = updateEmploymentStatusSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data",
+          errors: validation.error.errors 
+        });
+      }
+      
+      const status = await storage.options.employmentStatus.update(id, validation.data);
+      
+      if (!status) {
+        res.status(404).json({ message: "Employment status not found" });
+        return;
+      }
+      
+      res.json(status);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update employment status" });
+    }
+  });
+
+  // DELETE /api/employment-statuses/:id - Delete an employment status (requires admin permission)
+  app.delete("/api/employment-statuses/:id", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.options.employmentStatus.delete(id);
+      
+      if (!deleted) {
+        res.status(404).json({ message: "Employment status not found" });
+        return;
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete employment status" });
     }
   });
 
