@@ -134,16 +134,37 @@ export default function Header() {
               </Button>
             </Link>
 
-            <Link href="/employers">
-              <Button
-                variant={location === "/employers" ? "default" : "ghost"}
-                size="sm"
-                data-testid="nav-employers"
-              >
-                <Building2 className="h-4 w-4 mr-2" />
-                Employers
-              </Button>
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={location.startsWith("/employers") || location.startsWith("/employer-contacts") ? "default" : "ghost"}
+                  size="sm"
+                  data-testid="nav-employers"
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Employers
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem asChild>
+                  <Link href="/employers" className="w-full">
+                    <div className="flex items-center cursor-pointer" data-testid="menu-employers-list">
+                      <Building2 className="h-4 w-4 mr-2" />
+                      Employers
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/employer-contacts/all" className="w-full">
+                    <div className="flex items-center cursor-pointer" data-testid="menu-employer-contacts-all">
+                      <Users className="h-4 w-4 mr-2" />
+                      Employer Contacts
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {hasPermission("admin.manage") && (
               <Link href="/config">

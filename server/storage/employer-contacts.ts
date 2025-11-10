@@ -1,12 +1,13 @@
 import { db } from "../db";
-import { employerContacts, contacts, optionsEmployerContactType, type EmployerContact, type InsertEmployerContact, type Contact, type InsertContact } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { employerContacts, contacts, optionsEmployerContactType, employers, type EmployerContact, type InsertEmployerContact, type Contact, type InsertContact, type Employer } from "@shared/schema";
+import { eq, and, or, like, ilike, sql } from "drizzle-orm";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import type { ContactsStorage } from "./contacts";
 
 export interface EmployerContactStorage {
   create(data: { employerId: string; contactData: InsertContact & { email: string }; contactTypeId?: string | null }): Promise<{ employerContact: EmployerContact; contact: Contact }>;
   listByEmployer(employerId: string): Promise<Array<EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }>>;
+  getAll(filters?: { employerId?: string; contactName?: string; contactTypeId?: string }): Promise<Array<EmployerContact & { contact: Contact; employer: Employer; contactType?: { id: string; name: string; description: string | null } | null }>>;
   get(id: string): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
   update(id: string, data: { contactTypeId?: string | null }): Promise<EmployerContact | null>;
   updateContactEmail(id: string, email: string | null): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
@@ -63,6 +64,55 @@ export function createEmployerContactStorage(contactsStorage: ContactsStorage): 
       return results.map(row => ({
         ...row.employerContact,
         contact: row.contact,
+        contactType: row.contactType,
+      }));
+    },
+
+    async getAll(filters?: { employerId?: string; contactName?: string; contactTypeId?: string }): Promise<Array<EmployerContact & { contact: Contact; employer: Employer; contactType?: { id: string; name: string; description: string | null } | null }>> {
+      let query = db
+        .select({
+          employerContact: employerContacts,
+          contact: contacts,
+          employer: employers,
+          contactType: optionsEmployerContactType,
+        })
+        .from(employerContacts)
+        .innerJoin(contacts, eq(employerContacts.contactId, contacts.id))
+        .innerJoin(employers, eq(employerContacts.employerId, employers.id))
+        .leftJoin(optionsEmployerContactType, eq(employerContacts.contactTypeId, optionsEmployerContactType.id));
+
+      const conditions = [];
+
+      if (filters?.employerId) {
+        conditions.push(eq(employerContacts.employerId, filters.employerId));
+      }
+
+      if (filters?.contactTypeId) {
+        conditions.push(eq(employerContacts.contactTypeId, filters.contactTypeId));
+      }
+
+      if (filters?.contactName) {
+        const searchTerm = `%${filters.contactName}%`;
+        conditions.push(
+          or(
+            ilike(contacts.displayName, searchTerm),
+            ilike(contacts.given, searchTerm),
+            ilike(contacts.family, searchTerm),
+            ilike(contacts.email, searchTerm)
+          )!
+        );
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)!) as any;
+      }
+
+      const results = await query;
+
+      return results.map(row => ({
+        ...row.employerContact,
+        contact: row.contact,
+        employer: row.employer,
         contactType: row.contactType,
       }));
     },

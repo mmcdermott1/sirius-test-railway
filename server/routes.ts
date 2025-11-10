@@ -513,6 +513,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Employer Contacts routes
   
+  // GET /api/employer-contacts - Get all employer contacts with optional filtering (requires staff policy)
+  app.get("/api/employer-contacts", requireAuth, requireAccess(policies.staff), async (req, res) => {
+    try {
+      const { employerId, contactName, contactTypeId } = req.query;
+      
+      const filters: { employerId?: string; contactName?: string; contactTypeId?: string } = {};
+      
+      if (employerId && typeof employerId === 'string') {
+        filters.employerId = employerId;
+      }
+      
+      if (contactName && typeof contactName === 'string') {
+        filters.contactName = contactName;
+      }
+      
+      if (contactTypeId && typeof contactTypeId === 'string') {
+        filters.contactTypeId = contactTypeId;
+      }
+      
+      const contacts = await storage.employerContacts.getAll(filters);
+      res.json(contacts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch employer contacts" });
+    }
+  });
+  
   // GET /api/employers/:employerId/contacts - Get all contacts for an employer (requires workers.view permission)
   app.get("/api/employers/:employerId/contacts", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
