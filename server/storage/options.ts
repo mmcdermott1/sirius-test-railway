@@ -6,6 +6,7 @@ import {
   optionsLedgerPaymentType,
   optionsEmployerContactType,
   optionsWorkerWs,
+  optionsEmploymentStatus,
   type GenderOption, 
   type InsertGenderOption,
   type WorkerIdType, 
@@ -17,7 +18,9 @@ import {
   type EmployerContactType,
   type InsertEmployerContactType,
   type WorkerWs,
-  type InsertWorkerWs
+  type InsertWorkerWs,
+  type EmploymentStatus,
+  type InsertEmploymentStatus
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -74,6 +77,15 @@ export interface WorkerWsStorage {
   updateSequence(id: string, sequence: number): Promise<WorkerWs | undefined>;
 }
 
+export interface EmploymentStatusStorage {
+  getAll(): Promise<EmploymentStatus[]>;
+  get(id: string): Promise<EmploymentStatus | undefined>;
+  create(status: InsertEmploymentStatus): Promise<EmploymentStatus>;
+  update(id: string, status: Partial<InsertEmploymentStatus>): Promise<EmploymentStatus | undefined>;
+  delete(id: string): Promise<boolean>;
+  updateSequence(id: string, sequence: number): Promise<EmploymentStatus | undefined>;
+}
+
 export interface OptionsStorage {
   gender: GenderOptionStorage;
   workerIdTypes: WorkerIdTypeStorage;
@@ -81,6 +93,7 @@ export interface OptionsStorage {
   ledgerPaymentTypes: LedgerPaymentTypeStorage;
   employerContactTypes: EmployerContactTypeStorage;
   workerWs: WorkerWsStorage;
+  employmentStatus: EmploymentStatusStorage;
 }
 
 export function createOptionsStorage(): OptionsStorage {
@@ -299,6 +312,43 @@ export function createOptionsStorage(): OptionsStorage {
       },
 
       async updateSequence(id: string, sequence: number): Promise<WorkerWs | undefined> {
+        return this.update(id, { sequence });
+      }
+    },
+
+    employmentStatus: {
+      async getAll(): Promise<EmploymentStatus[]> {
+        return db.select().from(optionsEmploymentStatus).orderBy(optionsEmploymentStatus.sequence);
+      },
+
+      async get(id: string): Promise<EmploymentStatus | undefined> {
+        const [status] = await db.select().from(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, id));
+        return status || undefined;
+      },
+
+      async create(insertStatus: InsertEmploymentStatus): Promise<EmploymentStatus> {
+        const [status] = await db
+          .insert(optionsEmploymentStatus)
+          .values(insertStatus)
+          .returning();
+        return status;
+      },
+
+      async update(id: string, statusUpdate: Partial<InsertEmploymentStatus>): Promise<EmploymentStatus | undefined> {
+        const [status] = await db
+          .update(optionsEmploymentStatus)
+          .set(statusUpdate)
+          .where(eq(optionsEmploymentStatus.id, id))
+          .returning();
+        return status || undefined;
+      },
+
+      async delete(id: string): Promise<boolean> {
+        const result = await db.delete(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, id)).returning();
+        return result.length > 0;
+      },
+
+      async updateSequence(id: string, sequence: number): Promise<EmploymentStatus | undefined> {
         return this.update(id, { sequence });
       }
     }
