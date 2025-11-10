@@ -50,13 +50,6 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       permission: "variables.manage",
     },
     {
-      path: "/config/masquerade",
-      label: "Masquerade",
-      icon: UserCog,
-      testId: "nav-config-masquerade",
-      permission: "admin.manage",
-    },
-    {
       path: "/config/addresses",
       label: "Postal Addresses",
       icon: MapPin,
@@ -155,6 +148,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       icon: Settings,
       testId: "nav-config-users-employer-settings",
       permission: "variables.manage",
+    },
+    {
+      path: "/config/masquerade",
+      label: "Masquerade",
+      icon: UserCog,
+      testId: "nav-config-masquerade",
+      permission: "admin.manage",
     },
   ];
 
