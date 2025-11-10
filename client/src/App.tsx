@@ -62,6 +62,7 @@ import PhoneNumbersConfigPage from "@/pages/config/phone-numbers";
 import GenderOptionsPage from "@/pages/config/gender-options";
 import WorkerIDTypesPage from "@/pages/config/worker-id-types";
 import WorkerWorkStatusesPage from "@/pages/config/worker-work-statuses";
+import EmploymentStatusesPage from "@/pages/config/employment-statuses";
 import TrustBenefitTypesPage from "@/pages/config/trust-benefit-types";
 import EmployerContactTypesPage from "@/pages/config/employer-contact-types";
 import MasqueradePage from "@/pages/config/masquerade";
@@ -497,6 +498,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <WorkerWorkStatusesPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/employment-statuses">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <EmploymentStatusesPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
