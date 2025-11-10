@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { insertWorkerSchema, insertTrustBenefitTypeSchema, insertTrustBenefitSchema, insertContactSchema, type InsertEmployer, type InsertTrustBenefit, type InsertContact, winstonLogs, type WorkerId, type PostalAddress, type PhoneNumber } from "@shared/schema";
+import { insertWorkerSchema, insertTrustBenefitTypeSchema, insertTrustBenefitSchema, insertContactSchema, insertWorkerWsSchema, updateWorkerWsSchema, type InsertEmployer, type InsertTrustBenefit, type InsertContact, winstonLogs, type WorkerId, type PostalAddress, type PhoneNumber } from "@shared/schema";
 import { eq, and, inArray, gte, lte, desc } from "drizzle-orm";
 import { z } from "zod";
 import { registerUserRoutes } from "./modules/users";
@@ -1782,6 +1782,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete employer contact type" });
+    }
+  });
+
+  // Worker Work Status routes
+
+  // GET /api/worker-work-statuses - Get all worker work statuses (requires admin permission)
+  app.get("/api/worker-work-statuses", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const statuses = await storage.options.workerWs.getAll();
+      res.json(statuses);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch worker work statuses" });
+    }
+  });
+
+  // GET /api/worker-work-statuses/:id - Get a specific worker work status (requires admin permission)
+  app.get("/api/worker-work-statuses/:id", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const status = await storage.options.workerWs.get(id);
+      
+      if (!status) {
+        res.status(404).json({ message: "Worker work status not found" });
+        return;
+      }
+      
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch worker work status" });
+    }
+  });
+
+  // POST /api/worker-work-statuses - Create a new worker work status (requires admin permission)
+  app.post("/api/worker-work-statuses", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const validation = insertWorkerWsSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data",
+          errors: validation.error.errors 
+        });
+      }
+      
+      const status = await storage.options.workerWs.create(validation.data);
+      
+      res.status(201).json(status);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to create worker work status" });
+    }
+  });
+
+  // PUT /api/worker-work-statuses/:id - Update a worker work status (requires admin permission)
+  app.put("/api/worker-work-statuses/:id", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validation = updateWorkerWsSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid request data",
+          errors: validation.error.errors 
+        });
+      }
+      
+      const status = await storage.options.workerWs.update(id, validation.data);
+      
+      if (!status) {
+        res.status(404).json({ message: "Worker work status not found" });
+        return;
+      }
+      
+      res.json(status);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update worker work status" });
+    }
+  });
+
+  // DELETE /api/worker-work-statuses/:id - Delete a worker work status (requires admin permission)
+  app.delete("/api/worker-work-statuses/:id", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.options.workerWs.delete(id);
+      
+      if (!deleted) {
+        res.status(404).json({ message: "Worker work status not found" });
+        return;
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete worker work status" });
     }
   });
 

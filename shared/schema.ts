@@ -149,6 +149,13 @@ export const optionsEmployerContactType = pgTable("options_employer_contact_type
   description: text("description"),
 });
 
+export const optionsWorkerWs = pgTable("options_worker_ws", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  sequence: integer("sequence").notNull().default(0),
+});
+
 export const workerIds = pgTable("worker_ids", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
@@ -354,6 +361,20 @@ export const insertEmployerContactTypeSchema = createInsertSchema(optionsEmploye
   id: true,
 });
 
+export const insertWorkerWsSchema = createInsertSchema(optionsWorkerWs).omit({
+  id: true,
+}).extend({
+  name: z.string().trim().min(1, "Name is required"),
+  description: z.string().trim().nullable().or(z.literal("")).transform(val => val === "" ? null : val).optional(),
+  sequence: z.number().optional().default(0),
+});
+
+export const updateWorkerWsSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").optional(),
+  description: z.string().trim().nullable().or(z.literal("")).transform(val => val === "" ? null : val).optional(),
+  sequence: z.number().optional(),
+}).strict();
+
 export const assignRoleSchema = z.object({
   userId: z.string(),
   roleId: z.string(),
@@ -429,6 +450,9 @@ export type LedgerPaymentType = typeof optionsLedgerPaymentType.$inferSelect;
 
 export type InsertEmployerContactType = z.infer<typeof insertEmployerContactTypeSchema>;
 export type EmployerContactType = typeof optionsEmployerContactType.$inferSelect;
+
+export type InsertWorkerWs = z.infer<typeof insertWorkerWsSchema>;
+export type WorkerWs = typeof optionsWorkerWs.$inferSelect;
 
 export type UserRole = typeof userRoles.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;

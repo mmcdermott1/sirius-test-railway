@@ -5,6 +5,7 @@ import {
   optionsTrustBenefitType, 
   optionsLedgerPaymentType,
   optionsEmployerContactType,
+  optionsWorkerWs,
   type GenderOption, 
   type InsertGenderOption,
   type WorkerIdType, 
@@ -14,7 +15,9 @@ import {
   type LedgerPaymentType, 
   type InsertLedgerPaymentType,
   type EmployerContactType,
-  type InsertEmployerContactType
+  type InsertEmployerContactType,
+  type WorkerWs,
+  type InsertWorkerWs
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -62,12 +65,22 @@ export interface EmployerContactTypeStorage {
   delete(id: string): Promise<boolean>;
 }
 
+export interface WorkerWsStorage {
+  getAll(): Promise<WorkerWs[]>;
+  get(id: string): Promise<WorkerWs | undefined>;
+  create(ws: InsertWorkerWs): Promise<WorkerWs>;
+  update(id: string, ws: Partial<InsertWorkerWs>): Promise<WorkerWs | undefined>;
+  delete(id: string): Promise<boolean>;
+  updateSequence(id: string, sequence: number): Promise<WorkerWs | undefined>;
+}
+
 export interface OptionsStorage {
   gender: GenderOptionStorage;
   workerIdTypes: WorkerIdTypeStorage;
   trustBenefitTypes: TrustBenefitTypeStorage;
   ledgerPaymentTypes: LedgerPaymentTypeStorage;
   employerContactTypes: EmployerContactTypeStorage;
+  workerWs: WorkerWsStorage;
 }
 
 export function createOptionsStorage(): OptionsStorage {
@@ -250,6 +263,43 @@ export function createOptionsStorage(): OptionsStorage {
       async delete(id: string): Promise<boolean> {
         const result = await db.delete(optionsEmployerContactType).where(eq(optionsEmployerContactType.id, id)).returning();
         return result.length > 0;
+      }
+    },
+
+    workerWs: {
+      async getAll(): Promise<WorkerWs[]> {
+        return db.select().from(optionsWorkerWs).orderBy(optionsWorkerWs.sequence);
+      },
+
+      async get(id: string): Promise<WorkerWs | undefined> {
+        const [ws] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, id));
+        return ws || undefined;
+      },
+
+      async create(insertWs: InsertWorkerWs): Promise<WorkerWs> {
+        const [ws] = await db
+          .insert(optionsWorkerWs)
+          .values(insertWs)
+          .returning();
+        return ws;
+      },
+
+      async update(id: string, wsUpdate: Partial<InsertWorkerWs>): Promise<WorkerWs | undefined> {
+        const [ws] = await db
+          .update(optionsWorkerWs)
+          .set(wsUpdate)
+          .where(eq(optionsWorkerWs.id, id))
+          .returning();
+        return ws || undefined;
+      },
+
+      async delete(id: string): Promise<boolean> {
+        const result = await db.delete(optionsWorkerWs).where(eq(optionsWorkerWs.id, id)).returning();
+        return result.length > 0;
+      },
+
+      async updateSequence(id: string, sequence: number): Promise<WorkerWs | undefined> {
+        return this.update(id, { sequence });
       }
     }
   };

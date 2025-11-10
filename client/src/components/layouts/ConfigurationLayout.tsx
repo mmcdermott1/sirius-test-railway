@@ -191,6 +191,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       testId: "nav-config-worker-id-types",
       permission: "admin",
     },
+    {
+      path: "/config/worker-work-statuses",
+      label: "Worker Work Statuses",
+      icon: List,
+      testId: "nav-config-worker-work-statuses",
+      permission: "admin",
+    },
   ];
 
   const ledgerItems = [
