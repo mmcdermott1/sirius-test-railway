@@ -90,6 +90,15 @@ export const employerContacts = pgTable("employer_contacts", {
   contactTypeId: varchar("contact_type_id").references(() => optionsEmployerContactType.id, { onDelete: 'set null' }),
 });
 
+export const workerEmphist = pgTable("worker_emphist", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
+  employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
+  date: date("date"),
+  employmentStatus: varchar("employment_status").references(() => optionsEmploymentStatus.id, { onDelete: 'set null' }),
+  home: boolean("home").default(false).notNull(),
+});
+
 export const trustBenefits = pgTable("trust_benefits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
