@@ -70,27 +70,6 @@ export const employersManage: AccessPolicy = {
 };
 
 /**
- * Configuration management policies
- */
-export const variablesView: AccessPolicy = {
-  name: 'View Variables',
-  description: 'Requires variables.view permission',
-  requirements: [
-    { type: 'authenticated' },
-    { type: 'permission', key: 'variables.view' },
-  ],
-};
-
-export const variablesManage: AccessPolicy = {
-  name: 'Manage Variables',
-  description: 'Requires variables.manage permission',
-  requirements: [
-    { type: 'authenticated' },
-    { type: 'permission', key: 'variables.manage' },
-  ],
-};
-
-/**
  * Trust benefits management policies
  */
 export const benefitsView: AccessPolicy = {
@@ -395,8 +374,6 @@ export const policies = {
   workersManage,
   employersView,
   employersManage,
-  variablesView,
-  variablesManage,
   benefitsView,
   benefitsManage,
   ledgerStripeAdmin,

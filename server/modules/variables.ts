@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { insertVariableSchema } from "@shared/schema";
+import { requireAccess } from "../accessControl";
+import { policies } from "../policies";
 
 // Type for middleware functions that we'll accept from the main routes
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -13,8 +15,8 @@ export function registerVariableRoutes(
 ) {
   // Variable routes (protected with authentication and permissions)
   
-  // GET /api/variables - Get all variables (requires variables.manage permission)
-  app.get("/api/variables", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  // GET /api/variables - Get all variables (requires admin permission)
+  app.get("/api/variables", requireAccess(policies.admin), async (req, res) => {
     try {
       const variables = await storage.variables.getAll();
       res.json(variables);
@@ -23,8 +25,8 @@ export function registerVariableRoutes(
     }
   });
 
-  // GET /api/variables/:id - Get a specific variable (requires variables.manage permission)
-  app.get("/api/variables/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  // GET /api/variables/:id - Get a specific variable (requires admin permission)
+  app.get("/api/variables/:id", requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       const variable = await storage.variables.get(id);
@@ -40,8 +42,8 @@ export function registerVariableRoutes(
     }
   });
 
-  // GET /api/variables/by-name/:name - Get a variable by name (requires variables.manage permission)
-  app.get("/api/variables/by-name/:name", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  // GET /api/variables/by-name/:name - Get a variable by name (requires admin permission)
+  app.get("/api/variables/by-name/:name", requireAccess(policies.admin), async (req, res) => {
     try {
       const { name } = req.params;
       const variable = await storage.variables.getByName(name);
@@ -57,8 +59,8 @@ export function registerVariableRoutes(
     }
   });
 
-  // POST /api/variables - Create a new variable (requires variables.manage permission)
-  app.post("/api/variables", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  // POST /api/variables - Create a new variable (requires admin permission)
+  app.post("/api/variables", requireAccess(policies.admin), async (req, res) => {
     try {
       const validatedData = insertVariableSchema.parse(req.body);
       
@@ -83,8 +85,8 @@ export function registerVariableRoutes(
     }
   });
 
-  // PUT /api/variables/:id - Update a variable (requires variables.manage permission)
-  app.put("/api/variables/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  // PUT /api/variables/:id - Update a variable (requires admin permission)
+  app.put("/api/variables/:id", requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertVariableSchema.partial().parse(req.body);
@@ -118,8 +120,8 @@ export function registerVariableRoutes(
     }
   });
 
-  // DELETE /api/variables/:id - Delete a variable (requires variables.manage permission)
-  app.delete("/api/variables/:id", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  // DELETE /api/variables/:id - Delete a variable (requires admin permission)
+  app.delete("/api/variables/:id", requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.variables.delete(id);

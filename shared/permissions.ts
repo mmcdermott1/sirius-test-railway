@@ -156,11 +156,6 @@ export function initializePermissions(): void {
       module: 'core'
     },
     {
-      key: 'variables.manage',
-      description: 'Create, update, and delete system variables',
-      module: 'core'
-    },
-    {
       key: 'bookmark',
       description: 'Create and manage bookmarks for workers and employers',
       module: 'core'

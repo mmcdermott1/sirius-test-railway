@@ -1,5 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
+import { requireAccess } from "../accessControl";
+import { policies } from "../policies";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -30,7 +32,7 @@ export function registerDashboardRoutes(
   });
 
   // PUT /api/welcome-messages/:roleId - Update a role's welcome message
-  app.put("/api/welcome-messages/:roleId", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  app.put("/api/welcome-messages/:roleId", requireAccess(policies.admin), async (req, res) => {
     try {
       const { roleId } = req.params;
       const { message } = req.body;
@@ -82,7 +84,7 @@ export function registerDashboardRoutes(
   });
 
   // PUT /api/dashboard-plugins/config/:pluginId - Update a plugin's configuration
-  app.put("/api/dashboard-plugins/config/:pluginId", requireAuth, requirePermission("variables.manage"), async (req, res) => {
+  app.put("/api/dashboard-plugins/config/:pluginId", requireAccess(policies.admin), async (req, res) => {
     try {
       const { pluginId } = req.params;
       const { enabled } = req.body;

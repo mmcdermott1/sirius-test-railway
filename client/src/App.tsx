@@ -437,7 +437,7 @@ function Router() {
       </Route>
 
       <Route path="/config/users/employer-settings">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <EmployerUserSettingsPage />
@@ -472,7 +472,7 @@ function Router() {
       </Route>
 
       <Route path="/config/gender-options">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <GenderOptionsPage />
@@ -482,7 +482,7 @@ function Router() {
       </Route>
 
       <Route path="/config/worker-id-types">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <WorkerIDTypesPage />
@@ -492,7 +492,7 @@ function Router() {
       </Route>
 
       <Route path="/config/trust-benefit-types">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <TrustBenefitTypesPage />
@@ -502,7 +502,7 @@ function Router() {
       </Route>
 
       <Route path="/config/employer-contact-types">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <EmployerContactTypesPage />
@@ -512,7 +512,7 @@ function Router() {
       </Route>
 
       <Route path="/config/site">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <SiteInformation />
@@ -522,7 +522,7 @@ function Router() {
       </Route>
 
       <Route path="/config/welcome-messages">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <WelcomeMessagesConfigPage />
@@ -532,7 +532,7 @@ function Router() {
       </Route>
 
       <Route path="/config/dashboard-plugins">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <DashboardPluginsConfigPage />
@@ -542,7 +542,7 @@ function Router() {
       </Route>
 
       <Route path="/config/components">
-        <ProtectedRoute permission="variables.manage">
+        <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <ComponentsConfigPage />

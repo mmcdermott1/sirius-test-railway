@@ -52,7 +52,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Components",
       icon: Package,
       testId: "nav-config-components",
-      permission: "variables.manage",
+      permission: "admin",
     },
     {
       path: "/config/logs",
@@ -76,7 +76,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Trust Benefit Types",
       icon: List,
       testId: "nav-config-trust-benefit-types",
-      permission: "variables.manage",
+      permission: "admin",
     },
   ];
 
@@ -86,21 +86,21 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Site Information",
       icon: Globe,
       testId: "nav-config-site",
-      permission: "variables.manage",
+      permission: "admin",
     },
     {
       path: "/config/dashboard-plugins",
       label: "Dashboard Plugins",
       icon: Puzzle,
       testId: "nav-config-dashboard-plugins",
-      permission: "variables.manage",
+      permission: "admin",
     },
     {
       path: "/config/welcome-messages",
       label: "Welcome Messages",
       icon: MessageSquare,
       testId: "nav-config-welcome-messages",
-      permission: "variables.manage",
+      permission: "admin",
     },
   ];
 
@@ -124,7 +124,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Gender Options",
       icon: List,
       testId: "nav-config-gender-options",
-      permission: "variables.manage",
+      permission: "admin",
     },
   ];
 
@@ -134,14 +134,14 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Employer Contact Types",
       icon: List,
       testId: "nav-config-employer-contact-types",
-      permission: "variables.manage",
+      permission: "admin",
     },
     {
       path: "/config/users/employer-settings",
       label: "Employer User Settings",
       icon: Settings,
       testId: "nav-config-users-employer-settings",
-      permission: "variables.manage",
+      permission: "admin",
     },
   ];
 
@@ -189,7 +189,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       label: "Worker ID Types",
       icon: List,
       testId: "nav-config-worker-id-types",
-      permission: "variables.manage",
+      permission: "admin",
     },
   ];
 
