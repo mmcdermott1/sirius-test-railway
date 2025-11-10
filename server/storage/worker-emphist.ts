@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { workerEmphist, type WorkerEmphist, type InsertWorkerEmphist } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { workerEmphist, workers, optionsEmploymentStatus, type WorkerEmphist, type InsertWorkerEmphist } from "@shared/schema";
+import { eq, and, desc, isNotNull, inArray } from "drizzle-orm";
 
 export interface WorkerEmphistStorage {
   getWorkerEmphistByWorkerId(workerId: string): Promise<WorkerEmphist[]>;
@@ -8,6 +8,45 @@ export interface WorkerEmphistStorage {
   createWorkerEmphist(emphist: InsertWorkerEmphist): Promise<WorkerEmphist>;
   updateWorkerEmphist(id: string, emphist: Partial<InsertWorkerEmphist>): Promise<WorkerEmphist | undefined>;
   deleteWorkerEmphist(id: string): Promise<boolean>;
+}
+
+async function updateWorkerDenormalizedFieldsInTransaction(tx: any, workerId: string): Promise<void> {
+  const emphist = await tx
+    .select({
+      id: workerEmphist.id,
+      employerId: workerEmphist.employerId,
+      home: workerEmphist.home,
+      date: workerEmphist.date,
+      employmentStatus: workerEmphist.employmentStatus,
+      employed: optionsEmploymentStatus.employed,
+    })
+    .from(workerEmphist)
+    .leftJoin(optionsEmploymentStatus, eq(workerEmphist.employmentStatus, optionsEmploymentStatus.id))
+    .where(eq(workerEmphist.workerId, workerId))
+    .orderBy(desc(workerEmphist.date));
+
+  let denormHomeEmployerId: string | null = null;
+  const denormEmployerIds: string[] = [];
+  const employerIdSet = new Set<string>();
+
+  for (const record of emphist) {
+    if (record.home && !denormHomeEmployerId) {
+      denormHomeEmployerId = record.employerId;
+    }
+
+    if (record.employed && record.employerId && !employerIdSet.has(record.employerId)) {
+      employerIdSet.add(record.employerId);
+      denormEmployerIds.push(record.employerId);
+    }
+  }
+
+  await tx
+    .update(workers)
+    .set({
+      denormHomeEmployerId,
+      denormEmployerIds: denormEmployerIds.length > 0 ? denormEmployerIds : null,
+    })
+    .where(eq(workers.id, workerId));
 }
 
 export function createWorkerEmphistStorage(): WorkerEmphistStorage {
@@ -29,28 +68,68 @@ export function createWorkerEmphistStorage(): WorkerEmphistStorage {
     },
 
     async createWorkerEmphist(insertEmphist: InsertWorkerEmphist): Promise<WorkerEmphist> {
-      const [emphist] = await db
-        .insert(workerEmphist)
-        .values(insertEmphist)
-        .returning();
-      return emphist;
+      return await db.transaction(async (tx) => {
+        const [emphist] = await tx
+          .insert(workerEmphist)
+          .values(insertEmphist)
+          .returning();
+        
+        await updateWorkerDenormalizedFieldsInTransaction(tx, insertEmphist.workerId);
+        
+        return emphist;
+      });
     },
 
     async updateWorkerEmphist(id: string, emphistUpdate: Partial<InsertWorkerEmphist>): Promise<WorkerEmphist | undefined> {
-      const [emphist] = await db
-        .update(workerEmphist)
-        .set(emphistUpdate)
-        .where(eq(workerEmphist.id, id))
-        .returning();
-      return emphist || undefined;
+      return await db.transaction(async (tx) => {
+        const existing = await tx
+          .select()
+          .from(workerEmphist)
+          .where(eq(workerEmphist.id, id))
+          .then(rows => rows[0]);
+        
+        if (!existing) return undefined;
+        
+        const [emphist] = await tx
+          .update(workerEmphist)
+          .set(emphistUpdate)
+          .where(eq(workerEmphist.id, id))
+          .returning();
+        
+        if (!emphist) return undefined;
+        
+        await updateWorkerDenormalizedFieldsInTransaction(tx, emphist.workerId);
+        
+        if (emphist.workerId !== existing.workerId) {
+          await updateWorkerDenormalizedFieldsInTransaction(tx, existing.workerId);
+        }
+        
+        return emphist;
+      });
     },
 
     async deleteWorkerEmphist(id: string): Promise<boolean> {
-      const result = await db
-        .delete(workerEmphist)
-        .where(eq(workerEmphist.id, id))
-        .returning();
-      return result.length > 0;
+      return await db.transaction(async (tx) => {
+        const existing = await tx
+          .select()
+          .from(workerEmphist)
+          .where(eq(workerEmphist.id, id))
+          .then(rows => rows[0]);
+        
+        if (!existing) return false;
+        
+        const result = await tx
+          .delete(workerEmphist)
+          .where(eq(workerEmphist.id, id))
+          .returning();
+        
+        if (result.length > 0) {
+          await updateWorkerDenormalizedFieldsInTransaction(tx, existing.workerId);
+          return true;
+        }
+        
+        return false;
+      });
     }
   };
 }
