@@ -153,6 +153,62 @@ const contactLoggingConfig: StorageLoggingConfig<ContactsStorage> = {
 };
 
 /**
+ * Helper function to format address for display in logs
+ */
+function formatAddressForLog(address: any): string {
+  if (!address) return 'Unknown';
+  
+  const parts: string[] = [];
+  
+  // Add street address
+  if (address.line1) {
+    parts.push(address.line1);
+  }
+  if (address.line2) {
+    parts.push(address.line2);
+  }
+  
+  // Add city, state, postal code
+  const cityStateZip: string[] = [];
+  if (address.city) cityStateZip.push(address.city);
+  if (address.state) cityStateZip.push(address.state);
+  if (address.postalCode) cityStateZip.push(address.postalCode);
+  
+  if (cityStateZip.length > 0) {
+    parts.push(cityStateZip.join(', '));
+  }
+  
+  return parts.length > 0 ? parts.join(', ') : 'Unknown';
+}
+
+/**
+ * Helper function to calculate changes between before and after address states
+ */
+function calculateAddressChanges(before: any, after: any): Record<string, { from: any; to: any }> {
+  if (before === null || before === undefined || after === null || after === undefined) {
+    return {};
+  }
+
+  if (typeof before !== 'object' || typeof after !== 'object') {
+    return before !== after ? { value: { from: before, to: after } } : {};
+  }
+
+  const changes: Record<string, { from: any; to: any }> = {};
+  const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+
+  for (const key of allKeys) {
+    const beforeValue = before[key];
+    const afterValue = after[key];
+
+    if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+      changes[key] = { from: beforeValue, to: afterValue };
+    }
+  }
+
+  return changes;
+}
+
+/**
  * Logging configuration for address storage operations
  * 
  * Logs all postal address mutations with full argument capture and change tracking.
@@ -165,6 +221,10 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
       getEntityId: (args) => args[0]?.contactId || 'new address',
       after: async (args, result, storage) => {
         return result; // Capture created address
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const addressDisplay = formatAddressForLog(afterState);
+        return `Created address "${addressDisplay}"`;
       }
     },
     updatePostalAddress: {
@@ -175,6 +235,18 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const addressDisplay = formatAddressForLog(afterState || beforeState);
+        const changes = calculateAddressChanges(beforeState, afterState);
+        const changedFields = Object.keys(changes);
+        
+        if (changedFields.length === 0) {
+          return `Updated address "${addressDisplay}" (no changes detected)`;
+        }
+        
+        const fieldList = changedFields.join(', ');
+        return `Updated address "${addressDisplay}" (changed: ${fieldList})`;
       }
     },
     deletePostalAddress: {
@@ -182,6 +254,10 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
       getEntityId: (args) => args[0], // Address ID
       before: async (args, storage) => {
         return await storage.getPostalAddress(args[0]); // Capture what's being deleted
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const addressDisplay = formatAddressForLog(beforeState);
+        return `Deleted address "${addressDisplay}"`;
       }
     },
     setAddressAsPrimary: {
@@ -192,10 +268,61 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const addressDisplay = formatAddressForLog(afterState || beforeState);
+        return `Set address "${addressDisplay}" as primary`;
       }
     }
   }
 };
+
+/**
+ * Helper function to format phone number for display in logs
+ */
+function formatPhoneNumberForLog(phoneNumber: any): string {
+  if (!phoneNumber) return 'Unknown';
+  
+  const parts: string[] = [];
+  if (phoneNumber.formattedNumber) {
+    parts.push(phoneNumber.formattedNumber);
+  } else if (phoneNumber.number) {
+    parts.push(phoneNumber.number);
+  }
+  
+  if (phoneNumber.friendlyName) {
+    parts.push(`(${phoneNumber.friendlyName})`);
+  }
+  
+  return parts.length > 0 ? parts.join(' ') : 'Unknown';
+}
+
+/**
+ * Helper function to calculate changes between before and after states
+ */
+function calculatePhoneNumberChanges(before: any, after: any): Record<string, { from: any; to: any }> {
+  if (before === null || before === undefined || after === null || after === undefined) {
+    return {};
+  }
+
+  if (typeof before !== 'object' || typeof after !== 'object') {
+    return before !== after ? { value: { from: before, to: after } } : {};
+  }
+
+  const changes: Record<string, { from: any; to: any }> = {};
+  const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+
+  for (const key of allKeys) {
+    const beforeValue = before[key];
+    const afterValue = after[key];
+
+    if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+      changes[key] = { from: beforeValue, to: afterValue };
+    }
+  }
+
+  return changes;
+}
 
 /**
  * Logging configuration for phone number storage operations
@@ -210,6 +337,10 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
       getEntityId: (args) => args[0]?.contactId || 'new phone',
       after: async (args, result, storage) => {
         return result; // Capture created phone number
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const phoneDisplay = formatPhoneNumberForLog(afterState);
+        return `Created phone number "${phoneDisplay}"`;
       }
     },
     updatePhoneNumber: {
@@ -220,6 +351,18 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const phoneDisplay = formatPhoneNumberForLog(afterState || beforeState);
+        const changes = calculatePhoneNumberChanges(beforeState, afterState);
+        const changedFields = Object.keys(changes);
+        
+        if (changedFields.length === 0) {
+          return `Updated phone number "${phoneDisplay}" (no changes detected)`;
+        }
+        
+        const fieldList = changedFields.join(', ');
+        return `Updated phone number "${phoneDisplay}" (changed: ${fieldList})`;
       }
     },
     deletePhoneNumber: {
@@ -227,6 +370,10 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
       getEntityId: (args) => args[0], // Phone number ID
       before: async (args, storage) => {
         return await storage.getPhoneNumber(args[0]); // Capture what's being deleted
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const phoneDisplay = formatPhoneNumberForLog(beforeState);
+        return `Deleted phone number "${phoneDisplay}"`;
       }
     },
     setPhoneNumberAsPrimary: {
@@ -237,6 +384,10 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)
+      },
+      getDescription: (args, result, beforeState, afterState) => {
+        const phoneDisplay = formatPhoneNumberForLog(afterState || beforeState);
+        return `Set phone number "${phoneDisplay}" as primary`;
       }
     }
   }
