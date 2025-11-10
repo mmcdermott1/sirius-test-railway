@@ -471,27 +471,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Get all employment history records for this employer, ordered by date descending
-      const allEmphist = await storage.workerEmphist.getByEmployerId(employerId);
+      // Get most recent employment history records for this employer (filtering done in SQL)
+      const emphists = await storage.workerEmphist.getByEmployerId(
+        employerId, 
+        employmentStatusId || undefined
+      );
       
-      // Group by worker and get the most recent record for each
-      const workerMap = new Map();
-      for (const record of allEmphist) {
-        if (!workerMap.has(record.workerId) || 
-            new Date(record.date!) > new Date(workerMap.get(record.workerId).date!)) {
-          workerMap.set(record.workerId, record);
-        }
-      }
-      
-      // Get worker and contact details for each
+      // Get worker details for each employment history record
       const results = [];
-      for (const [workerId, emphist] of workerMap) {
-        // Apply employment status filter if provided
-        if (employmentStatusId && emphist.employmentStatus !== employmentStatusId) {
-          continue;
-        }
-        
-        const worker = await storage.workers.getWorker(workerId);
+      for (const emphist of emphists) {
+        const worker = await storage.workers.getWorker(emphist.workerId);
         if (!worker) continue;
         
         results.push({

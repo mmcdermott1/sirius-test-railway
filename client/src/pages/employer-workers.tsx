@@ -124,10 +124,8 @@ function EmployerWorkersContent() {
                     data-testid={`row-worker-${worker.workerId}`}
                   >
                     <td className="py-3 px-4">
-                      <Link href={`/workers/${worker.workerId}`}>
-                        <a className="text-sm font-medium text-primary hover:underline" data-testid={`link-worker-${worker.workerId}`}>
-                          {worker.contactName || "Unnamed Worker"}
-                        </a>
+                      <Link href={`/workers/${worker.workerId}`} className="text-sm font-medium text-primary hover:underline" data-testid={`link-worker-${worker.workerId}`}>
+                        {worker.contactName || "Unnamed Worker"}
                       </Link>
                       <div className="text-xs text-muted-foreground">ID: {worker.workerSiriusId}</div>
                     </td>

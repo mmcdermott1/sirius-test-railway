@@ -1,10 +1,10 @@
 import { db } from "../db";
 import { workerEmphist, workers, optionsEmploymentStatus, type WorkerEmphist, type InsertWorkerEmphist } from "@shared/schema";
-import { eq, and, desc, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, desc, isNotNull, inArray, sql } from "drizzle-orm";
 
 export interface WorkerEmphistStorage {
   getWorkerEmphistByWorkerId(workerId: string): Promise<WorkerEmphist[]>;
-  getByEmployerId(employerId: string): Promise<WorkerEmphist[]>;
+  getByEmployerId(employerId: string, employmentStatusId?: string): Promise<WorkerEmphist[]>;
   getWorkerEmphist(id: string): Promise<WorkerEmphist | undefined>;
   createWorkerEmphist(emphist: InsertWorkerEmphist): Promise<WorkerEmphist>;
   updateWorkerEmphist(id: string, emphist: Partial<InsertWorkerEmphist>): Promise<WorkerEmphist | undefined>;
@@ -60,8 +60,18 @@ export function createWorkerEmphistStorage(): WorkerEmphistStorage {
         .orderBy(desc(workerEmphist.date));
     },
 
-    async getByEmployerId(employerId: string): Promise<WorkerEmphist[]> {
-      return db
+    async getByEmployerId(employerId: string, employmentStatusId?: string): Promise<WorkerEmphist[]> {
+      const mostRecentSubquery = db
+        .select({
+          workerId: workerEmphist.workerId,
+          maxDate: sql<string>`MAX(${workerEmphist.date})`.as('max_date'),
+        })
+        .from(workerEmphist)
+        .where(eq(workerEmphist.employerId, employerId))
+        .groupBy(workerEmphist.workerId)
+        .as('most_recent');
+
+      const query = db
         .select({
           id: workerEmphist.id,
           workerId: workerEmphist.workerId,
@@ -75,8 +85,21 @@ export function createWorkerEmphistStorage(): WorkerEmphistStorage {
         })
         .from(workerEmphist)
         .leftJoin(optionsEmploymentStatus, eq(workerEmphist.employmentStatus, optionsEmploymentStatus.id))
-        .where(eq(workerEmphist.employerId, employerId))
-        .orderBy(desc(workerEmphist.date));
+        .innerJoin(
+          mostRecentSubquery,
+          and(
+            eq(workerEmphist.workerId, mostRecentSubquery.workerId),
+            sql`${workerEmphist.date} = ${mostRecentSubquery.maxDate}`
+          )
+        )
+        .where(
+          and(
+            eq(workerEmphist.employerId, employerId),
+            employmentStatusId ? eq(workerEmphist.employmentStatus, employmentStatusId) : undefined
+          )
+        );
+
+      return query;
     },
 
     async getWorkerEmphist(id: string): Promise<WorkerEmphist | undefined> {
