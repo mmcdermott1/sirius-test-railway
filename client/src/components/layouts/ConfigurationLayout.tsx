@@ -556,7 +556,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
               </Collapsible>
             )}
 
-            {/* Drop-Down Lists Group */}
+            {/* Workers Group */}
             {dropDownListItems.some((item) => hasPermission(item.permission)) && (
               <Collapsible
                 open={isDropDownListsOpen || isDropDownListActive}
@@ -566,10 +566,10 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
                   <Button
                     variant={isDropDownListActive ? "default" : "ghost"}
                     className="w-full justify-start"
-                    data-testid="nav-config-dropdown-lists"
+                    data-testid="nav-config-workers"
                   >
                     <List className="mr-2 h-4 w-4" />
-                    Drop-Down Lists
+                    Workers
                     <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200" 
                       style={{ transform: (isDropDownListsOpen || isDropDownListActive) ? 'rotate(180deg)' : 'rotate(0deg)' }} 
                     />
