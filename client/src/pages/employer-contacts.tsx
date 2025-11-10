@@ -10,11 +10,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trash2, Plus, Eye } from "lucide-react";
+import { Trash2, Plus, Eye, Phone, MapPin } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { EmployerContactType } from "@shared/schema";
+import type { EmployerContactType, PhoneNumber, PostalAddress } from "@shared/schema";
 import { generateDisplayName } from "@shared/schema";
 
 interface EmployerContactResponse {
@@ -57,6 +57,11 @@ const createContactSchema = z.object({
 
 type CreateContactFormData = z.infer<typeof createContactSchema>;
 
+interface ContactWithDetails extends EmployerContactResponse {
+  primaryPhone?: PhoneNumber;
+  primaryAddress?: PostalAddress;
+}
+
 function EmployerContactsContent() {
   const { employer } = useEmployerLayout();
   const { toast } = useToast();
@@ -69,6 +74,55 @@ function EmployerContactsContent() {
   const { data: contactTypes } = useQuery<EmployerContactType[]>({
     queryKey: ["/api/employer-contact-types"],
   });
+
+  // Fetch phone numbers and addresses for all contacts
+  const contactIds = contacts?.map(c => c.contactId) || [];
+  const phoneQueries = useQuery({
+    queryKey: ["/api/contacts", "phones", contactIds],
+    queryFn: async () => {
+      const results = await Promise.all(
+        contactIds.map(async (contactId) => {
+          const response = await fetch(`/api/contacts/${contactId}/phone-numbers`);
+          if (!response.ok) return { contactId, phones: [] };
+          const phones = await response.json();
+          return { contactId, phones };
+        })
+      );
+      return results;
+    },
+    enabled: contactIds.length > 0,
+  });
+
+  const addressQueries = useQuery({
+    queryKey: ["/api/contacts", "addresses", contactIds],
+    queryFn: async () => {
+      const results = await Promise.all(
+        contactIds.map(async (contactId) => {
+          const response = await fetch(`/api/contacts/${contactId}/addresses`);
+          if (!response.ok) return { contactId, addresses: [] };
+          const addresses = await response.json();
+          return { contactId, addresses };
+        })
+      );
+      return results;
+    },
+    enabled: contactIds.length > 0,
+  });
+
+  // Combine contacts with their phone and address data
+  const contactsWithDetails: ContactWithDetails[] = contacts?.map(contact => {
+    const phoneData = phoneQueries.data?.find(p => p.contactId === contact.contactId);
+    const addressData = addressQueries.data?.find(a => a.contactId === contact.contactId);
+    
+    const primaryPhone = phoneData?.phones?.find((p: PhoneNumber) => p.isPrimary && p.isActive);
+    const primaryAddress = addressData?.addresses?.find((a: PostalAddress) => a.isPrimary && a.isActive);
+
+    return {
+      ...contact,
+      primaryPhone,
+      primaryAddress,
+    };
+  }) || [];
 
   const form = useForm<CreateContactFormData>({
     resolver: zodResolver(createContactSchema),
@@ -323,26 +377,40 @@ function EmployerContactsContent() {
             </div>
           )}
 
-          {contacts && contacts.length > 0 ? (
+          {contactsWithDetails && contactsWithDetails.length > 0 ? (
             <div className="space-y-4">
-              {contacts.map((contact) => (
+              {contactsWithDetails.map((contact) => (
                 <div
                   key={contact.id}
-                  className="flex items-center justify-between p-4 border border-border rounded-lg"
+                  className="flex items-start justify-between p-4 border border-border rounded-lg"
                   data-testid={`card-contact-${contact.id}`}
                 >
-                  <div className="flex-1 space-y-1">
+                  <div className="flex-1 space-y-2">
                     <div className="font-medium text-foreground" data-testid={`text-contact-name-${contact.id}`}>
                       {contact.contact.displayName}
                     </div>
                     <div className="text-sm text-muted-foreground" data-testid={`text-contact-email-${contact.id}`}>
                       {contact.contact.email}
                     </div>
-                    {contact.contactType && (
-                      <div className="text-sm text-muted-foreground" data-testid={`text-contact-type-${contact.id}`}>
-                        Type: {contact.contactType.name}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      {contact.contactType && (
+                        <div className="text-muted-foreground" data-testid={`text-contact-type-${contact.id}`}>
+                          <span className="font-medium">Type:</span> {contact.contactType.name}
+                        </div>
+                      )}
+                      {contact.primaryPhone && (
+                        <div className="flex items-center gap-1 text-muted-foreground" data-testid={`text-contact-phone-${contact.id}`}>
+                          <Phone size={14} />
+                          {contact.primaryPhone.phoneNumber}
+                        </div>
+                      )}
+                      {contact.primaryAddress && (
+                        <div className="flex items-center gap-1 text-muted-foreground" data-testid={`text-contact-address-${contact.id}`}>
+                          <MapPin size={14} />
+                          {contact.primaryAddress.city}, {contact.primaryAddress.state}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Link href={`/employer-contacts/${contact.id}`}>
