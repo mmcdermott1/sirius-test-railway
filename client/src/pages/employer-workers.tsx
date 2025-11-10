@@ -113,7 +113,6 @@ function EmployerWorkersContent() {
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Employment Status</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Position</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Home</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,13 +146,6 @@ function EmployerWorkersContent() {
                       <span className="text-sm text-foreground">
                         {worker.date ? new Date(worker.date).toLocaleDateString() : "—"}
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {worker.home && (
-                        <Badge variant="outline" data-testid={`badge-home-${worker.workerId}`}>
-                          Home
-                        </Badge>
-                      )}
                     </td>
                   </tr>
                 ))}
