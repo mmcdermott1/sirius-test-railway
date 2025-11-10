@@ -166,7 +166,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {hasPermission("admin.manage") && (
+            {hasPermission("admin") && (
               <Link href="/config">
                 <Button
                   variant={location.startsWith("/config") ? "default" : "ghost"}

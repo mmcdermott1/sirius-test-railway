@@ -2,6 +2,8 @@ import { Express, Request, Response, NextFunction } from "express";
 import { addressValidationService, AddressInput } from "../services/address-validation";
 import { z } from "zod";
 import { ParseAddressRequest } from "@shared/schema";
+import { requireAccess } from "../accessControl";
+import { policies } from "../policies";
 
 // Middleware types
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void;
@@ -65,7 +67,7 @@ export function registerAddressValidationRoutes(
   });
 
   // GET /api/addresses/validation-config - Get current validation configuration (admin only)
-  app.get("/api/addresses/validation-config", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  app.get("/api/addresses/validation-config", requireAuth, requireAccess(policies.admin), async (req, res) => {
     try {
       const config = await addressValidationService.getConfig();
       res.json(config);
@@ -76,7 +78,7 @@ export function registerAddressValidationRoutes(
   });
 
   // PUT /api/addresses/validation-config - Update validation configuration (admin only)
-  app.put("/api/addresses/validation-config", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  app.put("/api/addresses/validation-config", requireAuth, requireAccess(policies.admin), async (req, res) => {
     try {
       await addressValidationService.updateConfig(req.body);
       const updatedConfig = await addressValidationService.getConfig();

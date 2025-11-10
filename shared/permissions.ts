@@ -146,11 +146,6 @@ export function initializePermissions(): void {
   // Register core permissions
   const corePermissions: PermissionDefinition[] = [
     {
-      key: 'admin.manage',
-      description: 'Manage administrative functions, users, roles, and permissions',
-      module: 'core'
-    },
-    {
       key: 'workers.manage', 
       description: 'Create, update, and delete worker records',
       module: 'core'

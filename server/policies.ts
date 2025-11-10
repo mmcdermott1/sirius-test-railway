@@ -27,15 +27,6 @@ export const admin: AccessPolicy = {
   ],
 };
 
-export const adminManage: AccessPolicy = {
-  name: 'Admin Management',
-  description: 'Requires admin.manage permission',
-  requirements: [
-    { type: 'authenticated' },
-    { type: 'permission', key: 'admin.manage' },
-  ],
-};
-
 /**
  * Worker management policies
  */
@@ -412,7 +403,6 @@ export const workersViewOrManage: AccessPolicy = {
 export const policies = {
   authenticated,
   admin,
-  adminManage,
   workersView,
   workersManage,
   employersView,

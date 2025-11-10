@@ -1060,7 +1060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PUT /api/variables/address_validation_config - Update address validation configuration
-  app.put("/api/variables/address_validation_config", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  app.put("/api/variables/address_validation_config", requireAuth, requireAccess(policies.admin), async (req, res) => {
     try {
       // Basic validation for the configuration update
       const { mode, local, google } = req.body;
@@ -1096,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PUT /api/variables/phone_validation_config - Update phone validation configuration
-  app.put("/api/variables/phone_validation_config", requireAuth, requirePermission("admin.manage"), async (req, res) => {
+  app.put("/api/variables/phone_validation_config", requireAuth, requireAccess(policies.admin), async (req, res) => {
     try {
       const { mode, local, twilio, fallback } = req.body;
       
