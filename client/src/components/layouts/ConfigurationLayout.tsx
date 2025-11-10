@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity, BookOpen, Wallet, Settings, Shield, Key, FileText } from "lucide-react";
+import { Users, MapPin, Phone, Globe, List, UserCog, ChevronDown, MessageSquare, Puzzle, Package, Heart, CreditCard, Activity, BookOpen, Wallet, Settings, Shield, Key, FileText, Palette } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -22,6 +22,7 @@ interface ComponentConfig {
 export default function ConfigurationLayout({ children }: ConfigurationLayoutProps) {
   const [location] = useLocation();
   const { hasPermission } = useAuth();
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isDropDownListsOpen, setIsDropDownListsOpen] = useState(false);
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [isStripeOpen, setIsStripeOpen] = useState(false);
@@ -48,31 +49,10 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       permission: "workers.view",
     },
     {
-      path: "/config/site",
-      label: "Site Information",
-      icon: Globe,
-      testId: "nav-config-site",
-      permission: "variables.manage",
-    },
-    {
-      path: "/config/dashboard-plugins",
-      label: "Dashboard Plugins",
-      icon: Puzzle,
-      testId: "nav-config-dashboard-plugins",
-      permission: "variables.manage",
-    },
-    {
       path: "/config/components",
       label: "Components",
       icon: Package,
       testId: "nav-config-components",
-      permission: "variables.manage",
-    },
-    {
-      path: "/config/welcome-messages",
-      label: "Welcome Messages",
-      icon: MessageSquare,
-      testId: "nav-config-welcome-messages",
       permission: "variables.manage",
     },
     {
@@ -102,6 +82,30 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       icon: FileText,
       testId: "nav-config-logs",
       policy: "admin" as const,
+    },
+  ];
+
+  const themeItems = [
+    {
+      path: "/config/site",
+      label: "Site Information",
+      icon: Globe,
+      testId: "nav-config-site",
+      permission: "variables.manage",
+    },
+    {
+      path: "/config/dashboard-plugins",
+      label: "Dashboard Plugins",
+      icon: Puzzle,
+      testId: "nav-config-dashboard-plugins",
+      permission: "variables.manage",
+    },
+    {
+      path: "/config/welcome-messages",
+      label: "Welcome Messages",
+      icon: MessageSquare,
+      testId: "nav-config-welcome-messages",
+      permission: "variables.manage",
     },
   ];
 
@@ -217,7 +221,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
 
   // Combine for policy checks
   const allLedgerItems = [...ledgerItems, ...stripeItems];
-  const allNavItems = [...regularNavItems, ...userManagementItems, ...dropDownListItems, ...allLedgerItems];
+  const allNavItems = [...regularNavItems, ...themeItems, ...userManagementItems, ...dropDownListItems, ...allLedgerItems];
 
   // Fetch policy checks for navigation items that use policies
   const policiesNeeded = allNavItems
@@ -268,6 +272,11 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
     return false;
   };
 
+  // Check if any theme item is active
+  const isThemeActive = themeItems.some(
+    (item) => location === item.path || location.startsWith(item.path + "/")
+  );
+
   // Check if any user management item is active
   const isUserManagementActive = userManagementItems.some(
     (item) => location === item.path || location.startsWith(item.path + "/")
@@ -314,6 +323,47 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
                 </Link>
               );
             })}
+
+            {/* Theme Group */}
+            {themeItems.some((item) => hasPermission(item.permission)) && (
+              <Collapsible
+                open={isThemeOpen || isThemeActive}
+                onOpenChange={setIsThemeOpen}
+              >
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant={isThemeActive ? "default" : "ghost"}
+                    className="w-full justify-start"
+                    data-testid="nav-config-theme"
+                  >
+                    <Palette className="mr-2 h-4 w-4" />
+                    Theme
+                    <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200" 
+                      style={{ transform: (isThemeOpen || isThemeActive) ? 'rotate(180deg)' : 'rotate(0deg)' }} 
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="ml-4 mt-2 space-y-2">
+                  {themeItems.filter((item) => hasPermission(item.permission)).map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.path || location.startsWith(item.path + "/");
+                    
+                    return (
+                      <Link key={item.path} href={item.path}>
+                        <Button
+                          variant={isActive ? "secondary" : "ghost"}
+                          className="w-full justify-start text-sm"
+                          data-testid={item.testId}
+                        >
+                          <Icon className="mr-2 h-4 w-4" />
+                          {item.label}
+                        </Button>
+                      </Link>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
 
             {/* User Management Group */}
             {userManagementItems.some((item) => hasPermission(item.permission)) && (
