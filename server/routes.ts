@@ -688,6 +688,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/employer-contacts/:contactId/user - Get user linked to employer contact
+  app.get("/api/employer-contacts/:contactId/user", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      
+      // Get employer contact
+      const employerContact = await storage.employerContacts.get(contactId);
+      if (!employerContact) {
+        return res.status(404).json({ message: "Employer contact not found" });
+      }
+      
+      // Check if contact has an email
+      if (!employerContact.contact.email) {
+        return res.status(400).json({ 
+          message: "Contact must have an email address to link a user account",
+          hasEmail: false
+        });
+      }
+      
+      // Get employer user settings (required/optional roles)
+      const requiredVariable = await storage.variables.getByName('employer_user_roles_required');
+      const optionalVariable = await storage.variables.getByName('employer_user_roles_optional');
+      
+      const requiredRoleIds: string[] = (Array.isArray(requiredVariable?.value) ? requiredVariable.value : []) as string[];
+      const optionalRoleIds: string[] = (Array.isArray(optionalVariable?.value) ? optionalVariable.value : []) as string[];
+      
+      // Get user by email if exists
+      const user = await storage.users.getUserByEmail(employerContact.contact.email);
+      
+      if (user) {
+        // Get user's current roles
+        const userRoles = await storage.users.getUserRoles(user.id);
+        const userRoleIds = userRoles.map(r => r.id);
+        
+        return res.json({
+          hasUser: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            isActive: user.isActive,
+            accountStatus: user.accountStatus,
+          },
+          userRoleIds,
+          requiredRoleIds,
+          optionalRoleIds,
+          contactEmail: employerContact.contact.email,
+        });
+      } else {
+        // No user exists yet
+        return res.json({
+          hasUser: false,
+          user: null,
+          userRoleIds: [],
+          requiredRoleIds,
+          optionalRoleIds,
+          contactEmail: employerContact.contact.email,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching employer contact user:", error);
+      res.status(500).json({ message: "Failed to fetch employer contact user" });
+    }
+  });
+
+  // POST /api/employer-contacts/:contactId/user - Create or update user linked to employer contact
+  app.post("/api/employer-contacts/:contactId/user", requireAuth, requirePermission("users.manage"), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      
+      // Validate request body with Zod
+      const requestSchema = z.object({
+        firstName: z.string().optional().nullable(),
+        lastName: z.string().optional().nullable(),
+        isActive: z.boolean().optional(),
+        optionalRoleIds: z.array(z.string()),
+      });
+      
+      const validationResult = requestSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid request body", 
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const { firstName, lastName, isActive, optionalRoleIds } = validationResult.data;
+      
+      // Get employer contact
+      const employerContact = await storage.employerContacts.get(contactId);
+      if (!employerContact) {
+        return res.status(404).json({ message: "Employer contact not found" });
+      }
+      
+      // Check if contact has an email
+      if (!employerContact.contact.email) {
+        return res.status(400).json({ 
+          message: "Contact must have an email address to link a user account"
+        });
+      }
+      
+      const email = employerContact.contact.email;
+      
+      // Get employer user settings - both required and optional roles
+      const requiredVariable = await storage.variables.getByName('employer_user_roles_required');
+      const optionalVariable = await storage.variables.getByName('employer_user_roles_optional');
+      
+      const requiredRoleIds: string[] = (Array.isArray(requiredVariable?.value) ? requiredVariable.value : []) as string[];
+      const allowedOptionalRoleIds: string[] = (Array.isArray(optionalVariable?.value) ? optionalVariable.value : []) as string[];
+      
+      // Validate that client-provided optional roles are actually in the allowed optional roles
+      const invalidRoleIds = optionalRoleIds.filter(roleId => !allowedOptionalRoleIds.includes(roleId));
+      if (invalidRoleIds.length > 0) {
+        return res.status(400).json({ 
+          message: "Invalid optional role IDs provided",
+          invalidRoleIds
+        });
+      }
+      
+      // Check if user exists
+      let user = await storage.users.getUserByEmail(email);
+      
+      if (!user) {
+        // Create new user
+        user = await storage.users.createUser({
+          email,
+          firstName: firstName || null,
+          lastName: lastName || null,
+          isActive: isActive !== undefined ? isActive : true,
+          accountStatus: 'active',
+        });
+      } else {
+        // Update existing user
+        user = await storage.users.updateUser(user.id, {
+          firstName: firstName !== undefined ? firstName : user.firstName,
+          lastName: lastName !== undefined ? lastName : user.lastName,
+          isActive: isActive !== undefined ? isActive : user.isActive,
+        });
+        
+        if (!user) {
+          return res.status(500).json({ message: "Failed to update user" });
+        }
+      }
+      
+      // Get user's current roles
+      const currentRoles = await storage.users.getUserRoles(user.id);
+      const currentRoleIds = currentRoles.map(r => r.id);
+      
+      // Assign all required roles (idempotent)
+      for (const roleId of requiredRoleIds) {
+        if (!currentRoleIds.includes(roleId)) {
+          await storage.users.assignRoleToUser({
+            userId: user.id,
+            roleId,
+          });
+        }
+      }
+      
+      // Reconcile optional roles
+      // Add new optional roles
+      for (const roleId of optionalRoleIds) {
+        if (!currentRoleIds.includes(roleId) && !requiredRoleIds.includes(roleId)) {
+          await storage.users.assignRoleToUser({
+            userId: user.id,
+            roleId,
+          });
+        }
+      }
+      
+      // Remove optional roles that are no longer selected
+      const allDesiredRoleIds = [...requiredRoleIds, ...optionalRoleIds];
+      for (const roleId of currentRoleIds) {
+        if (!allDesiredRoleIds.includes(roleId)) {
+          // Only remove if it's not a required role
+          if (!requiredRoleIds.includes(roleId)) {
+            await storage.users.unassignRoleFromUser(user.id, roleId);
+          }
+        }
+      }
+      
+      // Get updated user roles
+      const updatedRoles = await storage.users.getUserRoles(user.id);
+      const updatedRoleIds = updatedRoles.map(r => r.id);
+      
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isActive: user.isActive,
+          accountStatus: user.accountStatus,
+        },
+        userRoleIds: updatedRoleIds,
+      });
+    } catch (error) {
+      console.error("Error creating/updating employer contact user:", error);
+      res.status(500).json({ message: "Failed to create or update user" });
+    }
+  });
+
   // GET /api/trust-benefits - Get all trust benefits (requires workers.view permission)
   app.get("/api/trust-benefits", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {

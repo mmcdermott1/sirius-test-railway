@@ -37,6 +37,7 @@ import EmployerContactName from "@/pages/employer-contact-name";
 import EmployerContactEmail from "@/pages/employer-contact-email";
 import EmployerContactPhoneNumbers from "@/pages/employer-contact-phone-numbers";
 import EmployerContactAddresses from "@/pages/employer-contact-addresses";
+import EmployerContactUser from "@/pages/employer-contact-user";
 import EmployerLogs from "@/pages/employer-logs";
 import StripeCustomerPage from "@/pages/employers/stripe-customer";
 import StripePaymentMethodsPage from "@/pages/employers/stripe-payment-methods";
@@ -310,6 +311,14 @@ function Router() {
         <ProtectedRoute permission="workers.manage">
           <AuthenticatedLayout>
             <EmployerContactAddresses />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/employer-contacts/:id/user">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <EmployerContactUser />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
