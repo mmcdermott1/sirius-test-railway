@@ -6,42 +6,28 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Contact } from "@shared/schema";
 import { Loader2, Save, Mail } from "lucide-react";
 
-interface EmailManagementProps {
-  contactId: string;
-  workerId: string;
+interface EmployerContactEmailManagementProps {
+  employerContactId: string;
+  contactEmail: string | null;
 }
 
-export default function EmailManagement({ contactId, workerId }: EmailManagementProps) {
+export default function EmployerContactEmailManagement({ employerContactId, contactEmail }: EmployerContactEmailManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editedEmail, setEditedEmail] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Fetch contact information
-  const { data: contact, isLoading } = useQuery<Contact>({
-    queryKey: ["/api/contacts", contactId],
-    queryFn: async () => {
-      const response = await fetch(`/api/contacts/${contactId}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch contact");
-      }
-      return response.json();
-    },
-    enabled: !!contactId,
-  });
-
-  // Update email mutation
   const updateEmailMutation = useMutation({
     mutationFn: async (email: string) => {
-      return apiRequest("PUT", `/api/workers/${workerId}`, { email });
+      return apiRequest("PATCH", `/api/employer-contacts/${employerContactId}`, { email });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/contacts", contactId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/workers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employer-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employer-contacts", employerContactId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employers"] });
       setIsEditing(false);
       toast({
         title: "Success",
@@ -59,20 +45,18 @@ export default function EmailManagement({ contactId, workerId }: EmailManagement
   });
 
   const handleEdit = () => {
-    setEditedEmail(contact?.email || "");
+    setEditedEmail(contactEmail || "");
     setIsEditing(true);
   };
 
   const handleSave = () => {
     const cleanEmail = editedEmail.trim();
     
-    // Allow clearing the email
     if (!cleanEmail) {
       updateEmailMutation.mutate("");
       return;
     }
     
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
       toast({
@@ -91,20 +75,6 @@ export default function EmailManagement({ contactId, workerId }: EmailManagement
     setIsEditing(false);
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Address</CardTitle>
-          <CardDescription>Manage contact email address</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -121,7 +91,7 @@ export default function EmailManagement({ contactId, workerId }: EmailManagement
               <div className="flex-1">
                 <Label className="text-sm text-muted-foreground">Email Address</Label>
                 <p className="text-lg font-medium text-foreground" data-testid="text-contact-email">
-                  {contact?.email || "Not set"}
+                  {contactEmail || "Not set"}
                 </p>
               </div>
               <Button

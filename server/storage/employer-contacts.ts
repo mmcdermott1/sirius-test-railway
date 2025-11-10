@@ -8,6 +8,7 @@ export interface EmployerContactStorage {
   listByEmployer(employerId: string): Promise<Array<EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }>>;
   get(id: string): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
   update(id: string, data: { contactTypeId?: string | null }): Promise<EmployerContact | null>;
+  updateContactEmail(id: string, email: string | null): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null>;
   delete(id: string): Promise<boolean>;
 }
 
@@ -91,6 +92,25 @@ export function createEmployerContactStorage(): EmployerContactStorage {
       return updated || null;
     },
 
+    async updateContactEmail(id: string, email: string | null): Promise<(EmployerContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null> {
+      const employerContact = await db.query.employerContacts.findFirst({
+        where: eq(employerContacts.id, id),
+      });
+
+      if (!employerContact) {
+        return null;
+      }
+
+      const normalizedEmail = email === null || email === "null" || email?.trim() === "" ? null : email.trim();
+
+      await db
+        .update(contacts)
+        .set({ email: normalizedEmail })
+        .where(eq(contacts.id, employerContact.contactId));
+
+      return this.get(id);
+    },
+
     async delete(id: string): Promise<boolean> {
       const result = await db.delete(employerContacts).where(eq(employerContacts.id, id)).returning();
       return result.length > 0;
@@ -116,6 +136,16 @@ export const employerContactLoggingConfig: StorageLoggingConfig<EmployerContactS
       },
       after: async (args, result, storage) => {
         return result;
+      }
+    },
+    updateContactEmail: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => {
+        return await storage.get(args[0]);
+      },
+      after: async (args, result, storage) => {
+        return await storage.get(args[0]);
       }
     },
     delete: {

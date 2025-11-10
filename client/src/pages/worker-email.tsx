@@ -8,7 +8,7 @@ function WorkerEmailContent() {
   return (
     <Card>
       <CardContent>
-        <EmailManagement contactId={worker.contactId} />
+        <EmailManagement contactId={worker.contactId} workerId={worker.id} />
       </CardContent>
     </Card>
   );

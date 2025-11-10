@@ -581,27 +581,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const parsed = z.object({
         contactTypeId: z.string().uuid().nullable().optional(),
+        email: z.string().email().or(z.literal("")).nullable().optional().transform(val => {
+          if (val === null || val === "" || val === "null") return null;
+          return val?.trim() || null;
+        }),
       }).safeParse(req.body);
       
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid update data", errors: parsed.error.errors });
       }
       
-      // Normalize: if contactTypeId is explicitly null or undefined, pass null
-      const updateData = {
-        contactTypeId: parsed.data.contactTypeId === null || parsed.data.contactTypeId === undefined 
-          ? null 
-          : parsed.data.contactTypeId,
-      };
-      
-      const updated = await storage.employerContacts.update(id, updateData);
-      
-      if (!updated) {
-        res.status(404).json({ message: "Employer contact not found" });
+      // Handle email updates
+      if (parsed.data.email !== undefined) {
+        const updated = await storage.employerContacts.updateContactEmail(id, parsed.data.email);
+        
+        if (!updated) {
+          res.status(404).json({ message: "Employer contact not found" });
+          return;
+        }
+        
+        res.json(updated);
         return;
       }
       
-      res.json(updated);
+      // Handle contactTypeId updates
+      if (parsed.data.contactTypeId !== undefined) {
+        const updateData = {
+          contactTypeId: parsed.data.contactTypeId === null || parsed.data.contactTypeId === undefined 
+            ? null 
+            : parsed.data.contactTypeId,
+        };
+        
+        const updated = await storage.employerContacts.update(id, updateData);
+        
+        if (!updated) {
+          res.status(404).json({ message: "Employer contact not found" });
+          return;
+        }
+        
+        res.json(updated);
+        return;
+      }
+      
+      res.status(400).json({ message: "No valid update fields provided" });
     } catch (error) {
       res.status(500).json({ message: "Failed to update employer contact" });
     }
