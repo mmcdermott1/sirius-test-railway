@@ -72,7 +72,7 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
 
   const { data: suggestedMappingData } = useQuery<{ mapping: any; headerHash?: string; savedAt?: string }>({
     queryKey: ["/api/wizards", wizardId, "suggested-mapping"],
-    enabled: !!uploadedFileId && !data?.columnMapping,
+    enabled: !!uploadedFileId,
   });
 
   const columnCount = parsedData?.columnCount || 0;
@@ -158,19 +158,18 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
     },
   });
 
-  // Apply suggested mapping when available
+  // Apply suggested mapping when available and set header hash
   useEffect(() => {
+    if (suggestedMappingData?.headerHash) {
+      setHeaderHash(suggestedMappingData.headerHash);
+    }
+    
     if (suggestedMappingData?.mapping && !data?.columnMapping) {
       form.setValue("columnMapping", suggestedMappingData.mapping);
-      if (suggestedMappingData.headerHash) {
-        setHeaderHash(suggestedMappingData.headerHash);
-      }
       toast({
         title: "Suggested Mapping Applied",
         description: "We've applied a previously saved mapping for this file structure.",
       });
-    } else if (suggestedMappingData?.headerHash) {
-      setHeaderHash(suggestedMappingData.headerHash);
     }
   }, [suggestedMappingData, data?.columnMapping, form, toast]);
 
