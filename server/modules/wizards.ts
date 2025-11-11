@@ -154,6 +154,53 @@ export function registerWizardRoutes(
         }
       }
       
+      // If data is being updated, check if we need to clear downstream step data
+      if (validatedData.data) {
+        const existingData = (existing.data || {}) as any;
+        const incomingData = validatedData.data as any;
+        
+        // Merge existing data with incoming data
+        const mergedData = {
+          ...existingData,
+          ...incomingData
+        };
+        
+        // Check if upload-related data changed (uploadedFileId)
+        if (incomingData.uploadedFileId && incomingData.uploadedFileId !== existingData.uploadedFileId) {
+          // Clear all downstream data: map, validate, process, review
+          delete mergedData.columnMapping;
+          delete mergedData.hasHeaders;
+          delete mergedData.validationResults;
+          
+          // Clear progress for downstream steps
+          if (mergedData.progress) {
+            delete mergedData.progress.map;
+            delete mergedData.progress.validate;
+            delete mergedData.progress.process;
+            delete mergedData.progress.review;
+          }
+        }
+        
+        // Check if map-related data changed (columnMapping, hasHeaders, mode)
+        else if (
+          (incomingData.columnMapping && JSON.stringify(incomingData.columnMapping) !== JSON.stringify(existingData.columnMapping)) ||
+          (incomingData.hasHeaders !== undefined && incomingData.hasHeaders !== existingData.hasHeaders) ||
+          (incomingData.mode && incomingData.mode !== existingData.mode)
+        ) {
+          // Clear downstream data: validate, process, review
+          delete mergedData.validationResults;
+          
+          // Clear progress for downstream steps
+          if (mergedData.progress) {
+            delete mergedData.progress.validate;
+            delete mergedData.progress.process;
+            delete mergedData.progress.review;
+          }
+        }
+        
+        validatedData.data = mergedData;
+      }
+      
       const wizard = await storage.wizards.update(id, validatedData);
       res.json(wizard);
     } catch (error) {

@@ -408,11 +408,29 @@ export abstract class FeedWizard extends BaseWizard {
         ? wizard.data as any
         : {};
       
+      // Clear all downstream step data when a new file is uploaded
+      const updatedData: any = {
+        ...wizardData,
+        uploadedFileId: file.id
+      };
+      
+      // Clear map step data
+      delete updatedData.columnMapping;
+      delete updatedData.hasHeaders;
+      
+      // Clear validate step data
+      delete updatedData.validationResults;
+      
+      // Clear progress for downstream steps
+      if (updatedData.progress) {
+        delete updatedData.progress.map;
+        delete updatedData.progress.validate;
+        delete updatedData.progress.process;
+        delete updatedData.progress.review;
+      }
+      
       await storage.wizards.update(wizardId, {
-        data: {
-          ...wizardData,
-          uploadedFileId: file.id
-        }
+        data: updatedData
       });
     }
 
