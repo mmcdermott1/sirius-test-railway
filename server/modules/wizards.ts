@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { storage } from "../storage";
 import { insertWizardSchema, wizardDataSchema, type WizardData } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess, buildContext, evaluatePolicy } from "../accessControl";
 import { policies } from "../policies";
 import { wizardRegistry } from "../wizards/index.js";
 import { FeedWizard } from "../wizards/feed.js";
@@ -279,22 +279,73 @@ export function registerWizardRoutes(
     }
   });
 
+  // Middleware to check wizard access based on entity type
+  const checkWizardAccess = async (req: any, res: any, next: any) => {
+    try {
+      const { id } = req.params;
+      const wizard = await storage.wizards.getById(id);
+      
+      if (!wizard) {
+        return res.status(404).json({ message: "Wizard not found" });
+      }
+
+      // Get wizard type to determine entityType
+      const wizardType = wizardRegistry.get(wizard.type);
+      if (!wizardType) {
+        return res.status(400).json({ message: "Invalid wizard type" });
+      }
+
+      // Build context for policy evaluation
+      const context = await buildContext(req);
+      
+      // Check if user is admin first (admins can access all wizards)
+      const adminResult = await evaluatePolicy(policies.admin, context);
+      if (adminResult.granted) {
+        req.wizard = wizard; // Attach wizard to request for use in handler
+        return next();
+      }
+
+      // For entity-specific wizards, check entity-based access
+      if (wizardType.entityType && wizard.entityId) {
+        // Build context with entity ID in params
+        const entityContext = {
+          ...context,
+          params: {
+            ...context.params,
+            [wizardType.entityType === 'employer' ? 'employerId' : 'workerId']: wizard.entityId
+          }
+        };
+
+        // Check appropriate policy based on entity type
+        const policy = wizardType.entityType === 'employer' ? policies.employerUser : policies.worker;
+        const result = await evaluatePolicy(policy, entityContext);
+        
+        if (result.granted) {
+          req.wizard = wizard; // Attach wizard to request for use in handler
+          return next();
+        }
+      }
+
+      // Access denied
+      return res.status(403).json({ message: "Access denied" });
+    } catch (error) {
+      console.error("Error checking wizard access:", error);
+      return res.status(500).json({ message: "Failed to check wizard access" });
+    }
+  };
+
   // File upload for wizards
   app.post("/api/wizards/:id/files",
     upload.single('file'),
-    requireAccess(policies.admin),
+    checkWizardAccess,
     async (req, res) => {
       try {
-        const { id } = req.params;
-        
         if (!req.file) {
           return res.status(400).json({ message: "No file provided" });
         }
 
-        const wizard = await storage.wizards.getById(id);
-        if (!wizard) {
-          return res.status(404).json({ message: "Wizard not found" });
-        }
+        // Wizard is already attached to request by middleware
+        const wizard = (req as any).wizard;
 
         // Get wizard type instance to validate file and associate
         const wizardType = wizardRegistry.get(wizard.type);
@@ -313,19 +364,21 @@ export function registerWizardRoutes(
           return res.status(400).json({ message: "Invalid file type. Only CSV and XLSX files are supported." });
         }
 
+        // Get wizard ID from params
+        const wizardId = req.params.id;
+        
+        // Get wizard type to determine entityType
+        const wizardTypeInstance = wizardRegistry.get(wizard.type);
+        
         // Upload file to object storage
-        const storagePath = `wizards/${id}/${Date.now()}_${req.file.originalname}`;
-        const uploadResult = await objectStorageService.uploadFile(
-          req.file.buffer,
-          storagePath,
-          {
-            contentType: req.file.mimetype,
-            metadata: {
-              originalName: req.file.originalname,
-              wizardId: id
-            }
-          }
-        );
+        const customPath = `wizards/${wizardId}/${Date.now()}_${req.file.originalname}`;
+        const uploadResult = await objectStorageService.uploadFile({
+          fileName: req.file.originalname,
+          fileContent: req.file.buffer,
+          mimeType: req.file.mimetype,
+          accessLevel: 'private',
+          customPath
+        });
 
         // Get current user for uploadedBy
         const user = (req as any).user;
@@ -338,14 +391,14 @@ export function registerWizardRoutes(
         }
 
         // Associate file with wizard using FeedWizard method
-        const file = await wizardType.associateFile(id, {
+        const file = await wizardType.associateFile(wizardId, {
           fileName: req.file.originalname,
-          storagePath: uploadResult.path,
+          storagePath: uploadResult.storagePath,
           mimeType: req.file.mimetype,
           size: req.file.size,
           uploadedBy: dbUser.id,
-          entityType: wizard.entityType || 'wizard',
-          entityId: wizard.entityId || id,
+          entityType: wizardTypeInstance?.entityType || 'wizard',
+          entityId: wizard.entityId || wizardId,
           accessLevel: 'private'
         });
 
@@ -359,15 +412,13 @@ export function registerWizardRoutes(
 
   // List files for a wizard
   app.get("/api/wizards/:id/files",
-    requireAccess(policies.admin),
+    checkWizardAccess,
     async (req, res) => {
       try {
         const { id } = req.params;
-
-        const wizard = await storage.wizards.getById(id);
-        if (!wizard) {
-          return res.status(404).json({ message: "Wizard not found" });
-        }
+        
+        // Wizard is already attached to request by middleware
+        const wizard = (req as any).wizard;
 
         // Get wizard type instance
         const wizardType = wizardRegistry.get(wizard.type);
@@ -385,15 +436,13 @@ export function registerWizardRoutes(
 
   // Delete a file from a wizard
   app.delete("/api/wizards/:id/files/:fileId",
-    requireAccess(policies.admin),
+    checkWizardAccess,
     async (req, res) => {
       try {
         const { id, fileId } = req.params;
-
-        const wizard = await storage.wizards.getById(id);
-        if (!wizard) {
-          return res.status(404).json({ message: "Wizard not found" });
-        }
+        
+        // Wizard is already attached to request by middleware
+        const wizard = (req as any).wizard;
 
         // Get wizard type instance
         const wizardType = wizardRegistry.get(wizard.type);
