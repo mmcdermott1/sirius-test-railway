@@ -425,9 +425,6 @@ export function registerWizardRoutes(
       // Build context for policy evaluation
       const context = await buildContext(req);
       
-      // Attach user from context to request for use in handlers
-      req.user = context.user;
-      
       // Check if user is admin first (admins can access all wizards)
       const adminResult = await evaluatePolicy(policies.admin, context);
       if (adminResult.granted) {
@@ -466,6 +463,7 @@ export function registerWizardRoutes(
 
   // File upload for wizards
   app.post("/api/wizards/:id/files",
+    requireAuth,
     upload.single('file'),
     checkWizardAccess,
     async (req, res) => {
