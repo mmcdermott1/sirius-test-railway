@@ -84,7 +84,21 @@ export function UploadStep({ wizardId, wizardType, data, onDataChange }: UploadS
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Mark upload step as completed
+      await apiRequest("PATCH", `/api/wizards/${wizardId}`, {
+        data: {
+          ...data,
+          progress: {
+            ...data?.progress,
+            upload: {
+              status: "completed",
+              completedAt: new Date().toISOString(),
+            },
+          },
+        },
+      });
+
       queryClient.invalidateQueries({ queryKey: ["/api/wizards", wizardId, "files"] });
       queryClient.invalidateQueries({ queryKey: ["/api/wizards", wizardId] });
       form.reset();
