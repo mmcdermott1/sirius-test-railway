@@ -641,6 +641,7 @@ export function registerWizardRoutes(
 
   // Get suggested mapping based on header row hash
   app.get("/api/wizards/:id/suggested-mapping",
+    requireAuth,
     checkWizardAccess,
     async (req, res) => {
       try {
@@ -731,6 +732,7 @@ export function registerWizardRoutes(
 
   // Save column mapping for future use
   app.post("/api/wizards/:id/save-mapping",
+    requireAuth,
     checkWizardAccess,
     async (req, res) => {
       try {
