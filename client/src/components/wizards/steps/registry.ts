@@ -5,7 +5,7 @@ import { ProcessStep } from './gbhet-legal-workers/ProcessStep';
 import { ReviewStep } from './gbhet-legal-workers/ReviewStep';
 
 export interface WizardStepComponent {
-  (props: { wizardId: string; data?: any; onDataChange?: (data: any) => void }): JSX.Element;
+  (props: { wizardId: string; wizardType: string; data?: any; onDataChange?: (data: any) => void }): JSX.Element;
 }
 
 type StepComponentRegistry = {

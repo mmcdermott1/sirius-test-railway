@@ -447,6 +447,83 @@ export function registerWizardRoutes(
     }
   );
 
+  // Parse uploaded file to extract column information
+  app.get("/api/wizards/:id/files/:fileId/parse",
+    checkWizardAccess,
+    async (req, res) => {
+      try {
+        const { id, fileId } = req.params;
+        const { previewRows = '5' } = req.query;
+        
+        // Wizard is already attached to request by middleware
+        const wizard = (req as any).wizard;
+
+        // Get wizard type instance
+        const wizardType = wizardRegistry.get(wizard.type);
+        if (!wizardType || !(wizardType instanceof FeedWizard)) {
+          return res.status(400).json({ message: "This wizard type does not support file uploads" });
+        }
+
+        // Get file metadata
+        const file = await storage.files.getById(fileId);
+        if (!file) {
+          return res.status(404).json({ message: "File not found" });
+        }
+
+        // Verify file association
+        const metadata = file.metadata as any;
+        if (metadata?.wizardId !== id) {
+          return res.status(403).json({ message: "File is not associated with this wizard" });
+        }
+
+        // Download file from object storage
+        const fileBuffer = await objectStorageService.downloadFile(file.storagePath);
+
+        // Parse file based on type
+        let rows: any[][] = [];
+        const rowLimit = parseInt(previewRows as string) || 5;
+
+        if (file.mimeType === 'text/csv') {
+          // Parse CSV
+          const { parse } = await import('csv-parse/sync');
+          rows = parse(fileBuffer, {
+            relax_column_count: true,
+            skip_empty_lines: true,
+            to: rowLimit + 1 // +1 to include potential header row
+          });
+        } else if (
+          file.mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          file.mimeType === 'application/vnd.ms-excel'
+        ) {
+          // Parse XLSX
+          const XLSX = await import('xlsx');
+          const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
+            header: 1,
+            defval: '',
+            blankrows: false,
+            range: `A1:ZZ${rowLimit + 1}` // Limit to preview rows
+          });
+          rows = jsonData as any[][];
+        } else {
+          return res.status(400).json({ message: "Unsupported file type for parsing" });
+        }
+
+        // Return parsed data
+        res.json({
+          fileName: file.fileName,
+          totalRows: rows.length,
+          previewRows: rows.slice(0, rowLimit + 1),
+          columnCount: rows[0]?.length || 0
+        });
+      } catch (error) {
+        console.error("File parse error:", error);
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to parse file" });
+      }
+    }
+  );
+
   // Delete a file from a wizard
   app.delete("/api/wizards/:id/files/:fileId",
     checkWizardAccess,

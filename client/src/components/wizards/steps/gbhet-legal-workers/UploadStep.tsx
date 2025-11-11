@@ -38,6 +38,7 @@ const uploadFormSchema = z.object({
 
 interface UploadStepProps {
   wizardId: string;
+  wizardType: string;
   data?: any;
   onDataChange?: (data: any) => void;
 }
@@ -51,7 +52,7 @@ interface FileRecord {
   uploadedBy: string;
 }
 
-export function UploadStep({ wizardId, data, onDataChange }: UploadStepProps) {
+export function UploadStep({ wizardId, wizardType, data, onDataChange }: UploadStepProps) {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof uploadFormSchema>>({

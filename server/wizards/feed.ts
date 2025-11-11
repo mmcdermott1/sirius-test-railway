@@ -17,6 +17,8 @@ export interface FeedData {
   filters?: Record<string, any>;
   outputPath?: string;
   uploadedFileId?: string;
+  columnMapping?: Record<string, string>; // Maps source columns to field IDs
+  hasHeaders?: boolean; // Whether the first row contains headers
 }
 
 export interface FeedField {
@@ -43,6 +45,8 @@ export abstract class FeedWizard extends BaseWizard {
 
   getSteps(): WizardStep[] {
     return [
+      { id: 'upload', name: 'Upload', description: 'Upload data file' },
+      { id: 'map', name: 'Map', description: 'Map columns to fields' },
       { id: 'configure', name: 'Configure Feed', description: 'Set feed parameters and filters' },
       { id: 'generate', name: 'Generate Data', description: 'Generate the feed data' },
       { id: 'review', name: 'Review Output', description: 'Review generated feed' },

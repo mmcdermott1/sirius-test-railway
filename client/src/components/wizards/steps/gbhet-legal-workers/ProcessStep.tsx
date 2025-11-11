@@ -2,11 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 interface ProcessStepProps {
   wizardId: string;
+  wizardType: string;
   data?: any;
   onDataChange?: (data: any) => void;
 }
 
-export function ProcessStep({ wizardId, data, onDataChange }: ProcessStepProps) {
+export function ProcessStep({ wizardId, wizardType, data, onDataChange }: ProcessStepProps) {
   return (
     <Card>
       <CardHeader>

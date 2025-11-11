@@ -2,11 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 interface ValidateStepProps {
   wizardId: string;
+  wizardType: string;
   data?: any;
   onDataChange?: (data: any) => void;
 }
 
-export function ValidateStep({ wizardId, data, onDataChange }: ValidateStepProps) {
+export function ValidateStep({ wizardId, wizardType, data, onDataChange }: ValidateStepProps) {
   return (
     <Card>
       <CardHeader>

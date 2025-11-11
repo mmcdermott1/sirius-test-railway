@@ -2,11 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 interface ReviewStepProps {
   wizardId: string;
+  wizardType: string;
   data?: any;
   onDataChange?: (data: any) => void;
 }
 
-export function ReviewStep({ wizardId, data, onDataChange }: ReviewStepProps) {
+export function ReviewStep({ wizardId, wizardType, data, onDataChange }: ReviewStepProps) {
   return (
     <Card>
       <CardHeader>

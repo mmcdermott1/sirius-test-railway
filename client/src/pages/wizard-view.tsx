@@ -252,7 +252,7 @@ export default function WizardView() {
         {/* Active Step Content */}
         {StepComponent && wizard && (
           <div>
-            <StepComponent wizardId={wizard.id} data={wizardData} />
+            <StepComponent wizardId={wizard.id} wizardType={wizard.type} data={wizardData} />
           </div>
         )}
 
