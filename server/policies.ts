@@ -365,6 +365,264 @@ export const workersViewOrManage: AccessPolicy = {
 };
 
 /**
+ * File management policies
+ * 
+ * Files are protected by a layered access control system:
+ * 1. Dedicated file permissions (files.upload, files.read-private, files.update, files.delete)
+ * 2. Entity-based permissions (workers.manage, employers.manage)
+ * 3. Access level (public vs private files)
+ * 4. Uploader ownership (users who uploaded a file get implicit access)
+ */
+
+/**
+ * File upload policy
+ * Allows creating files if user has files.upload permission OR
+ * the appropriate entity permission (workers.manage, employers.manage)
+ */
+export const filesUpload: AccessPolicy = {
+  name: 'Upload Files',
+  description: 'Requires files.upload permission or entity manage permission',
+  requirements: [
+    { type: 'authenticated' },
+    {
+      type: 'custom',
+      reason: 'Requires files.upload permission or permission to manage the target entity',
+      check: async (ctx) => {
+        // Import storage dynamically to avoid circular dependency
+        const { storage } = await import('./storage/database');
+        
+        // Check if user has files.upload permission
+        if (ctx.user && await storage.users.userHasPermission(ctx.user.id, 'files.upload')) {
+          return true;
+        }
+        
+        // Check entity-based permissions from request body
+        const entityType = ctx.body?.entityType;
+        if (!entityType) {
+          return false;
+        }
+        
+        // Map entity type to required permission
+        const permissionMap: Record<string, string> = {
+          'worker': 'workers.manage',
+          'employer': 'employers.manage',
+        };
+        
+        const requiredPermission = permissionMap[entityType];
+        if (!requiredPermission) {
+          // Unknown entity type - require files.upload
+          return false;
+        }
+        
+        // Check if user has the entity-specific permission
+        return ctx.user ? await storage.users.userHasPermission(ctx.user.id, requiredPermission) : false;
+      },
+    },
+  ],
+};
+
+/**
+ * File read policy
+ * Layered access based on file's accessLevel and entity association:
+ * - Public files: Requires entity view permission
+ * - Private files: Requires files.read-private OR entity manage permission
+ * - Uploader: Always has read access
+ */
+export const filesRead: AccessPolicy = {
+  name: 'Read Files',
+  description: 'Access based on file visibility, entity permissions, or ownership',
+  requirements: [
+    { type: 'authenticated' },
+    {
+      type: 'custom',
+      reason: 'Access depends on file visibility level and entity permissions',
+      check: async (ctx) => {
+        // Import storage dynamically to avoid circular dependency
+        const { storage } = await import('./storage/database');
+        
+        if (!ctx.user) {
+          return false;
+        }
+        
+        // Get file ID from params
+        const fileId = ctx.params?.id || ctx.params?.fileId;
+        if (!fileId) {
+          return false;
+        }
+        
+        // Load file metadata
+        const file = await storage.files.getById(fileId);
+        if (!file) {
+          return false;
+        }
+        
+        // Check if user uploaded the file
+        if (file.uploadedBy === ctx.user.id) {
+          return true;
+        }
+        
+        // Check access level and entity permissions
+        if (file.accessLevel === 'public' && file.entityType) {
+          // Public files: Check entity view permission
+          const viewPermissionMap: Record<string, string> = {
+            'worker': 'workers.view',
+            'employer': 'employers.view',
+          };
+          
+          const viewPermission = viewPermissionMap[file.entityType];
+          if (viewPermission && await storage.users.userHasPermission(ctx.user.id, viewPermission)) {
+            return true;
+          }
+        } else if (file.accessLevel === 'private') {
+          // Private files: Check files.read-private or entity manage permission
+          if (await storage.users.userHasPermission(ctx.user.id, 'files.read-private')) {
+            return true;
+          }
+          
+          if (file.entityType) {
+            const managePermissionMap: Record<string, string> = {
+              'worker': 'workers.manage',
+              'employer': 'employers.manage',
+            };
+            
+            const managePermission = managePermissionMap[file.entityType];
+            if (managePermission && await storage.users.userHasPermission(ctx.user.id, managePermission)) {
+              return true;
+            }
+          }
+        }
+        
+        return false;
+      },
+    },
+  ],
+};
+
+/**
+ * File update policy
+ * Allows updating file metadata if user has files.update permission OR
+ * uploaded the file OR has entity manage permission
+ */
+export const filesUpdate: AccessPolicy = {
+  name: 'Update Files',
+  description: 'Requires files.update permission, ownership, or entity manage permission',
+  requirements: [
+    { type: 'authenticated' },
+    {
+      type: 'custom',
+      reason: 'Requires files.update permission, file ownership, or entity manage permission',
+      check: async (ctx) => {
+        // Import storage dynamically to avoid circular dependency
+        const { storage } = await import('./storage/database');
+        
+        if (!ctx.user) {
+          return false;
+        }
+        
+        // Check if user has files.update permission
+        if (await storage.users.userHasPermission(ctx.user.id, 'files.update')) {
+          return true;
+        }
+        
+        // Get file ID from params
+        const fileId = ctx.params?.id || ctx.params?.fileId;
+        if (!fileId) {
+          return false;
+        }
+        
+        // Load file metadata
+        const file = await storage.files.getById(fileId);
+        if (!file) {
+          return false;
+        }
+        
+        // Check if user uploaded the file
+        if (file.uploadedBy === ctx.user.id) {
+          return true;
+        }
+        
+        // Check entity manage permission
+        if (file.entityType) {
+          const managePermissionMap: Record<string, string> = {
+            'worker': 'workers.manage',
+            'employer': 'employers.manage',
+          };
+          
+          const managePermission = managePermissionMap[file.entityType];
+          if (managePermission && await storage.users.userHasPermission(ctx.user.id, managePermission)) {
+            return true;
+          }
+        }
+        
+        return false;
+      },
+    },
+  ],
+};
+
+/**
+ * File delete policy
+ * Allows deleting files if user has files.delete permission OR
+ * uploaded the file OR has entity manage permission
+ */
+export const filesDelete: AccessPolicy = {
+  name: 'Delete Files',
+  description: 'Requires files.delete permission, ownership, or entity manage permission',
+  requirements: [
+    { type: 'authenticated' },
+    {
+      type: 'custom',
+      reason: 'Requires files.delete permission, file ownership, or entity manage permission',
+      check: async (ctx) => {
+        // Import storage dynamically to avoid circular dependency
+        const { storage } = await import('./storage/database');
+        
+        if (!ctx.user) {
+          return false;
+        }
+        
+        // Check if user has files.delete permission
+        if (await storage.users.userHasPermission(ctx.user.id, 'files.delete')) {
+          return true;
+        }
+        
+        // Get file ID from params
+        const fileId = ctx.params?.id || ctx.params?.fileId;
+        if (!fileId) {
+          return false;
+        }
+        
+        // Load file metadata
+        const file = await storage.files.getById(fileId);
+        if (!file) {
+          return false;
+        }
+        
+        // Check if user uploaded the file
+        if (file.uploadedBy === ctx.user.id) {
+          return true;
+        }
+        
+        // Check entity manage permission
+        if (file.entityType) {
+          const managePermissionMap: Record<string, string> = {
+            'worker': 'workers.manage',
+            'employer': 'employers.manage',
+          };
+          
+          const managePermission = managePermissionMap[file.entityType];
+          if (managePermission && await storage.users.userHasPermission(ctx.user.id, managePermission)) {
+            return true;
+          }
+        }
+        
+        return false;
+      },
+    },
+  ],
+};
+
+/**
  * Export all policies as a registry
  */
 export const policies = {
@@ -387,4 +645,8 @@ export const policies = {
   employerUser,
   workersViewOrManage,
   employerUserManage,
+  filesUpload,
+  filesRead,
+  filesUpdate,
+  filesDelete,
 };

@@ -21,6 +21,7 @@ import { registerBookmarkRoutes } from "./modules/bookmarks";
 import { registerComponentRoutes } from "./modules/components";
 import { registerEmployerUserSettingsRoutes } from "./modules/employer-user-settings";
 import { registerWizardRoutes } from "./modules/wizards";
+import { registerFileRoutes } from "./modules/files";
 import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
 import { registerLedgerAccountRoutes } from "./modules/ledger/accounts";
 import { registerAccessPolicyRoutes } from "./modules/access-policies";
@@ -263,6 +264,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register wizard routes
   registerWizardRoutes(app, requireAuth, requirePermission);
+
+  // Register file management routes
+  registerFileRoutes(app, requireAuth, requirePermission);
 
   // Register component configuration routes
   registerComponentRoutes(app, requireAuth, requirePermission);

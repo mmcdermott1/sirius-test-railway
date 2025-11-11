@@ -33,7 +33,8 @@ Preferred communication style: Simple, everyday language.
 -   **Database**: PostgreSQL (Neon Database).
 -   **ORM**: Drizzle ORM for type-safe operations and migrations.
 -   **Schema Management**: Shared Zod schema definitions between frontend and backend.
--   **Storage Architecture**: Modular, namespace-based storage organized by domain (e.g., `variables`, `users`, `workers`, `employers`, `contacts`, `options`, `ledger`, `wizards`). Storage methods use simplified names (e.g., `create`, `update`, `getByName`) within their namespaces. The employerContacts storage includes a batch method `getUserAccountStatuses` for efficiently fetching user linkage status for multiple employer contacts in a single query. The contacts storage includes `getContactByEmail` for case-insensitive email lookups used in policy enforcement. The wizards storage provides CRUD operations with optional filtering by type, status, and entityId.
+-   **Storage Architecture**: Modular, namespace-based storage organized by domain (e.g., `variables`, `users`, `workers`, `employers`, `contacts`, `options`, `ledger`, `wizards`, `files`). Storage methods use simplified names (e.g., `create`, `update`, `getByName`) within their namespaces. The employerContacts storage includes a batch method `getUserAccountStatuses` for efficiently fetching user linkage status for multiple employer contacts in a single query. The contacts storage includes `getContactByEmail` for case-insensitive email lookups used in policy enforcement. The wizards storage provides CRUD operations with optional filtering by type, status, and entityId. The files storage manages file metadata with logging support and filtering by entityType, entityId, and uploadedBy.
+-   **Object Storage**: Replit Object Storage (Google Cloud Storage backend) for persistent file storage with public/private access levels, signed URL generation, and 50MB upload limit.
 
 ## Key Features
 -   **Worker Management**: Full CRUD for workers, including personal and contact information, with sequential `sirius_id`.
@@ -55,6 +56,13 @@ Preferred communication style: Simple, everyday language.
     -   **Wizard Registry**: Centralized registry manages wizard type registration and discovery. Routes expose `/api/wizard-types` for listing types, `/api/wizard-types/:type/steps` for type-specific steps, and `/api/wizard-types/:type/statuses` for available statuses. Create/update operations validate wizard type against registry.
     -   **Feed Wizards**: Two GBHET feed implementations - `gbhet_legal_workers_monthly` for monthly worker data exports and `gbhet_legal_workers_corrections` for generating correction feeds with custom step definitions.
     -   **Wizard UI Integration**: Employer detail pages include a "Wizards" tab (`/employers/:id/wizards`) for managing employer-scoped wizards. The wizard detail view (`/wizards/:id`) displays current step with visual highlighting in the steps list, shows step badge in the details card, and allows status updates.
+-   **File Storage System**: Comprehensive file management with object storage integration supporting:
+    -   **File Metadata**: PostgreSQL files table tracking fileName, storagePath, mimeType, size, uploadedBy, uploadedAt, entityType, entityId, accessLevel (public/private), and metadata JSON.
+    -   **Object Storage Service**: AWS SDK S3-compatible wrapper (`server/services/objectStorage.ts`) for file operations including upload, download, delete, metadata retrieval, signed URL generation, and file listing.
+    -   **Storage Module**: Files storage (`server/storage/files.ts`) with comprehensive logging configuration tracking create, update, and delete operations with host entity tracking (entityId).
+    -   **Access Control Policies**: Layered security model with dedicated file permissions (`files.upload`, `files.read-private`, `files.update`, `files.delete`) that layer with entity-based permissions (workers.manage, employers.manage). Access rules: public files require entity view permission; private files require files.read-private OR entity manage permission; uploaders have implicit read/update/delete access; entity permissions (workers.manage, employers.manage) grant appropriate file access for entity-associated files.
+    -   **API Routes**: RESTful file management endpoints (`/api/files`) supporting upload (with multer multipart), list (with entity/uploader filtering), download, signed URL generation, metadata update, and delete operations.
+    -   **File Upload**: Multer-based multipart upload with 50MB limit, storing files in object storage with configurable public/private access levels.
 
 # External Dependencies
 
@@ -74,6 +82,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Third-Party Integrations
 -   **Twilio**: Phone number lookup and validation (Twilio Lookup API).
+-   **AWS SDK**: S3-compatible client for Replit Object Storage operations (@aws-sdk/client-s3, @aws-sdk/s3-request-presigner).
 
 ## API and State Management
 -   **TanStack Query**: Server state management.

@@ -1,0 +1,223 @@
+import type { Express, Request, Response, NextFunction } from "express";
+import { storage } from "../storage";
+import { insertFileSchema } from "@shared/schema";
+import { requireAccess } from "../accessControl";
+import { policies } from "../policies";
+import { objectStorageService } from "../services/objectStorage";
+import multer from "multer";
+
+type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  }
+});
+
+export function registerFileRoutes(
+  app: Express, 
+  requireAuth: AuthMiddleware, 
+  requirePermission: PermissionMiddleware
+) {
+  app.post("/api/files", 
+    upload.single('file'),
+    requireAccess(policies.filesUpload),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: "No file provided" });
+        }
+
+        const { entityType, entityId, accessLevel = 'private', metadata } = req.body;
+        
+        if (!req.user) {
+          return res.status(401).json({ message: "Authentication required" });
+        }
+
+        const uploadResult = await objectStorageService.uploadFile({
+          fileName: req.file.originalname,
+          fileContent: req.file.buffer,
+          mimeType: req.file.mimetype,
+          accessLevel: accessLevel as 'public' | 'private',
+        });
+
+        const fileData = {
+          fileName: req.file.originalname,
+          storagePath: uploadResult.storagePath,
+          mimeType: req.file.mimetype,
+          size: uploadResult.size,
+          uploadedBy: (req.user as any).id,
+          entityType: entityType || null,
+          entityId: entityId || null,
+          accessLevel: accessLevel,
+          metadata: metadata ? JSON.parse(metadata) : null,
+        };
+
+        const validatedData = insertFileSchema.parse(fileData);
+        const file = await storage.files.create(validatedData);
+        
+        res.status(201).json(file);
+      } catch (error) {
+        console.error('File upload error:', error);
+        if (error instanceof Error && error.name === "ZodError") {
+          res.status(400).json({ message: "Invalid file data", error });
+        } else {
+          res.status(500).json({ message: "Failed to upload file" });
+        }
+      }
+    }
+  );
+
+  app.get("/api/files", requireAuth, async (req, res) => {
+    try {
+      const { entityType, entityId, uploadedBy } = req.query;
+      
+      const filters: { entityType?: string; entityId?: string; uploadedBy?: string } = {};
+      if (entityType) filters.entityType = entityType as string;
+      if (entityId) filters.entityId = entityId as string;
+      if (uploadedBy) filters.uploadedBy = uploadedBy as string;
+
+      const files = await storage.files.list(filters);
+      
+      const filteredFiles = [];
+      for (const file of files) {
+        try {
+          const context = await import('../accessControl').then(m => m.buildContext(req));
+          context.params = { id: file.id };
+          const result = await import('../accessControl').then(m => m.evaluatePolicy(policies.filesRead, context));
+          if (result.granted) {
+            filteredFiles.push(file);
+          }
+        } catch (e) {
+        }
+      }
+      
+      res.json(filteredFiles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch files" });
+    }
+  });
+
+  app.get("/api/files/:id", requireAccess(policies.filesRead), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const file = await storage.files.getById(id);
+      
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      res.json(file);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch file" });
+    }
+  });
+
+  app.get("/api/files/:id/download", requireAccess(policies.filesRead), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const file = await storage.files.getById(id);
+      
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      const fileContent = await objectStorageService.downloadFile(file.storagePath);
+      
+      res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+      res.setHeader('Content-Length', file.size);
+      res.send(fileContent);
+    } catch (error) {
+      console.error('File download error:', error);
+      res.status(500).json({ message: "Failed to download file" });
+    }
+  });
+
+  app.get("/api/files/:id/url", requireAccess(policies.filesRead), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { expiresIn = 3600 } = req.query;
+      
+      const file = await storage.files.getById(id);
+      
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      const url = await objectStorageService.generateSignedUrl(
+        file.storagePath, 
+        parseInt(expiresIn as string)
+      );
+      
+      res.json({ url, expiresIn });
+    } catch (error) {
+      console.error('Generate signed URL error:', error);
+      res.status(500).json({ message: "Failed to generate signed URL" });
+    }
+  });
+
+  app.patch("/api/files/:id", requireAccess(policies.filesUpdate), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const existing = await storage.files.getById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      const allowedUpdates = ['metadata', 'accessLevel'];
+      const updates: any = {};
+      for (const key of allowedUpdates) {
+        if (req.body[key] !== undefined) {
+          updates[key] = req.body[key];
+        }
+      }
+
+      if (updates.accessLevel && !['public', 'private'].includes(updates.accessLevel)) {
+        return res.status(400).json({ message: "Invalid accessLevel. Must be 'public' or 'private'" });
+      }
+
+      const validatedData = insertFileSchema.partial().parse(updates);
+      const file = await storage.files.update(id, validatedData);
+      
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      res.json(file);
+    } catch (error) {
+      if (error instanceof Error && error.name === "ZodError") {
+        res.status(400).json({ message: "Invalid file data", error });
+      } else {
+        res.status(500).json({ message: "Failed to update file" });
+      }
+    }
+  });
+
+  app.delete("/api/files/:id", requireAccess(policies.filesDelete), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const existing = await storage.files.getById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      await objectStorageService.deleteFile(existing.storagePath);
+      
+      const deleted = await storage.files.delete(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      res.json({ message: "File deleted successfully" });
+    } catch (error) {
+      console.error('File deletion error:', error);
+      res.status(500).json({ message: "Failed to delete file" });
+    }
+  });
+}
