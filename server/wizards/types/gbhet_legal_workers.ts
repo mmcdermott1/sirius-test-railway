@@ -1,8 +1,78 @@
-import { FeedWizard } from '../feed.js';
+import { FeedWizard, FeedField } from '../feed.js';
 import { WizardStatus, WizardStep } from '../base.js';
 
 export abstract class GbhetLegalWorkersWizard extends FeedWizard {
   entityType = 'employer';
+
+  /**
+   * Get the field definitions for the GBHET Legal Workers feed
+   */
+  getFields(): FeedField[] {
+    return [
+      { 
+        id: 'ssn', 
+        name: 'SSN', 
+        type: 'string', 
+        required: true,
+        description: 'Social Security Number',
+        format: 'ssn',
+        pattern: '^\\d{3}-\\d{2}-\\d{4}$',
+        displayOrder: 1
+      },
+      { 
+        id: 'firstName', 
+        name: 'First Name', 
+        type: 'string', 
+        required: true,
+        description: 'Worker first name',
+        maxLength: 100,
+        displayOrder: 2
+      },
+      { 
+        id: 'middleName', 
+        name: 'Middle Name', 
+        type: 'string', 
+        required: false,
+        description: 'Worker middle name',
+        maxLength: 100,
+        displayOrder: 3
+      },
+      { 
+        id: 'lastName', 
+        name: 'Last Name', 
+        type: 'string', 
+        required: true,
+        description: 'Worker last name',
+        maxLength: 100,
+        displayOrder: 4
+      },
+      { 
+        id: 'dateOfBirth', 
+        name: 'Date of Birth', 
+        type: 'date', 
+        required: true,
+        description: 'Worker date of birth',
+        format: 'date',
+        displayOrder: 5
+      },
+      { 
+        id: 'employmentStatus', 
+        name: 'Employment Status', 
+        type: 'string', 
+        required: true,
+        description: 'Current employment status',
+        displayOrder: 6
+      },
+      { 
+        id: 'numberOfHours', 
+        name: 'Number of Hours', 
+        type: 'number', 
+        required: true,
+        description: 'Number of hours worked',
+        displayOrder: 7
+      }
+    ];
+  }
 
   getSteps(): WizardStep[] {
     return [

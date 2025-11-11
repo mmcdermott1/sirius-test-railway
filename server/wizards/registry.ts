@@ -1,4 +1,12 @@
 import { WizardTypeDefinition } from './base.js';
+import { FeedWizard } from './feed.js';
+
+export class WizardFieldsUnsupportedError extends Error {
+  constructor(wizardTypeName: string) {
+    super(`Wizard type "${wizardTypeName}" does not support field definitions. Only feed-enabled wizards provide field metadata.`);
+    this.name = 'WizardFieldsUnsupportedError';
+  }
+}
 
 class WizardTypeRegistry {
   private types: Map<string, WizardTypeDefinition> = new Map();
@@ -58,6 +66,25 @@ class WizardTypeRegistry {
       throw new Error(`Wizard type "${name}" not found`);
     }
     return await wizardType.getStatuses();
+  }
+
+  async getFieldsForType(name: string): Promise<any[]> {
+    const wizardType = this.get(name);
+    if (!wizardType) {
+      throw new Error(`Wizard type "${name}" not found`);
+    }
+    
+    // Type guard: only feed wizards support field definitions
+    if (!(wizardType instanceof FeedWizard)) {
+      throw new WizardFieldsUnsupportedError(name);
+    }
+    
+    // Check if the specific feed wizard implements getFields
+    if (typeof wizardType.getFields !== 'function') {
+      throw new WizardFieldsUnsupportedError(name);
+    }
+    
+    return await wizardType.getFields();
   }
 }
 

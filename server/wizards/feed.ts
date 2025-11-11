@@ -19,8 +19,27 @@ export interface FeedData {
   uploadedFileId?: string;
 }
 
+export interface FeedField {
+  id: string;
+  name: string;
+  type: 'string' | 'number' | 'date';
+  required: boolean;
+  description?: string;
+  format?: 'ssn' | 'date' | 'currency' | 'phone' | 'email';
+  options?: string[];
+  maxLength?: number;
+  pattern?: string;
+  displayOrder?: number;
+}
+
 export abstract class FeedWizard extends BaseWizard {
   isFeed: boolean = true;
+
+  /**
+   * Get field definitions for this feed wizard (optional)
+   * Override in subclasses that support field mapping
+   */
+  getFields?(): FeedField[];
 
   getSteps(): WizardStep[] {
     return [

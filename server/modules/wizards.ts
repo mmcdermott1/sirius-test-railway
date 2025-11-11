@@ -58,6 +58,19 @@ export function registerWizardRoutes(
     }
   });
 
+  app.get("/api/wizard-types/:typeName/fields", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { typeName } = req.params;
+      const fields = await wizardRegistry.getFieldsForType(typeName);
+      res.json(fields);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'WizardFieldsUnsupportedError') {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(404).json({ message: error instanceof Error ? error.message : "Wizard type not found" });
+    }
+  });
+
   app.get("/api/wizards", requireAccess(policies.admin), async (req, res) => {
     try {
       const { type, status, entityId } = req.query;
