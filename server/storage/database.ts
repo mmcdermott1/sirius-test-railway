@@ -10,6 +10,7 @@ import { type WorkerEmphistStorage, createWorkerEmphistStorage } from "./worker-
 import { type BookmarkStorage, createBookmarkStorage } from "./bookmarks";
 import { type LedgerStorage, createLedgerStorage } from "./ledger";
 import { type EmployerContactStorage, createEmployerContactStorage, employerContactLoggingConfig } from "./employer-contacts";
+import { type WizardStorage, createWizardStorage } from "./wizards";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsWorkerIdType, optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -28,6 +29,7 @@ export interface IStorage {
   bookmarks: BookmarkStorage;
   ledger: LedgerStorage;
   employerContacts: EmployerContactStorage;
+  wizards: WizardStorage;
 }
 
 /**
@@ -1040,6 +1042,36 @@ const trustBenefitLoggingConfig: StorageLoggingConfig<TrustBenefitStorage> = {
   }
 };
 
+const wizardLoggingConfig: StorageLoggingConfig<WizardStorage> = {
+  module: 'wizards',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args) => args[0]?.type || 'new wizard',
+      after: async (args, result, storage) => {
+        return result;
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => {
+        return await storage.getById(args[0]);
+      },
+      after: async (args, result, storage) => {
+        return result;
+      }
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => {
+        return await storage.getById(args[0]);
+      }
+    }
+  }
+};
+
 export class DatabaseStorage implements IStorage {
   variables: VariableStorage;
   users: UserStorage;
@@ -1053,6 +1085,7 @@ export class DatabaseStorage implements IStorage {
   bookmarks: BookmarkStorage;
   ledger: LedgerStorage;
   employerContacts: EmployerContactStorage;
+  wizards: WizardStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -1084,6 +1117,7 @@ export class DatabaseStorage implements IStorage {
     this.bookmarks = createBookmarkStorage();
     this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
     this.employerContacts = withStorageLogging(createEmployerContactStorage(this.contacts), employerContactLoggingConfig);
+    this.wizards = withStorageLogging(createWizardStorage(), wizardLoggingConfig);
   }
 }
 

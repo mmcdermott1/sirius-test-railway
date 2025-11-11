@@ -32,7 +32,7 @@ Preferred communication style: Simple, everyday language.
 -   **Database**: PostgreSQL (Neon Database).
 -   **ORM**: Drizzle ORM for type-safe operations and migrations.
 -   **Schema Management**: Shared Zod schema definitions between frontend and backend.
--   **Storage Architecture**: Modular, namespace-based storage organized by domain (e.g., `variables`, `users`, `workers`, `employers`, `contacts`, `options`, `ledger`). Storage methods use simplified names (e.g., `create`, `update`, `getByName`) within their namespaces. The employerContacts storage includes a batch method `getUserAccountStatuses` for efficiently fetching user linkage status for multiple employer contacts in a single query. The contacts storage includes `getContactByEmail` for case-insensitive email lookups used in policy enforcement.
+-   **Storage Architecture**: Modular, namespace-based storage organized by domain (e.g., `variables`, `users`, `workers`, `employers`, `contacts`, `options`, `ledger`, `wizards`). Storage methods use simplified names (e.g., `create`, `update`, `getByName`) within their namespaces. The employerContacts storage includes a batch method `getUserAccountStatuses` for efficiently fetching user linkage status for multiple employer contacts in a single query. The contacts storage includes `getContactByEmail` for case-insensitive email lookups used in policy enforcement. The wizards storage provides CRUD operations with optional filtering by type, status, and entityId.
 
 ## Key Features
 -   **Worker Management**: Full CRUD for workers, including personal and contact information, with sequential `sirius_id`.
@@ -49,6 +49,7 @@ Preferred communication style: Simple, everyday language.
 -   **Access Control**: Centralized permission registry and declarative policies for fine-grained control over features and data. The `employerUser` policy grants employer users access to their associated employer records by requiring the "employer" permission and either "staff" permission or verified association via an employer-contact record matching the user's email. The `workerUser` policy grants worker users access to their associated worker records by requiring the "worker" permission and either "staff" permission or verified association via matching contact email. All administrative functions (user management, component configuration, address validation) use the unified `admin` policy.
 -   **Routing Architecture**: Consistent routing patterns for configuration pages (under `/config/`) and detail pages, with UUID validation and legacy redirects.
 -   **Ledger System**: Manages financial transactions with a `ledger_payments` table, including status, allocation, payer details, and account references.
+-   **Wizards**: Flexible workflow state management system for tracking multi-step processes (imports, bulk operations, etc.) with JSON data storage, type/status filtering, and full audit logging via Winston.
 
 # External Dependencies
 

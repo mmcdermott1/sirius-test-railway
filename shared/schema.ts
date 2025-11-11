@@ -251,6 +251,15 @@ export const ledgerPayments = pgTable("ledger_payments", {
   details: jsonb("details"),
 });
 
+export const wizards = pgTable("wizards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: timestamp("date").default(sql`now()`).notNull(),
+  type: varchar("type").notNull(),
+  status: varchar("status").notNull(),
+  entityId: varchar("entity_id"),
+  data: jsonb("data"),
+});
+
 export const winstonLogs = pgTable("winston_logs", {
   id: serial("id").primaryKey(),
   level: varchar("level", { length: 20 }),
@@ -363,6 +372,11 @@ export const insertLedgerAccountSchema = createInsertSchema(ledgerAccounts).omit
 
 export const insertLedgerPaymentSchema = createInsertSchema(ledgerPayments).omit({
   id: true,
+});
+
+export const insertWizardSchema = createInsertSchema(wizards).omit({
+  id: true,
+  date: true,
 });
 
 export const insertGenderOptionSchema = createInsertSchema(optionsGender).omit({
@@ -481,6 +495,9 @@ export type LedgerAccount = typeof ledgerAccounts.$inferSelect;
 
 export type InsertLedgerPayment = z.infer<typeof insertLedgerPaymentSchema>;
 export type LedgerPayment = typeof ledgerPayments.$inferSelect;
+
+export type InsertWizard = z.infer<typeof insertWizardSchema>;
+export type Wizard = typeof wizards.$inferSelect;
 
 export type InsertGenderOption = z.infer<typeof insertGenderOptionSchema>;
 export type GenderOption = typeof optionsGender.$inferSelect;
