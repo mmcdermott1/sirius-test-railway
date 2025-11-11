@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { insertWizardSchema } from "@shared/schema";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
+import { wizardRegistry } from "../wizards/index.js";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -12,6 +13,40 @@ export function registerWizardRoutes(
   requireAuth: AuthMiddleware, 
   requirePermission: PermissionMiddleware
 ) {
+  app.get("/api/wizard-types", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const types = wizardRegistry.getAll().map(type => ({
+        name: type.name,
+        displayName: type.displayName,
+        description: type.description,
+        isFeed: type.isFeed
+      }));
+      res.json(types);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch wizard types" });
+    }
+  });
+
+  app.get("/api/wizard-types/:typeName/steps", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { typeName } = req.params;
+      const steps = await wizardRegistry.getStepsForType(typeName);
+      res.json(steps);
+    } catch (error) {
+      res.status(404).json({ message: error instanceof Error ? error.message : "Wizard type not found" });
+    }
+  });
+
+  app.get("/api/wizard-types/:typeName/statuses", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { typeName } = req.params;
+      const statuses = await wizardRegistry.getStatusesForType(typeName);
+      res.json(statuses);
+    } catch (error) {
+      res.status(404).json({ message: error instanceof Error ? error.message : "Wizard type not found" });
+    }
+  });
+
   app.get("/api/wizards", requireAccess(policies.admin), async (req, res) => {
     try {
       const { type, status, entityId } = req.query;
@@ -46,6 +81,12 @@ export function registerWizardRoutes(
   app.post("/api/wizards", requireAccess(policies.admin), async (req, res) => {
     try {
       const validatedData = insertWizardSchema.parse(req.body);
+      
+      const typeValidation = await wizardRegistry.validateType(validatedData.type);
+      if (!typeValidation.valid) {
+        return res.status(400).json({ message: typeValidation.error });
+      }
+      
       const wizard = await storage.wizards.create(validatedData);
       res.status(201).json(wizard);
     } catch (error) {
@@ -67,6 +108,14 @@ export function registerWizardRoutes(
       }
 
       const validatedData = insertWizardSchema.partial().parse(req.body);
+      
+      if (validatedData.type) {
+        const typeValidation = await wizardRegistry.validateType(validatedData.type);
+        if (!typeValidation.valid) {
+          return res.status(400).json({ message: typeValidation.error });
+        }
+      }
+      
       const wizard = await storage.wizards.update(id, validatedData);
       res.json(wizard);
     } catch (error) {
