@@ -11,7 +11,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { WizardStepper } from "@/components/wizards/WizardStepper";
 import { WizardNavigator } from "@/components/wizards/WizardNavigator";
-import { getStepComponent } from "@/components/wizards/steps/registry";
+import { getStepComponent, getStepController } from "@/components/wizards/steps/registry";
 import type { WizardData } from "@shared/schema";
 
 interface Wizard {
@@ -101,6 +101,16 @@ export default function WizardView() {
     enabled: !!wizard?.entityId && wizardType?.entityType === 'employer',
   });
 
+  const { data: wizardFiles = [] } = useQuery<any[]>({
+    queryKey: ["/api/wizards", id, "files"],
+    enabled: !!wizard,
+  });
+
+  const { data: wizardFields = [] } = useQuery<any[]>({
+    queryKey: ["/api/wizard-types", wizard?.type, "fields"],
+    enabled: !!wizard && !!wizardType?.isFeed,
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       const response = await apiRequest("PATCH", `/api/wizards/${id}`, { status: newStatus });
@@ -166,6 +176,13 @@ export default function WizardView() {
 
   const wizardData = wizard?.data as WizardData | undefined;
   const StepComponent = wizard && wizardSteps ? getStepComponent(wizard.type, wizard.currentStep || wizardSteps[0]?.id || '') : null;
+  
+  // Evaluate step completion
+  const currentStepId = wizard?.currentStep || wizardSteps?.[0]?.id || '';
+  const stepController = wizard && wizardSteps ? getStepController(wizard.type, currentStepId) : null;
+  const canProceed = stepController 
+    ? stepController.evaluateCompletion({ wizard, files: wizardFiles, fields: wizardFields })
+    : true;
 
   if (wizardError) {
     return (
@@ -266,6 +283,7 @@ export default function WizardView() {
                 onNext={() => nextStepMutation.mutate(undefined)}
                 onPrevious={() => previousStepMutation.mutate(undefined)}
                 isLoading={nextStepMutation.isPending || previousStepMutation.isPending}
+                canProceed={canProceed}
               />
             </CardContent>
           </Card>

@@ -520,8 +520,14 @@ export const wizardStepProgressSchema = z.object({
   payload: z.any().optional(),
 });
 
+export const wizardStepStatusSchema = z.object({
+  isComplete: z.boolean(),
+  updatedAt: z.string(),
+});
+
 export const wizardDataSchema = z.object({
   progress: z.record(z.string(), wizardStepProgressSchema).optional(),
+  stepStatus: z.record(z.string(), wizardStepStatusSchema).optional(),
   metadata: z.object({
     lastUpdatedBy: z.string().optional(),
     lastUpdatedAt: z.string().optional(),
@@ -529,6 +535,7 @@ export const wizardDataSchema = z.object({
 }).passthrough();
 
 export type WizardStepProgress = z.infer<typeof wizardStepProgressSchema>;
+export type WizardStepStatus = z.infer<typeof wizardStepStatusSchema>;
 export type WizardData = z.infer<typeof wizardDataSchema>;
 
 export const insertFileSchema = createInsertSchema(files).omit({

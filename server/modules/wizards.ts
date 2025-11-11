@@ -185,6 +185,51 @@ export function registerWizardRoutes(
     }
   });
 
+  // Helper function to evaluate if a step is complete
+  async function isStepComplete(wizard: any, stepId: string): Promise<boolean> {
+    const wizardData = wizard.data || {};
+    
+    // Upload step validation
+    if (stepId === 'upload') {
+      if (!wizardData.uploadedFileId) return false;
+      const files = await storage.files.list({ entityType: 'wizard', entityId: wizard.id });
+      return files.length > 0;
+    }
+    
+    // Map step validation
+    if (stepId === 'map') {
+      const mode = wizardData.mode || 'create';
+      const columnMapping = wizardData.columnMapping || {};
+      
+      try {
+        const fields = await wizardRegistry.getFieldsForType(wizard.type);
+        
+        // Get required fields based on mode
+        const requiredFields = fields.filter((f: any) => {
+          if (f.required) return true;
+          if (mode === 'create' && f.requiredForCreate) return true;
+          if (mode === 'update' && f.requiredForUpdate) return true;
+          return false;
+        });
+        
+        // If no required fields, step is complete
+        if (requiredFields.length === 0) return true;
+        
+        // Check if all required fields are mapped
+        const mappedValues = Object.values(columnMapping).filter(v => v && v !== '_unmapped');
+        const mappedRequiredFields = requiredFields.filter((f: any) => mappedValues.includes(f.id));
+        
+        return requiredFields.length === mappedRequiredFields.length;
+      } catch (error) {
+        // If fields aren't available (not a feed wizard), consider step complete
+        return true;
+      }
+    }
+    
+    // Other steps are always considered complete
+    return true;
+  }
+
   app.post("/api/wizards/:id/steps/next", requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
@@ -210,6 +255,14 @@ export function registerWizardRoutes(
       
       if (currentIndex >= steps.length - 1) {
         return res.status(400).json({ message: "Already on last step" });
+      }
+
+      // Validate current step is complete before advancing
+      const stepComplete = await isStepComplete(wizard, currentStepId);
+      if (!stepComplete) {
+        return res.status(400).json({ 
+          message: "Cannot proceed to next step. Please complete all required items in the current step." 
+        });
       }
 
       const nextStep = steps[currentIndex + 1];
