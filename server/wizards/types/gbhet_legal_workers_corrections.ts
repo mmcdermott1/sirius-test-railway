@@ -1,7 +1,8 @@
-import { FeedWizard, FeedConfig, FeedData } from '../feed.js';
+import { FeedConfig, FeedData } from '../feed.js';
 import { WizardStep } from '../base.js';
+import { GbhetLegalWorkersWizard } from './gbhet_legal_workers.js';
 
-export class GbhetLegalWorkersCorrectionsWizard extends FeedWizard {
+export class GbhetLegalWorkersCorrectionsWizard extends GbhetLegalWorkersWizard {
   name = 'gbhet_legal_workers_corrections';
   displayName = 'GBHET Legal Workers - Corrections Feed';
   description = 'Generate corrections feed for legal workers in GBHET';
@@ -30,10 +31,6 @@ export class GbhetLegalWorkersCorrectionsWizard extends FeedWizard {
         config.outputFormat || 'csv'
       )
     };
-  }
-
-  async getRecordCount(filters?: Record<string, any>): Promise<number> {
-    return 0;
   }
 
   async identifyCorrections(period: string): Promise<any[]> {

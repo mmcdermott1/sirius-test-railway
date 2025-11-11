@@ -1,6 +1,7 @@
-import { FeedWizard, FeedConfig, FeedData, createMonthlyDateRange, getCurrentMonth, formatMonthYear } from '../feed.js';
+import { FeedConfig, FeedData, createMonthlyDateRange, getCurrentMonth, formatMonthYear } from '../feed.js';
+import { GbhetLegalWorkersWizard } from './gbhet_legal_workers.js';
 
-export class GbhetLegalWorkersMonthlyWizard extends FeedWizard {
+export class GbhetLegalWorkersMonthlyWizard extends GbhetLegalWorkersWizard {
   name = 'gbhet_legal_workers_monthly';
   displayName = 'GBHET Legal Workers - Monthly Feed';
   description = 'Generate monthly feed of legal workers for GBHET';
@@ -17,10 +18,6 @@ export class GbhetLegalWorkersMonthlyWizard extends FeedWizard {
       filters: { year, month },
       outputPath: this.formatOutputFilename(`gbhet_legal_workers_${year}_${month}`, config.outputFormat || 'csv')
     };
-  }
-
-  async getRecordCount(filters?: Record<string, any>): Promise<number> {
-    return 0;
   }
 
   async generateRecords(year: number, month: number): Promise<any[]> {
