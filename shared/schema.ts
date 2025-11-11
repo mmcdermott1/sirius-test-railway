@@ -261,6 +261,18 @@ export const wizards = pgTable("wizards", {
   data: jsonb("data"),
 });
 
+export const wizardFeedMappings = pgTable("wizard_feed_mappings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: varchar("type").notNull(),
+  firstRowHash: varchar("first_row_hash").notNull(),
+  mapping: jsonb("mapping").notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => [
+  index("idx_wizard_feed_mappings_user_type_hash").on(table.userId, table.type, table.firstRowHash),
+]);
+
 export const files = pgTable("files", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   fileName: varchar("file_name").notNull(),
@@ -394,6 +406,12 @@ export const insertWizardSchema = createInsertSchema(wizards).omit({
   date: true,
 });
 
+export const insertWizardFeedMappingSchema = createInsertSchema(wizardFeedMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertGenderOptionSchema = createInsertSchema(optionsGender).omit({
   id: true,
 });
@@ -513,6 +531,9 @@ export type LedgerPayment = typeof ledgerPayments.$inferSelect;
 
 export type InsertWizard = z.infer<typeof insertWizardSchema>;
 export type Wizard = typeof wizards.$inferSelect;
+
+export type InsertWizardFeedMapping = z.infer<typeof insertWizardFeedMappingSchema>;
+export type WizardFeedMapping = typeof wizardFeedMappings.$inferSelect;
 
 export const wizardStepProgressSchema = z.object({
   status: z.enum(['pending', 'in_progress', 'completed']),

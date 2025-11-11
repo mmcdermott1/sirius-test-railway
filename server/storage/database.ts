@@ -11,6 +11,7 @@ import { type BookmarkStorage, createBookmarkStorage } from "./bookmarks";
 import { type LedgerStorage, createLedgerStorage } from "./ledger";
 import { type EmployerContactStorage, createEmployerContactStorage, employerContactLoggingConfig } from "./employer-contacts";
 import { type WizardStorage, createWizardStorage } from "./wizards";
+import { type WizardFeedMappingStorage, createWizardFeedMappingStorage } from "./wizard_feed_mappings";
 import { type FileStorage, createFileStorage, fileLoggingConfig } from "./files";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
@@ -32,6 +33,7 @@ export interface IStorage {
   ledger: LedgerStorage;
   employerContacts: EmployerContactStorage;
   wizards: WizardStorage;
+  wizardFeedMappings: WizardFeedMappingStorage;
   files: FileStorage;
 }
 
@@ -1119,6 +1121,7 @@ export class DatabaseStorage implements IStorage {
   ledger: LedgerStorage;
   employerContacts: EmployerContactStorage;
   wizards: WizardStorage;
+  wizardFeedMappings: WizardFeedMappingStorage;
   files: FileStorage;
 
   constructor() {
@@ -1152,6 +1155,7 @@ export class DatabaseStorage implements IStorage {
     this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
     this.employerContacts = withStorageLogging(createEmployerContactStorage(this.contacts), employerContactLoggingConfig);
     this.wizards = withStorageLogging(createWizardStorage(), wizardLoggingConfig);
+    this.wizardFeedMappings = createWizardFeedMappingStorage();
     this.files = withStorageLogging(createFileStorage(), fileLoggingConfig);
   }
 }
