@@ -32,6 +32,7 @@ import EmployerView from "@/pages/employer-view";
 import EmployerEdit from "@/pages/employer-edit";
 import EmployerWorkers from "@/pages/employer-workers";
 import EmployerContacts from "@/pages/employer-contacts";
+import EmployerWizards from "@/pages/employer-wizards";
 import AllEmployerContacts from "@/pages/all-employer-contacts";
 import EmployerContactView from "@/pages/employer-contact-view";
 import EmployerContactEdit from "@/pages/employer-contact-edit";
@@ -41,6 +42,7 @@ import EmployerContactPhoneNumbers from "@/pages/employer-contact-phone-numbers"
 import EmployerContactAddresses from "@/pages/employer-contact-addresses";
 import EmployerContactUser from "@/pages/employer-contact-user";
 import EmployerLogs from "@/pages/employer-logs";
+import WizardView from "@/pages/wizard-view";
 import StripeCustomerPage from "@/pages/employers/stripe-customer";
 import StripePaymentMethodsPage from "@/pages/employers/stripe-payment-methods";
 import TrustBenefits from "@/pages/trust-benefits";
@@ -275,6 +277,22 @@ function Router() {
         <ProtectedRoute policy="employersView">
           <AuthenticatedLayout>
             <EmployerContacts />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/employers/:id/wizards">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <EmployerWizards />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/wizards/:id">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <WizardView />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
