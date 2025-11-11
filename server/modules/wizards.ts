@@ -88,6 +88,13 @@ export function registerWizardRoutes(
         return res.status(400).json({ message: typeValidation.error });
       }
       
+      if (!validatedData.currentStep) {
+        const steps = await wizardRegistry.getStepsForType(validatedData.type);
+        if (steps && steps.length > 0) {
+          validatedData.currentStep = steps[0].name;
+        }
+      }
+      
       const wizard = await storage.wizards.create(validatedData);
       res.status(201).json(wizard);
     } catch (error) {
