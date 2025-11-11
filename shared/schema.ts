@@ -256,6 +256,7 @@ export const wizards = pgTable("wizards", {
   date: timestamp("date").default(sql`now()`).notNull(),
   type: varchar("type").notNull(),
   status: varchar("status").notNull(),
+  currentStep: varchar("current_step"),
   entityId: varchar("entity_id"),
   data: jsonb("data"),
 });
