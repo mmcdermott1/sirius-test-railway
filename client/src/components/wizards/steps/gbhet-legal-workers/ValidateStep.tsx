@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -66,6 +67,8 @@ export function ValidateStep({ wizardId, wizardType, data, onDataChange }: Valid
           setResults(data.results);
           setIsValidating(false);
           eventSource.close();
+          // Invalidate wizard query to refresh step completion status
+          queryClient.invalidateQueries({ queryKey: ["/api/wizards", wizardId] });
         } else if (data.type === 'error') {
           setError(data.message);
           setIsValidating(false);
