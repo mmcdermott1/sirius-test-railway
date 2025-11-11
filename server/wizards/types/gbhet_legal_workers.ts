@@ -2,6 +2,8 @@ import { FeedWizard } from '../feed.js';
 import { WizardStatus, WizardStep } from '../base.js';
 
 export abstract class GbhetLegalWorkersWizard extends FeedWizard {
+  entityType = 'employer';
+
   getSteps(): WizardStep[] {
     return [
       { id: 'upload', name: 'Upload', description: 'Upload data file' },

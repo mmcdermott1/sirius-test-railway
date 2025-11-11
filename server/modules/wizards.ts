@@ -19,7 +19,8 @@ export function registerWizardRoutes(
         name: type.name,
         displayName: type.displayName,
         description: type.description,
-        isFeed: type.isFeed
+        isFeed: type.isFeed,
+        entityType: type.entityType
       }));
       res.json(types);
     } catch (error) {
