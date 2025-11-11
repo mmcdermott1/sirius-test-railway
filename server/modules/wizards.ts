@@ -653,6 +653,14 @@ export function registerWizardRoutes(
           return res.status(401).json({ message: "User not authenticated" });
         }
 
+        // Get database user from Replit user
+        const replitUserId = user?.claims?.sub;
+        const dbUser = await storage.users.getUserByReplitId(replitUserId);
+
+        if (!dbUser) {
+          return res.status(401).json({ message: "User not found" });
+        }
+
         // Get wizard type instance
         const wizardType = wizardRegistry.get(wizard.type);
         if (!wizardType || !(wizardType instanceof FeedWizard)) {
@@ -709,7 +717,7 @@ export function registerWizardRoutes(
 
         // Look for existing mapping
         const existingMapping = await storage.wizardFeedMappings.findByUserTypeAndHash(
-          user.id,
+          dbUser.id,
           wizard.type,
           headerHash
         );
@@ -745,13 +753,21 @@ export function registerWizardRoutes(
           return res.status(401).json({ message: "User not authenticated" });
         }
 
+        // Get database user from Replit user
+        const replitUserId = user?.claims?.sub;
+        const dbUser = await storage.users.getUserByReplitId(replitUserId);
+
+        if (!dbUser) {
+          return res.status(401).json({ message: "User not found" });
+        }
+
         if (!headerHash || !mapping) {
           return res.status(400).json({ message: "Header hash and mapping are required" });
         }
 
         // Check if mapping already exists
         const existingMapping = await storage.wizardFeedMappings.findByUserTypeAndHash(
-          user.id,
+          dbUser.id,
           wizard.type,
           headerHash
         );
@@ -765,7 +781,7 @@ export function registerWizardRoutes(
         } else {
           // Create new mapping
           const created = await storage.wizardFeedMappings.create({
-            userId: user.id,
+            userId: dbUser.id,
             type: wizard.type,
             firstRowHash: headerHash,
             mapping,
