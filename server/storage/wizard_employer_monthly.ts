@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { wizardEmployerMonthly, insertWizardEmployerMonthlySchema } from "@shared/schema";
+import { wizardEmployerMonthly, wizards, insertWizardEmployerMonthlySchema } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ export type InsertWizardEmployerMonthly = z.infer<typeof insertWizardEmployerMon
 export interface WizardEmployerMonthlyStorage {
   create(data: InsertWizardEmployerMonthly): Promise<WizardEmployerMonthly>;
   getByWizardId(wizardId: string): Promise<WizardEmployerMonthly | undefined>;
-  listByPeriod(year: number, month: number): Promise<WizardEmployerMonthly[]>;
+  listByPeriod(year: number, month: number): Promise<any[]>;
   listByEmployer(employerId: string, year?: number, month?: number): Promise<WizardEmployerMonthly[]>;
   delete(wizardId: string): Promise<boolean>;
 }
@@ -32,16 +32,31 @@ export function createWizardEmployerMonthlyStorage(): WizardEmployerMonthlyStora
       return record || undefined;
     },
 
-    async listByPeriod(year: number, month: number): Promise<WizardEmployerMonthly[]> {
-      return db
-        .select()
+    async listByPeriod(year: number, month: number): Promise<any[]> {
+      const results = await db
+        .select({
+          wizardId: wizardEmployerMonthly.wizardId,
+          employerId: wizardEmployerMonthly.employerId,
+          year: wizardEmployerMonthly.year,
+          month: wizardEmployerMonthly.month,
+          id: wizards.id,
+          type: wizards.type,
+          status: wizards.status,
+          currentStep: wizards.currentStep,
+          entityId: wizards.entityId,
+          data: wizards.data,
+          createdAt: wizards.date,
+        })
         .from(wizardEmployerMonthly)
+        .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
         .where(
           and(
             eq(wizardEmployerMonthly.year, year),
             eq(wizardEmployerMonthly.month, month)
           )
         );
+      
+      return results;
     },
 
     async listByEmployer(
