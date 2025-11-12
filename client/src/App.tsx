@@ -33,6 +33,7 @@ import EmployerEdit from "@/pages/employer-edit";
 import EmployerWorkers from "@/pages/employer-workers";
 import EmployerContacts from "@/pages/employer-contacts";
 import EmployerWizards from "@/pages/employer-wizards";
+import EmployersMonthlyUploads from "@/pages/employers-monthly-uploads";
 import AllEmployerContacts from "@/pages/all-employer-contacts";
 import EmployerContactView from "@/pages/employer-contact-view";
 import EmployerContactEdit from "@/pages/employer-contact-edit";
@@ -245,6 +246,14 @@ function Router() {
         <ProtectedRoute policy="bookmark">
           <AuthenticatedLayout>
             <Bookmarks />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/employers/monthly-uploads">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <EmployersMonthlyUploads />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

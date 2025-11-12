@@ -11,6 +11,7 @@ import {
   Home,
   Bookmark,
   ChevronDown,
+  Calendar,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -160,6 +161,14 @@ export default function Header() {
                     <div className="flex items-center cursor-pointer" data-testid="menu-employer-contacts-all">
                       <Users className="h-4 w-4 mr-2" />
                       Employer Contacts
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/employers/monthly-uploads" className="w-full">
+                    <div className="flex items-center cursor-pointer" data-testid="menu-monthly-uploads">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Monthly Uploads
                     </div>
                   </Link>
                 </DropdownMenuItem>
