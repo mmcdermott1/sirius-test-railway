@@ -223,8 +223,14 @@ export function registerWizardRoutes(
       }
 
       // Delete all associated files from object storage
-      const files = await storage.files.list({ entityType: 'wizard', entityId: id });
-      for (const file of files) {
+      // Files are linked to wizards via metadata.wizardId
+      const allFiles = await storage.files.list();
+      const wizardFiles = allFiles.filter((file) => {
+        const metadata = file.metadata as any;
+        return metadata?.wizardId === id;
+      });
+      
+      for (const file of wizardFiles) {
         try {
           // Delete from object storage
           await objectStorageService.deleteFile(file.storagePath);
