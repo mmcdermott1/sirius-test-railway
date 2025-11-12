@@ -178,6 +178,28 @@ export function registerWizardRoutes(
       // TODO: Replace hardcoded type check with wizard type metadata (e.g., wizardRegistry.isMonthlyWizard)
       const isMonthlyWizard = validatedData.type === 'gbhet_legal_workers_monthly';
       
+      // Pre-validate monthly wizard requirements before starting transaction
+      if (isMonthlyWizard) {
+        // Ensure entityId is present
+        if (!validatedData.entityId) {
+          return res.status(400).json({ 
+            message: "Entity ID is required for monthly employer wizards" 
+          });
+        }
+        
+        // Validate year and month from launch arguments
+        const wizardData = validatedData.data as any;
+        const launchArgs = wizardData?.launchArguments || {};
+        const year = Number(launchArgs.year);
+        const month = Number(launchArgs.month);
+        
+        if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+          return res.status(400).json({ 
+            message: "Valid year (integer) and month (1-12) are required for monthly employer wizards" 
+          });
+        }
+      }
+      
       const wizard = await db.transaction(async (tx) => {
         // Create the wizard
         const [createdWizard] = await tx
@@ -190,13 +212,9 @@ export function registerWizardRoutes(
           const wizardData = validatedData.data as any;
           const launchArgs = wizardData?.launchArguments || {};
           
-          // Validate and parse year and month to ensure they're numbers
+          // Parse year and month (already validated above)
           const year = Number(launchArgs.year);
           const month = Number(launchArgs.month);
-          
-          if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-            throw new Error('Invalid year or month in launch arguments');
-          }
           
           await tx.insert(wizardEmployerMonthly).values({
             wizardId: createdWizard.id,
