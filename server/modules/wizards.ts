@@ -223,12 +223,7 @@ export function registerWizardRoutes(
       }
 
       // Delete all associated files from object storage
-      // Files are linked to wizards via metadata.wizardId
-      const allFiles = await storage.files.list();
-      const wizardFiles = allFiles.filter((file) => {
-        const metadata = file.metadata as any;
-        return metadata?.wizardId === id;
-      });
+      const wizardFiles = await storage.files.list({ entityType: 'wizard', entityId: id });
       
       for (const file of wizardFiles) {
         try {
@@ -546,8 +541,8 @@ export function registerWizardRoutes(
           mimeType: req.file.mimetype,
           size: req.file.size,
           uploadedBy: dbUser.id,
-          entityType: wizardTypeInstance?.entityType || 'wizard',
-          entityId: wizard.entityId || wizardId,
+          entityType: 'wizard',
+          entityId: wizardId,
           accessLevel: 'private'
         });
 
