@@ -72,6 +72,16 @@ export function registerWizardRoutes(
     }
   });
 
+  app.get("/api/wizard-types/:typeName/launch-arguments", requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { typeName } = req.params;
+      const launchArguments = await wizardRegistry.getLaunchArgumentsForType(typeName);
+      res.json(launchArguments);
+    } catch (error) {
+      res.status(404).json({ message: error instanceof Error ? error.message : "Wizard type not found" });
+    }
+  });
+
   app.get("/api/wizards", requireAccess(policies.admin), async (req, res) => {
     try {
       const { type, status, entityId } = req.query;

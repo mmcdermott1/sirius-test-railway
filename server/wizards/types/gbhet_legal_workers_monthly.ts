@@ -1,10 +1,36 @@
 import { FeedConfig, FeedData, createMonthlyDateRange, getCurrentMonth, formatMonthYear } from '../feed.js';
 import { GbhetLegalWorkersWizard } from './gbhet_legal_workers.js';
+import { LaunchArgument } from '../base.js';
 
 export class GbhetLegalWorkersMonthlyWizard extends GbhetLegalWorkersWizard {
   name = 'gbhet_legal_workers_monthly';
   displayName = 'GBHET Legal Workers - Monthly Feed';
   description = 'Generate monthly feed of legal workers for GBHET';
+
+  getLaunchArguments(): LaunchArgument[] {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    return [
+      {
+        id: 'year',
+        name: 'Year',
+        type: 'year',
+        required: true,
+        description: 'Select the year for this monthly feed',
+        defaultValue: currentYear
+      },
+      {
+        id: 'month',
+        name: 'Month',
+        type: 'month',
+        required: true,
+        description: 'Select the month for this monthly feed',
+        defaultValue: currentMonth
+      }
+    ];
+  }
 
   async generateFeed(config: FeedConfig, data: any): Promise<FeedData> {
     const { year, month } = data.period || getCurrentMonth();

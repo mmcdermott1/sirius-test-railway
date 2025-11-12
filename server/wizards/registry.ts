@@ -86,6 +86,19 @@ class WizardTypeRegistry {
     
     return await wizardType.getFields();
   }
+
+  async getLaunchArgumentsForType(name: string): Promise<any[]> {
+    const wizardType = this.get(name);
+    if (!wizardType) {
+      throw new Error(`Wizard type "${name}" not found`);
+    }
+    
+    if (typeof wizardType.getLaunchArguments === 'function') {
+      return await wizardType.getLaunchArguments();
+    }
+    
+    return [];
+  }
 }
 
 export const wizardRegistry = new WizardTypeRegistry();

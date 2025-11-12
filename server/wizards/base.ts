@@ -10,6 +10,16 @@ export interface WizardStatus {
   description?: string;
 }
 
+export interface LaunchArgument {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'select' | 'month' | 'year';
+  required: boolean;
+  description?: string;
+  options?: Array<{ value: string | number; label: string }>;
+  defaultValue?: any;
+}
+
 export interface WizardTypeDefinition {
   name: string;
   displayName: string;
@@ -18,6 +28,7 @@ export interface WizardTypeDefinition {
   entityType?: string;
   getSteps: () => WizardStep[] | Promise<WizardStep[]>;
   getStatuses: () => WizardStatus[] | Promise<WizardStatus[]>;
+  getLaunchArguments?: () => LaunchArgument[] | Promise<LaunchArgument[]>;
 }
 
 export abstract class BaseWizard implements WizardTypeDefinition {
@@ -29,6 +40,10 @@ export abstract class BaseWizard implements WizardTypeDefinition {
 
   abstract getSteps(): WizardStep[] | Promise<WizardStep[]>;
   abstract getStatuses(): WizardStatus[] | Promise<WizardStatus[]>;
+  
+  getLaunchArguments(): LaunchArgument[] | Promise<LaunchArgument[]> {
+    return [];
+  }
 
   validateData(data: any): { valid: boolean; errors?: string[] } {
     return { valid: true };
