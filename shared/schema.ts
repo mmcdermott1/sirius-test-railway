@@ -261,6 +261,16 @@ export const wizards = pgTable("wizards", {
   data: jsonb("data"),
 });
 
+export const wizardEmployerMonthly = pgTable("wizard_employer_monthly", {
+  wizardId: varchar("wizard_id").primaryKey().references(() => wizards.id, { onDelete: 'cascade' }),
+  employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(),
+}, (table) => [
+  index("idx_wizard_employer_monthly_period").on(table.year, table.month),
+  index("idx_wizard_employer_monthly_employer").on(table.employerId),
+]);
+
 export const wizardFeedMappings = pgTable("wizard_feed_mappings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -405,6 +415,8 @@ export const insertWizardSchema = createInsertSchema(wizards).omit({
   id: true,
   date: true,
 });
+
+export const insertWizardEmployerMonthlySchema = createInsertSchema(wizardEmployerMonthly);
 
 export const insertWizardFeedMappingSchema = createInsertSchema(wizardFeedMappings).omit({
   id: true,
