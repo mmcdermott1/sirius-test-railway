@@ -122,6 +122,24 @@ export function registerWizardRoutes(
         return res.status(400).json({ message: typeValidation.error });
       }
       
+      // Validate launch arguments if the wizard type defines them
+      const launchArguments = await wizardRegistry.getLaunchArgumentsForType(validatedData.type);
+      if (launchArguments && launchArguments.length > 0) {
+        const wizardData = validatedData.data as any;
+        const providedArgs = wizardData?.launchArguments || {};
+        
+        for (const arg of launchArguments) {
+          if (arg.required) {
+            const value = providedArgs[arg.id];
+            if (value === undefined || value === null || value === '' || value === 0) {
+              return res.status(400).json({ 
+                message: `Required launch argument '${arg.name}' is missing or invalid` 
+              });
+            }
+          }
+        }
+      }
+      
       if (!validatedData.currentStep) {
         const steps = await wizardRegistry.getStepsForType(validatedData.type);
         if (steps && steps.length > 0) {

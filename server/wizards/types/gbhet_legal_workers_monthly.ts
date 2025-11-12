@@ -33,7 +33,12 @@ export class GbhetLegalWorkersMonthlyWizard extends GbhetLegalWorkersWizard {
   }
 
   async generateFeed(config: FeedConfig, data: any): Promise<FeedData> {
-    const { year, month } = data.period || getCurrentMonth();
+    // Use launch arguments if available, otherwise fall back to period or current month
+    const launchArgs = data.launchArguments || {};
+    const { year, month } = launchArgs.year && launchArgs.month 
+      ? { year: launchArgs.year, month: launchArgs.month }
+      : (data.period || getCurrentMonth());
+    
     const dateRange = createMonthlyDateRange(year, month);
     
     const recordCount = await this.getRecordCount({ dateRange });

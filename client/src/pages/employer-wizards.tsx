@@ -20,6 +20,7 @@ interface Wizard {
   type: string;
   status: string;
   entityId: string | null;
+  currentStep?: string;
   data: any;
 }
 
@@ -118,6 +119,18 @@ function EmployerWizardsContent() {
   });
 
   const employerWizardTypes = wizardTypes?.filter(wt => wt.entityType === 'employer') || [];
+
+  // Check if all required launch arguments are filled with valid values
+  const areRequiredArgsValid = () => {
+    if (!launchArguments || launchArguments.length === 0) return true;
+    
+    return launchArguments.every(arg => {
+      if (!arg.required) return true;
+      const value = launchArgValues[arg.id];
+      // Check for undefined, null, empty string, or zero (invalid for year/month)
+      return value !== undefined && value !== null && value !== '' && value !== 0;
+    });
+  };
 
   if (isLoading) {
     return (
@@ -272,7 +285,7 @@ function EmployerWizardsContent() {
                   </Button>
                   <Button
                     onClick={() => createWizardMutation.mutate()}
-                    disabled={!selectedWizardType || createWizardMutation.isPending}
+                    disabled={!selectedWizardType || !areRequiredArgsValid() || createWizardMutation.isPending}
                     data-testid="button-confirm-create"
                   >
                     {createWizardMutation.isPending ? "Creating..." : "Create"}
@@ -294,6 +307,9 @@ function EmployerWizardsContent() {
           <div className="space-y-3">
             {wizards.map((wizard) => {
               const wizardType = wizardTypes?.find(wt => wt.name === wizard.type);
+              const launchArgs = wizard.data?.launchArguments;
+              const monthName = launchArgs?.month ? new Date(2000, launchArgs.month - 1).toLocaleString('default', { month: 'long' }) : null;
+              
               return (
                 <div
                   key={wizard.id}
@@ -306,6 +322,11 @@ function EmployerWizardsContent() {
                       <h4 className="font-medium text-foreground">
                         {wizardType?.displayName || wizard.type}
                       </h4>
+                      {launchArgs?.year && launchArgs?.month && (
+                        <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary font-medium">
+                          {monthName} {launchArgs.year}
+                        </span>
+                      )}
                       <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
                         {wizard.status}
                       </span>
