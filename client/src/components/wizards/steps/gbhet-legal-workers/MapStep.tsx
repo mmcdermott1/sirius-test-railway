@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +95,31 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
   const hasHeaders = form.watch("hasHeaders");
   const columnMapping = form.watch("columnMapping");
 
+  // Track which fields are mapped to which columns (for duplicate detection)
+  const fieldUsage = useMemo(() => {
+    const usage: Record<string, string[]> = {};
+    Object.entries(columnMapping).forEach(([colKey, fieldId]) => {
+      if (fieldId && fieldId !== '_unmapped') {
+        if (!usage[fieldId]) {
+          usage[fieldId] = [];
+        }
+        usage[fieldId].push(colKey);
+      }
+    });
+    return usage;
+  }, [columnMapping]);
+
+  // Detect duplicate field mappings
+  const duplicateFields = useMemo(() => {
+    const duplicates: Set<string> = new Set();
+    Object.entries(fieldUsage).forEach(([fieldId, columns]) => {
+      if (columns.length > 1) {
+        duplicates.add(fieldId);
+      }
+    });
+    return duplicates;
+  }, [fieldUsage]);
+
   const getRequiredFields = (currentMode: 'create' | 'update'): FeedField[] => {
     return fields.filter(f => {
       if (f.required) return true;
@@ -177,6 +202,27 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
       });
     }
   }, [suggestedMappingData, data?.columnMapping, form]);
+
+  // Set form errors for duplicate field mappings
+  useEffect(() => {
+    // Clear all previous duplicate errors
+    Object.keys(columnMapping).forEach((colKey) => {
+      form.clearErrors(`columnMapping.${colKey}` as any);
+    });
+
+    // Set errors for columns with duplicate mappings
+    duplicateFields.forEach((fieldId) => {
+      const affectedColumns = fieldUsage[fieldId] || [];
+      const fieldName = fields.find(f => f.id === fieldId)?.name || fieldId;
+      
+      affectedColumns.forEach((colKey) => {
+        form.setError(`columnMapping.${colKey}` as any, {
+          type: 'manual',
+          message: `"${fieldName}" is already mapped to another column`
+        });
+      });
+    });
+  }, [duplicateFields, fieldUsage, fields, form, columnMapping]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     updateMutation.mutate(values);
@@ -311,6 +357,18 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
                 </Badge>
               )}
             </div>
+            
+            {duplicateFields.size > 0 && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Duplicate Field Mappings Detected</AlertTitle>
+                <AlertDescription>
+                  The following fields are mapped to multiple columns: {Array.from(duplicateFields).map(fieldId => fields.find(f => f.id === fieldId)?.name || fieldId).join(', ')}. 
+                  Each field can only be mapped once. Please update your mappings to continue.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <FormField
               control={form.control}
               name="hasHeaders"
@@ -382,11 +440,18 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
                                       <SelectItem value="_unmapped" data-testid="option-unmapped">
                                         (Do not map)
                                       </SelectItem>
-                                      {sortedFields.map(field => {
-                                        const isRequired = isFieldRequired(field, mode);
+                                      {sortedFields.map(feedField => {
+                                        const isRequired = isFieldRequired(feedField, mode);
+                                        const isUsedByOtherColumn = fieldUsage[feedField.id]?.some(col => col !== columnKey);
                                         return (
-                                          <SelectItem key={field.id} value={field.id} data-testid={`option-field-${field.id}`}>
-                                            {field.name} {isRequired && <span className="text-destructive">*</span>}
+                                          <SelectItem 
+                                            key={feedField.id} 
+                                            value={feedField.id} 
+                                            data-testid={`option-field-${feedField.id}`}
+                                            disabled={isUsedByOtherColumn}
+                                          >
+                                            {feedField.name} {isRequired && <span className="text-destructive">*</span>}
+                                            {isUsedByOtherColumn && <span className="text-muted-foreground text-xs"> (already mapped)</span>}
                                           </SelectItem>
                                         );
                                       })}
@@ -460,7 +525,7 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
             <div className="flex justify-end gap-3">
               <Button
                 type="submit"
-                disabled={updateMutation.isPending || !isMappingComplete}
+                disabled={updateMutation.isPending || !isMappingComplete || duplicateFields.size > 0}
                 data-testid="button-save-mapping"
               >
                 {updateMutation.isPending ? "Saving..." : "Save Mapping"}

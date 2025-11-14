@@ -215,6 +215,14 @@ export abstract class FeedWizard extends BaseWizard {
     const hasHeaders = wizardData?.hasHeaders ?? true;
     const mode = wizardData?.mode || 'create';
 
+    // Validate column mapping for duplicate field IDs (catch legacy data)
+    const fieldIds = Object.values(columnMapping).filter(id => id && id !== '_unmapped');
+    const duplicates = fieldIds.filter((id, index) => fieldIds.indexOf(id) !== index);
+    if (duplicates.length > 0) {
+      const uniqueDuplicates = Array.from(new Set(duplicates));
+      throw new Error(`Column mapping contains duplicate field assignments: ${uniqueDuplicates.join(', ')}. Please return to the Map step and ensure each field is mapped only once.`);
+    }
+
     if (!fileId) {
       throw new Error('No uploaded file found');
     }

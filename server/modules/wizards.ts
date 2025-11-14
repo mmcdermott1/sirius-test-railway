@@ -327,6 +327,18 @@ export function registerWizardRoutes(
         const existingData = (existing.data || {}) as any;
         const incomingData = validatedData.data as any;
         
+        // Validate column mapping for duplicate field IDs
+        if (incomingData.columnMapping) {
+          const fieldIds = Object.values(incomingData.columnMapping).filter(id => id && id !== '_unmapped');
+          const duplicates = fieldIds.filter((id, index) => fieldIds.indexOf(id) !== index);
+          if (duplicates.length > 0) {
+            const uniqueDuplicates = Array.from(new Set(duplicates));
+            return res.status(400).json({ 
+              message: `Duplicate field mappings detected: ${uniqueDuplicates.join(', ')}. Each field can only be mapped once.` 
+            });
+          }
+        }
+        
         // Merge existing data with incoming data
         const mergedData = {
           ...existingData,
