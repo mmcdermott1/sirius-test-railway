@@ -12,7 +12,6 @@ import { format } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { WizardStepper } from "@/components/wizards/WizardStepper";
-import { WizardNavigator } from "@/components/wizards/WizardNavigator";
 import { getStepComponent, getStepController } from "@/components/wizards/steps/registry";
 import type { WizardData } from "@shared/schema";
 
@@ -295,7 +294,7 @@ export default function WizardView() {
         </TabsList>
 
         <TabsContent value="wizard">
-          {/* Stepper */}
+          {/* Stepper with Navigation */}
           {wizardSteps && wizardSteps.length > 0 && (
             <Card className="mb-6">
               <CardContent className="pt-6">
@@ -303,35 +302,21 @@ export default function WizardView() {
                   steps={wizardSteps}
                   currentStep={wizard.currentStep || wizardSteps[0].id}
                   progress={wizardData?.progress}
+                  onNext={() => nextStepMutation.mutate(undefined)}
+                  onPrevious={() => previousStepMutation.mutate(undefined)}
+                  isLoading={nextStepMutation.isPending || previousStepMutation.isPending}
+                  canProceed={canProceed}
                 />
               </CardContent>
             </Card>
           )}
 
-          <div className="space-y-6">
-            {/* Active Step Content */}
-            {StepComponent && wizard && (
-              <div>
-                <StepComponent wizardId={wizard.id} wizardType={wizard.type} data={wizardData} />
-              </div>
-            )}
-
-            {/* Navigator */}
-            {wizardSteps && wizardSteps.length > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <WizardNavigator
-                    currentStep={wizard.currentStep || wizardSteps[0].id}
-                    steps={wizardSteps}
-                    onNext={() => nextStepMutation.mutate(undefined)}
-                    onPrevious={() => previousStepMutation.mutate(undefined)}
-                    isLoading={nextStepMutation.isPending || previousStepMutation.isPending}
-                    canProceed={canProceed}
-                  />
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          {/* Active Step Content */}
+          {StepComponent && wizard && (
+            <div>
+              <StepComponent wizardId={wizard.id} wizardType={wizard.type} data={wizardData} />
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="delete">
