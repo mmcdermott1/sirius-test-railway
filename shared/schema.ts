@@ -447,6 +447,10 @@ export const insertWizardFeedMappingSchema = createInsertSchema(wizardFeedMappin
   updatedAt: true,
 });
 
+export const insertWizardReportDataSchema = createInsertSchema(wizardReportData).omit({
+  id: true,
+});
+
 export const insertGenderOptionSchema = createInsertSchema(optionsGender).omit({
   id: true,
 });
@@ -569,6 +573,9 @@ export type Wizard = typeof wizards.$inferSelect;
 
 export type InsertWizardFeedMapping = z.infer<typeof insertWizardFeedMappingSchema>;
 export type WizardFeedMapping = typeof wizardFeedMappings.$inferSelect;
+
+export type InsertWizardReportData = z.infer<typeof insertWizardReportDataSchema>;
+export type WizardReportData = typeof wizardReportData.$inferSelect;
 
 export const wizardStepProgressSchema = z.object({
   status: z.enum(['pending', 'in_progress', 'completed']),
