@@ -387,7 +387,9 @@ export abstract class FeedWizard extends BaseWizard {
     batchSize: number = 100,
     onProgress?: (progress: { 
       processed: number; 
-      total: number; 
+      total: number;
+      createdCount: number;
+      updatedCount: number;
       successCount: number; 
       failureCount: number;
       currentRow?: { index: number; status: 'success' | 'error'; error?: string };
@@ -455,7 +457,8 @@ export abstract class FeedWizard extends BaseWizard {
 
     // Process in batches
     const totalRows = mappedRows.length;
-    let successCount = 0;
+    let createdCount = 0;
+    let updatedCount = 0;
     let failureCount = 0;
     const allErrors: ProcessError[] = [];
 
@@ -512,12 +515,14 @@ export abstract class FeedWizard extends BaseWizard {
               await storage.workers.updateWorkerContactBirthDate(existingWorker.id, birthDate);
             }
 
-            successCount++;
+            updatedCount++;
             if (onProgress) {
               onProgress({
                 processed: rowIndex + 1,
                 total: totalRows,
-                successCount,
+                createdCount,
+                updatedCount,
+                successCount: createdCount + updatedCount,
                 failureCount,
                 currentRow: { index: rowIndex, status: 'success' }
               });
@@ -535,6 +540,7 @@ export abstract class FeedWizard extends BaseWizard {
             }
 
             let workerId: string;
+            let isNewWorker = false;
             
             // Check if worker with this SSN already exists
             const existingWorker = await storage.workers.getWorkerBySSN(ssn);
@@ -548,6 +554,7 @@ export abstract class FeedWizard extends BaseWizard {
               workerId = newWorker.id;
               // Set SSN for the new worker
               await storage.workers.updateWorkerSSN(workerId, ssn);
+              isNewWorker = true;
             }
 
             // Update name components if provided
@@ -563,12 +570,20 @@ export abstract class FeedWizard extends BaseWizard {
               await storage.workers.updateWorkerContactBirthDate(workerId, birthDate);
             }
 
-            successCount++;
+            // Increment appropriate counter
+            if (isNewWorker) {
+              createdCount++;
+            } else {
+              updatedCount++;
+            }
+
             if (onProgress) {
               onProgress({
                 processed: rowIndex + 1,
                 total: totalRows,
-                successCount,
+                createdCount,
+                updatedCount,
+                successCount: createdCount + updatedCount,
                 failureCount,
                 currentRow: { index: rowIndex, status: 'success' }
               });
@@ -587,7 +602,9 @@ export abstract class FeedWizard extends BaseWizard {
             onProgress({
               processed: rowIndex + 1,
               total: totalRows,
-              successCount,
+              createdCount,
+              updatedCount,
+              successCount: createdCount + updatedCount,
               failureCount,
               currentRow: { 
                 index: rowIndex, 
@@ -602,7 +619,9 @@ export abstract class FeedWizard extends BaseWizard {
 
     const results: ProcessResults = {
       totalRows,
-      successCount,
+      createdCount,
+      updatedCount,
+      successCount: createdCount + updatedCount,
       failureCount,
       errors: allErrors,
       completedAt: new Date()
