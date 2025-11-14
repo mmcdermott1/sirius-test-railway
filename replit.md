@@ -27,7 +27,11 @@ The frontend utilizes React 18 with TypeScript and Vite, employing Shadcn/ui (bu
 -   **Data Validation**: Extensive Zod schema validation, `libphonenumber-js` for phone numbers, and custom SSN/date validation. Contact names are canonicalized.
 -   **Employer & Contact Management**: Management of employer records with UUIDs and the ability to link employers to contacts with type categorization and visual indicators for user accounts.
 -   **Bookmarks**: User-specific, entity-agnostic bookmarking for workers and employers.
--   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets with dynamic settings framework. Plugins can declare optional `settingsComponent` in the registry, which are automatically loaded via the dynamic route `/config/dashboard-plugins/:pluginId`. The configuration interface shows "Configure Settings" links for plugins with settings components, eliminating the need for hardcoded routes.
+-   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets with unified settings framework.
+    -   **Unified Settings Storage**: All plugin settings are stored in a single JSON variable per plugin (`dashboard_plugin_{pluginId}_settings`) instead of plugin-specific endpoints and variables.
+    -   **Generic Settings API**: Plugins use unified GET/PUT `/api/dashboard-plugins/:pluginId/settings` endpoints with automatic migration from legacy variables, schema validation via Zod, and RBAC enforcement.
+    -   **Plugin Metadata**: Shared metadata file (`shared/pluginMetadata.ts`) defines schema validation and permission requirements for each plugin, ensuring consistency between client and server.
+    -   **Settings Components**: Plugins can declare optional `settingsComponent` in the registry, loaded via the dynamic route `/config/dashboard-plugins/:pluginId`, with generic `loadSettings`/`saveSettings` functions for reusable settings management.
 -   **Components Feature Flag System**: Centralized registry for managing application features with dependency management and access control integration.
 -   **Routing Architecture**: Consistent routing patterns for configuration and detail pages, including UUID validation and legacy redirects.
 -   **Ledger System**: Manages financial transactions with a `ledger_payments` table.
