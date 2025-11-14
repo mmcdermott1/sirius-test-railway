@@ -117,9 +117,11 @@ export function registerDashboardRoutes(
     try {
       const { year, month, wizardType } = req.query;
       const user = req.user as any;
+      const replitUserId = user.claims.sub;
+      const dbUser = await storage.users.getUserByReplitId(replitUserId);
       
-      if (!user || !user.id) {
-        res.status(401).json({ message: "User not authenticated" });
+      if (!dbUser) {
+        res.status(401).json({ message: "User not found" });
         return;
       }
       
@@ -144,7 +146,7 @@ export function registerDashboardRoutes(
       }
       
       // Verify user has access to this wizard type
-      const userRoles = await storage.users.getUserRoles(user.id);
+      const userRoles = await storage.users.getUserRoles(dbUser.id);
       const variable = await storage.variables.getByName('employer_monthly_plugin_config');
       const config = variable ? (variable.value as Record<string, string[]>) : {};
       
@@ -175,12 +177,15 @@ export function registerDashboardRoutes(
   app.get("/api/dashboard-plugins/employer-monthly/my-wizard-types", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      if (!user || !user.id) {
-        res.status(401).json({ message: "User not authenticated" });
+      const replitUserId = user.claims.sub;
+      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      
+      if (!dbUser) {
+        res.status(401).json({ message: "User not found" });
         return;
       }
 
-      const userRoles = await storage.users.getUserRoles(user.id);
+      const userRoles = await storage.users.getUserRoles(dbUser.id);
       const variable = await storage.variables.getByName('employer_monthly_plugin_config');
       const config = variable ? (variable.value as Record<string, string[]>) : {};
       
