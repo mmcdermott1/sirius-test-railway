@@ -26,7 +26,7 @@ export function useWorkerLayout() {
 }
 
 interface WorkerLayoutProps {
-  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "employment" | "hours" | "benefits" | "logs" | "delete";
+  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "employment" | "current" | "history" | "monthly" | "daily" | "benefits" | "logs" | "delete";
   children: ReactNode;
 }
 
@@ -170,13 +170,16 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   ];
 
   const employmentSubTabs = [
-    { id: "hours", label: "Hours", href: `/workers/${worker.id}/hours` },
+    { id: "current", label: "Current", href: `/workers/${worker.id}/employment/current` },
+    { id: "history", label: "History", href: `/workers/${worker.id}/employment/history` },
+    { id: "monthly", label: "Monthly", href: `/workers/${worker.id}/employment/monthly` },
+    { id: "daily", label: "Daily", href: `/workers/${worker.id}/employment/daily` },
   ];
 
   // Determine if we're in a sub-tab
   const isIdentitySubTab = ["name", "ids", "birth-date", "gender"].includes(activeTab);
   const isContactSubTab = ["email", "addresses", "phone-numbers"].includes(activeTab);
-  const isEmploymentSubTab = ["hours"].includes(activeTab);
+  const isEmploymentSubTab = ["current", "history", "monthly", "daily"].includes(activeTab);
   const showIdentitySubTabs = isIdentitySubTab;
   const showContactSubTabs = isContactSubTab;
   const showEmploymentSubTabs = isEmploymentSubTab;

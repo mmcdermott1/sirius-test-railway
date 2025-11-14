@@ -44,6 +44,9 @@ export interface WorkerStorage {
   deleteWorkerBenefit(id: string): Promise<boolean>;
   // Worker hours methods
   getWorkerHours(workerId: string): Promise<any[]>;
+  getWorkerHoursCurrent(workerId: string): Promise<any[]>;
+  getWorkerHoursHistory(workerId: string): Promise<any[]>;
+  getWorkerHoursMonthly(workerId: string): Promise<any[]>;
   createWorkerHours(data: { workerId: string; month: number; year: number; employerId: string; employmentStatusId: string; hours: number | null }): Promise<WorkerHours>;
   updateWorkerHours(id: string, data: { employerId?: string; employmentStatusId?: string; hours?: number | null }): Promise<WorkerHours | undefined>;
   deleteWorkerHours(id: string): Promise<boolean>;
@@ -306,6 +309,177 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
         .orderBy(desc(workerHours.year), desc(workerHours.month));
 
       return results;
+    },
+
+    async getWorkerHoursCurrent(workerId: string): Promise<any[]> {
+      const results = await db.execute(sql`
+        SELECT DISTINCT ON (wh.employer_id)
+          wh.id,
+          wh.month,
+          wh.year,
+          wh.day,
+          wh.worker_id,
+          wh.employer_id,
+          wh.employment_status_id,
+          e.id AS "employer.id",
+          e.sirius_id AS "employer.siriusId",
+          e.name AS "employer.name",
+          e.is_active AS "employer.isActive",
+          e.stripe_customer_id AS "employer.stripeCustomerId",
+          es.id AS "employmentStatus.id",
+          es.name AS "employmentStatus.name",
+          es.code AS "employmentStatus.code",
+          es.employed AS "employmentStatus.employed",
+          es.description AS "employmentStatus.description"
+        FROM worker_hours wh
+        LEFT JOIN employers e ON wh.employer_id = e.id
+        LEFT JOIN options_employment_status es ON wh.employment_status_id = es.id
+        WHERE wh.worker_id = ${workerId}
+        ORDER BY wh.employer_id, wh.year DESC, wh.month DESC, wh.day DESC
+      `);
+
+      return results.rows.map((row: any) => ({
+        id: row.id,
+        month: row.month,
+        year: row.year,
+        day: row.day,
+        workerId: row.worker_id,
+        employerId: row.employer_id,
+        employmentStatusId: row.employment_status_id,
+        employer: {
+          id: row['employer.id'],
+          siriusId: row['employer.siriusId'],
+          name: row['employer.name'],
+          isActive: row['employer.isActive'],
+          stripeCustomerId: row['employer.stripeCustomerId'],
+        },
+        employmentStatus: {
+          id: row['employmentStatus.id'],
+          name: row['employmentStatus.name'],
+          code: row['employmentStatus.code'],
+          employed: row['employmentStatus.employed'],
+          description: row['employmentStatus.description'],
+        },
+      }));
+    },
+
+    async getWorkerHoursHistory(workerId: string): Promise<any[]> {
+      const results = await db.execute(sql`
+        WITH status_changes AS (
+          SELECT
+            wh.id,
+            wh.month,
+            wh.year,
+            wh.day,
+            wh.worker_id,
+            wh.employer_id,
+            wh.employment_status_id,
+            LAG(wh.employment_status_id) OVER (
+              PARTITION BY wh.employer_id 
+              ORDER BY wh.year, wh.month, wh.day
+            ) AS prev_status_id
+          FROM worker_hours wh
+          WHERE wh.worker_id = ${workerId}
+        )
+        SELECT
+          sc.id,
+          sc.month,
+          sc.year,
+          sc.day,
+          sc.worker_id,
+          sc.employer_id,
+          sc.employment_status_id,
+          e.id AS "employer.id",
+          e.sirius_id AS "employer.siriusId",
+          e.name AS "employer.name",
+          e.is_active AS "employer.isActive",
+          e.stripe_customer_id AS "employer.stripeCustomerId",
+          es.id AS "employmentStatus.id",
+          es.name AS "employmentStatus.name",
+          es.code AS "employmentStatus.code",
+          es.employed AS "employmentStatus.employed",
+          es.description AS "employmentStatus.description"
+        FROM status_changes sc
+        LEFT JOIN employers e ON sc.employer_id = e.id
+        LEFT JOIN options_employment_status es ON sc.employment_status_id = es.id
+        WHERE sc.prev_status_id IS NULL OR sc.prev_status_id != sc.employment_status_id
+        ORDER BY sc.employer_id, sc.year, sc.month, sc.day
+      `);
+
+      return results.rows.map((row: any) => ({
+        id: row.id,
+        month: row.month,
+        year: row.year,
+        day: row.day,
+        workerId: row.worker_id,
+        employerId: row.employer_id,
+        employmentStatusId: row.employment_status_id,
+        employer: {
+          id: row['employer.id'],
+          siriusId: row['employer.siriusId'],
+          name: row['employer.name'],
+          isActive: row['employer.isActive'],
+          stripeCustomerId: row['employer.stripeCustomerId'],
+        },
+        employmentStatus: {
+          id: row['employmentStatus.id'],
+          name: row['employmentStatus.name'],
+          code: row['employmentStatus.code'],
+          employed: row['employmentStatus.employed'],
+          description: row['employmentStatus.description'],
+        },
+      }));
+    },
+
+    async getWorkerHoursMonthly(workerId: string): Promise<any[]> {
+      const results = await db.execute(sql`
+        SELECT
+          wh.employer_id,
+          wh.year,
+          wh.month,
+          SUM(wh.hours) AS total_hours,
+          wh.employment_status_id,
+          e.id AS "employer.id",
+          e.sirius_id AS "employer.siriusId",
+          e.name AS "employer.name",
+          e.is_active AS "employer.isActive",
+          e.stripe_customer_id AS "employer.stripeCustomerId",
+          es.id AS "employmentStatus.id",
+          es.name AS "employmentStatus.name",
+          es.code AS "employmentStatus.code",
+          es.employed AS "employmentStatus.employed",
+          es.description AS "employmentStatus.description"
+        FROM worker_hours wh
+        LEFT JOIN employers e ON wh.employer_id = e.id
+        LEFT JOIN options_employment_status es ON wh.employment_status_id = es.id
+        WHERE wh.worker_id = ${workerId}
+        GROUP BY wh.employer_id, wh.year, wh.month, wh.employment_status_id,
+                 e.id, e.sirius_id, e.name, e.is_active, e.stripe_customer_id,
+                 es.id, es.name, es.code, es.employed, es.description
+        ORDER BY wh.year DESC, wh.month DESC, wh.employer_id
+      `);
+
+      return results.rows.map((row: any) => ({
+        employerId: row.employer_id,
+        year: row.year,
+        month: row.month,
+        totalHours: row.total_hours,
+        employmentStatusId: row.employment_status_id,
+        employer: {
+          id: row['employer.id'],
+          siriusId: row['employer.siriusId'],
+          name: row['employer.name'],
+          isActive: row['employer.isActive'],
+          stripeCustomerId: row['employer.stripeCustomerId'],
+        },
+        employmentStatus: {
+          id: row['employmentStatus.id'],
+          name: row['employmentStatus.name'],
+          code: row['employmentStatus.code'],
+          employed: row['employmentStatus.employed'],
+          description: row['employmentStatus.description'],
+        },
+      }));
     },
 
     async createWorkerHours(data: { workerId: string; month: number; year: number; employerId: string; employmentStatusId: string; hours: number | null }): Promise<WorkerHours> {

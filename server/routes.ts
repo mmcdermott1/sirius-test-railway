@@ -815,11 +815,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Worker Hours routes
 
-  // GET /api/workers/:workerId/hours - Get all hours for a worker (requires worker policy: staff or worker with matching email)
+  // GET /api/workers/:workerId/hours - Get hours for a worker with optional view parameter (requires worker policy: staff or worker with matching email)
   app.get("/api/workers/:workerId/hours", requireAuth, requireAccess(policies.worker), async (req, res) => {
     try {
       const { workerId } = req.params;
-      const hours = await storage.workers.getWorkerHours(workerId);
+      const view = (req.query.view as string) || 'daily';
+      
+      let hours;
+      switch (view) {
+        case 'current':
+          hours = await storage.workers.getWorkerHoursCurrent(workerId);
+          break;
+        case 'history':
+          hours = await storage.workers.getWorkerHoursHistory(workerId);
+          break;
+        case 'monthly':
+          hours = await storage.workers.getWorkerHoursMonthly(workerId);
+          break;
+        case 'daily':
+        default:
+          hours = await storage.workers.getWorkerHours(workerId);
+          break;
+      }
+      
       res.json(hours);
     } catch (error) {
       console.error("Failed to fetch worker hours:", error);

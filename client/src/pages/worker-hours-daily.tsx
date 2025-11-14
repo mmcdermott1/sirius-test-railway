@@ -55,7 +55,12 @@ function WorkerHoursContent() {
 
   // Fetch worker hours
   const { data: hoursEntries = [], isLoading } = useQuery<WorkerHoursEntry[]>({
-    queryKey: ["/api/workers", worker.id, "hours"],
+    queryKey: ["/api/workers", worker.id, "hours", "daily"],
+    queryFn: async () => {
+      const response = await fetch(`/api/workers/${worker.id}/hours?view=daily`);
+      if (!response.ok) throw new Error("Failed to fetch worker hours");
+      return response.json();
+    },
   });
 
   // Fetch all employers
@@ -462,9 +467,9 @@ function WorkerHoursContent() {
   );
 }
 
-export default function WorkerHoursPage() {
+export default function WorkerHoursDaily() {
   return (
-    <WorkerLayout activeTab="hours">
+    <WorkerLayout activeTab="daily">
       <WorkerHoursContent />
     </WorkerLayout>
   );

@@ -22,7 +22,10 @@ import WorkerIDs from "@/pages/worker-ids";
 import WorkerBirthDate from "@/pages/worker-birth-date";
 import WorkerGender from "@/pages/worker-gender";
 import WorkerBenefits from "@/pages/worker-benefits";
-import WorkerHours from "@/pages/worker-hours";
+import WorkerCurrentEmployment from "@/pages/worker-current-employment";
+import WorkerEmploymentHistory from "@/pages/worker-employment-history";
+import WorkerHoursMonthly from "@/pages/worker-hours-monthly";
+import WorkerHoursDaily from "@/pages/worker-hours-daily";
 import WorkerLogs from "@/pages/worker-logs";
 import WorkerAddresses from "@/pages/worker-addresses";
 import WorkerPhoneNumbers from "@/pages/worker-phone-numbers";
@@ -211,10 +214,34 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/workers/:id/hours">
+      <Route path="/workers/:id/employment/current">
         <ProtectedRoute permission="workers.view">
           <AuthenticatedLayout>
-            <WorkerHours />
+            <WorkerCurrentEmployment />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/employment/history">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerEmploymentHistory />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/employment/monthly">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerHoursMonthly />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/employment/daily">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerHoursDaily />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
