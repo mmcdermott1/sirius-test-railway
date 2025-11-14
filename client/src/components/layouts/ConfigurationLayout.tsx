@@ -25,6 +25,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
   const [isSystemOpen, setIsSystemOpen] = useState(false);
   const [isTrustOpen, setIsTrustOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [isDashboardPluginsOpen, setIsDashboardPluginsOpen] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isEmployersOpen, setIsEmployersOpen] = useState(false);
   const [isDropDownListsOpen, setIsDropDownListsOpen] = useState(false);
@@ -88,6 +89,9 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       testId: "nav-config-site",
       permission: "admin",
     },
+  ];
+
+  const dashboardPluginItems = [
     {
       path: "/config/dashboard-plugins",
       label: "Dashboard Plugins",
@@ -257,7 +261,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
 
   // Combine for policy checks
   const allLedgerItems = [...ledgerItems, ...stripeItems];
-  const allNavItems = [...regularNavItems, ...systemItems, ...trustItems, ...themeItems, ...contactItems, ...employersItems, ...userManagementItems, ...dropDownListItems, ...allLedgerItems];
+  const allNavItems = [...regularNavItems, ...systemItems, ...trustItems, ...themeItems, ...dashboardPluginItems, ...contactItems, ...employersItems, ...userManagementItems, ...dropDownListItems, ...allLedgerItems];
 
   // Fetch policy checks for navigation items that use policies
   const policiesNeeded = allNavItems
@@ -320,6 +324,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
 
   // Check if any theme item is active
   const isThemeActive = themeItems.some(
+    (item) => location === item.path || location.startsWith(item.path + "/")
+  ) || dashboardPluginItems.some(
+    (item) => location === item.path || location.startsWith(item.path + "/")
+  );
+
+  // Check if any dashboard plugin item is active
+  const isDashboardPluginsActive = dashboardPluginItems.some(
     (item) => location === item.path || location.startsWith(item.path + "/")
   );
 
@@ -628,7 +639,7 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
             )}
 
             {/* Theme Group */}
-            {themeItems.some((item) => hasPermission(item.permission)) && (
+            {(themeItems.some((item) => hasPermission(item.permission)) || dashboardPluginItems.some((item) => hasPermission(item.permission))) && (
               <Collapsible
                 open={isThemeOpen || isThemeActive}
                 onOpenChange={setIsThemeOpen}
@@ -664,6 +675,47 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
                       </Link>
                     );
                   })}
+
+                  {/* Dashboard Plugins Sub-group */}
+                  {dashboardPluginItems.some((item) => hasPermission(item.permission)) && (
+                    <Collapsible
+                      open={isDashboardPluginsOpen || isDashboardPluginsActive}
+                      onOpenChange={setIsDashboardPluginsOpen}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant={isDashboardPluginsActive ? "secondary" : "ghost"}
+                          className="w-full justify-start text-sm"
+                          data-testid="nav-config-dashboard-plugins-group"
+                        >
+                          <Puzzle className="mr-2 h-4 w-4" />
+                          Dashboard Plugins
+                          <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200" 
+                            style={{ transform: (isDashboardPluginsOpen || isDashboardPluginsActive) ? 'rotate(180deg)' : 'rotate(0deg)' }} 
+                          />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="ml-4 mt-2 space-y-2">
+                        {dashboardPluginItems.filter((item) => hasPermission(item.permission)).map((item) => {
+                          const Icon = item.icon;
+                          const isActive = location === item.path || location.startsWith(item.path + "/");
+                          
+                          return (
+                            <Link key={item.path} href={item.path}>
+                              <Button
+                                variant={isActive ? "secondary" : "ghost"}
+                                className="w-full justify-start text-xs"
+                                data-testid={item.testId}
+                              >
+                                <Icon className="mr-2 h-4 w-4" />
+                                {item.label}
+                              </Button>
+                            </Link>
+                          );
+                        })}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
                 </CollapsibleContent>
               </Collapsible>
             )}
