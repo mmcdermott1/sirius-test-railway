@@ -8,7 +8,7 @@ export interface WizardStorage {
   create(wizard: InsertWizard): Promise<Wizard>;
   update(id: string, updates: Partial<Omit<InsertWizard, 'id'>>): Promise<Wizard | undefined>;
   delete(id: string): Promise<boolean>;
-  saveReportData(wizardId: string, data: any): Promise<WizardReportData>;
+  saveReportData(wizardId: string, pk: string, data: any): Promise<WizardReportData>;
   getReportData(wizardId: string): Promise<WizardReportData[]>;
   getLatestReportData(wizardId: string): Promise<WizardReportData | undefined>;
 }
@@ -69,11 +69,12 @@ export function createWizardStorage(): WizardStorage {
       return result.length > 0;
     },
 
-    async saveReportData(wizardId: string, data: any): Promise<WizardReportData> {
+    async saveReportData(wizardId: string, pk: string, data: any): Promise<WizardReportData> {
       const [reportData] = await db
         .insert(wizardReportData)
         .values({
           wizardId,
+          pk,
           data
         })
         .returning();
