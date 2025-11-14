@@ -92,12 +92,11 @@ function WorkerEmploymentHistoryContent() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={entry.home ? "default" : "secondary"}
-                      data-testid={`badge-home-${entry.id}`}
-                    >
-                      {entry.home ? "Home" : "On-site"}
-                    </Badge>
+                    {entry.home && (
+                      <Badge variant="default" data-testid={`badge-home-${entry.id}`}>
+                        Home
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell data-testid={`text-date-${entry.id}`}>
                     {getMonthName(entry.month)} {entry.year}

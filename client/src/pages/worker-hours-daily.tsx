@@ -429,9 +429,11 @@ function WorkerHoursContent() {
                   <TableCell>{entry.employer?.name || "Unknown"}</TableCell>
                   <TableCell>{entry.employmentStatus?.name || "Unknown"}</TableCell>
                   <TableCell>
-                    <Badge variant={entry.home ? "default" : "secondary"} data-testid={`badge-home-${entry.id}`}>
-                      {entry.home ? "Home" : "On-site"}
-                    </Badge>
+                    {entry.home && (
+                      <Badge variant="default" data-testid={`badge-home-${entry.id}`}>
+                        Home
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">{entry.hours?.toFixed(2) || "-"}</TableCell>
                   <TableCell className="text-right">

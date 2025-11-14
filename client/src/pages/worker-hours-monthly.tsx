@@ -50,12 +50,6 @@ function WorkerHoursMonthlyContent() {
     return monthNames[month - 1];
   };
 
-  const getHomeStatus = (allHome: boolean, anyHome: boolean) => {
-    if (allHome) return { label: "All Home", variant: "default" as const };
-    if (anyHome) return { label: "Some Home", variant: "outline" as const };
-    return { label: "All On-site", variant: "secondary" as const };
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -84,10 +78,8 @@ function WorkerHoursMonthlyContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {monthlyEntries.map((entry, index) => {
-                const homeStatus = getHomeStatus(entry.allHome, entry.anyHome);
-                return (
-                  <TableRow key={`${entry.employerId}-${entry.year}-${entry.month}`} data-testid={`row-monthly-${index}`}>
+              {monthlyEntries.map((entry, index) => (
+                <TableRow key={`${entry.employerId}-${entry.year}-${entry.month}`} data-testid={`row-monthly-${index}`}>
                     <TableCell data-testid={`text-date-${index}`}>
                       {getMonthName(entry.month)} {entry.year}
                     </TableCell>
@@ -103,19 +95,17 @@ function WorkerHoursMonthlyContent() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={homeStatus.variant}
-                        data-testid={`badge-home-${index}`}
-                      >
-                        {homeStatus.label}
-                      </Badge>
+                      {entry.allHome && (
+                        <Badge variant="default" data-testid={`badge-home-${index}`}>
+                          Home
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right" data-testid={`text-hours-${index}`}>
                       {entry.totalHours !== null ? entry.totalHours.toFixed(2) : "—"}
                     </TableCell>
-                  </TableRow>
-                );
-              })}
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}
