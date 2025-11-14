@@ -203,27 +203,6 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
     }
   }, [suggestedMappingData, data?.columnMapping, form]);
 
-  // Set form errors for duplicate field mappings
-  useEffect(() => {
-    // Clear all previous duplicate errors
-    Object.keys(columnMapping).forEach((colKey) => {
-      form.clearErrors(`columnMapping.${colKey}` as any);
-    });
-
-    // Set errors for columns with duplicate mappings
-    duplicateFields.forEach((fieldId) => {
-      const affectedColumns = fieldUsage[fieldId] || [];
-      const fieldName = fields.find(f => f.id === fieldId)?.name || fieldId;
-      
-      affectedColumns.forEach((colKey) => {
-        form.setError(`columnMapping.${colKey}` as any, {
-          type: 'manual',
-          message: `"${fieldName}" is already mapped to another column`
-        });
-      });
-    });
-  }, [duplicateFields, fieldUsage, fields, form, columnMapping]);
-
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     updateMutation.mutate(values);
   };
