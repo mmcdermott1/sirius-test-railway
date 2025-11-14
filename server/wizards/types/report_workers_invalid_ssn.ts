@@ -11,31 +11,31 @@ export class ReportWorkersInvalidSSN extends WizardReport {
     return [
       {
         id: 'siriusId',
-        name: 'Sirius ID',
+        header: 'Sirius ID',
         type: 'number',
         width: 120
       },
       {
         id: 'displayName',
-        name: 'Name',
+        header: 'Name',
         type: 'string',
         width: 250
       },
       {
         id: 'ssn',
-        name: 'SSN',
+        header: 'SSN',
         type: 'string',
         width: 130
       },
       {
         id: 'validationError',
-        name: 'Validation Error',
+        header: 'Validation Error',
         type: 'string',
         width: 300
       },
       {
         id: 'email',
-        name: 'Email',
+        header: 'Email',
         type: 'string',
         width: 200
       }

@@ -12,6 +12,7 @@ import {
   Bookmark,
   ChevronDown,
   Calendar,
+  FileText,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -174,6 +175,19 @@ export default function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {hasPermission("admin") && (
+              <Link href="/reports">
+                <Button
+                  variant={location === "/reports" ? "default" : "ghost"}
+                  size="sm"
+                  data-testid="nav-reports"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Reports
+                </Button>
+              </Link>
+            )}
 
             {hasPermission("admin") && (
               <Link href="/config">

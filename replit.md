@@ -4,6 +4,28 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 
 # Recent Changes (November 14, 2025)
 
+## Report Wizard Framework
+-   **Custom Reporting System**: Implemented extensible report wizard framework for worker data analysis, integrated with existing wizard infrastructure
+-   **WizardReport Base Class** (server/wizards/report.ts): Three-step workflow (Inputs → Run → Results) with abstract methods for column definitions and record fetching. Supports batch processing with progress tracking
+-   **Report Data Storage**: Added `wizard_report_data` table with temporal ordering (created_at) for storing report outputs. Multiple reports per wizard supported with `getLatestReportData()` retrieving most recent results
+-   **Storage Methods**: Extended WizardStorage with `saveReportData()`, `getReportData()`, and `getLatestReportData()` for report data management
+-   **Concrete Implementations**: 
+    -   `ReportWorkersMissingSSN`: Finds workers with null/empty SSN using efficient database JOINs (workers LEFT JOIN contacts)
+    -   `ReportWorkersInvalidSSN`: Finds workers with invalid SSN format using database JOINs and validateSSN() 
+-   **API Endpoints**: 
+    -   POST /api/wizards/:id/generate-report - Triggers report generation and returns results
+    -   GET /api/wizards/:id/report-data - Retrieves latest report data
+-   **Frontend Components**:
+    -   InputsStep: Report configuration UI (extensible for future parameters)
+    -   RunStep: Report generation trigger with real-time progress polling via useQuery refetchInterval
+    -   ResultsStep: Table display of results with CSV export functionality using default apiRequest fetcher
+-   **Reports Page** (/reports): Lists report wizard types, shows recent reports with status, dialog for creating new reports with admin-only access
+-   **Navigation**: Added "Reports" link to Header navigation (admin policy required)
+-   **Step Registry Integration**: Registered report step components with completion evaluators (evaluateRunComplete checks wizard.data.progress.run.status)
+-   **Performance Optimization**: Report fetchers use database JOINs instead of serial per-record lookups to avoid O(n²) performance issues
+
+# Recent Changes (November 14, 2025)
+
 ## Worker Hours & Employment Views Reorganization
 -   **New Table**: Added `worker_hours` table with fields for year, month, day, worker_id, employer_id, employment_status_id, hours, and home. Includes unique constraint on (worker, employer, year, month, day) and cascade deletes for worker and employer foreign keys.
 -   **Storage Methods**: Extended WorkerStorage interface with complete CRUD operations including `createWorkerHours`, `updateWorkerHours`, `deleteWorkerHours`, and `upsertWorkerHours` (used by wizards, defaults day=1) using atomic upsert with full audit logging. Added three specialized view methods:

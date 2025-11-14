@@ -431,9 +431,17 @@ export function registerWizardRoutes(
         }
         
         // Merge existing data with incoming data
+        // Only deep-merge the progress field to avoid overwriting other fields like reportDataId
         const mergedData = {
           ...existingData,
-          ...incomingData
+          ...incomingData,
+          // Deep merge only progress to preserve individual step progress
+          ...(incomingData.progress ? {
+            progress: {
+              ...(existingData.progress || {}),
+              ...(incomingData.progress || {})
+            }
+          } : {})
         };
         
         // Check if upload-related data changed (uploadedFileId)
@@ -1304,6 +1312,7 @@ export function registerWizardRoutes(
         // Generate the report
         const results = await wizardType.generateReport(id);
         
+        // Return full results for frontend error handling and data access
         res.json(results);
       } catch (error) {
         console.error("Error generating report:", error);

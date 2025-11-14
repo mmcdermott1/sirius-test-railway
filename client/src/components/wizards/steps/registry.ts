@@ -3,6 +3,9 @@ import { MapStep } from './gbhet-legal-workers/MapStep';
 import { ValidateStep } from './gbhet-legal-workers/ValidateStep';
 import { ProcessStep } from './gbhet-legal-workers/ProcessStep';
 import { ReviewStep } from './gbhet-legal-workers/ReviewStep';
+import { InputsStep } from './report/InputsStep';
+import { RunStep } from './report/RunStep';
+import { ResultsStep } from './report/ResultsStep';
 
 export interface WizardStepComponent {
   (props: { wizardId: string; wizardType: string; data?: any; onDataChange?: (data: any) => void }): JSX.Element;
@@ -69,6 +72,11 @@ const evaluateValidateComplete: StepCompletionEvaluator = ({ wizard }) => {
 
 const alwaysComplete: StepCompletionEvaluator = () => true;
 
+const evaluateRunComplete: StepCompletionEvaluator = ({ wizard }) => {
+  const progress = wizard?.data?.progress?.run;
+  return progress?.status === 'completed';
+};
+
 export const stepControllerRegistry: StepControllerRegistry = {
   'gbhet_legal_workers_monthly': {
     'upload': { Component: UploadStep, evaluateCompletion: evaluateUploadComplete },
@@ -83,6 +91,16 @@ export const stepControllerRegistry: StepControllerRegistry = {
     'validate': { Component: ValidateStep, evaluateCompletion: evaluateValidateComplete },
     'process': { Component: ProcessStep, evaluateCompletion: alwaysComplete },
     'review': { Component: ReviewStep, evaluateCompletion: alwaysComplete },
+  },
+  'report_workers_missing_ssn': {
+    'inputs': { Component: InputsStep, evaluateCompletion: alwaysComplete },
+    'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
+    'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
+  },
+  'report_workers_invalid_ssn': {
+    'inputs': { Component: InputsStep, evaluateCompletion: alwaysComplete },
+    'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
+    'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
   },
 };
 
@@ -100,6 +118,16 @@ export const stepComponentRegistry: StepComponentRegistry = {
     'validate': ValidateStep,
     'process': ProcessStep,
     'review': ReviewStep,
+  },
+  'report_workers_missing_ssn': {
+    'inputs': InputsStep,
+    'run': RunStep,
+    'results': ResultsStep,
+  },
+  'report_workers_invalid_ssn': {
+    'inputs': InputsStep,
+    'run': RunStep,
+    'results': ResultsStep,
   },
 };
 

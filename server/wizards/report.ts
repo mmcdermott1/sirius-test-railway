@@ -22,6 +22,7 @@ export interface ReportRecord {
 
 export interface ReportResults {
   totalRecords: number;
+  recordCount: number; // Alias for totalRecords for frontend compatibility
   records: ReportRecord[];
   generatedAt: Date;
   columns: ReportColumn[];
@@ -29,7 +30,7 @@ export interface ReportResults {
 
 export interface ReportColumn {
   id: string;
-  name: string;
+  header: string;
   type: 'string' | 'number' | 'date' | 'boolean';
   width?: number;
 }
@@ -116,6 +117,7 @@ export abstract class WizardReport extends BaseWizard {
     // Build results
     const results: ReportResults = {
       totalRecords: records.length,
+      recordCount: records.length,
       records,
       generatedAt: new Date(),
       columns
@@ -124,13 +126,26 @@ export abstract class WizardReport extends BaseWizard {
     // Save results to wizard_report_data table
     const reportData = await storage.wizards.saveReportData(wizardId, results);
 
-    // Update wizard data with reference to report data
+    // Update wizard with completion status and report data reference
+    // Separate status update from data update to ensure both persist correctly
+    await storage.wizards.update(wizardId, {
+      status: 'completed'
+    });
+
     await storage.wizards.update(wizardId, {
       data: {
         ...wizardData,
         recordCount: records.length,
         generatedAt: new Date(),
-        reportDataId: reportData.id
+        reportDataId: reportData.id,
+        progress: {
+          ...(wizardData?.progress || {}),
+          run: {
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            percentComplete: 100
+          }
+        }
       }
     });
 

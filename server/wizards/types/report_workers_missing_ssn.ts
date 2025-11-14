@@ -10,25 +10,25 @@ export class ReportWorkersMissingSSN extends WizardReport {
     return [
       {
         id: 'siriusId',
-        name: 'Sirius ID',
+        header: 'Sirius ID',
         type: 'number',
         width: 120
       },
       {
         id: 'displayName',
-        name: 'Name',
+        header: 'Name',
         type: 'string',
         width: 250
       },
       {
         id: 'email',
-        name: 'Email',
+        header: 'Email',
         type: 'string',
         width: 200
       },
       {
         id: 'birthDate',
-        name: 'Birth Date',
+        header: 'Birth Date',
         type: 'date',
         width: 120
       }
