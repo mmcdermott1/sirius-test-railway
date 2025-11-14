@@ -60,14 +60,14 @@ export function ProcessStep({ wizardId, wizardType, data, onDataChange }: Proces
         const data = JSON.parse(event.data);
 
         if (data.type === 'progress') {
-          setProgress({
-            processed: data.processed,
-            total: data.total,
-            createdCount: data.createdCount || 0,
-            updatedCount: data.updatedCount || 0,
-            successCount: data.successCount,
-            failureCount: data.failureCount,
-          });
+          setProgress((prev) => ({
+            processed: data.processed !== undefined ? data.processed : prev.processed,
+            total: data.total !== undefined ? data.total : prev.total,
+            createdCount: data.createdCount !== undefined ? data.createdCount : prev.createdCount,
+            updatedCount: data.updatedCount !== undefined ? data.updatedCount : prev.updatedCount,
+            successCount: data.successCount !== undefined ? data.successCount : prev.successCount,
+            failureCount: data.failureCount !== undefined ? data.failureCount : prev.failureCount,
+          }));
         } else if (data.type === 'complete') {
           setResults(data.results);
           setWizardStatus(data.wizardStatus);
@@ -152,13 +152,13 @@ export function ProcessStep({ wizardId, wizardType, data, onDataChange }: Proces
                 <div>
                   <p className="text-muted-foreground">Created</p>
                   <p className="text-lg font-semibold text-green-600" data-testid="text-created">
-                    {(progress.createdCount || 0).toLocaleString()}
+                    {(progress.createdCount ?? 0).toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Updated</p>
                   <p className="text-lg font-semibold text-blue-600" data-testid="text-updated">
-                    {(progress.updatedCount || 0).toLocaleString()}
+                    {(progress.updatedCount ?? 0).toLocaleString()}
                   </p>
                 </div>
                 <div>
@@ -207,7 +207,7 @@ export function ProcessStep({ wizardId, wizardType, data, onDataChange }: Proces
                       <div className="flex items-center justify-center space-x-2">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                         <p className="text-2xl font-bold text-green-600" data-testid="text-created-count">
-                          {(results.createdCount || 0).toLocaleString()}
+                          {(results.createdCount ?? 0).toLocaleString()}
                         </p>
                       </div>
                       <p className="text-sm text-muted-foreground">Created</p>
@@ -220,7 +220,7 @@ export function ProcessStep({ wizardId, wizardType, data, onDataChange }: Proces
                       <div className="flex items-center justify-center space-x-2">
                         <CheckCircle2 className="h-5 w-5 text-blue-600" />
                         <p className="text-2xl font-bold text-blue-600" data-testid="text-updated-count">
-                          {(results.updatedCount || 0).toLocaleString()}
+                          {(results.updatedCount ?? 0).toLocaleString()}
                         </p>
                       </div>
                       <p className="text-sm text-muted-foreground">Updated</p>
