@@ -307,6 +307,57 @@ export abstract class FeedWizard extends BaseWizard {
   }
 
   /**
+   * Parse various date formats and convert to YYYY-MM-DD
+   */
+  private parseDate(dateStr: string): string | null {
+    if (!dateStr || dateStr.trim() === '') {
+      return null;
+    }
+
+    const trimmed = dateStr.trim();
+    
+    // Already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    // Try to parse common formats
+    let parsed: Date | null = null;
+
+    // M/D/YYYY or MM/DD/YYYY (e.g., 6/8/1955, 01/02/2015)
+    const mdyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mdyMatch) {
+      const [, month, day, year] = mdyMatch;
+      parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+
+    // M-D-YYYY or MM-DD-YYYY
+    const mdyDashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (mdyDashMatch) {
+      const [, month, day, year] = mdyDashMatch;
+      parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+
+    // YYYY/MM/DD
+    const ymdMatch = trimmed.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+    if (ymdMatch) {
+      const [, year, month, day] = ymdMatch;
+      parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+
+    if (!parsed || isNaN(parsed.getTime())) {
+      throw new Error(`Invalid date format: ${dateStr}. Supported formats: M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD`);
+    }
+
+    // Convert to YYYY-MM-DD
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * Process validated feed data to create/update workers
    * @param wizardId The wizard instance ID
    * @param batchSize Number of rows to process per batch (default: 100)
@@ -403,7 +454,10 @@ export abstract class FeedWizard extends BaseWizard {
           const ssn = row.ssn?.toString().trim();
           const firstName = row.firstName?.toString().trim();
           const lastName = row.lastName?.toString().trim();
-          const birthDate = row.dateOfBirth?.toString().trim();
+          const rawBirthDate = row.dateOfBirth?.toString().trim();
+
+          // Parse birth date to YYYY-MM-DD format if provided
+          const birthDate = rawBirthDate ? this.parseDate(rawBirthDate) : null;
 
           if (mode === 'update') {
             // Update mode: find existing worker by SSN
