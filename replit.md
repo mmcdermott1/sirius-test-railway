@@ -4,14 +4,22 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 
 # Recent Changes (November 14, 2025)
 
-## Worker Hours Feature
+## Worker Hours & Employment Views Reorganization
 -   **New Table**: Added `worker_hours` table with fields for year, month, day (always 1), worker_id, employer_id, employment_status_id, and hours. Includes unique constraint on (worker, employer, year, month, day) and cascade deletes for worker and employer foreign keys.
--   **Storage Methods**: Extended WorkerStorage interface with complete CRUD operations including `upsertWorkerHours` using atomic upsert with full audit logging that distinguishes create vs update operations.
--   **API Endpoints**: Added RESTful endpoints for worker hours management (GET, POST, PATCH, DELETE) with proper authentication and authorization.
--   **Frontend**: New "Hours" tab in worker detail pages with table display, add/edit dialogs, and delete functionality. UI shows only year and month (day field is hidden and automatically set to 1).
+-   **Storage Methods**: Extended WorkerStorage interface with complete CRUD operations including `upsertWorkerHours` using atomic upsert with full audit logging. Added three specialized view methods:
+    -   `getCurrentEmploymentStatus`: Shows most recent hours entry per employer with status only (using DISTINCT ON)
+    -   `getEmploymentHistory`: Shows month/year when employment status changed per employer (using window functions for change detection)
+    -   `getMonthlyHours`: Shows aggregated hours by month, broken out by employer (using GROUP BY)
+-   **API Endpoints**: Added RESTful endpoints for worker hours management (GET, POST, PATCH, DELETE) with proper authentication and authorization. GET endpoint now accepts a `view` query parameter (current, history, monthly, daily) to return different data structures.
+-   **Frontend**: Reorganized worker employment tracking into four specialized sub-tabs under the Employment section:
+    -   **Current**: Displays current employment status per employer (no hours shown)
+    -   **History**: Shows employment status change timeline
+    -   **Monthly**: Shows aggregated hours by month per employer
+    -   **Daily**: Full CRUD interface for individual hours entries (year/month only in UI, day=1 internally)
 -   **Security**: All endpoints require authentication; GET endpoint requires worker policy access, mutations require workers.manage permission.
 -   **Wizard Integration**: GbhetLegalWorkersWizard (monthly and corrections) now processes worker hours during the Process step. Hours are upserted atomically with employment status validation, year/month coercion, and row-level error handling for partial successes.
 -   **Logging Middleware Enhancement**: Updated logging middleware to pass `beforeState` to `after()` callbacks, enabling all storage methods to properly distinguish create vs update operations in audit metadata.
+-   **Employment History Removal**: Completely removed `worker_emphist` table and all employment history tracking functionality. Worker hours tracking with 4 specialized views is now the single source for employment data.
 
 # User Preferences
 
