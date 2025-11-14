@@ -53,13 +53,12 @@ export default function Reports() {
 
   const createReportMutation = useMutation<Wizard, Error, string>({
     mutationFn: async (reportType: string) => {
-      // apiRequest already returns parsed JSON, not a Response object
       return await apiRequest("POST", `/api/wizards`, {
         type: reportType,
         status: "draft",
         entityId: null,
         data: {}
-      }) as Promise<Wizard>;
+      });
     },
     onSuccess: (newWizard: Wizard) => {
       queryClient.invalidateQueries({ queryKey: ["/api/wizards"] });
