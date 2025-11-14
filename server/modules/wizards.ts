@@ -277,11 +277,11 @@ export function registerWizardRoutes(
         }
         
         // Type-specific constraint validation
-        if (validatedData.type === 'legal_workers_monthly') {
+        if (validatedData.type === 'gbhet_legal_workers_monthly') {
           // Check for duplicate monthly wizard
           const existingWizards = await storage.wizardEmployerMonthly.findByEmployerTypeAndPeriod(
             validatedData.entityId,
-            'legal_workers_monthly',
+            'gbhet_legal_workers_monthly',
             year,
             month
           );
@@ -291,7 +291,7 @@ export function registerWizardRoutes(
               message: `A legal workers monthly wizard already exists for this employer in ${month}/${year}` 
             });
           }
-        } else if (validatedData.type === 'legal_workers_corrections') {
+        } else if (validatedData.type === 'gbhet_legal_workers_corrections') {
           // Check for completed monthly wizard prerequisite
           const completedMonthly = await storage.wizardEmployerMonthly.findCompletedMonthlyByEmployerAndPeriod(
             validatedData.entityId,
@@ -315,7 +315,7 @@ export function registerWizardRoutes(
           const year = Number(launchArgs.year);
           const month = Number(launchArgs.month);
           
-          if (validatedData.type === 'legal_workers_monthly') {
+          if (validatedData.type === 'gbhet_legal_workers_monthly') {
             // Re-check for duplicate monthly wizard inside transaction
             const existingWizards = await tx
               .select()
@@ -326,14 +326,14 @@ export function registerWizardRoutes(
                   eq(wizardEmployerMonthly.employerId, validatedData.entityId),
                   eq(wizardEmployerMonthly.year, year),
                   eq(wizardEmployerMonthly.month, month),
-                  eq(wizards.type, 'legal_workers_monthly')
+                  eq(wizards.type, 'gbhet_legal_workers_monthly')
                 )
               );
             
             if (existingWizards.length > 0) {
               throw new HttpError(400, `A legal workers monthly wizard already exists for this employer in ${month}/${year}`);
             }
-          } else if (validatedData.type === 'legal_workers_corrections') {
+          } else if (validatedData.type === 'gbhet_legal_workers_corrections') {
             // Re-check for completed monthly wizard prerequisite inside transaction
             const [completedMonthly] = await tx
               .select()
@@ -344,7 +344,7 @@ export function registerWizardRoutes(
                   eq(wizardEmployerMonthly.employerId, validatedData.entityId),
                   eq(wizardEmployerMonthly.year, year),
                   eq(wizardEmployerMonthly.month, month),
-                  eq(wizards.type, 'legal_workers_monthly'),
+                  eq(wizards.type, 'gbhet_legal_workers_monthly'),
                   or(eq(wizards.status, 'completed'), eq(wizards.status, 'complete'))
                 )
               );
