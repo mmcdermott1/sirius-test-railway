@@ -5,18 +5,23 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 # Recent Changes (November 14, 2025)
 
 ## Worker Hours & Employment Views Reorganization
--   **New Table**: Added `worker_hours` table with fields for year, month, day, worker_id, employer_id, employment_status_id, and hours. Includes unique constraint on (worker, employer, year, month, day) and cascade deletes for worker and employer foreign keys.
+-   **New Table**: Added `worker_hours` table with fields for year, month, day, worker_id, employer_id, employment_status_id, hours, and home. Includes unique constraint on (worker, employer, year, month, day) and cascade deletes for worker and employer foreign keys.
 -   **Storage Methods**: Extended WorkerStorage interface with complete CRUD operations including `createWorkerHours`, `updateWorkerHours`, `deleteWorkerHours`, and `upsertWorkerHours` (used by wizards, defaults day=1) using atomic upsert with full audit logging. Added three specialized view methods:
-    -   `getCurrentEmploymentStatus`: Shows most recent hours entry per employer with status only (using DISTINCT ON)
-    -   `getEmploymentHistory`: Shows month/year when employment status changed per employer (using window functions for change detection)
-    -   `getMonthlyHours`: Shows aggregated hours by month, broken out by employer (using GROUP BY)
--   **API Endpoints**: Added RESTful endpoints for worker hours management (GET, POST, PATCH, DELETE) with proper authentication and authorization. GET endpoint now accepts a `view` query parameter (current, history, monthly, daily) to return different data structures. POST and PATCH endpoints require year, month, and day fields.
+    -   `getCurrentEmploymentStatus`: Shows most recent hours entry per employer with status and home field (using DISTINCT ON)
+    -   `getEmploymentHistory`: Shows month/year when employment status or home status changed per employer (using window functions for change detection)
+    -   `getMonthlyHours`: Shows aggregated hours by month per employer with home status aggregation using bool_or/bool_and (allHome: all entries were home, anyHome: at least one entry was home)
+-   **API Endpoints**: Added RESTful endpoints for worker hours management (GET, POST, PATCH, DELETE) with proper authentication and authorization. GET endpoint now accepts a `view` query parameter (current, history, monthly, daily) to return different data structures. POST and PATCH endpoints require year, month, and day fields, and accept optional home boolean field (defaults to false).
 -   **Day Field Validation**: Schema validation ensures day is 1-31 and validates against actual days in month (handles leap years, 30/31-day months). Frontend dynamically shows valid day options based on selected year/month.
+-   **Home Field**: Boolean field indicating whether work was performed from home. Displayed across all four Employment tabs:
+    -   **Current**: Shows home status as badge (Home/On-site) for most recent entry per employer
+    -   **History**: Shows home status as badge (Home/On-site) for each status change event
+    -   **Monthly**: Shows aggregated home status as badge (All Home/Some Home/All On-site) based on whether all, some, or none of the days in the month were home
+    -   **Daily**: Full CRUD with Switch component in Add/Edit forms and badge display in table
 -   **Frontend**: Reorganized worker employment tracking into four specialized sub-tabs under the Employment section:
-    -   **Current**: Displays current employment status per employer (no hours shown)
-    -   **History**: Shows employment status change timeline
-    -   **Monthly**: Shows aggregated hours by month per employer
-    -   **Daily**: Full CRUD interface for individual hours entries with year/month/day inputs. Multiple records allowed per worker/employer/month with different days.
+    -   **Current**: Displays current employment status and home status per employer (no hours shown)
+    -   **History**: Shows employment status and home status change timeline (most recent first)
+    -   **Monthly**: Shows aggregated hours and home status by month per employer
+    -   **Daily**: Full CRUD interface for individual hours entries with year/month/day inputs and home toggle. Multiple records allowed per worker/employer/month with different days.
 -   **Security**: All endpoints require authentication; GET endpoint requires worker policy access, mutations require workers.manage permission.
 -   **Wizard Integration**: GbhetLegalWorkersWizard (monthly and corrections) now processes worker hours during the Process step. Hours are upserted atomically with employment status validation, year/month coercion, and row-level error handling for partial successes.
 -   **Logging Middleware Enhancement**: Updated logging middleware to pass `beforeState` to `after()` callbacks, enabling all storage methods to properly distinguish create vs update operations in audit metadata.
