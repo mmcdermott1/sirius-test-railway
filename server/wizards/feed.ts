@@ -753,12 +753,14 @@ export abstract class FeedWizard extends BaseWizard {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
     const resultsFileName = `${baseName}-results-${timestamp}.csv`;
 
-    // Upload to object storage
+    // Upload to object storage in same folder as wizard attachments
+    const customPath = `wizards/${wizardId}/${Date.now()}_${resultsFileName}`;
     const uploadResult = await objectStorageService.uploadFile({
       fileName: resultsFileName,
       fileContent: csvBuffer,
       mimeType: 'text/csv',
-      accessLevel: 'private'
+      accessLevel: 'private',
+      customPath
     });
 
     // Use the same uploadedBy as the original file
