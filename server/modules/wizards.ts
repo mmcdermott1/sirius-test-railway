@@ -1090,11 +1090,12 @@ export function registerWizardRoutes(
           // Update wizard status based on results
           const finalStatus = results.failureCount > 0 ? 'needs_review' : 'complete';
           
-          // Update wizard with final status
+          // Update wizard with final status (preserve processResults that was just saved)
           await storage.wizards.update(id, {
             status: finalStatus,
             data: {
               ...wizard.data,
+              processResults: results, // Preserve the complete results including resultsFileId
               progress: {
                 ...wizard.data?.progress,
                 process: {
