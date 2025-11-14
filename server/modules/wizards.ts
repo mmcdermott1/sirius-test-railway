@@ -143,7 +143,7 @@ export function registerWizardRoutes(
         return res.status(400).json({ message: "Wizard type must be a non-empty string" });
       }
       
-      const employersWithUploads = await storage.wizardEmployerMonthly.listAllEmployersWithUploads(
+      const employersWithUploads = await storage.wizardEmployerMonthly.listAllEmployersWithUploadsForRange(
         yearNum, 
         monthNum, 
         wizardType as string

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, FileText, Upload, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
@@ -44,6 +45,12 @@ interface EmployerWithUploads {
   uploads: Upload[];
 }
 
+interface MonthPeriod {
+  year: number;
+  month: number;
+  label: string;
+}
+
 function generateYearOptions() {
   const currentYear = new Date().getFullYear();
   const years = [];
@@ -68,6 +75,21 @@ function generateMonthOptions() {
     { value: 11, label: "November" },
     { value: 12, label: "December" },
   ];
+}
+
+function calculateMonthPeriods(year: number, month: number): MonthPeriod[] {
+  const periods: MonthPeriod[] = [];
+  
+  for (let i = 4; i >= 0; i--) {
+    const targetDate = new Date(year, month - 1 - i, 1);
+    periods.push({
+      year: targetDate.getFullYear(),
+      month: targetDate.getMonth() + 1,
+      label: format(targetDate, 'MMM yyyy')
+    });
+  }
+  
+  return periods;
 }
 
 const filterSchema = z.object({
@@ -133,6 +155,7 @@ export default function EmployersMonthlyUploads() {
   const monthOptions = generateMonthOptions();
 
   const selectedWizardType = wizardTypes.find(wt => wt.name === filters?.wizardType);
+  const monthPeriods = filters ? calculateMonthPeriods(filters.year, filters.month) : [];
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -141,14 +164,14 @@ export default function EmployersMonthlyUploads() {
           Monthly Uploads
         </h1>
         <p className="text-muted-foreground" data-testid="text-page-description">
-          View all employers and their monthly wizard uploads for a specific period
+          View all employers and their monthly wizard uploads across a 5-month period
         </p>
       </div>
 
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Select Period and Upload Type</CardTitle>
-          <CardDescription>Choose a year, month, and wizard type to view all employers with their uploads</CardDescription>
+          <CardDescription>Choose a year, month, and wizard type to view uploads for the 5-month period</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -262,10 +285,10 @@ export default function EmployersMonthlyUploads() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-muted-foreground" />
-              All Employers - {selectedWizardType?.displayName} ({format(new Date(filters.year, filters.month - 1), 'MMMM yyyy')})
+              {selectedWizardType?.displayName} - 5-Month View
             </CardTitle>
             <CardDescription>
-              Showing all employers with their upload status for the selected period
+              Showing uploads from {monthPeriods[0]?.label} to {monthPeriods[4]?.label}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -284,79 +307,77 @@ export default function EmployersMonthlyUploads() {
                 <p>No employers found</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {employersWithUploads.map(({ employer, uploads }) => (
-                  <Card key={employer.id} data-testid={`employer-card-${employer.id}`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle 
-                          className="text-lg cursor-pointer hover:underline"
-                          onClick={() => setLocation(`/employers/${employer.id}`)}
-                          data-testid={`text-employer-name-${employer.id}`}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[250px] font-semibold" data-testid="table-header-employer">
+                        Employer
+                      </TableHead>
+                      {monthPeriods.map((period, idx) => (
+                        <TableHead 
+                          key={`${period.year}-${period.month}`} 
+                          className="text-center font-semibold"
+                          data-testid={`table-header-month-${idx}`}
                         >
-                          {employer.name}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground" data-testid={`text-sirius-id-${employer.id}`}>
+                          {period.label}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employersWithUploads.map(({ employer, uploads }) => (
+                      <TableRow key={employer.id} data-testid={`table-row-${employer.id}`}>
+                        <TableCell className="font-medium">
+                          <div 
+                            className="cursor-pointer hover:underline"
+                            onClick={() => setLocation(`/employers/${employer.id}`)}
+                            data-testid={`text-employer-name-${employer.id}`}
+                          >
+                            {employer.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
                             ID: {employer.siriusId}
-                          </span>
-                          {!employer.isActive && (
-                            <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {uploads.length === 0 ? (
-                        <div className="text-sm text-muted-foreground py-2" data-testid={`text-no-uploads-${employer.id}`}>
-                          <Upload className="h-8 w-8 mx-auto mb-1 opacity-20" />
-                          <p className="text-center">No uploads for this period</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {uploads.map((upload) => (
-                            <div
-                              key={upload.id}
-                              className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                              onClick={() => setLocation(`/wizards/${upload.id}`)}
-                              data-testid={`upload-item-${upload.id}`}
+                            {!employer.isActive && <span className="ml-2">(Inactive)</span>}
+                          </div>
+                        </TableCell>
+                        {monthPeriods.map((period) => {
+                          const monthUploads = uploads.filter(
+                            u => u.year === period.year && u.month === period.month
+                          );
+                          
+                          return (
+                            <TableCell 
+                              key={`${employer.id}-${period.year}-${period.month}`}
+                              className="text-center align-top p-2"
+                              data-testid={`table-cell-${employer.id}-${period.year}-${period.month}`}
                             >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm font-medium" data-testid={`text-upload-id-${upload.id}`}>
-                                    Upload ID: {upload.id.slice(0, 8)}...
-                                  </span>
-                                  <span 
-                                    className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground"
-                                    data-testid={`text-status-${upload.id}`}
-                                  >
-                                    {upload.status}
-                                  </span>
+                              {monthUploads.length === 0 ? (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              ) : (
+                                <div className="space-y-1">
+                                  {monthUploads.map((upload) => (
+                                    <div
+                                      key={upload.id}
+                                      className="text-xs cursor-pointer hover:underline p-1 rounded hover:bg-muted"
+                                      onClick={() => setLocation(`/wizards/${upload.id}`)}
+                                      data-testid={`upload-link-${upload.id}`}
+                                    >
+                                      <div className="font-medium">{upload.status}</div>
+                                      {upload.currentStep && (
+                                        <div className="text-muted-foreground">{upload.currentStep}</div>
+                                      )}
+                                    </div>
+                                  ))}
                                 </div>
-                                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                  {upload.currentStep && (
-                                    <>
-                                      <span data-testid={`text-step-${upload.id}`}>
-                                        Step: {upload.currentStep}
-                                      </span>
-                                      <span>•</span>
-                                    </>
-                                  )}
-                                  <span data-testid={`text-created-${upload.id}`}>
-                                    Created: {format(new Date(upload.createdAt), 'PPp')}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>

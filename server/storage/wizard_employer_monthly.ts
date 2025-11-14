@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { wizardEmployerMonthly, wizards, employers, insertWizardEmployerMonthlySchema } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 export type WizardEmployerMonthly = typeof wizardEmployerMonthly.$inferSelect;
@@ -29,6 +29,7 @@ export interface WizardEmployerMonthlyStorage {
   listByPeriod(year: number, month: number): Promise<any[]>;
   listByEmployer(employerId: string, year?: number, month?: number): Promise<WizardEmployerMonthly[]>;
   listAllEmployersWithUploads(year: number, month: number, wizardType: string): Promise<EmployerWithUploads[]>;
+  listAllEmployersWithUploadsForRange(year: number, month: number, wizardType: string): Promise<EmployerWithUploads[]>;
   delete(wizardId: string): Promise<boolean>;
 }
 
@@ -123,6 +124,56 @@ export function createWizardEmployerMonthlyStorage(): WizardEmployerMonthlyStora
           and(
             eq(wizardEmployerMonthly.year, year),
             eq(wizardEmployerMonthly.month, month),
+            eq(wizards.type, wizardType)
+          )
+        );
+      
+      return allEmployers.map(employer => ({
+        employer,
+        uploads: uploadsForPeriod.filter(upload => upload.employerId === employer.id)
+      }));
+    },
+
+    async listAllEmployersWithUploadsForRange(year: number, month: number, wizardType: string): Promise<EmployerWithUploads[]> {
+      const allEmployers = await db.select().from(employers);
+      
+      // Calculate 5-month range: 4 months before + selected month
+      const monthPeriods: Array<{ year: number; month: number }> = [];
+      for (let i = 4; i >= 0; i--) {
+        const targetDate = new Date(year, month - 1 - i, 1);
+        monthPeriods.push({
+          year: targetDate.getFullYear(),
+          month: targetDate.getMonth() + 1
+        });
+      }
+      
+      // Build OR conditions for each month period
+      const periodConditions = monthPeriods.map(period => 
+        and(
+          eq(wizardEmployerMonthly.year, period.year),
+          eq(wizardEmployerMonthly.month, period.month)
+        )
+      );
+      
+      const uploadsForPeriod = await db
+        .select({
+          wizardId: wizardEmployerMonthly.wizardId,
+          employerId: wizardEmployerMonthly.employerId,
+          year: wizardEmployerMonthly.year,
+          month: wizardEmployerMonthly.month,
+          id: wizards.id,
+          type: wizards.type,
+          status: wizards.status,
+          currentStep: wizards.currentStep,
+          entityId: wizards.entityId,
+          data: wizards.data,
+          createdAt: wizards.date,
+        })
+        .from(wizardEmployerMonthly)
+        .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
+        .where(
+          and(
+            or(...periodConditions),
             eq(wizards.type, wizardType)
           )
         );
