@@ -15,15 +15,11 @@ interface ResultsStepProps {
 }
 
 interface ReportData {
-  id: string;
-  wizardId: string;
-  data: {
-    columns: Array<{ id: string; header: string; type: string }>;
-    records: any[];
-    recordCount: number;
-    generatedAt: string;
-  };
-  createdAt: string;
+  totalRecords: number;
+  recordCount: number;
+  records: any[];
+  generatedAt: string;
+  columns: Array<{ id: string; header: string; type: string }>;
 }
 
 export function ResultsStep({ wizardId, wizardType, data }: ResultsStepProps) {
@@ -34,7 +30,7 @@ export function ResultsStep({ wizardId, wizardType, data }: ResultsStepProps) {
   const handleExport = () => {
     if (!reportData) return;
 
-    const { columns, records } = reportData.data;
+    const { columns, records } = reportData;
     
     // Convert to CSV
     const headers = columns.map(col => col.header).join(',');
@@ -117,7 +113,7 @@ export function ResultsStep({ wizardId, wizardType, data }: ResultsStepProps) {
     );
   }
 
-  const { columns, records, recordCount, generatedAt } = reportData.data;
+  const { columns, records, recordCount, generatedAt } = reportData;
 
   return (
     <Card>
@@ -160,7 +156,7 @@ export function ResultsStep({ wizardId, wizardType, data }: ResultsStepProps) {
               <Table>
                 <TableHeader className="sticky top-0 bg-muted">
                   <TableRow>
-                    {columns.map(col => (
+                    {columns.map((col: any) => (
                       <TableHead key={col.id} className="font-semibold">
                         {col.header}
                       </TableHead>
@@ -168,9 +164,9 @@ export function ResultsStep({ wizardId, wizardType, data }: ResultsStepProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.map((record, idx) => (
+                  {records.map((record: any, idx: number) => (
                     <TableRow key={idx} data-testid={`row-record-${idx}`}>
-                      {columns.map(col => (
+                      {columns.map((col: any) => (
                         <TableCell key={col.id}>
                           {col.type === 'date' && record[col.id] 
                             ? format(new Date(record[col.id]), 'PP')
