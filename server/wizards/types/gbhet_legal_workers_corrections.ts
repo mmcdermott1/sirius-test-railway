@@ -5,6 +5,7 @@ export class GbhetLegalWorkersCorrectionsWizard extends GbhetLegalWorkersWizard 
   name = 'gbhet_legal_workers_corrections';
   displayName = 'GBHET Legal Workers - Corrections Feed';
   description = 'Generate corrections feed for legal workers in GBHET';
+  isMonthly = true;
 
   async generateFeed(config: FeedConfig, data: any): Promise<FeedData> {
     const { originalPeriod, corrections } = data;

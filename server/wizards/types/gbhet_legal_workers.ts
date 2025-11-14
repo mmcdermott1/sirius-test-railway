@@ -1,5 +1,5 @@
 import { FeedWizard, FeedField, ValidationError } from '../feed.js';
-import { WizardStatus, WizardStep } from '../base.js';
+import { WizardStatus, WizardStep, LaunchArgument } from '../base.js';
 import { storage } from '../../storage/index.js';
 
 /**
@@ -134,6 +134,31 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
     return [
       { id: 'draft', name: 'Draft', description: 'Initial draft state' },
       { id: 'complete', name: 'Complete', description: 'Feed generation complete' }
+    ];
+  }
+
+  getLaunchArguments(): LaunchArgument[] {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    return [
+      {
+        id: 'year',
+        name: 'Year',
+        type: 'year',
+        required: true,
+        description: 'Select the year for this monthly feed',
+        defaultValue: currentYear
+      },
+      {
+        id: 'month',
+        name: 'Month',
+        type: 'month',
+        required: true,
+        description: 'Select the month for this monthly feed',
+        defaultValue: currentMonth
+      }
     ];
   }
 
