@@ -24,6 +24,7 @@ export interface FeedData {
   hasHeaders?: boolean; // Whether the first row contains headers
   mode?: 'create' | 'update'; // Whether this feed creates new records or updates existing ones
   validationResults?: ValidationResults;
+  processResults?: ProcessResults;
 }
 
 export interface ValidationError {
@@ -39,6 +40,20 @@ export interface ValidationResults {
   invalidRows: number;
   errors: ValidationError[];
   errorSummary: Record<string, number>; // Count of each error type
+  completedAt?: Date;
+}
+
+export interface ProcessError {
+  rowIndex: number;
+  message: string;
+  data?: Record<string, any>;
+}
+
+export interface ProcessResults {
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  errors: ProcessError[];
   completedAt?: Date;
 }
 
@@ -285,6 +300,216 @@ export abstract class FeedWizard extends BaseWizard {
       data: {
         ...wizardData,
         validationResults: results
+      }
+    });
+
+    return results;
+  }
+
+  /**
+   * Process validated feed data to create/update workers
+   * @param wizardId The wizard instance ID
+   * @param batchSize Number of rows to process per batch (default: 100)
+   * @param onProgress Callback for progress updates
+   * @returns Processing results
+   */
+  async processFeedData(
+    wizardId: string,
+    batchSize: number = 100,
+    onProgress?: (progress: { 
+      processed: number; 
+      total: number; 
+      successCount: number; 
+      failureCount: number;
+      currentRow?: { index: number; status: 'success' | 'error'; error?: string };
+    }) => void
+  ): Promise<ProcessResults> {
+    const wizard = await storage.wizards.getById(wizardId);
+    if (!wizard) {
+      throw new Error('Wizard not found');
+    }
+
+    const wizardData = wizard.data as any;
+    const fileId = wizardData?.uploadedFileId;
+    const columnMapping: Record<string, string> = wizardData?.columnMapping || {};
+    const hasHeaders = wizardData?.hasHeaders ?? true;
+    const mode = wizardData?.mode || 'create';
+    const validationResults = wizardData?.validationResults;
+
+    if (!validationResults) {
+      throw new Error('No validation results found. Please validate the data first.');
+    }
+
+    if (!fileId) {
+      throw new Error('No uploaded file found');
+    }
+
+    // Load file from object storage
+    const file = await storage.files.getById(fileId);
+    if (!file) {
+      throw new Error('File not found');
+    }
+
+    // Download file content
+    const buffer = await objectStorageService.downloadFile(file.storagePath);
+
+    // Parse file based on type
+    let rawRows: any[] = [];
+    if (file.mimeType === 'text/csv') {
+      rawRows = parseCSV(buffer, {
+        columns: false,
+        skip_empty_lines: true,
+        relax_column_count: true
+      });
+    } else if (file.mimeType?.includes('spreadsheet') || file.mimeType?.includes('excel')) {
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      rawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+    } else {
+      throw new Error('Unsupported file type');
+    }
+
+    // Skip header row if present
+    const dataRows = hasHeaders ? rawRows.slice(1) : rawRows;
+
+    // Map columns to fields
+    const mappedRows = dataRows.map((row: any[]) => {
+      const mapped: Record<string, any> = {};
+      Object.entries(columnMapping).forEach(([sourceCol, fieldId]) => {
+        if (fieldId && fieldId !== '_unmapped') {
+          const colIndex = parseInt(sourceCol.replace('col_', ''));
+          mapped[fieldId] = row[colIndex];
+        }
+      });
+      return mapped;
+    });
+
+    // Process in batches
+    const totalRows = mappedRows.length;
+    let successCount = 0;
+    let failureCount = 0;
+    const allErrors: ProcessError[] = [];
+
+    for (let i = 0; i < totalRows; i += batchSize) {
+      const batch = mappedRows.slice(i, Math.min(i + batchSize, totalRows));
+      
+      // Process each row in the batch
+      for (let j = 0; j < batch.length; j++) {
+        const rowIndex = i + j;
+        const row = batch[j];
+        
+        try {
+          // Extract worker data from row
+          const ssn = row.ssn?.toString().trim();
+          const firstName = row.firstName?.toString().trim();
+          const lastName = row.lastName?.toString().trim();
+          const birthDate = row.dateOfBirth?.toString().trim();
+
+          if (mode === 'update') {
+            // Update mode: find existing worker by SSN
+            if (!ssn) {
+              throw new Error('SSN is required for update mode');
+            }
+
+            const existingWorker = await storage.workers.getWorkerBySSN(ssn);
+            if (!existingWorker) {
+              throw new Error(`No worker found with SSN ${ssn}`);
+            }
+
+            // Update worker name components if provided
+            if (firstName || lastName) {
+              await storage.workers.updateWorkerContactNameComponents(existingWorker.id, {
+                given: firstName || undefined,
+                family: lastName || undefined
+              });
+            }
+
+            // Update birth date if provided
+            if (birthDate) {
+              await storage.workers.updateWorkerContactBirthDate(existingWorker.id, birthDate);
+            }
+
+            successCount++;
+            if (onProgress) {
+              onProgress({
+                processed: rowIndex + 1,
+                total: totalRows,
+                successCount,
+                failureCount,
+                currentRow: { index: rowIndex, status: 'success' }
+              });
+            }
+
+          } else {
+            // Create mode: create new worker
+            if (!firstName && !lastName) {
+              throw new Error('First name or last name is required');
+            }
+
+            // Create worker with name
+            const fullName = [firstName, lastName].filter(Boolean).join(' ');
+            const newWorker = await storage.workers.createWorker(fullName);
+
+            // Set SSN if provided
+            if (ssn) {
+              await storage.workers.updateWorkerSSN(newWorker.id, ssn);
+            }
+
+            // Set birth date if provided
+            if (birthDate) {
+              await storage.workers.updateWorkerContactBirthDate(newWorker.id, birthDate);
+            }
+
+            successCount++;
+            if (onProgress) {
+              onProgress({
+                processed: rowIndex + 1,
+                total: totalRows,
+                successCount,
+                failureCount,
+                currentRow: { index: rowIndex, status: 'success' }
+              });
+            }
+          }
+
+        } catch (error: any) {
+          failureCount++;
+          allErrors.push({
+            rowIndex,
+            message: error.message || 'Unknown error',
+            data: row
+          });
+
+          if (onProgress) {
+            onProgress({
+              processed: rowIndex + 1,
+              total: totalRows,
+              successCount,
+              failureCount,
+              currentRow: { 
+                index: rowIndex, 
+                status: 'error',
+                error: error.message || 'Unknown error'
+              }
+            });
+          }
+        }
+      }
+    }
+
+    const results: ProcessResults = {
+      totalRows,
+      successCount,
+      failureCount,
+      errors: allErrors,
+      completedAt: new Date()
+    };
+
+    // Save processing results to wizard data
+    await storage.wizards.update(wizardId, {
+      data: {
+        ...wizardData,
+        processResults: results
       }
     });
 
