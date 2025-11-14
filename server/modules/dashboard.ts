@@ -13,59 +13,6 @@ export function registerDashboardRoutes(
   requireAuth: AuthMiddleware, 
   requirePermission: PermissionMiddleware
 ) {
-  // Welcome Messages routes - Manage role-specific dashboard welcome messages
-  
-  // GET /api/welcome-messages - Get all welcome messages (returns object with roleId as key)
-  app.get("/api/welcome-messages", requireAuth, async (req, res) => {
-    try {
-      const roles = await storage.users.getAllRoles();
-      const welcomeMessages: Record<string, string> = {};
-      
-      for (const role of roles) {
-        const variableName = `welcome_message_${role.id}`;
-        const variable = await storage.variables.getByName(variableName);
-        welcomeMessages[role.id] = variable ? (variable.value as string) : "";
-      }
-      
-      res.json(welcomeMessages);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch welcome messages" });
-    }
-  });
-
-  // PUT /api/welcome-messages/:roleId - Update a role's welcome message
-  app.put("/api/welcome-messages/:roleId", requireAccess(policies.admin), async (req, res) => {
-    try {
-      const { roleId } = req.params;
-      const { message } = req.body;
-      
-      if (typeof message !== "string") {
-        res.status(400).json({ message: "Invalid message format" });
-        return;
-      }
-      
-      // Verify role exists
-      const role = await storage.users.getRole(roleId);
-      if (!role) {
-        res.status(404).json({ message: "Role not found" });
-        return;
-      }
-      
-      const variableName = `welcome_message_${roleId}`;
-      const existingVariable = await storage.variables.getByName(variableName);
-      
-      if (existingVariable) {
-        await storage.variables.update(existingVariable.id, { value: message });
-      } else {
-        await storage.variables.create({ name: variableName, value: message });
-      }
-      
-      res.json({ message });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update welcome message" });
-    }
-  });
-
   // Dashboard Plugins routes - Manage dashboard plugin configurations
   
   // GET /api/dashboard-plugins/config - Get all plugin configurations
@@ -112,37 +59,15 @@ export function registerDashboardRoutes(
   });
 
   // GET /api/dashboard-plugins/:pluginId/settings - Get plugin settings
-  app.get("/api/dashboard-plugins/:pluginId/settings", requireAuth, async (req, res) => {
+  app.get("/api/dashboard-plugins/:pluginId/settings", requireAccess(policies.admin), async (req, res) => {
     try {
       const { pluginId } = req.params;
-      const user = req.user as any;
-      const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
       
-      if (!dbUser) {
-        res.status(401).json({ message: "User not found" });
-        return;
-      }
-      
-      // Get plugin metadata to check permissions
+      // Get plugin metadata to validate plugin exists
       const metadata = getPluginMetadata(pluginId);
       if (!metadata) {
         res.status(404).json({ message: "Plugin not found" });
         return;
-      }
-      
-      // Check permissions
-      if (metadata.requiredPermissions && metadata.requiredPermissions.length > 0) {
-        const userPermissions = await storage.users.getUserPermissions(dbUser.id);
-        const userPermissionKeys = userPermissions.map(p => p.key);
-        const hasPermission = metadata.requiredPermissions.some(
-          perm => userPermissionKeys.includes(perm)
-        );
-        
-        if (!hasPermission) {
-          res.status(403).json({ message: "Access denied: Insufficient permissions" });
-          return;
-        }
       }
       
       const variableName = `dashboard_plugin_${pluginId}_settings`;
@@ -192,38 +117,16 @@ export function registerDashboardRoutes(
   });
 
   // PUT /api/dashboard-plugins/:pluginId/settings - Update plugin settings
-  app.put("/api/dashboard-plugins/:pluginId/settings", requireAuth, async (req, res) => {
+  app.put("/api/dashboard-plugins/:pluginId/settings", requireAccess(policies.admin), async (req, res) => {
     try {
       const { pluginId } = req.params;
       const settings = req.body;
-      const user = req.user as any;
-      const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
       
-      if (!dbUser) {
-        res.status(401).json({ message: "User not found" });
-        return;
-      }
-      
-      // Get plugin metadata to check permissions and validate schema
+      // Get plugin metadata to validate schema
       const metadata = getPluginMetadata(pluginId);
       if (!metadata) {
         res.status(404).json({ message: "Plugin not found" });
         return;
-      }
-      
-      // Check permissions
-      if (metadata.requiredPermissions && metadata.requiredPermissions.length > 0) {
-        const userPermissions = await storage.users.getUserPermissions(dbUser.id);
-        const userPermissionKeys = userPermissions.map(p => p.key);
-        const hasPermission = metadata.requiredPermissions.some(
-          perm => userPermissionKeys.includes(perm)
-        );
-        
-        if (!hasPermission) {
-          res.status(403).json({ message: "Access denied: Insufficient permissions" });
-          return;
-        }
       }
       
       // Validate settings against schema if provided
@@ -329,7 +232,7 @@ export function registerDashboardRoutes(
       }
 
       const userRoles = await storage.users.getUserRoles(dbUser.id);
-      const variable = await storage.variables.getByName('employer_monthly_plugin_config');
+      const variable = await storage.variables.getByName('dashboard_plugin_employer_monthly_settings');
       const config = variable ? (variable.value as Record<string, string[]>) : {};
       
       const wizardTypesSet = new Set<string>();
@@ -344,39 +247,4 @@ export function registerDashboardRoutes(
     }
   });
 
-  // GET /api/dashboard-plugins/employer-monthly/config - Get role-to-wizard-type configuration (admin only)
-  app.get("/api/dashboard-plugins/employer-monthly/config", requireAccess(policies.admin), async (req, res) => {
-    try {
-      const variable = await storage.variables.getByName('employer_monthly_plugin_config');
-      const config = variable ? (variable.value as Record<string, string[]>) : {};
-      res.json(config);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch employer monthly plugin configuration" });
-    }
-  });
-
-  // PUT /api/dashboard-plugins/employer-monthly/config - Update role-to-wizard-type configuration
-  app.put("/api/dashboard-plugins/employer-monthly/config", requireAccess(policies.admin), async (req, res) => {
-    try {
-      const parseResult = employerMonthlyPluginConfigSchema.safeParse(req.body);
-      
-      if (!parseResult.success) {
-        res.status(400).json({ message: "Invalid configuration format", errors: parseResult.error.errors });
-        return;
-      }
-      
-      const config = parseResult.data;
-      const existingVariable = await storage.variables.getByName('employer_monthly_plugin_config');
-      
-      if (existingVariable) {
-        await storage.variables.update(existingVariable.id, { value: config });
-      } else {
-        await storage.variables.create({ name: 'employer_monthly_plugin_config', value: config });
-      }
-      
-      res.json(config);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update employer monthly plugin configuration" });
-    }
-  });
 }
