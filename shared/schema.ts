@@ -290,6 +290,7 @@ export const wizardReportData = pgTable("wizard_report_data", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   wizardId: varchar("wizard_id").notNull().references(() => wizards.id, { onDelete: 'cascade' }),
   data: jsonb("data"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 }, (table) => [
   index("idx_wizard_report_data_wizard_id").on(table.wizardId),
 ]);
@@ -449,6 +450,7 @@ export const insertWizardFeedMappingSchema = createInsertSchema(wizardFeedMappin
 
 export const insertWizardReportDataSchema = createInsertSchema(wizardReportData).omit({
   id: true,
+  createdAt: true,
 });
 
 export const insertGenderOptionSchema = createInsertSchema(optionsGender).omit({
