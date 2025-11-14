@@ -27,7 +27,7 @@ The frontend utilizes React 18 with TypeScript and Vite, employing Shadcn/ui (bu
 -   **Data Validation**: Extensive Zod schema validation, `libphonenumber-js` for phone numbers, and custom SSN/date validation. Contact names are canonicalized.
 -   **Employer & Contact Management**: Management of employer records with UUIDs and the ability to link employers to contacts with type categorization and visual indicators for user accounts.
 -   **Bookmarks**: User-specific, entity-agnostic bookmarking for workers and employers.
--   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets.
+-   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets with dynamic settings framework. Plugins can declare optional `settingsComponent` in the registry, which are automatically loaded via the dynamic route `/config/dashboard-plugins/:pluginId`. The configuration interface shows "Configure Settings" links for plugins with settings components, eliminating the need for hardcoded routes.
 -   **Components Feature Flag System**: Centralized registry for managing application features with dependency management and access control integration.
 -   **Routing Architecture**: Consistent routing patterns for configuration and detail pages, including UUID validation and legacy redirects.
 -   **Ledger System**: Manages financial transactions with a `ledger_payments` table.
