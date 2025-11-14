@@ -849,7 +849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/workers/:workerId/hours", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { workerId } = req.params;
-      const { month, year, day, employerId, employmentStatusId, hours } = req.body;
+      const { month, year, day, employerId, employmentStatusId, hours, home } = req.body;
 
       if (!month || !year || !day || !employerId || !employmentStatusId) {
         return res.status(400).json({ message: "Month, year, day, employer ID, and employment status ID are required" });
@@ -863,6 +863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         employerId,
         employmentStatusId,
         hours: hours ?? null,
+        home: home ?? false,
       });
 
       res.status(201).json(hoursEntry);
@@ -879,7 +880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/worker-hours/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const { year, month, day, employerId, employmentStatusId, hours } = req.body;
+      const { year, month, day, employerId, employmentStatusId, hours, home } = req.body;
 
       const updated = await storage.workers.updateWorkerHours(id, {
         year,
@@ -887,7 +888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         day,
         employerId,
         employmentStatusId,
-        hours: hours ?? null,
+        hours,
+        home,
       });
 
       if (!updated) {
