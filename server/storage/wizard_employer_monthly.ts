@@ -300,7 +300,7 @@ export function createWizardEmployerMonthlyStorage(): WizardEmployerMonthlyStora
             eq(wizardEmployerMonthly.employerId, employerId),
             eq(wizardEmployerMonthly.year, year),
             eq(wizardEmployerMonthly.month, month),
-            eq(wizards.type, 'legal_workers_monthly'),
+            eq(wizards.type, 'gbhet_legal_workers_monthly'),
             or(eq(wizards.status, 'completed'), eq(wizards.status, 'complete'))
           )
         );
