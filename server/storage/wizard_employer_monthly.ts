@@ -36,8 +36,7 @@ export interface WizardEmployerMonthlyStorage {
   listAllEmployersWithUploads(year: number, month: number, wizardType: string): Promise<EmployerWithUploads[]>;
   listAllEmployersWithUploadsForRange(year: number, month: number, wizardType: string): Promise<EmployerWithUploads[]>;
   getMonthlyStats(year: number, month: number, wizardType: string): Promise<EmployerMonthlyStats>;
-  findByEmployerTypeAndPeriod(employerId: string, wizardType: string, year: number, month: number): Promise<any[]>;
-  findCompletedMonthlyByEmployerAndPeriod(employerId: string, year: number, month: number): Promise<any | undefined>;
+  findWizards(employerId: string, wizardType: string, year: number, month: number, status?: string | string[]): Promise<any[]>;
   delete(wizardId: string): Promise<boolean>;
 }
 
@@ -240,12 +239,33 @@ export function createWizardEmployerMonthlyStorage(): WizardEmployerMonthlyStora
       };
     },
 
-    async findByEmployerTypeAndPeriod(
+    async findWizards(
       employerId: string,
       wizardType: string,
       year: number,
-      month: number
+      month: number,
+      status?: string | string[]
     ): Promise<any[]> {
+      const conditions = [
+        eq(wizardEmployerMonthly.employerId, employerId),
+        eq(wizardEmployerMonthly.year, year),
+        eq(wizardEmployerMonthly.month, month),
+        eq(wizards.type, wizardType)
+      ];
+      
+      // Add status condition if provided
+      if (status) {
+        if (Array.isArray(status)) {
+          // Multiple statuses - use OR (only if array is non-empty)
+          if (status.length > 0) {
+            conditions.push(or(...status.map(s => eq(wizards.status, s)))!);
+          }
+        } else {
+          // Single status
+          conditions.push(eq(wizards.status, status));
+        }
+      }
+      
       const results = await db
         .select({
           wizardId: wizardEmployerMonthly.wizardId,
@@ -262,50 +282,9 @@ export function createWizardEmployerMonthlyStorage(): WizardEmployerMonthlyStora
         })
         .from(wizardEmployerMonthly)
         .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
-        .where(
-          and(
-            eq(wizardEmployerMonthly.employerId, employerId),
-            eq(wizardEmployerMonthly.year, year),
-            eq(wizardEmployerMonthly.month, month),
-            eq(wizards.type, wizardType)
-          )
-        );
+        .where(and(...conditions));
       
       return results;
-    },
-
-    async findCompletedMonthlyByEmployerAndPeriod(
-      employerId: string,
-      year: number,
-      month: number
-    ): Promise<any | undefined> {
-      const [result] = await db
-        .select({
-          wizardId: wizardEmployerMonthly.wizardId,
-          employerId: wizardEmployerMonthly.employerId,
-          year: wizardEmployerMonthly.year,
-          month: wizardEmployerMonthly.month,
-          id: wizards.id,
-          type: wizards.type,
-          status: wizards.status,
-          currentStep: wizards.currentStep,
-          entityId: wizards.entityId,
-          data: wizards.data,
-          createdAt: wizards.date,
-        })
-        .from(wizardEmployerMonthly)
-        .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
-        .where(
-          and(
-            eq(wizardEmployerMonthly.employerId, employerId),
-            eq(wizardEmployerMonthly.year, year),
-            eq(wizardEmployerMonthly.month, month),
-            eq(wizards.type, 'gbhet_legal_workers_monthly'),
-            or(eq(wizards.status, 'completed'), eq(wizards.status, 'complete'))
-          )
-        );
-      
-      return result || undefined;
     },
 
     async delete(wizardId: string): Promise<boolean> {

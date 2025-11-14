@@ -279,7 +279,7 @@ export function registerWizardRoutes(
         // Type-specific constraint validation
         if (validatedData.type === 'gbhet_legal_workers_monthly') {
           // Check for duplicate monthly wizard
-          const existingWizards = await storage.wizardEmployerMonthly.findByEmployerTypeAndPeriod(
+          const existingWizards = await storage.wizardEmployerMonthly.findWizards(
             validatedData.entityId,
             'gbhet_legal_workers_monthly',
             year,
@@ -293,13 +293,15 @@ export function registerWizardRoutes(
           }
         } else if (validatedData.type === 'gbhet_legal_workers_corrections') {
           // Check for completed monthly wizard prerequisite
-          const completedMonthly = await storage.wizardEmployerMonthly.findCompletedMonthlyByEmployerAndPeriod(
+          const completedMonthlyWizards = await storage.wizardEmployerMonthly.findWizards(
             validatedData.entityId,
+            'gbhet_legal_workers_monthly',
             year,
-            month
+            month,
+            ['completed', 'complete']
           );
           
-          if (!completedMonthly) {
+          if (completedMonthlyWizards.length === 0) {
             return res.status(400).json({ 
               message: `Cannot create legal workers corrections wizard: no completed legal workers monthly wizard found for ${month}/${year}` 
             });
