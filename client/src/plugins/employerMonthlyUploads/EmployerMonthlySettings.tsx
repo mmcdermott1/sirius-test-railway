@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, Info, Save } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmployerMonthlyPluginConfig } from "@shared/schema";
@@ -25,7 +24,7 @@ interface WizardType {
   isMonthly?: boolean;
 }
 
-export function EmployerMonthlySettings({ plugin, queryClient, onConfigSaved }: PluginSettingsProps) {
+export function EmployerMonthlySettings({ plugin, queryClient, onConfigSaved, loadSettings, saveSettings }: PluginSettingsProps<EmployerMonthlyPluginConfig>) {
   const { toast } = useToast();
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery<Role[]>({
@@ -37,7 +36,8 @@ export function EmployerMonthlySettings({ plugin, queryClient, onConfigSaved }: 
   });
 
   const { data: pluginConfig = {}, isLoading: configLoading } = useQuery<EmployerMonthlyPluginConfig>({
-    queryKey: ["/api/dashboard-plugins/employer-monthly/config"],
+    queryKey: [`/api/dashboard-plugins/${plugin.id}/settings`],
+    queryFn: loadSettings,
   });
 
   const [localConfig, setLocalConfig] = useState<EmployerMonthlyPluginConfig>({});
@@ -50,10 +50,10 @@ export function EmployerMonthlySettings({ plugin, queryClient, onConfigSaved }: 
 
   const updateConfigMutation = useMutation({
     mutationFn: async (config: EmployerMonthlyPluginConfig) => {
-      return apiRequest("PUT", "/api/dashboard-plugins/employer-monthly/config", config);
+      await saveSettings(config);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard-plugins/employer-monthly/config"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard-plugins/${plugin.id}/settings`] });
       toast({
         title: "Configuration Updated",
         description: "Employer Monthly plugin configuration has been saved successfully.",

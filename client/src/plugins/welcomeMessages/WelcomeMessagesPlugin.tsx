@@ -6,7 +6,7 @@ import { DashboardPluginProps } from "../types";
 
 export function WelcomeMessagesPlugin({ userRoles }: DashboardPluginProps) {
   const { data: welcomeMessages = {}, isLoading } = useQuery<Record<string, string>>({
-    queryKey: ["/api/welcome-messages"],
+    queryKey: ["/api/dashboard-plugins/welcome_messages/settings"],
   });
 
   // Don't render while loading

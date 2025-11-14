@@ -175,7 +175,7 @@ export function registerDashboardRoutes(
         // Migrate employer monthly config from legacy variable
         const legacyVar = await storage.variables.getByName('employer_monthly_plugin_config');
         if (legacyVar) {
-          const migratedSettings = legacyVar.value;
+          const migratedSettings = legacyVar.value as Record<string, string[]>;
           await storage.variables.create({ 
             name: variableName, 
             value: migratedSettings 
