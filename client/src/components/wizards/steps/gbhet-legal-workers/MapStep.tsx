@@ -343,7 +343,7 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
                 <AlertTitle>Duplicate Field Mappings Detected</AlertTitle>
                 <AlertDescription>
                   The following fields are mapped to multiple columns: {Array.from(duplicateFields).map(fieldId => fields.find(f => f.id === fieldId)?.name || fieldId).join(', ')}. 
-                  Each field can only be mapped once. Please update your mappings to continue.
+                  Each field can only be mapped once. Change one of the duplicate mappings to a different field or "Do not map" to fix this issue.
                 </AlertDescription>
               </Alert>
             )}
@@ -504,7 +504,7 @@ export function MapStep({ wizardId, wizardType, data, onDataChange }: MapStepPro
             <div className="flex justify-end gap-3">
               <Button
                 type="submit"
-                disabled={updateMutation.isPending || !isMappingComplete || duplicateFields.size > 0}
+                disabled={updateMutation.isPending || !isMappingComplete}
                 data-testid="button-save-mapping"
               >
                 {updateMutation.isPending ? "Saving..." : "Save Mapping"}
