@@ -158,20 +158,28 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
         return updatedWorker || undefined;
       }
       
-      // Import the validateSSN function
-      const { validateSSN } = await import("@shared/schema");
+      // Import SSN utilities
+      const { parseSSN, validateSSN } = await import("@shared/utils/ssn");
+      
+      // Parse SSN to normalize format (strips non-digits, pads with zeros)
+      let parsedSSN: string;
+      try {
+        parsedSSN = parseSSN(cleanSSN);
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : "Invalid SSN format");
+      }
       
       // Validate SSN format and rules
-      const validation = validateSSN(cleanSSN);
+      const validation = validateSSN(parsedSSN);
       if (!validation.valid) {
         throw new Error(validation.error || "Invalid SSN");
       }
       
       try {
-        // Update the worker's SSN
+        // Update the worker's SSN with parsed (normalized) value
         const [updatedWorker] = await db
           .update(workers)
-          .set({ ssn: cleanSSN })
+          .set({ ssn: parsedSSN })
           .where(eq(workers.id, workerId))
           .returning();
         
