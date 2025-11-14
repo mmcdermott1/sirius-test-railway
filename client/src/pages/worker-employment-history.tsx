@@ -25,9 +25,11 @@ interface EmploymentHistoryEntry {
   id: string;
   month: number;
   year: number;
+  day: number;
   workerId: string;
   employerId: string;
   employmentStatusId: string;
+  home: boolean;
   employer: Employer;
   employmentStatus: EmploymentStatus;
 }
@@ -71,6 +73,7 @@ function WorkerEmploymentHistoryContent() {
               <TableRow>
                 <TableHead>Employer</TableHead>
                 <TableHead>Status Changed To</TableHead>
+                <TableHead>Home</TableHead>
                 <TableHead>Effective Date</TableHead>
               </TableRow>
             </TableHeader>
@@ -86,6 +89,14 @@ function WorkerEmploymentHistoryContent() {
                       data-testid={`badge-status-${entry.id}`}
                     >
                       {entry.employmentStatus.name}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={entry.home ? "default" : "secondary"}
+                      data-testid={`badge-home-${entry.id}`}
+                    >
+                      {entry.home ? "Home" : "On-site"}
                     </Badge>
                   </TableCell>
                   <TableCell data-testid={`text-date-${entry.id}`}>
