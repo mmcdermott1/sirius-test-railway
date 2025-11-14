@@ -25,7 +25,6 @@ export function WelcomeMessagesSettings({ plugin, queryClient, onConfigSaved, lo
   });
 
   const [editedMessages, setEditedMessages] = useState<WelcomeMessagesSettings>({});
-  const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (welcomeMessages) {
@@ -33,39 +32,29 @@ export function WelcomeMessagesSettings({ plugin, queryClient, onConfigSaved, lo
     }
   }, [welcomeMessages]);
 
-  const updateMessageMutation = useMutation({
-    mutationFn: async ({ roleId, message }: { roleId: string; message: string }) => {
-      const newSettings = {
-        ...editedMessages,
-        [roleId]: message,
-      };
-      await saveSettings(newSettings);
+  const updateMessagesMutation = useMutation({
+    mutationFn: async (messages: WelcomeMessagesSettings) => {
+      await saveSettings(messages);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard-plugins/${plugin.id}/settings`] });
       toast({
-        title: "Welcome Message Updated",
-        description: `Dashboard message for this role has been updated successfully.`,
+        title: "Welcome Messages Updated",
+        description: "All dashboard welcome messages have been saved successfully.",
       });
-      setSavingRoleId(null);
       onConfigSaved?.();
     },
     onError: (error: any) => {
       toast({
         title: "Update Failed",
-        description: error?.message || "Failed to update welcome message.",
+        description: error?.message || "Failed to update welcome messages.",
         variant: "destructive",
       });
-      setSavingRoleId(null);
     },
   });
 
-  const handleSave = (roleId: string) => {
-    setSavingRoleId(roleId);
-    updateMessageMutation.mutate({
-      roleId,
-      message: editedMessages[roleId] || "",
-    });
+  const handleSaveAll = () => {
+    updateMessagesMutation.mutate(editedMessages);
   };
 
   const handleMessageChange = (roleId: string, value: string) => {
@@ -75,8 +64,8 @@ export function WelcomeMessagesSettings({ plugin, queryClient, onConfigSaved, lo
     }));
   };
 
-  const hasChanges = (roleId: string) => {
-    return editedMessages[roleId] !== (welcomeMessages[roleId] || "");
+  const hasChanges = () => {
+    return JSON.stringify(editedMessages) !== JSON.stringify(welcomeMessages);
   };
 
   if (rolesLoading || messagesLoading) {
@@ -116,18 +105,7 @@ export function WelcomeMessagesSettings({ plugin, queryClient, onConfigSaved, lo
         {roles.map((role) => (
           <Card key={role.id} data-testid={`card-welcome-message-${role.id}`}>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>{role.name}</span>
-                <Button
-                  size="sm"
-                  onClick={() => handleSave(role.id)}
-                  disabled={!hasChanges(role.id) || savingRoleId === role.id}
-                  data-testid={`button-save-${role.id}`}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {savingRoleId === role.id ? "Saving..." : "Save"}
-                </Button>
-              </CardTitle>
+              <CardTitle>{role.name}</CardTitle>
               <CardDescription>
                 {role.description || "Configure the welcome message for this role"}
               </CardDescription>
@@ -156,6 +134,19 @@ export function WelcomeMessagesSettings({ plugin, queryClient, onConfigSaved, lo
             No roles found. Create roles in User Management to configure welcome messages.
           </AlertDescription>
         </Alert>
+      )}
+
+      {roles.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSaveAll}
+            disabled={!hasChanges() || updateMessagesMutation.isPending}
+            data-testid="button-save-all"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {updateMessagesMutation.isPending ? "Saving..." : "Save All Messages"}
+          </Button>
+        </div>
       )}
     </div>
   );

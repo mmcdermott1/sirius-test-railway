@@ -74,7 +74,7 @@ export function registerDashboardRoutes(
       const variable = await storage.variables.getByName(variableName);
       
       // If unified settings don't exist, try to migrate from legacy format
-      if (!variable && pluginId === "welcome_messages") {
+      if (!variable && pluginId === "welcome-messages") {
         // Migrate welcome messages from individual role variables
         const roles = await storage.users.getAllRoles();
         const migratedSettings: Record<string, string> = {};
@@ -96,7 +96,7 @@ export function registerDashboardRoutes(
           res.json(migratedSettings);
           return;
         }
-      } else if (!variable && pluginId === "employer_monthly") {
+      } else if (!variable && pluginId === "employer-monthly-uploads") {
         // Migrate employer monthly config from legacy variable
         const legacyVar = await storage.variables.getByName('employer_monthly_plugin_config');
         if (legacyVar) {
@@ -232,7 +232,7 @@ export function registerDashboardRoutes(
       }
 
       const userRoles = await storage.users.getUserRoles(dbUser.id);
-      const variable = await storage.variables.getByName('dashboard_plugin_employer_monthly_settings');
+      const variable = await storage.variables.getByName('dashboard_plugin_employer-monthly-uploads_settings');
       const config = variable ? (variable.value as Record<string, string[]>) : {};
       
       const wizardTypesSet = new Set<string>();

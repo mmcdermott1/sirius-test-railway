@@ -16,13 +16,13 @@ export const employerMonthlySettingsSchema = z.record(z.string(), z.array(z.stri
 
 // Plugin metadata registry
 export const pluginMetadata: Record<string, PluginMetadata> = {
-  "welcome_messages": {
-    id: "welcome_messages",
+  "welcome-messages": {
+    id: "welcome-messages",
     requiredPermissions: ["admin"],
     settingsSchema: welcomeMessagesSettingsSchema,
   },
-  "employer_monthly": {
-    id: "employer_monthly",
+  "employer-monthly-uploads": {
+    id: "employer-monthly-uploads",
     requiredPermissions: ["admin"],
     settingsSchema: employerMonthlySettingsSchema,
   },

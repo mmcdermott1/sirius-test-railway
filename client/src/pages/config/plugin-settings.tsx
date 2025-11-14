@@ -1,5 +1,6 @@
 import { useParams, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { getPluginById } from "@/plugins/registry";
@@ -78,25 +79,25 @@ export default function PluginSettingsPage() {
 
   const SettingsComponent = plugin.settingsComponent;
 
-  const handleConfigSaved = () => {
+  const handleConfigSaved = useCallback(() => {
     // Invalidate all dashboard plugin queries to refresh UI
     queryClient.invalidateQueries({ queryKey: ["/api/dashboard-plugins"] });
     queryClient.invalidateQueries({ queryKey: ["/api/dashboard-plugins/config"] });
-  };
+  }, [queryClient]);
 
   // Generic load/save functions for plugin settings
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     const response = await fetch(`/api/dashboard-plugins/${plugin.id}/settings`);
     if (!response.ok) {
       throw new Error("Failed to load settings");
     }
     return response.json();
-  };
+  }, [plugin.id]);
 
-  const saveSettings = async (settings: any) => {
+  const saveSettings = useCallback(async (settings: any) => {
     await apiRequest("PUT", `/api/dashboard-plugins/${plugin.id}/settings`, settings);
     handleConfigSaved();
-  };
+  }, [plugin.id, handleConfigSaved]);
 
   return (
     <div className="space-y-6">
