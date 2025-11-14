@@ -48,6 +48,7 @@ export class ReportWorkersMissingSSN extends WizardReport {
     // Query workers with missing SSN, joining with contacts table
     const workersWithMissingSSN = await db
       .select({
+        workerId: workers.id,
         siriusId: workers.siriusId,
         displayName: contacts.displayName,
         email: contacts.email,
@@ -63,6 +64,7 @@ export class ReportWorkersMissingSSN extends WizardReport {
       );
 
     const records: ReportRecord[] = workersWithMissingSSN.map(worker => ({
+      workerId: worker.workerId,
       siriusId: worker.siriusId,
       displayName: worker.displayName || '',
       email: worker.email || '',
