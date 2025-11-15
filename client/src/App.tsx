@@ -56,6 +56,8 @@ import EmployerLedgerAccountsWrapper from "@/pages/employer-ledger-accounts-wrap
 import EAView from "@/pages/ea-view";
 import EAInvoices from "@/pages/ea-invoices";
 import EAPayments from "@/pages/ea-payments";
+import PaymentView from "@/pages/payment-view";
+import PaymentEdit from "@/pages/payment-edit";
 import TrustBenefits from "@/pages/trust-benefits";
 import TrustBenefitsAdd from "@/pages/trust-benefits-add";
 import TrustBenefitView from "@/pages/trust-benefit-view";
@@ -385,6 +387,22 @@ function Router() {
         <ProtectedRoute policy="ledgerStaff">
           <AuthenticatedLayout>
             <EAPayments />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/ledger/payment/:id">
+        <ProtectedRoute policy="ledgerStaff">
+          <AuthenticatedLayout>
+            <PaymentView />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/ledger/payment/:id/edit">
+        <ProtectedRoute policy="ledgerStaff">
+          <AuthenticatedLayout>
+            <PaymentEdit />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

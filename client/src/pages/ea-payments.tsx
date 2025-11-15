@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertLedgerPaymentSchema, type LedgerPayment } from "@shared/schema";
@@ -181,8 +181,12 @@ function EAPaymentsContent() {
               <TableBody>
                 {payments.map((payment) => (
                   <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
-                    <TableCell className="font-mono text-sm" data-testid={`text-payment-id-${payment.id}`}>
-                      {payment.id.slice(0, 8)}...
+                    <TableCell className="font-mono text-sm">
+                      <Link href={`/ledger/payment/${payment.id}`}>
+                        <a className="text-primary hover:underline" data-testid={`link-payment-${payment.id}`}>
+                          {payment.id.slice(0, 8)}...
+                        </a>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusBadgeVariant(payment.status)} data-testid={`badge-status-${payment.id}`}>
