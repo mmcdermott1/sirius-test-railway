@@ -112,8 +112,8 @@ export default function EmployersMonthlyUploads() {
 
   const monthlyWizardTypes = wizardTypes.filter(wt => wt.isMonthly === true);
   
-  // Parse URL search params
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  // Parse URL search params - use window.location.search since wouter's location doesn't include query string
+  const searchParams = new URLSearchParams(window.location.search);
   const urlYear = searchParams.get('year');
   const urlMonth = searchParams.get('month');
   const urlWizardType = searchParams.get('wizardType');
@@ -130,22 +130,18 @@ export default function EmployersMonthlyUploads() {
     },
   });
 
+  // Reset hasAutoLoaded when URL changes
+  useEffect(() => {
+    setHasAutoLoaded(false);
+  }, [window.location.search]);
+
   // Initialize from URL params or set default wizard type when wizard types are loaded
   useEffect(() => {
-    if (monthlyWizardTypes.length === 0) {
-      console.log('[Monthly Uploads] Waiting for wizard types to load...');
-      return;
-    }
-
-    console.log('[Monthly Uploads] Wizard types loaded:', monthlyWizardTypes.length);
-    console.log('[Monthly Uploads] URL params:', { urlYear, urlMonth, urlWizardType, urlStatus });
-    console.log('[Monthly Uploads] hasAutoLoaded:', hasAutoLoaded);
-    console.log('[Monthly Uploads] filters:', filters);
+    if (monthlyWizardTypes.length === 0) return;
 
     // Check if we have URL params with a valid wizard type - auto-load data
     if (urlYear && urlMonth && urlWizardType && !hasAutoLoaded) {
       const isValidWizardType = monthlyWizardTypes.some(wt => wt.name === urlWizardType);
-      console.log('[Monthly Uploads] Is valid wizard type?', isValidWizardType);
       
       if (isValidWizardType) {
         // Auto-submit with URL params
@@ -155,7 +151,6 @@ export default function EmployersMonthlyUploads() {
           wizardType: urlWizardType,
           status: urlStatus || undefined,
         };
-        console.log('[Monthly Uploads] Auto-loading with data:', data);
         setFilters(data);
         setHasAutoLoaded(true);
         return;
@@ -165,9 +160,7 @@ export default function EmployersMonthlyUploads() {
     // No URL params - just set default wizard type in form if empty
     if (!hasAutoLoaded) {
       const currentWizardType = form.getValues('wizardType');
-      console.log('[Monthly Uploads] Current wizard type in form:', currentWizardType);
       if (!currentWizardType && monthlyWizardTypes.length > 0) {
-        console.log('[Monthly Uploads] Setting default wizard type:', monthlyWizardTypes[0].name);
         form.setValue('wizardType', monthlyWizardTypes[0].name);
       }
       setHasAutoLoaded(true);
