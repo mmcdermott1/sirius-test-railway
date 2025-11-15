@@ -254,6 +254,16 @@ export const ledgerPayments = pgTable("ledger_payments", {
   details: jsonb("details"),
 });
 
+export const ledgerEa = pgTable("ledger_ea", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountId: varchar("account_id").notNull().references(() => ledgerAccounts.id),
+  entityType: varchar("entity_type").notNull(),
+  entityId: varchar("entity_id").notNull(),
+  data: jsonb("data"),
+}, (table) => ({
+  uniqueAccountEntity: unique().on(table.accountId, table.entityId),
+}));
+
 export const wizards = pgTable("wizards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   date: timestamp("date").default(sql`now()`).notNull(),
