@@ -3,7 +3,7 @@ import EmployerLedgerAccounts from "./employer-ledger-accounts";
 
 export default function EmployerLedgerAccountsWrapper() {
   return (
-    <EmployerLayout activeTab="ledger-accounts">
+    <EmployerLayout activeTab="accounts">
       <EmployerLedgerAccounts />
     </EmployerLayout>
   );
