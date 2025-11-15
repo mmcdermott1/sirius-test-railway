@@ -69,6 +69,39 @@ const EXCLUDED_TABLES = ['sessions', 'winstonLogs', 'files'];
 const QUICKSTARTS_DIR = path.join(process.cwd(), 'database', 'quickstarts');
 
 /**
+ * Convert ISO date strings back to Date objects for Drizzle timestamp columns
+ * Recursively processes objects and arrays
+ */
+function reviveDates(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (typeof obj === 'string') {
+    // Check if string matches ISO 8601 date format
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
+    if (isoDateRegex.test(obj)) {
+      return new Date(obj);
+    }
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => reviveDates(item));
+  }
+  
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = reviveDates(value);
+    }
+    return result;
+  }
+  
+  return obj;
+}
+
+/**
  * Validate and sanitize quickstart name to prevent path traversal
  */
 function validateQuickstartName(name: string): void {
@@ -215,9 +248,12 @@ export async function importQuickstart(name: string): Promise<QuickstartMetadata
       const rows = quickstartData.data[tableVarName] || [];
       if (rows.length === 0) continue;
 
+      // Convert date strings back to Date objects for timestamp columns
+      const processedRows = reviveDates(rows);
+
       // Insert all rows for this table
       // Drizzle handles parameter binding safely
-      await tx.insert(table).values(rows);
+      await tx.insert(table).values(processedRows);
     }
   });
 
