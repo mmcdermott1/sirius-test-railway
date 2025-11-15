@@ -104,6 +104,7 @@ type FilterFormData = z.infer<typeof filterSchema>;
 export default function EmployersMonthlyUploads() {
   const [location, setLocation] = useLocation();
   const [filters, setFilters] = useState<FilterFormData | null>(null);
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
 
   const { data: wizardTypes = [] } = useQuery<WizardType[]>({
     queryKey: ["/api/wizard-types"],
@@ -131,13 +132,22 @@ export default function EmployersMonthlyUploads() {
 
   // Initialize from URL params or set default wizard type when wizard types are loaded
   useEffect(() => {
-    if (monthlyWizardTypes.length === 0) return;
+    if (monthlyWizardTypes.length === 0) {
+      console.log('[Monthly Uploads] Waiting for wizard types to load...');
+      return;
+    }
+
+    console.log('[Monthly Uploads] Wizard types loaded:', monthlyWizardTypes.length);
+    console.log('[Monthly Uploads] URL params:', { urlYear, urlMonth, urlWizardType, urlStatus });
+    console.log('[Monthly Uploads] hasAutoLoaded:', hasAutoLoaded);
+    console.log('[Monthly Uploads] filters:', filters);
 
     // Check if we have URL params with a valid wizard type - auto-load data
-    if (urlYear && urlMonth && urlWizardType) {
+    if (urlYear && urlMonth && urlWizardType && !hasAutoLoaded) {
       const isValidWizardType = monthlyWizardTypes.some(wt => wt.name === urlWizardType);
+      console.log('[Monthly Uploads] Is valid wizard type?', isValidWizardType);
       
-      if (isValidWizardType && filters === null) {
+      if (isValidWizardType) {
         // Auto-submit with URL params
         const data: FilterFormData = {
           year: Number(urlYear),
@@ -145,17 +155,24 @@ export default function EmployersMonthlyUploads() {
           wizardType: urlWizardType,
           status: urlStatus || undefined,
         };
+        console.log('[Monthly Uploads] Auto-loading with data:', data);
         setFilters(data);
+        setHasAutoLoaded(true);
         return;
       }
     }
     
     // No URL params - just set default wizard type in form if empty
-    const currentWizardType = form.getValues('wizardType');
-    if (!currentWizardType && monthlyWizardTypes.length > 0) {
-      form.setValue('wizardType', monthlyWizardTypes[0].name);
+    if (!hasAutoLoaded) {
+      const currentWizardType = form.getValues('wizardType');
+      console.log('[Monthly Uploads] Current wizard type in form:', currentWizardType);
+      if (!currentWizardType && monthlyWizardTypes.length > 0) {
+        console.log('[Monthly Uploads] Setting default wizard type:', monthlyWizardTypes[0].name);
+        form.setValue('wizardType', monthlyWizardTypes[0].name);
+      }
+      setHasAutoLoaded(true);
     }
-  }, [monthlyWizardTypes, urlYear, urlMonth, urlWizardType, urlStatus, filters, form]);
+  }, [monthlyWizardTypes.length, urlYear, urlMonth, urlWizardType, urlStatus, hasAutoLoaded, filters, form]);
 
   const { data: employersWithUploads = [], isLoading, error } = useQuery<EmployerWithUploads[]>({
     queryKey: ["/api/wizards/employer-monthly/employers", filters],
