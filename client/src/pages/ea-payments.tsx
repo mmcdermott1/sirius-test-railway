@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { useForm } from "react-hook-form";
@@ -129,32 +128,6 @@ function EAPaymentsContent() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="details"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Details (JSON)</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder='{"amount": 100, "note": "Payment note"}'
-                            data-testid="textarea-payment-details"
-                            value={typeof field.value === "string" ? field.value : JSON.stringify(field.value, null, 2)}
-                            onChange={(e) => {
-                              try {
-                                const parsed = e.target.value ? JSON.parse(e.target.value) : null;
-                                field.onChange(parsed);
-                              } catch {
-                                field.onChange(e.target.value);
-                              }
-                            }}
-                          />
-                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
