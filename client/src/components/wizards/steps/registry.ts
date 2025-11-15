@@ -102,6 +102,11 @@ export const stepControllerRegistry: StepControllerRegistry = {
     'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
     'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
   },
+  'report_workers_duplicate_ssn': {
+    'inputs': { Component: InputsStep, evaluateCompletion: alwaysComplete },
+    'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
+    'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
+  },
 };
 
 export const stepComponentRegistry: StepComponentRegistry = {
@@ -125,6 +130,11 @@ export const stepComponentRegistry: StepComponentRegistry = {
     'results': ResultsStep,
   },
   'report_workers_invalid_ssn': {
+    'inputs': InputsStep,
+    'run': RunStep,
+    'results': ResultsStep,
+  },
+  'report_workers_duplicate_ssn': {
     'inputs': InputsStep,
     'run': RunStep,
     'results': ResultsStep,
