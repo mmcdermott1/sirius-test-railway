@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { sql } from "drizzle-orm";
+import { getTableConfig } from "drizzle-orm/pg-core";
 import * as schema from "@shared/schema";
 import fs from "fs/promises";
 import path from "path";
@@ -189,26 +190,29 @@ export async function importQuickstart(name: string): Promise<QuickstartMetadata
     // Truncate all tables in reverse order (to respect foreign keys)
     // Use proper identifier quoting to prevent SQL injection
     for (let i = TABLE_ORDER.length - 1; i >= 0; i--) {
-      const tableName = TABLE_ORDER[i];
-      const table = (schema as any)[tableName];
+      const tableVarName = TABLE_ORDER[i];
+      const table = (schema as any)[tableVarName];
       if (!table) {
-        console.warn(`Table ${tableName} not found in schema, skipping truncate`);
+        console.warn(`Table ${tableVarName} not found in schema, skipping truncate`);
         continue;
       }
 
-      // Use parameterized identifier for safety
-      await tx.execute(sql`TRUNCATE TABLE ${sql.identifier(tableName)} RESTART IDENTITY CASCADE`);
+      // Get the actual database table name from the Drizzle table object
+      const { name: dbTableName } = getTableConfig(table);
+      
+      // Use parameterized identifier for safety with actual database table name
+      await tx.execute(sql`TRUNCATE TABLE ${sql.identifier(dbTableName)} RESTART IDENTITY CASCADE`);
     }
 
     // Insert data in forward order
-    for (const tableName of TABLE_ORDER) {
-      const table = (schema as any)[tableName];
+    for (const tableVarName of TABLE_ORDER) {
+      const table = (schema as any)[tableVarName];
       if (!table) {
-        console.warn(`Table ${tableName} not found in schema, skipping insert`);
+        console.warn(`Table ${tableVarName} not found in schema, skipping insert`);
         continue;
       }
 
-      const rows = quickstartData.data[tableName] || [];
+      const rows = quickstartData.data[tableVarName] || [];
       if (rows.length === 0) continue;
 
       // Insert all rows for this table
