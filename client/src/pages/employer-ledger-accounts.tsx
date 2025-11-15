@@ -114,7 +114,7 @@ export default function EmployerLedgerAccounts() {
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Ledger Accounts</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Accounts</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Manage ledger account entries for this employer
           </p>
