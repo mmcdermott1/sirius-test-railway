@@ -104,6 +104,7 @@ type FilterFormData = z.infer<typeof filterSchema>;
 export default function EmployersMonthlyUploads() {
   const [location, setLocation] = useLocation();
   const [filters, setFilters] = useState<FilterFormData | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const { data: wizardTypes = [] } = useQuery<WizardType[]>({
     queryKey: ["/api/wizard-types"],
@@ -124,15 +125,14 @@ export default function EmployersMonthlyUploads() {
     defaultValues: {
       year: urlYear ? Number(urlYear) : new Date().getFullYear(),
       month: urlMonth ? Number(urlMonth) : new Date().getMonth() + 1,
-      wizardType: urlWizardType || "",
+      wizardType: urlWizardType || (monthlyWizardTypes.length > 0 ? monthlyWizardTypes[0].name : ""),
       status: urlStatus || "",
     },
   });
 
   // Initialize from URL params when wizard types are loaded
   useEffect(() => {
-    // Only auto-initialize if we don't have filters yet and wizard types are loaded
-    if (monthlyWizardTypes.length > 0 && filters === null) {
+    if (monthlyWizardTypes.length > 0 && !initialized) {
       // Check if we have URL params with a valid wizard type
       if (urlYear && urlMonth && urlWizardType) {
         const isValidWizardType = monthlyWizardTypes.some(wt => wt.name === urlWizardType);
@@ -147,9 +147,16 @@ export default function EmployersMonthlyUploads() {
           };
           setFilters(data);
         }
+      } else if (monthlyWizardTypes.length > 0) {
+        // Set default wizard type in form if not already set
+        const currentWizardType = form.getValues('wizardType');
+        if (!currentWizardType) {
+          form.setValue('wizardType', monthlyWizardTypes[0].name);
+        }
       }
+      setInitialized(true);
     }
-  }, [monthlyWizardTypes.length, filters, urlYear, urlMonth, urlWizardType, urlStatus]);
+  }, [monthlyWizardTypes.length, initialized, urlYear, urlMonth, urlWizardType, urlStatus, form]);
 
   const { data: employersWithUploads = [], isLoading, error } = useQuery<EmployerWithUploads[]>({
     queryKey: ["/api/wizards/employer-monthly/employers", filters],
