@@ -133,22 +133,27 @@ export default function EmployersMonthlyUploads() {
   // Initialize from URL params or default wizard type
   useEffect(() => {
     if (monthlyWizardTypes.length > 0 && !hasInitialized) {
-      const currentWizardType = form.getValues('wizardType');
-      
-      // If wizard type is set from URL or already initialized, use it
-      if (currentWizardType && monthlyWizardTypes.some(wt => wt.name === currentWizardType)) {
-        // Wizard type is valid, auto-submit if we have URL params
-        if (urlYear && urlMonth && urlWizardType) {
-          const data = {
+      // Check if we have URL params with a valid wizard type
+      if (urlYear && urlMonth && urlWizardType) {
+        const isValidWizardType = monthlyWizardTypes.some(wt => wt.name === urlWizardType);
+        
+        if (isValidWizardType) {
+          // Auto-submit with URL params
+          const data: FilterFormData = {
             year: Number(urlYear),
             month: Number(urlMonth),
             wizardType: urlWizardType,
             status: urlStatus || undefined,
           };
           setFilters(data);
+          setHasInitialized(true);
+          return;
         }
-      } else {
-        // Set default wizard type
+      }
+      
+      // Otherwise, set default wizard type if form is empty
+      const currentWizardType = form.getValues('wizardType');
+      if (!currentWizardType) {
         form.setValue('wizardType', monthlyWizardTypes[0].name, { 
           shouldValidate: true 
         });
@@ -156,7 +161,7 @@ export default function EmployersMonthlyUploads() {
       
       setHasInitialized(true);
     }
-  }, [monthlyWizardTypes.length, hasInitialized]);
+  }, [monthlyWizardTypes, hasInitialized, urlYear, urlMonth, urlWizardType, urlStatus, form]);
 
   const { data: employersWithUploads = [], isLoading, error } = useQuery<EmployerWithUploads[]>({
     queryKey: ["/api/wizards/employer-monthly/employers", filters],
