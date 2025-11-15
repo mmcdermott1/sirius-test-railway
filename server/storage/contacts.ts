@@ -283,7 +283,7 @@ export function createPhoneNumberStorage(): PhoneNumberStorage {
  * Canonicalize a name component by capitalizing the first letter and making the rest lowercase
  * Examples: "JOE" -> "Joe", "joe" -> "Joe", "SMITH" -> "Smith"
  */
-function canonicalizeName(value: string | undefined): string | null {
+function canonicalizeName(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -294,7 +294,7 @@ function canonicalizeName(value: string | undefined): string | null {
  * Trim a name component but preserve its original capitalization
  * Examples: "III" -> "III", "Ph.D." -> "Ph.D.", "Jr." -> "Jr."
  */
-function trimName(value: string | undefined): string | null {
+function trimName(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -323,9 +323,35 @@ export function createContactStorage(): ContactStorage {
     },
 
     async createContact(insertContact: InsertContact): Promise<Contact> {
+      // Import the generateDisplayName function
+      const { generateDisplayName } = await import("@shared/schema");
+      
+      // Canonicalize name components (capitalize first letter, rest lowercase)
+      // EXCEPT generational suffix and credentials which preserve original capitalization
+      const canonicalized = {
+        title: canonicalizeName(insertContact.title),
+        given: canonicalizeName(insertContact.given),
+        middle: canonicalizeName(insertContact.middle),
+        family: canonicalizeName(insertContact.family),
+        generational: trimName(insertContact.generational),
+        credentials: trimName(insertContact.credentials),
+      };
+      
+      // Generate display name from canonicalized components (or use provided displayName)
+      const displayName = insertContact.displayName || generateDisplayName(canonicalized);
+      
       const [contact] = await db
         .insert(contacts)
-        .values(insertContact)
+        .values({
+          ...insertContact,
+          title: canonicalized.title,
+          given: canonicalized.given,
+          middle: canonicalized.middle,
+          family: canonicalized.family,
+          generational: canonicalized.generational,
+          credentials: canonicalized.credentials,
+          displayName,
+        })
         .returning();
       return contact;
     },
@@ -336,13 +362,20 @@ export function createContactStorage(): ContactStorage {
       const given = nameParts[0] || '';
       const family = nameParts.slice(1).join(' ') || '';
       
+      // Canonicalize the parsed name components
+      const canonicalizedGiven = canonicalizeName(given);
+      const canonicalizedFamily = canonicalizeName(family);
+      
+      // Generate display name from canonicalized components
+      const displayName = [canonicalizedGiven, canonicalizedFamily].filter(Boolean).join(' ');
+      
       // Update the contact's name components
       const [contact] = await db
         .update(contacts)
         .set({
-          given: given || null,
-          family: family || null,
-          displayName: name,
+          given: canonicalizedGiven,
+          family: canonicalizedFamily,
+          displayName,
         })
         .where(eq(contacts.id, contactId))
         .returning();
