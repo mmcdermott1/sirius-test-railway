@@ -19,7 +19,7 @@ export interface ReportData {
   config?: ReportConfig;
   reportMeta?: ReportMeta; // Metadata from last report generation
   recordCount?: number; // Deprecated: maintained for backward compatibility, use reportMeta.recordCount
-  generatedAt?: Date; // Deprecated: maintained for backward compatibility, use reportMeta.generatedAt
+  generatedAt?: string; // Deprecated: maintained for backward compatibility (ISO string), use reportMeta.generatedAt
   reportDataId?: string; // Reference to wizard_report_data entry
   progress?: {
     [key: string]: {
@@ -122,17 +122,29 @@ export abstract class WizardReport extends BaseWizard {
     const wizardData = wizard.data as ReportData;
     const config = wizardData?.config || {};
 
+    // Clear stale metadata before re-run
+    await storage.wizards.update(wizardId, {
+      data: {
+        ...wizardData,
+        reportMeta: undefined,
+        recordCount: undefined,
+        generatedAt: undefined
+      }
+    });
+
     // Fetch records using the subclass implementation
     const records = await this.fetchRecords(config, batchSize, onProgress);
 
     // Get column definitions
     const columns = this.getColumns();
+    const generatedAt = new Date();
 
     // Delete any existing report data for this wizard to allow re-runs
     await storage.wizards.deleteReportData(wizardId);
 
     // Save each record as a separate row in wizard_report_data
     // Using workerId as the pk for each row
+    // Note: Zero-result reports will have no rows in wizard_report_data
     for (const record of records) {
       if (!record.workerId) {
         throw new Error('Record missing workerId - cannot save to report data');
@@ -140,32 +152,24 @@ export abstract class WizardReport extends BaseWizard {
       await storage.wizards.saveReportData(wizardId, record.workerId, record);
     }
 
-    // For zero-record scenarios, save a metadata row with empty pk
-    // This ensures getReportResults() can return an empty report structure
-    if (records.length === 0) {
-      await storage.wizards.saveReportData(wizardId, '', {
-        _metadata: true,
-        columns,
-        generatedAt: new Date()
-      });
-    }
-
-    // Update wizard with completion status
-    // Separate status update from data update to ensure both persist correctly
+    // Update wizard with metadata and completion status in a single update
     await storage.wizards.update(wizardId, {
-      status: 'completed'
-    });
-
-    await storage.wizards.update(wizardId, {
+      status: 'completed',
       data: {
         ...wizardData,
+        reportMeta: {
+          generatedAt: generatedAt.toISOString(),
+          recordCount: records.length,
+          columns
+        },
+        // Legacy fields for backward compatibility - stored as primitives to avoid serialization issues
         recordCount: records.length,
-        generatedAt: new Date(),
+        generatedAt: generatedAt.toISOString(), // Store as ISO string to match reportMeta
         progress: {
           ...(wizardData?.progress || {}),
           run: {
             status: 'completed',
-            completedAt: new Date().toISOString(),
+            completedAt: generatedAt.toISOString(),
             percentComplete: 100
           }
         }
@@ -177,7 +181,7 @@ export abstract class WizardReport extends BaseWizard {
       totalRecords: records.length,
       recordCount: records.length,
       records,
-      generatedAt: new Date(),
+      generatedAt,
       columns
     };
 
@@ -186,46 +190,42 @@ export abstract class WizardReport extends BaseWizard {
 
   /**
    * Get the latest report results for a wizard
-   * Reconstructs the full report from individual worker rows
+   * Reconstructs the full report from wizard metadata and individual worker rows
    * @param wizardId The wizard instance ID
    * @returns Report results or null if no report has been generated
    */
   async getReportResults(wizardId: string): Promise<ReportResults | null> {
-    // Fetch all report data rows for this wizard
-    const reportDataRows = await storage.wizards.getReportData(wizardId);
-    if (!reportDataRows || reportDataRows.length === 0) {
+    // Fetch the wizard to get metadata from wizards.data.reportMeta
+    const wizard = await storage.wizards.getById(wizardId);
+    if (!wizard) {
       return null;
     }
 
-    // Check if this is a zero-record report (only has metadata row)
-    const isMetadataOnly = reportDataRows.length === 1 && 
-                          reportDataRows[0].data && 
-                          (reportDataRows[0].data as any)._metadata;
-
-    let records: ReportRecord[];
-    let columns: ReportColumn[];
-    let generatedAt: Date;
-
-    if (isMetadataOnly) {
-      // Zero-record report: extract metadata
-      const metadata = reportDataRows[0].data as any;
-      records = [];
-      columns = metadata.columns || this.getColumns();
-      generatedAt = metadata.generatedAt || reportDataRows[0].createdAt;
-    } else {
-      // Normal report: extract records from each row's data field
-      // Filter out any metadata rows (pk is empty string)
-      records = reportDataRows
-        .filter(row => row.pk !== '')
-        .map(row => row.data as ReportRecord);
-      columns = this.getColumns();
-      generatedAt = reportDataRows[0].createdAt;
+    const wizardData = wizard.data as ReportData;
+    
+    // Check if a report has been generated (reportMeta exists)
+    if (!wizardData?.reportMeta) {
+      return null;
     }
 
-    // Build the full report results
+    // Extract metadata from wizards.data.reportMeta - trust this as source of truth
+    const { generatedAt: generatedAtISO, recordCount, columns: metaColumns } = wizardData.reportMeta;
+    const columns = metaColumns || this.getColumns();
+    const generatedAt = new Date(generatedAtISO);
+
+    // Fetch all report data rows for this wizard
+    const reportDataRows = await storage.wizards.getReportData(wizardId);
+    
+    // Extract records from wizard_report_data rows
+    // For zero-result reports, this will be an empty array
+    const records: ReportRecord[] = reportDataRows
+      .map(row => row.data as ReportRecord);
+
+    // Build the full report results using metadata as the source of truth
+    // recordCount comes from reportMeta, not from actual rows to handle edge cases
     const results: ReportResults = {
-      totalRecords: records.length,
-      recordCount: records.length,
+      totalRecords: recordCount,
+      recordCount: recordCount, // Use metadata count, not records.length
       records,
       generatedAt,
       columns
