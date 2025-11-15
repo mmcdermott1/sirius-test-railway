@@ -25,10 +25,7 @@ function WorkerDeleteContent() {
 
   const deleteWorkerMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/workers/${worker.id}`, {});
-      if (!response.ok) {
-        throw new Error("Failed to delete worker");
-      }
+      await apiRequest("DELETE", `/api/workers/${worker.id}`);
     },
     onSuccess: () => {
       toast({
