@@ -25,6 +25,7 @@ import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
 import { registerLedgerAccountRoutes } from "./modules/ledger/accounts";
 import { registerAccessPolicyRoutes } from "./modules/access-policies";
 import { registerLogRoutes } from "./modules/logs";
+import { registerQuickstartRoutes } from "./modules/quickstart";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -275,6 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register log management routes
   registerLogRoutes(app);
+  registerQuickstartRoutes(app);
 
   // Worker routes (protected with authentication and permissions)
   

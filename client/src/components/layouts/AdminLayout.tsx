@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { Users, Shield, Key, UserCheck } from 'lucide-react';
+import { Users, Shield, Key, UserCheck, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AdminLayoutProps {
@@ -25,6 +25,12 @@ const adminNavItems = [
     label: 'Permissions', 
     icon: Key,
     description: 'Manage permissions'
+  },
+  {
+    href: '/admin/quickstarts',
+    label: 'Quickstarts',
+    icon: Database,
+    description: 'Export and import database snapshots'
   }
 ];
 

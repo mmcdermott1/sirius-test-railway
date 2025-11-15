@@ -61,6 +61,7 @@ import UserAccountPage from "@/pages/admin/user-account";
 import UserLogs from "@/pages/admin/user-logs";
 import AdminRolesPage from "@/pages/admin/roles";
 import AdminPermissionsPage from "@/pages/admin/permissions";
+import AdminQuickstarts from "@/pages/admin-quickstarts";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import ConfigurationLayout from "@/components/layouts/ConfigurationLayout";
 import UsersListPage from "@/pages/config/users/list";
@@ -814,6 +815,14 @@ function Router() {
             <AdminLayout>
               <AdminPermissionsPage />
             </AdminLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/quickstarts">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <AdminQuickstarts />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
