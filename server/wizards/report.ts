@@ -9,10 +9,17 @@ export interface ReportConfig {
   };
 }
 
+export interface ReportMeta {
+  generatedAt: string; // ISO string
+  recordCount: number;
+  columns: ReportColumn[];
+}
+
 export interface ReportData {
   config?: ReportConfig;
-  recordCount?: number;
-  generatedAt?: Date;
+  reportMeta?: ReportMeta; // Metadata from last report generation
+  recordCount?: number; // Deprecated: maintained for backward compatibility, use reportMeta.recordCount
+  generatedAt?: Date; // Deprecated: maintained for backward compatibility, use reportMeta.generatedAt
   reportDataId?: string; // Reference to wizard_report_data entry
   progress?: {
     [key: string]: {
