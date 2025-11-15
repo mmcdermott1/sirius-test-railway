@@ -52,6 +52,7 @@ import EmployerLogs from "@/pages/employer-logs";
 import WizardView from "@/pages/wizard-view";
 import StripeCustomerPage from "@/pages/employers/stripe-customer";
 import StripePaymentMethodsPage from "@/pages/employers/stripe-payment-methods";
+import EmployerLedgerAccountsWrapper from "@/pages/employer-ledger-accounts-wrapper";
 import TrustBenefits from "@/pages/trust-benefits";
 import TrustBenefitsAdd from "@/pages/trust-benefits-add";
 import TrustBenefitView from "@/pages/trust-benefit-view";
@@ -437,6 +438,14 @@ function Router() {
         <ProtectedRoute policy="ledgerStripeEmployer">
           <AuthenticatedLayout>
             <StripePaymentMethodsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/employers/:id/ledger/accounts">
+        <ProtectedRoute policy="ledgerStaff">
+          <AuthenticatedLayout>
+            <EmployerLedgerAccountsWrapper />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

@@ -26,7 +26,7 @@ export function useEmployerLayout() {
 }
 
 interface EmployerLayoutProps {
-  activeTab: "details" | "edit" | "workers" | "contacts" | "wizards" | "accounting" | "payment-methods" | "customer" | "logs";
+  activeTab: "details" | "edit" | "workers" | "contacts" | "wizards" | "accounting" | "payment-methods" | "customer" | "ledger-accounts" | "logs";
   children: ReactNode;
 }
 
@@ -102,6 +102,14 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
   if (hasAccountingAccess) {
     mainTabs.push(
       { id: "accounting", label: "Accounting", href: `/employers/${employer.id}/ledger/stripe/payment_methods` }
+    );
+  }
+
+  // Add ledger accounts tab if user has ledger.staff permission
+  const hasLedgerAccess = hasPermission('admin') || hasPermission('ledger.staff');
+  if (hasLedgerAccess) {
+    mainTabs.push(
+      { id: "ledger-accounts", label: "Ledger Accounts", href: `/employers/${employer.id}/ledger/accounts` }
     );
   }
 

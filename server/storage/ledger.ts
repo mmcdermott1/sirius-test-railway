@@ -1,10 +1,12 @@
 import { db } from "../db";
-import { ledgerAccounts, ledgerStripePaymentMethods } from "@shared/schema";
+import { ledgerAccounts, ledgerStripePaymentMethods, ledgerEa } from "@shared/schema";
 import type { 
   LedgerAccount, 
   InsertLedgerAccount,
   LedgerStripePaymentMethod,
-  InsertLedgerStripePaymentMethod
+  InsertLedgerStripePaymentMethod,
+  SelectLedgerEa,
+  InsertLedgerEa
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
@@ -27,9 +29,19 @@ export interface StripePaymentMethodStorage {
   setAsDefault(paymentMethodId: string, entityType: string, entityId: string): Promise<LedgerStripePaymentMethod | undefined>;
 }
 
+export interface LedgerEaStorage {
+  getAll(): Promise<SelectLedgerEa[]>;
+  get(id: string): Promise<SelectLedgerEa | undefined>;
+  getByEntity(entityType: string, entityId: string): Promise<SelectLedgerEa[]>;
+  create(entry: InsertLedgerEa): Promise<SelectLedgerEa>;
+  update(id: string, entry: Partial<InsertLedgerEa>): Promise<SelectLedgerEa | undefined>;
+  delete(id: string): Promise<boolean>;
+}
+
 export interface LedgerStorage {
   accounts: LedgerAccountStorage;
   stripePaymentMethods: StripePaymentMethodStorage;
+  ea: LedgerEaStorage;
 }
 
 export function createLedgerAccountStorage(): LedgerAccountStorage {
@@ -132,9 +144,49 @@ export function createStripePaymentMethodStorage(): StripePaymentMethodStorage {
   };
 }
 
+export function createLedgerEaStorage(): LedgerEaStorage {
+  return {
+    async getAll(): Promise<SelectLedgerEa[]> {
+      return await db.select().from(ledgerEa);
+    },
+
+    async get(id: string): Promise<SelectLedgerEa | undefined> {
+      const [entry] = await db.select().from(ledgerEa).where(eq(ledgerEa.id, id));
+      return entry || undefined;
+    },
+
+    async getByEntity(entityType: string, entityId: string): Promise<SelectLedgerEa[]> {
+      return await db.select().from(ledgerEa)
+        .where(and(
+          eq(ledgerEa.entityType, entityType),
+          eq(ledgerEa.entityId, entityId)
+        ));
+    },
+
+    async create(insertEntry: InsertLedgerEa): Promise<SelectLedgerEa> {
+      const [entry] = await db.insert(ledgerEa).values(insertEntry).returning();
+      return entry;
+    },
+
+    async update(id: string, entryUpdate: Partial<InsertLedgerEa>): Promise<SelectLedgerEa | undefined> {
+      const [entry] = await db.update(ledgerEa)
+        .set(entryUpdate)
+        .where(eq(ledgerEa.id, id))
+        .returning();
+      return entry || undefined;
+    },
+
+    async delete(id: string): Promise<boolean> {
+      const result = await db.delete(ledgerEa).where(eq(ledgerEa.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    }
+  };
+}
+
 export function createLedgerStorage(
   accountLoggingConfig?: StorageLoggingConfig<LedgerAccountStorage>,
-  stripePaymentMethodLoggingConfig?: StorageLoggingConfig<StripePaymentMethodStorage>
+  stripePaymentMethodLoggingConfig?: StorageLoggingConfig<StripePaymentMethodStorage>,
+  eaLoggingConfig?: StorageLoggingConfig<LedgerEaStorage>
 ): LedgerStorage {
   // Create nested storage instances with optional logging
   const accountStorage = accountLoggingConfig
@@ -144,9 +196,14 @@ export function createLedgerStorage(
   const stripePaymentMethodStorage = stripePaymentMethodLoggingConfig
     ? withStorageLogging(createStripePaymentMethodStorage(), stripePaymentMethodLoggingConfig)
     : createStripePaymentMethodStorage();
+
+  const eaStorage = eaLoggingConfig
+    ? withStorageLogging(createLedgerEaStorage(), eaLoggingConfig)
+    : createLedgerEaStorage();
   
   return {
     accounts: accountStorage,
-    stripePaymentMethods: stripePaymentMethodStorage
+    stripePaymentMethods: stripePaymentMethodStorage,
+    ea: eaStorage
   };
 }

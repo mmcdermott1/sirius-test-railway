@@ -447,6 +447,13 @@ export const insertLedgerPaymentSchema = createInsertSchema(ledgerPayments).omit
   id: true,
 });
 
+export const insertLedgerEaSchema = createInsertSchema(ledgerEa).omit({
+  id: true,
+});
+
+export type InsertLedgerEa = z.infer<typeof insertLedgerEaSchema>;
+export type SelectLedgerEa = typeof ledgerEa.$inferSelect;
+
 export const insertWizardSchema = createInsertSchema(wizards).omit({
   id: true,
   date: true,

@@ -23,6 +23,7 @@ import { registerWizardRoutes } from "./modules/wizards";
 import { registerFileRoutes } from "./modules/files";
 import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
 import { registerLedgerAccountRoutes } from "./modules/ledger/accounts";
+import { registerLedgerEaRoutes } from "./modules/ledger/ea";
 import { registerAccessPolicyRoutes } from "./modules/access-policies";
 import { registerLogRoutes } from "./modules/logs";
 import { registerQuickstartRoutes } from "./modules/quickstart";
@@ -273,6 +274,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register ledger/accounts routes
   registerLedgerAccountRoutes(app);
+
+  // Register ledger/EA routes
+  registerLedgerEaRoutes(app);
 
   // Register log management routes
   registerLogRoutes(app);
