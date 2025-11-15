@@ -86,7 +86,7 @@ export function EALayout({ activeTab, children }: EALayoutProps) {
         </div>
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-foreground mb-1" data-testid="heading-ea">
-            {account?.name || "Account Entry"}
+            {employer && account ? `${employer.name} - ${account.name}` : account?.name || "Account Entry"}
           </h1>
           {account?.description && (
             <p className="text-muted-foreground" data-testid="text-account-description">
