@@ -5,7 +5,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -161,33 +160,6 @@ function PaymentEditContent() {
                   <div className="space-y-1 leading-none">
                     <FormLabel>Allocated</FormLabel>
                   </div>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="details"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Details (JSON)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder='{"amount": 100, "note": "Payment note"}'
-                      rows={6}
-                      data-testid="textarea-payment-details"
-                      value={typeof field.value === "string" ? field.value : field.value ? JSON.stringify(field.value, null, 2) : ""}
-                      onChange={(e) => {
-                        try {
-                          const parsed = e.target.value ? JSON.parse(e.target.value) : null;
-                          field.onChange(parsed);
-                        } catch {
-                          field.onChange(e.target.value);
-                        }
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
                 </FormItem>
               )}
             />
