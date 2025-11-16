@@ -96,6 +96,27 @@ function PaymentViewContent() {
             <label className="text-sm font-medium text-muted-foreground">Ledger EA ID</label>
             <p className="mt-1 font-mono text-sm" data-testid="text-ledger-ea-id">{payment.ledgerEaId}</p>
           </div>
+
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Date Created</label>
+            <p className="mt-1" data-testid="text-date-created">
+              {payment.dateCreated ? new Date(payment.dateCreated).toLocaleDateString() : 'N/A'}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Date Received</label>
+            <p className="mt-1" data-testid="text-date-received">
+              {payment.dateReceived ? new Date(payment.dateReceived).toLocaleDateString() : 'N/A'}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Date Cleared</label>
+            <p className="mt-1" data-testid="text-date-cleared">
+              {payment.dateCleared ? new Date(payment.dateCleared).toLocaleDateString() : 'N/A'}
+            </p>
+          </div>
         </div>
 
         {payment.details ? (
