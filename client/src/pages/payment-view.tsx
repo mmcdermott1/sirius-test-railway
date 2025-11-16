@@ -92,46 +92,44 @@ function PaymentViewContent() {
             </p>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Ledger EA ID</label>
-            <p className="mt-1 font-mono text-sm" data-testid="text-ledger-ea-id">{payment.ledgerEaId}</p>
-          </div>
+          {payment.details && (payment.details as any).merchant && (
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Merchant</label>
+              <p className="mt-1" data-testid="text-merchant">{(payment.details as any).merchant}</p>
+            </div>
+          )}
 
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Date Created</label>
-            <p className="mt-1" data-testid="text-date-created">
-              {payment.dateCreated ? new Date(payment.dateCreated).toLocaleDateString() : 'N/A'}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Date Received</label>
-            <p className="mt-1" data-testid="text-date-received">
-              {payment.dateReceived ? new Date(payment.dateReceived).toLocaleDateString() : 'N/A'}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Date Cleared</label>
-            <p className="mt-1" data-testid="text-date-cleared">
-              {payment.dateCleared ? new Date(payment.dateCleared).toLocaleDateString() : 'N/A'}
-            </p>
-          </div>
+          {payment.details && (payment.details as any).checkTransactionNumber && (
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Check or Transaction Number</label>
+              <p className="mt-1" data-testid="text-check-transaction-number">{(payment.details as any).checkTransactionNumber}</p>
+            </div>
+          )}
         </div>
 
-        {payment.details && (payment.details as any).merchant && (
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Merchant</label>
-            <p className="mt-1" data-testid="text-merchant">{(payment.details as any).merchant}</p>
+        <div>
+          <label className="text-sm font-medium text-muted-foreground">Dates</label>
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Created</p>
+              <p className="mt-1" data-testid="text-date-created">
+                {payment.dateCreated ? new Date(payment.dateCreated).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Received</p>
+              <p className="mt-1" data-testid="text-date-received">
+                {payment.dateReceived ? new Date(payment.dateReceived).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Cleared</p>
+              <p className="mt-1" data-testid="text-date-cleared">
+                {payment.dateCleared ? new Date(payment.dateCleared).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
           </div>
-        )}
-
-        {payment.details && (payment.details as any).checkTransactionNumber && (
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Check or Transaction Number</label>
-            <p className="mt-1" data-testid="text-check-transaction-number">{(payment.details as any).checkTransactionNumber}</p>
-          </div>
-        )}
+        </div>
 
         {payment.memo && (
           <div>
@@ -139,15 +137,6 @@ function PaymentViewContent() {
             <p className="mt-1 whitespace-pre-wrap" data-testid="text-memo">{payment.memo}</p>
           </div>
         )}
-
-        {payment.details ? (
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Details</label>
-            <pre className="mt-1 bg-muted p-4 rounded-md overflow-auto text-sm" data-testid="text-details">
-              {JSON.stringify(payment.details, null, 2)}
-            </pre>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );
