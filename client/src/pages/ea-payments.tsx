@@ -14,12 +14,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertLedgerPaymentSchema, type LedgerPayment, type LedgerPaymentType } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, DollarSign } from "lucide-react";
-import { useState } from "react";
+import { Plus, DollarSign, Download, ArrowUpDown, Filter, X } from "lucide-react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { z } from "zod";
+import { stringify } from "csv-stringify/browser/esm/sync";
 
 const paymentStatuses = ["draft", "canceled", "cleared", "error"] as const;
+
+type SortField = "amount" | "dateCreated" | "dateReceived" | "dateCleared";
+type SortDirection = "asc" | "desc";
 
 function EAPaymentsContent() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +31,24 @@ function EAPaymentsContent() {
   const [merchant, setMerchant] = useState("");
   const [checkTransactionNumber, setCheckTransactionNumber] = useState("");
   const { toast } = useToast();
+  
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterPaymentType, setFilterPaymentType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterMerchant, setFilterMerchant] = useState("");
+  const [filterAmountMin, setFilterAmountMin] = useState("");
+  const [filterAmountMax, setFilterAmountMax] = useState("");
+  const [filterDateCreatedFrom, setFilterDateCreatedFrom] = useState("");
+  const [filterDateCreatedTo, setFilterDateCreatedTo] = useState("");
+  const [filterDateReceivedFrom, setFilterDateReceivedFrom] = useState("");
+  const [filterDateReceivedTo, setFilterDateReceivedTo] = useState("");
+  const [filterDateClearedFrom, setFilterDateClearedFrom] = useState("");
+  const [filterDateClearedTo, setFilterDateClearedTo] = useState("");
+  
+  // Sort state
+  const [sortField, setSortField] = useState<SortField>("dateCleared");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const { data: payments, isLoading } = useQuery<LedgerPayment[]>({
     queryKey: ["/api/ledger/payments/ea", id],
@@ -122,15 +144,275 @@ function EAPaymentsContent() {
     }
   };
 
+  // Filter and sort payments
+  const filteredAndSortedPayments = useMemo(() => {
+    if (!payments) return [];
+
+    let result = [...payments];
+
+    // Apply filters
+    if (filterPaymentType !== "all") {
+      result = result.filter(p => p.paymentType === filterPaymentType);
+    }
+
+    if (filterStatus !== "all") {
+      result = result.filter(p => p.status === filterStatus);
+    }
+
+    if (filterMerchant) {
+      result = result.filter(p => {
+        const details = p.details as any;
+        return details?.merchant?.toLowerCase().includes(filterMerchant.toLowerCase());
+      });
+    }
+
+    if (filterAmountMin) {
+      const min = parseFloat(filterAmountMin);
+      result = result.filter(p => parseFloat(p.amount) >= min);
+    }
+
+    if (filterAmountMax) {
+      const max = parseFloat(filterAmountMax);
+      result = result.filter(p => parseFloat(p.amount) <= max);
+    }
+
+    // Date filters
+    if (filterDateCreatedFrom) {
+      const from = new Date(filterDateCreatedFrom);
+      result = result.filter(p => p.dateCreated && new Date(p.dateCreated) >= from);
+    }
+
+    if (filterDateCreatedTo) {
+      const to = new Date(filterDateCreatedTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter(p => p.dateCreated && new Date(p.dateCreated) <= to);
+    }
+
+    if (filterDateReceivedFrom) {
+      const from = new Date(filterDateReceivedFrom);
+      result = result.filter(p => p.dateReceived && new Date(p.dateReceived) >= from);
+    }
+
+    if (filterDateReceivedTo) {
+      const to = new Date(filterDateReceivedTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter(p => p.dateReceived && new Date(p.dateReceived) <= to);
+    }
+
+    if (filterDateClearedFrom) {
+      const from = new Date(filterDateClearedFrom);
+      result = result.filter(p => p.dateCleared && new Date(p.dateCleared) >= from);
+    }
+
+    if (filterDateClearedTo) {
+      const to = new Date(filterDateClearedTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter(p => p.dateCleared && new Date(p.dateCleared) <= to);
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let aValue: number | null;
+      let bValue: number | null;
+
+      // Get values based on sort field
+      if (sortField === "amount") {
+        aValue = parseFloat(a.amount);
+        bValue = parseFloat(b.amount);
+      } else if (sortField === "dateCreated") {
+        aValue = a.dateCreated ? new Date(a.dateCreated).getTime() : null;
+        bValue = b.dateCreated ? new Date(b.dateCreated).getTime() : null;
+      } else if (sortField === "dateReceived") {
+        aValue = a.dateReceived ? new Date(a.dateReceived).getTime() : null;
+        bValue = b.dateReceived ? new Date(b.dateReceived).getTime() : null;
+      } else if (sortField === "dateCleared") {
+        aValue = a.dateCleared ? new Date(a.dateCleared).getTime() : null;
+        bValue = b.dateCleared ? new Date(b.dateCleared).getTime() : null;
+      } else {
+        return 0;
+      }
+
+      // Handle null values
+      if (aValue !== null && bValue !== null) {
+        // Both values are non-null, sort based on direction
+        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
+      }
+      
+      // One or both values are null
+      if (aValue === null && bValue === null) {
+        // If both are null, fall back to multi-level date sorting for dateCleared
+        if (sortField === "dateCleared") {
+          const aReceivedTime = a.dateReceived ? new Date(a.dateReceived).getTime() : null;
+          const bReceivedTime = b.dateReceived ? new Date(b.dateReceived).getTime() : null;
+          
+          if (aReceivedTime !== null && bReceivedTime !== null) {
+            return sortDirection === "asc" ? aReceivedTime - bReceivedTime : bReceivedTime - aReceivedTime;
+          }
+          if (aReceivedTime === null && bReceivedTime === null) {
+            const aCreatedTime = a.dateCreated ? new Date(a.dateCreated).getTime() : null;
+            const bCreatedTime = b.dateCreated ? new Date(b.dateCreated).getTime() : null;
+            
+            if (aCreatedTime !== null && bCreatedTime !== null) {
+              return sortDirection === "asc" ? aCreatedTime - bCreatedTime : bCreatedTime - aCreatedTime;
+            }
+            if (aCreatedTime === null && bCreatedTime === null) {
+              return 0; // Both have no dates at all
+            }
+            if (aCreatedTime === null) return 1;
+            if (bCreatedTime === null) return -1;
+          }
+          if (aReceivedTime === null) return 1;
+          if (bReceivedTime === null) return -1;
+        }
+        return 0;
+      }
+      
+      // Exactly one value is null - put nulls at the end
+      if (aValue === null) return 1;
+      if (bValue === null) return -1;
+      
+      return 0;
+    });
+
+    return result;
+  }, [
+    payments,
+    filterPaymentType,
+    filterStatus,
+    filterMerchant,
+    filterAmountMin,
+    filterAmountMax,
+    filterDateCreatedFrom,
+    filterDateCreatedTo,
+    filterDateReceivedFrom,
+    filterDateReceivedTo,
+    filterDateClearedFrom,
+    filterDateClearedTo,
+    sortField,
+    sortDirection,
+  ]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilterPaymentType("all");
+    setFilterStatus("all");
+    setFilterMerchant("");
+    setFilterAmountMin("");
+    setFilterAmountMax("");
+    setFilterDateCreatedFrom("");
+    setFilterDateCreatedTo("");
+    setFilterDateReceivedFrom("");
+    setFilterDateReceivedTo("");
+    setFilterDateClearedFrom("");
+    setFilterDateClearedTo("");
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    if (!filteredAndSortedPayments.length) {
+      toast({
+        title: "No data to export",
+        description: "There are no payments to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const csvData = filteredAndSortedPayments.map(payment => {
+      const paymentType = paymentTypes.find(t => t.id === payment.paymentType);
+      const details = payment.details as any;
+      
+      return {
+        Amount: parseFloat(payment.amount).toFixed(2),
+        "Payment Type": paymentType?.name || "",
+        Status: payment.status,
+        Merchant: details?.merchant || "",
+        "Check/Transaction Number": details?.checkTransactionNumber || "",
+        "Date Created": payment.dateCreated ? new Date(payment.dateCreated).toLocaleDateString() : "",
+        "Date Received": payment.dateReceived ? new Date(payment.dateReceived).toLocaleDateString() : "",
+        "Date Cleared": payment.dateCleared ? new Date(payment.dateCleared).toLocaleDateString() : "",
+        Allocated: payment.allocated ? "Yes" : "No",
+        Memo: payment.memo || "",
+      };
+    });
+
+    const csv = stringify(csvData, {
+      header: true,
+      columns: [
+        "Amount",
+        "Payment Type",
+        "Status",
+        "Merchant",
+        "Check/Transaction Number",
+        "Date Created",
+        "Date Received",
+        "Date Cleared",
+        "Allocated",
+        "Memo",
+      ],
+    });
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `payments-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${filteredAndSortedPayments.length} payment(s) to CSV.`,
+    });
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Payments</CardTitle>
-            <CardDescription>Manage payments for this account entry</CardDescription>
+            <CardDescription>
+              Manage payments for this account entry
+              {filteredAndSortedPayments.length !== payments?.length && (
+                <span className="ml-2 text-sm">
+                  ({filteredAndSortedPayments.length} of {payments?.length || 0} shown)
+                </span>
+              )}
+            </CardDescription>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              data-testid="button-toggle-filters"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportToCSV}
+              disabled={!filteredAndSortedPayments.length}
+              data-testid="button-export-csv"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-payment">
                 <Plus className="h-4 w-4 mr-2" />
@@ -317,14 +599,162 @@ function EAPaymentsContent() {
               </Form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
+        {showFilters && (
+          <div className="mb-6 p-4 border rounded-lg bg-muted/50 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold">Filters</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                data-testid="button-clear-filters"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear All
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Payment Type</label>
+                <Select value={filterPaymentType} onValueChange={setFilterPaymentType}>
+                  <SelectTrigger data-testid="filter-payment-type">
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All types</SelectItem>
+                    {paymentTypes.map(type => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger data-testid="filter-status">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    {paymentStatuses.map(status => (
+                      <SelectItem key={status} value={status}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Merchant</label>
+                <Input
+                  placeholder="Search merchant..."
+                  value={filterMerchant}
+                  onChange={e => setFilterMerchant(e.target.value)}
+                  data-testid="filter-merchant"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Amount Min</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Min amount"
+                  value={filterAmountMin}
+                  onChange={e => setFilterAmountMin(e.target.value)}
+                  data-testid="filter-amount-min"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Amount Max</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Max amount"
+                  value={filterAmountMax}
+                  onChange={e => setFilterAmountMax(e.target.value)}
+                  data-testid="filter-amount-max"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Date Created From</label>
+                <Input
+                  type="date"
+                  value={filterDateCreatedFrom}
+                  onChange={e => setFilterDateCreatedFrom(e.target.value)}
+                  data-testid="filter-date-created-from"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Date Created To</label>
+                <Input
+                  type="date"
+                  value={filterDateCreatedTo}
+                  onChange={e => setFilterDateCreatedTo(e.target.value)}
+                  data-testid="filter-date-created-to"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Date Received From</label>
+                <Input
+                  type="date"
+                  value={filterDateReceivedFrom}
+                  onChange={e => setFilterDateReceivedFrom(e.target.value)}
+                  data-testid="filter-date-received-from"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Date Received To</label>
+                <Input
+                  type="date"
+                  value={filterDateReceivedTo}
+                  onChange={e => setFilterDateReceivedTo(e.target.value)}
+                  data-testid="filter-date-received-to"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Date Cleared From</label>
+                <Input
+                  type="date"
+                  value={filterDateClearedFrom}
+                  onChange={e => setFilterDateClearedFrom(e.target.value)}
+                  data-testid="filter-date-cleared-from"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Date Cleared To</label>
+                <Input
+                  type="date"
+                  value={filterDateClearedTo}
+                  onChange={e => setFilterDateClearedTo(e.target.value)}
+                  data-testid="filter-date-cleared-to"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center py-8">
             <p className="text-muted-foreground">Loading payments...</p>
           </div>
-        ) : !payments || payments.length === 0 ? (
+        ) : !filteredAndSortedPayments || filteredAndSortedPayments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <DollarSign className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground" data-testid="text-no-payments">
@@ -339,18 +769,62 @@ function EAPaymentsContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Amount</TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8"
+                      onClick={() => handleSort("amount")}
+                      data-testid="sort-amount"
+                    >
+                      Amount
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead>Payment Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Merchant</TableHead>
-                  <TableHead>Date Created</TableHead>
-                  <TableHead>Date Received</TableHead>
-                  <TableHead>Date Cleared</TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8"
+                      onClick={() => handleSort("dateCreated")}
+                      data-testid="sort-date-created"
+                    >
+                      Date Created
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8"
+                      onClick={() => handleSort("dateReceived")}
+                      data-testid="sort-date-received"
+                    >
+                      Date Received
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8"
+                      onClick={() => handleSort("dateCleared")}
+                      data-testid="sort-date-cleared"
+                    >
+                      Date Cleared
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((payment) => {
+                {filteredAndSortedPayments.map((payment) => {
                   const paymentType = paymentTypes.find(t => t.id === payment.paymentType);
                   const details = payment.details as any;
                   return (
