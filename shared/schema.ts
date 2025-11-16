@@ -252,6 +252,9 @@ export const ledgerPayments = pgTable("ledger_payments", {
   paymentType: varchar("payment_type").notNull().references(() => optionsLedgerPaymentType.id),
   ledgerEaId: varchar("ledger_ea_id").notNull().references(() => ledgerEa.id),
   details: jsonb("details"),
+  dateCreated: timestamp("date_created").default(sql`now()`).notNull(),
+  dateReceived: timestamp("date_received"),
+  dateCleared: timestamp("date_cleared"),
 });
 
 export const ledgerEa = pgTable("ledger_ea", {
@@ -445,6 +448,7 @@ export const insertLedgerAccountSchema = createInsertSchema(ledgerAccounts).omit
 
 export const insertLedgerPaymentSchema = createInsertSchema(ledgerPayments).omit({
   id: true,
+  dateCreated: true,
 });
 
 export const insertLedgerEaSchema = createInsertSchema(ledgerEa).omit({
