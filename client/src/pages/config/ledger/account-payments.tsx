@@ -640,12 +640,12 @@ function AccountPaymentsContent() {
                             </Button>
                           )}
                           <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild data-testid={`link-ea-${payment.id}`}>
-                            <Link href={`/ledger/ea/${payment.ledgerEaId}/payments`}>
+                            <Link href={`/ea/${payment.ledgerEaId}/payments`}>
                               EA
                             </Link>
                           </Button>
                           <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild data-testid={`link-payment-${payment.id}`}>
-                            <Link href={`/ledger/payments/${payment.id}`}>
+                            <Link href={`/ledger/payment/${payment.id}`}>
                               Payment
                             </Link>
                           </Button>
