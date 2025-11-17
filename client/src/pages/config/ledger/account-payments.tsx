@@ -605,21 +605,14 @@ function AccountPaymentsContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="cursor-pointer" onClick={() => handleSort("amount")}>
-                    <div className="flex items-center gap-1">
-                      Amount
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="cursor-pointer" onClick={() => handleSort("entityName")}>
                     <div className="flex items-center gap-1">
                       Entity
                       <ArrowUpDown className="h-3 w-3" />
                     </div>
                   </TableHead>
-                  <TableHead>Merchant</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="cursor-pointer" onClick={() => handleSort("dateCreated")}>
                     <div className="flex items-center gap-1">
                       Created
@@ -638,6 +631,7 @@ function AccountPaymentsContent() {
                       <ArrowUpDown className="h-3 w-3" />
                     </div>
                   </TableHead>
+                  <TableHead>Merchant</TableHead>
                   <TableHead>Links</TableHead>
                 </TableRow>
               </TableHeader>
@@ -648,23 +642,17 @@ function AccountPaymentsContent() {
                   
                   return (
                     <TableRow key={payment.id}>
-                      <TableCell className="font-medium">
-                        ${parseFloat(payment.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>{paymentType?.name || "-"}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(payment.status)}>
-                          {payment.status}
-                        </Badge>
-                      </TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <div className="text-sm font-medium">{payment.entityName || "-"}</div>
                           <div className="text-xs text-muted-foreground capitalize">{payment.entityType}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {details?.merchant || "-"}
+                      <TableCell>{paymentType?.name || "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(payment.status)}>
+                          {payment.status}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-sm">
                         {payment.dateCreated
@@ -680,6 +668,9 @@ function AccountPaymentsContent() {
                         {payment.dateCleared
                           ? new Date(payment.dateCleared).toLocaleDateString()
                           : "-"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {details?.merchant || "-"}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
