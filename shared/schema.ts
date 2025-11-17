@@ -807,3 +807,41 @@ export const employerMonthlyPluginConfigSchema = z.record(
 );
 
 export type EmployerMonthlyPluginConfig = z.infer<typeof employerMonthlyPluginConfigSchema>;
+
+// Cron Jobs
+export const cronJobs = pgTable("cron_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  schedule: text("schedule").notNull(), // cron expression
+  isEnabled: boolean("is_enabled").default(false).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const cronJobRuns = pgTable("cron_job_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id").notNull().references(() => cronJobs.id, { onDelete: 'cascade' }),
+  status: varchar("status").notNull(), // 'running', 'success', 'error'
+  output: text("output"),
+  error: text("error"),
+  startedAt: timestamp("started_at").default(sql`now()`).notNull(),
+  completedAt: timestamp("completed_at"),
+  triggeredBy: varchar("triggered_by"), // 'scheduler' or user id
+});
+
+export const insertCronJobSchema = createInsertSchema(cronJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCronJobRunSchema = createInsertSchema(cronJobRuns).omit({
+  id: true,
+  startedAt: true,
+});
+
+export type InsertCronJob = z.infer<typeof insertCronJobSchema>;
+export type CronJob = typeof cronJobs.$inferSelect;
+export type InsertCronJobRun = z.infer<typeof insertCronJobRunSchema>;
+export type CronJobRun = typeof cronJobRuns.$inferSelect;
