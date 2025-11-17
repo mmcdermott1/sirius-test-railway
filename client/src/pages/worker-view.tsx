@@ -1,7 +1,7 @@
-import { Mail, Phone, MapPin, Calendar, IdCard, Gift, Building2, Home } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, IdCard, Gift, Building2, Home, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { PostalAddress, PhoneNumber as PhoneNumberType, WorkerId, WorkerIdType, TrustWmb, TrustBenefit, Employer } from "@shared/schema";
+import { PostalAddress, PhoneNumber as PhoneNumberType, WorkerId, WorkerIdType, TrustWmb, TrustBenefit, Employer, WorkerWs } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WorkerLayout, useWorkerLayout } from "@/components/layouts/WorkerLayout";
@@ -89,6 +89,11 @@ function WorkerDetailsContent() {
     },
   });
 
+  // Fetch work statuses
+  const { data: workStatuses = [] } = useQuery<WorkerWs[]>({
+    queryKey: ["/api/worker-work-statuses"],
+  });
+
   // Get current month and year
   const now = new Date();
   const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
@@ -119,6 +124,11 @@ function WorkerDetailsContent() {
   const primaryPhone = phoneNumbers.find(phone => phone.isPrimary && phone.isActive)
     || phoneNumbers.find(phone => phone.isPrimary)
     || phoneNumbers.find(phone => phone.isActive);
+
+  // Find current work status
+  const currentWorkStatus = worker.wsId 
+    ? workStatuses.find(ws => ws.id === worker.wsId)
+    : null;
 
   return (
     <Card>
@@ -171,6 +181,21 @@ function WorkerDetailsContent() {
               ) : (
                 <p className="text-muted-foreground text-sm" data-testid="text-no-ssn">
                   No SSN set
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Briefcase size={14} />
+                Work Status
+              </label>
+              {currentWorkStatus ? (
+                <p className="text-foreground" data-testid="text-worker-work-status">
+                  {currentWorkStatus.name}
+                </p>
+              ) : (
+                <p className="text-muted-foreground text-sm" data-testid="text-no-work-status">
+                  No work status set
                 </p>
               )}
             </div>
