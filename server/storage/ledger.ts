@@ -46,6 +46,11 @@ export interface LedgerPaymentStorage {
   get(id: string): Promise<LedgerPayment | undefined>;
   getByLedgerEaId(ledgerEaId: string): Promise<LedgerPayment[]>;
   getByAccountIdWithEntity(accountId: string): Promise<LedgerPaymentWithEntity[]>;
+  getByAccountIdWithEntityPaginated(
+    accountId: string, 
+    limit: number, 
+    offset: number
+  ): Promise<{ data: LedgerPaymentWithEntity[]; total: number }>;
   create(payment: InsertLedgerPayment): Promise<LedgerPayment>;
   update(id: string, payment: Partial<InsertLedgerPayment>): Promise<LedgerPayment | undefined>;
   delete(id: string): Promise<boolean>;
@@ -241,6 +246,51 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
         entityId: row.ea.entityId,
         entityName: row.employer?.name || null
       }));
+    },
+
+    async getByAccountIdWithEntityPaginated(
+      accountId: string,
+      limit: number,
+      offset: number
+    ): Promise<{ data: LedgerPaymentWithEntity[]; total: number }> {
+      const [countResult] = await db
+        .select({
+          count: db.$count(ledgerPayments.id)
+        })
+        .from(ledgerPayments)
+        .innerJoin(ledgerEa, eq(ledgerPayments.ledgerEaId, ledgerEa.id))
+        .where(eq(ledgerEa.accountId, accountId));
+
+      const total = Number(countResult?.count || 0);
+
+      const results = await db
+        .select({
+          payment: ledgerPayments,
+          ea: ledgerEa,
+          employer: employers
+        })
+        .from(ledgerPayments)
+        .innerJoin(ledgerEa, eq(ledgerPayments.ledgerEaId, ledgerEa.id))
+        .leftJoin(
+          employers,
+          and(
+            eq(ledgerEa.entityType, 'employer'),
+            eq(ledgerEa.entityId, employers.id)
+          )
+        )
+        .where(eq(ledgerEa.accountId, accountId))
+        .orderBy(desc(ledgerPayments.id))
+        .limit(limit)
+        .offset(offset);
+
+      const data = results.map(row => ({
+        ...row.payment,
+        entityType: row.ea.entityType,
+        entityId: row.ea.entityId,
+        entityName: row.employer?.name || null
+      }));
+
+      return { data, total };
     },
 
     async create(insertPayment: InsertLedgerPayment): Promise<LedgerPayment> {
