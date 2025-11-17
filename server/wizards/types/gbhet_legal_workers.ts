@@ -305,13 +305,14 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
     }
 
     // Get employer ID from wizard entity
-    const employerId = wizard.entity_id;
+    const employerId = wizard.entityId;
     if (!employerId) {
       throw new Error('Wizard is not linked to an employer');
     }
 
-    // Get year and month from wizard launch arguments (coerce to numbers)
-    const launchArguments = wizard.launch_arguments || {};
+    // Get year and month from wizard data (launch arguments are stored in the data JSONB field)
+    const wizardData = wizard.data as any || {};
+    const launchArguments = wizardData.launchArguments || {};
     const yearValue = launchArguments.year;
     const monthValue = launchArguments.month;
 
