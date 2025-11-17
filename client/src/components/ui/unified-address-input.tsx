@@ -148,15 +148,13 @@ export function UnifiedAddressInput({
 
         setIsGeocoding(true);
         try {
-          const response = await apiRequest("POST", "/api/geocode", {
+          const result = await apiRequest("POST", "/api/geocode", {
             street: street || "",
             city: city || "",
             state: state || "",
             postalCode: postalCode || "",
             country: country || "United States",
           });
-          
-          const result = await response.json();
           
           if (result.success && result.validationResponse) {
             // Update the form's validationResponse field with fresh geocoded data
@@ -185,8 +183,7 @@ export function UnifiedAddressInput({
 
   const parseAddressMutation = useMutation({
     mutationFn: async (request: ParseAddressRequest): Promise<ParseAddressResponse> => {
-      const response = await apiRequest("POST", "/api/addresses/parse", request);
-      return response.json();
+      return await apiRequest("POST", "/api/addresses/parse", request);
     },
     onSuccess: (response: ParseAddressResponse) => {
       setParseResult(response);
