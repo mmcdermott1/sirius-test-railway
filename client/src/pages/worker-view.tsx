@@ -126,8 +126,8 @@ function WorkerDetailsContent() {
     || phoneNumbers.find(phone => phone.isActive);
 
   // Find current work status
-  const currentWorkStatus = worker.wsId 
-    ? workStatuses.find(ws => ws.id === worker.wsId)
+  const currentWorkStatus = worker.denormWsId 
+    ? workStatuses.find(ws => ws.id === worker.denormWsId)
     : null;
 
   return (

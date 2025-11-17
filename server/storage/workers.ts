@@ -41,7 +41,7 @@ export interface WorkerStorage {
   updateWorkerContactBirthDate(workerId: string, birthDate: string | null): Promise<Worker | undefined>;
   updateWorkerContactGender(workerId: string, gender: string | null, genderNota: string | null): Promise<Worker | undefined>;
   updateWorkerSSN(workerId: string, ssn: string): Promise<Worker | undefined>;
-  updateWorkerStatus(workerId: string, wsId: string | null): Promise<Worker | undefined>;
+  updateWorkerStatus(workerId: string, denormWsId: string | null): Promise<Worker | undefined>;
   deleteWorker(id: string): Promise<boolean>;
   // Worker benefits methods
   getWorkerBenefits(workerId: string): Promise<any[]>;
@@ -241,10 +241,10 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
       }
     },
 
-    async updateWorkerStatus(workerId: string, wsId: string | null): Promise<Worker | undefined> {
+    async updateWorkerStatus(workerId: string, denormWsId: string | null): Promise<Worker | undefined> {
       const [updatedWorker] = await db
         .update(workers)
-        .set({ wsId })
+        .set({ denormWsId })
         .where(eq(workers.id, workerId))
         .returning();
       
@@ -626,7 +626,7 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
     },
   };
 
-  // Helper method to sync worker's current ws_id with most recent work status history entry
+  // Helper method to sync worker's current denorm_ws_id with most recent work status history entry
   // This is defined after storage object so it can call storage.updateWorkerStatus()
   async function syncWorkerCurrentWorkStatus(workerId: string): Promise<void> {
     // Get the most recent work status history entry for this worker
@@ -639,7 +639,7 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
       .orderBy(desc(workerWsh.date), sql`${workerWsh.createdAt} DESC NULLS LAST`, desc(workerWsh.id))
       .limit(1);
 
-    // Update worker's ws_id through storage layer to ensure logging
+    // Update worker's denorm_ws_id through storage layer to ensure logging
     await storage.updateWorkerStatus(workerId, mostRecent?.wsId || null);
   }
 
@@ -726,17 +726,17 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
       },
       before: async (args, storage) => {
         const worker = await storage.getWorker(args[0]);
-        if (!worker || !worker.wsId) {
+        if (!worker || !worker.denormWsId) {
           return null;
         }
         
-        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, worker.wsId));
+        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, worker.denormWsId));
         return {
           worker: worker,
           workStatus: workStatus,
           metadata: {
             workerId: worker.id,
-            currentWsId: worker.wsId,
+            currentWsId: worker.denormWsId,
             currentWorkStatusName: workStatus?.name || 'None'
           }
         };
@@ -744,7 +744,7 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
       after: async (args, result, storage) => {
         if (!result) return null;
         
-        if (!result.wsId) {
+        if (!result.denormWsId) {
           return {
             worker: result,
             workStatus: null,
@@ -757,13 +757,13 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
           };
         }
         
-        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, result.wsId));
+        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, result.denormWsId));
         return {
           worker: result,
           workStatus: workStatus,
           metadata: {
             workerId: result.id,
-            newWsId: result.wsId,
+            newWsId: result.denormWsId,
             newWorkStatusName: workStatus?.name || 'Unknown',
             note: 'Worker work status updated (synchronized from work status history)'
           }
