@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import type { LedgerPaymentWithEntity, LedgerPaymentType } from "@shared/schema";
@@ -14,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { stringify } from "csv-stringify/browser/esm/sync";
 
 const paymentStatuses = ["draft", "canceled", "cleared", "error"] as const;
+const ITEMS_PER_PAGE = 100;
 
 type SortField = "amount" | "dateCreated" | "dateReceived" | "dateCleared" | "entityName";
 type SortDirection = "asc" | "desc";
@@ -21,6 +23,9 @@ type SortDirection = "asc" | "desc";
 function AccountPaymentsContent() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -42,13 +47,19 @@ function AccountPaymentsContent() {
   const [sortField, setSortField] = useState<SortField>("dateCleared");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  const { data: payments, isLoading } = useQuery<LedgerPaymentWithEntity[]>({
-    queryKey: ["/api/ledger/accounts", id, "payments"],
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  const { data: paymentsResponse, isLoading } = useQuery<{ data: LedgerPaymentWithEntity[]; total: number }>({
+    queryKey: ["/api/ledger/accounts", id, "payments", { limit: ITEMS_PER_PAGE, offset }],
   });
 
   const { data: paymentTypes = [] } = useQuery<LedgerPaymentType[]>({
     queryKey: ["/api/ledger/payment-types"],
   });
+
+  const payments = paymentsResponse?.data || [];
+  const totalPayments = paymentsResponse?.total || 0;
+  const totalPages = Math.ceil(totalPayments / ITEMS_PER_PAGE);
 
   const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
@@ -255,6 +266,7 @@ function AccountPaymentsContent() {
     setFilterMerchant("");
     setFilterAmountMin("");
     setFilterAmountMax("");
+    setCurrentPage(1);
     setFilterDateCreatedFrom("");
     setFilterDateCreatedTo("");
     setFilterDateReceivedFrom("");
@@ -324,7 +336,7 @@ function AccountPaymentsContent() {
 
     toast({
       title: "Export successful",
-      description: `Exported ${filteredAndSortedPayments.length} payment(s) to CSV.`,
+      description: `Exported ${filteredAndSortedPayments.length} payment(s) from current page to CSV.`,
     });
   };
 
@@ -344,11 +356,17 @@ function AccountPaymentsContent() {
           <div>
             <CardTitle>Payments</CardTitle>
             <CardDescription>
-              All payments for this ledger account
-              {filteredAndSortedPayments.length !== payments?.length && (
-                <span className="ml-2 text-sm">
-                  ({filteredAndSortedPayments.length} of {payments?.length || 0} shown)
-                </span>
+              {totalPayments > 0 ? (
+                <>
+                  Showing page {currentPage} of {totalPages} ({totalPayments} total payments)
+                  {filteredAndSortedPayments.length !== payments?.length && (
+                    <span className="ml-2">
+                      - {filteredAndSortedPayments.length} filtered on this page
+                    </span>
+                  )}
+                </>
+              ) : (
+                "No payments found for this ledger account"
               )}
             </CardDescription>
           </div>
@@ -658,6 +676,66 @@ function AccountPaymentsContent() {
             </Table>
           </div>
         )}
+
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-center">
+            <Pagination data-testid="pagination-controls">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    data-testid="pagination-previous"
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(pageNum)}
+                        isActive={currentPage === pageNum}
+                        className="cursor-pointer"
+                        data-testid={`pagination-page-${pageNum}`}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                {totalPages > 5 && currentPage < totalPages - 2 && (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                )}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    data-testid="pagination-next"
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+
+        <div className="mt-4 text-sm text-muted-foreground text-center">
+          Showing {payments.length > 0 ? offset + 1 : 0} - {offset + payments.length} of {totalPayments} payments
+        </div>
       </CardContent>
     </Card>
   );
