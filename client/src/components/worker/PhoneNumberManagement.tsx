@@ -58,8 +58,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
   const addPhoneNumberMutation = useMutation({
     mutationFn: async (data: PhoneNumberFormData) => {
       const payload: InsertPhoneNumber = { ...data, contactId };
-      const response = await apiRequest("POST", `/api/contacts/${contactId}/phone-numbers`, payload);
-      return response.json();
+      return await apiRequest("POST", `/api/contacts/${contactId}/phone-numbers`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts", contactId, "phone-numbers"] });
@@ -82,8 +81,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
   // Update phone number mutation
   const updatePhoneNumberMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<PhoneNumberFormData> }) => {
-      const response = await apiRequest("PUT", `/api/phone-numbers/${id}`, data);
-      return response.json();
+      return await apiRequest("PUT", `/api/phone-numbers/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts", contactId, "phone-numbers"] });
@@ -126,8 +124,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
   // Set primary phone number mutation
   const setPrimaryMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("PUT", `/api/phone-numbers/${id}/set-primary`, {});
-      return response.json();
+      return await apiRequest("PUT", `/api/phone-numbers/${id}/set-primary`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts", contactId, "phone-numbers"] });
