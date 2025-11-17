@@ -66,13 +66,13 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
   // Helper method to sync worker's current ws_id with most recent work status history entry
   async function syncWorkerCurrentWorkStatus(workerId: string): Promise<void> {
     // Get the most recent work status history entry for this worker
-    // Order by date DESC, then by createdAt DESC NULLS LAST to ensure the latest entry wins
-    // and NULL createdAt values (from legacy data) don't cause incorrect results
+    // Order by date DESC, then by createdAt DESC NULLS LAST, then by id DESC as a final fallback
+    // This ensures deterministic ordering even with legacy data or edge cases
     const [mostRecent] = await db
       .select()
       .from(workerWsh)
       .where(eq(workerWsh.workerId, workerId))
-      .orderBy(desc(workerWsh.date), sql`${workerWsh.createdAt} DESC NULLS LAST`)
+      .orderBy(desc(workerWsh.date), sql`${workerWsh.createdAt} DESC NULLS LAST`, desc(workerWsh.id))
       .limit(1);
 
     // Update worker's ws_id to match the most recent history entry (or null if no history)
