@@ -813,12 +813,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/config/ledger/accounts">
+      <Route path="/ledger/accounts">
         <ProtectedRoute policy="ledgerStaff">
           <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <LedgerAccountsPage />
-            </ConfigurationLayout>
+            <LedgerAccountsPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -858,8 +856,16 @@ function Router() {
         <Redirect to="/ledger/accounts/:id/edit" />
       </Route>
 
+      <Route path="/config/ledger/accounts/:id/payments">
+        <Redirect to="/ledger/accounts/:id/payments" />
+      </Route>
+
       <Route path="/config/ledger/accounts/:id">
         <Redirect to="/ledger/accounts/:id" />
+      </Route>
+
+      <Route path="/config/ledger/accounts">
+        <Redirect to="/ledger/accounts" />
       </Route>
 
       <Route path="/admin/roles">
