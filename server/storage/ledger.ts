@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { ledgerAccounts, ledgerStripePaymentMethods, ledgerEa, ledgerPayments } from "@shared/schema";
+import { ledgerAccounts, ledgerStripePaymentMethods, ledgerEa, ledgerPayments, employers } from "@shared/schema";
 import type { 
   LedgerAccount, 
   InsertLedgerAccount,
@@ -8,7 +8,8 @@ import type {
   SelectLedgerEa,
   InsertLedgerEa,
   LedgerPayment,
-  InsertLedgerPayment
+  InsertLedgerPayment,
+  LedgerPaymentWithEntity
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
@@ -44,6 +45,7 @@ export interface LedgerPaymentStorage {
   getAll(): Promise<LedgerPayment[]>;
   get(id: string): Promise<LedgerPayment | undefined>;
   getByLedgerEaId(ledgerEaId: string): Promise<LedgerPayment[]>;
+  getByAccountIdWithEntity(accountId: string): Promise<LedgerPaymentWithEntity[]>;
   create(payment: InsertLedgerPayment): Promise<LedgerPayment>;
   update(id: string, payment: Partial<InsertLedgerPayment>): Promise<LedgerPayment | undefined>;
   delete(id: string): Promise<boolean>;
@@ -212,6 +214,33 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
       return await db.select().from(ledgerPayments)
         .where(eq(ledgerPayments.ledgerEaId, ledgerEaId))
         .orderBy(desc(ledgerPayments.id));
+    },
+
+    async getByAccountIdWithEntity(accountId: string): Promise<LedgerPaymentWithEntity[]> {
+      const results = await db
+        .select({
+          payment: ledgerPayments,
+          ea: ledgerEa,
+          employer: employers
+        })
+        .from(ledgerPayments)
+        .innerJoin(ledgerEa, eq(ledgerPayments.ledgerEaId, ledgerEa.id))
+        .leftJoin(
+          employers,
+          and(
+            eq(ledgerEa.entityType, 'employer'),
+            eq(ledgerEa.entityId, employers.id)
+          )
+        )
+        .where(eq(ledgerEa.accountId, accountId))
+        .orderBy(desc(ledgerPayments.id));
+
+      return results.map(row => ({
+        ...row.payment,
+        entityType: row.ea.entityType,
+        entityId: row.ea.entityId,
+        entityName: row.employer?.name || null
+      }));
     },
 
     async create(insertPayment: InsertLedgerPayment): Promise<LedgerPayment> {

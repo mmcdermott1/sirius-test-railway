@@ -95,6 +95,7 @@ import LedgerPaymentTypesPage from "@/pages/config/ledger-payment-types";
 import LedgerAccountsPage from "@/pages/config/ledger/accounts";
 import LedgerAccountView from "@/pages/config/ledger/account-view";
 import LedgerAccountEdit from "@/pages/config/ledger/account-edit";
+import AccountPayments from "@/pages/config/ledger/account-payments";
 import SiteInformation from "@/pages/site-information";
 import NotFound from "@/pages/not-found";
 
@@ -788,6 +789,14 @@ function Router() {
       </Route>
 
       {/* Ledger account detail pages */}
+      <Route path="/ledger/accounts/:id/payments">
+        <ProtectedRoute policy="ledgerStaff">
+          <AuthenticatedLayout>
+            <AccountPayments />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/ledger/accounts/:id/edit">
         <ProtectedRoute policy="ledgerStaff">
           <AuthenticatedLayout>

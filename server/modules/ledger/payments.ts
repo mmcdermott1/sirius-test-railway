@@ -26,6 +26,17 @@ export function registerLedgerPaymentRoutes(app: Express) {
     }
   });
 
+  // GET /api/ledger/accounts/:accountId/payments - Get all payments for a specific account with entity data
+  app.get("/api/ledger/accounts/:accountId/payments", requireAccess(policies.ledgerStaff), async (req, res) => {
+    try {
+      const { accountId } = req.params;
+      const payments = await storage.ledger.payments.getByAccountIdWithEntity(accountId);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
+
   // GET /api/ledger/payments/:id - Get a specific payment
   app.get("/api/ledger/payments/:id", requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
