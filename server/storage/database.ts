@@ -13,6 +13,7 @@ import { type WizardStorage, createWizardStorage } from "./wizards";
 import { type WizardFeedMappingStorage, createWizardFeedMappingStorage } from "./wizard_feed_mappings";
 import { type WizardEmployerMonthlyStorage, createWizardEmployerMonthlyStorage } from "./wizard_employer_monthly";
 import { type FileStorage, createFileStorage, fileLoggingConfig } from "./files";
+import { type CronJobStorage, createCronJobStorage, type CronJobRunStorage, createCronJobRunStorage } from "./cron_jobs";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsWorkerIdType, optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -35,6 +36,8 @@ export interface IStorage {
   wizardFeedMappings: WizardFeedMappingStorage;
   wizardEmployerMonthly: WizardEmployerMonthlyStorage;
   files: FileStorage;
+  cronJobs: CronJobStorage;
+  cronJobRuns: CronJobRunStorage;
 }
 
 /**
@@ -943,6 +946,8 @@ export class DatabaseStorage implements IStorage {
   wizardFeedMappings: WizardFeedMappingStorage;
   wizardEmployerMonthly: WizardEmployerMonthlyStorage;
   files: FileStorage;
+  cronJobs: CronJobStorage;
+  cronJobRuns: CronJobRunStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -977,6 +982,8 @@ export class DatabaseStorage implements IStorage {
     this.wizardFeedMappings = createWizardFeedMappingStorage();
     this.wizardEmployerMonthly = createWizardEmployerMonthlyStorage();
     this.files = withStorageLogging(createFileStorage(), fileLoggingConfig);
+    this.cronJobs = createCronJobStorage();
+    this.cronJobRuns = createCronJobRunStorage();
   }
 }
 
