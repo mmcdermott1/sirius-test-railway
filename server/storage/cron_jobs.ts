@@ -5,21 +5,19 @@ import { sql } from "drizzle-orm";
 
 export interface CronJobStorage {
   list(): Promise<CronJob[]>;
-  getById(id: string): Promise<CronJob | undefined>;
   getByName(name: string): Promise<CronJob | undefined>;
   create(job: InsertCronJob): Promise<CronJob>;
-  update(id: string, updates: Partial<Omit<InsertCronJob, 'id'>>): Promise<CronJob | undefined>;
-  delete(id: string): Promise<boolean>;
+  update(name: string, updates: Partial<InsertCronJob>): Promise<CronJob | undefined>;
 }
 
 export interface CronJobRunStorage {
-  list(filters?: { jobId?: string; status?: string }): Promise<CronJobRun[]>;
+  list(filters?: { jobName?: string; status?: string }): Promise<CronJobRun[]>;
   getById(id: string): Promise<CronJobRun | undefined>;
-  getLatestByJobId(jobId: string): Promise<CronJobRun | undefined>;
+  getLatestByJobName(jobName: string): Promise<CronJobRun | undefined>;
   create(run: InsertCronJobRun): Promise<CronJobRun>;
   update(id: string, updates: Partial<Omit<InsertCronJobRun, 'id'>>): Promise<CronJobRun | undefined>;
   delete(id: string): Promise<boolean>;
-  deleteByJobId(jobId: string): Promise<number>;
+  deleteByJobName(jobName: string): Promise<number>;
 }
 
 export function createCronJobStorage(): CronJobStorage {
@@ -29,11 +27,6 @@ export function createCronJobStorage(): CronJobStorage {
         .select()
         .from(cronJobs)
         .orderBy(cronJobs.name);
-    },
-
-    async getById(id: string): Promise<CronJob | undefined> {
-      const [job] = await db.select().from(cronJobs).where(eq(cronJobs.id, id));
-      return job || undefined;
     },
 
     async getByName(name: string): Promise<CronJob | undefined> {
@@ -49,29 +42,24 @@ export function createCronJobStorage(): CronJobStorage {
       return job;
     },
 
-    async update(id: string, updates: Partial<Omit<InsertCronJob, 'id'>>): Promise<CronJob | undefined> {
+    async update(name: string, updates: Partial<InsertCronJob>): Promise<CronJob | undefined> {
       const [job] = await db
         .update(cronJobs)
         .set({ ...updates, updatedAt: new Date() })
-        .where(eq(cronJobs.id, id))
+        .where(eq(cronJobs.name, name))
         .returning();
       return job || undefined;
-    },
-
-    async delete(id: string): Promise<boolean> {
-      const result = await db.delete(cronJobs).where(eq(cronJobs.id, id)).returning();
-      return result.length > 0;
     },
   };
 }
 
 export function createCronJobRunStorage(): CronJobRunStorage {
   return {
-    async list(filters?: { jobId?: string; status?: string }): Promise<CronJobRun[]> {
+    async list(filters?: { jobName?: string; status?: string }): Promise<CronJobRun[]> {
       const conditions = [];
       
-      if (filters?.jobId) {
-        conditions.push(eq(cronJobRuns.jobId, filters.jobId));
+      if (filters?.jobName) {
+        conditions.push(eq(cronJobRuns.jobName, filters.jobName));
       }
       if (filters?.status) {
         conditions.push(eq(cronJobRuns.status, filters.status));
@@ -96,11 +84,11 @@ export function createCronJobRunStorage(): CronJobRunStorage {
       return run || undefined;
     },
 
-    async getLatestByJobId(jobId: string): Promise<CronJobRun | undefined> {
+    async getLatestByJobName(jobName: string): Promise<CronJobRun | undefined> {
       const [run] = await db
         .select()
         .from(cronJobRuns)
-        .where(eq(cronJobRuns.jobId, jobId))
+        .where(eq(cronJobRuns.jobName, jobName))
         .orderBy(desc(cronJobRuns.startedAt))
         .limit(1);
       return run || undefined;
@@ -128,10 +116,10 @@ export function createCronJobRunStorage(): CronJobRunStorage {
       return result.length > 0;
     },
 
-    async deleteByJobId(jobId: string): Promise<number> {
+    async deleteByJobName(jobName: string): Promise<number> {
       const result = await db
         .delete(cronJobRuns)
-        .where(eq(cronJobRuns.jobId, jobId))
+        .where(eq(cronJobRuns.jobName, jobName))
         .returning();
       return result.length;
     }

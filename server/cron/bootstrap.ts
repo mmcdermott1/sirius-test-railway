@@ -47,7 +47,7 @@ export async function bootstrapCronJobs(): Promise<void> {
       if (existing.length > 0) {
         logger.debug(`Cron job "${defaultJob.name}" already exists`, {
           service: 'cron-bootstrap',
-          jobId: existing[0].id,
+          jobName: existing[0].name,
         });
         skipped++;
         continue;
@@ -66,7 +66,7 @@ export async function bootstrapCronJobs(): Promise<void> {
 
       logger.info(`Created default cron job: ${defaultJob.name}`, {
         service: 'cron-bootstrap',
-        jobId: job.id,
+        jobName: job.name,
         schedule: defaultJob.schedule,
         isEnabled: defaultJob.isEnabled,
       });

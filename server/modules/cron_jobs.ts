@@ -20,7 +20,7 @@ export function registerCronJobRoutes(
       
       // Enrich each job with latest run information
       const jobsWithRuns = await Promise.all(jobs.map(async (job) => {
-        const latestRun = await storage.cronJobRuns.getLatestByJobId(job.id);
+        const latestRun = await storage.cronJobRuns.getLatestByJobName(job.name);
         return {
           ...job,
           latestRun
@@ -33,17 +33,17 @@ export function registerCronJobRoutes(
     }
   });
 
-  // GET /api/cron-jobs/:id - Get a specific cron job with its run history
-  app.get("/api/cron-jobs/:id", requireAccess(policies.admin), async (req, res) => {
+  // GET /api/cron-jobs/:name - Get a specific cron job with its run history
+  app.get("/api/cron-jobs/:name", requireAccess(policies.admin), async (req, res) => {
     try {
-      const { id } = req.params;
-      const job = await storage.cronJobs.getById(id);
+      const { name } = req.params;
+      const job = await storage.cronJobs.getByName(name);
       
       if (!job) {
         return res.status(404).json({ message: "Cron job not found" });
       }
 
-      const runs = await storage.cronJobRuns.list({ jobId: id });
+      const runs = await storage.cronJobRuns.list({ jobName: name });
       
       res.json({
         ...job,
@@ -54,44 +54,41 @@ export function registerCronJobRoutes(
     }
   });
 
-  // GET /api/cron-jobs/:id/runs - Get run history for a specific job
-  app.get("/api/cron-jobs/:id/runs", requireAccess(policies.admin), async (req, res) => {
+  // GET /api/cron-jobs/:name/runs - Get run history for a specific job
+  app.get("/api/cron-jobs/:name/runs", requireAccess(policies.admin), async (req, res) => {
     try {
-      const { id } = req.params;
-      const job = await storage.cronJobs.getById(id);
+      const { name } = req.params;
+      const job = await storage.cronJobs.getByName(name);
       
       if (!job) {
         return res.status(404).json({ message: "Cron job not found" });
       }
 
-      const runs = await storage.cronJobRuns.list({ jobId: id });
+      const runs = await storage.cronJobRuns.list({ jobName: name });
       res.json(runs);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch cron job runs" });
     }
   });
 
-  // PATCH /api/cron-jobs/:id - Update a cron job
-  app.patch("/api/cron-jobs/:id", requireAccess(policies.admin), async (req, res) => {
+  // PATCH /api/cron-jobs/:name - Update a cron job
+  app.patch("/api/cron-jobs/:name", requireAccess(policies.admin), async (req, res) => {
     try {
-      const { id } = req.params;
+      const { name } = req.params;
       
-      const existing = await storage.cronJobs.getById(id);
+      const existing = await storage.cronJobs.getByName(name);
       if (!existing) {
         return res.status(404).json({ message: "Cron job not found" });
       }
 
       const validatedData = insertCronJobSchema.partial().parse(req.body);
 
-      // If updating name, check for duplicates
-      if (validatedData.name && validatedData.name !== existing.name) {
-        const nameConflict = await storage.cronJobs.getByName(validatedData.name);
-        if (nameConflict) {
-          return res.status(409).json({ message: "A cron job with this name already exists" });
-        }
+      // Prevent renaming via this endpoint (name is the primary key)
+      if (validatedData.name && validatedData.name !== name) {
+        return res.status(400).json({ message: "Cannot change job name (it is the primary key)" });
       }
 
-      const job = await storage.cronJobs.update(id, validatedData);
+      const job = await storage.cronJobs.update(name, validatedData);
       res.json(job);
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {
@@ -102,13 +99,13 @@ export function registerCronJobRoutes(
     }
   });
 
-  // POST /api/cron-jobs/:id/run - Manually trigger a cron job
-  app.post("/api/cron-jobs/:id/run", requireAccess(policies.admin), async (req, res) => {
+  // POST /api/cron-jobs/:name/run - Manually trigger a cron job
+  app.post("/api/cron-jobs/:name/run", requireAccess(policies.admin), async (req, res) => {
     try {
-      const { id } = req.params;
+      const { name } = req.params;
       const user = req.user as any;
       
-      const job = await storage.cronJobs.getById(id);
+      const job = await storage.cronJobs.getByName(name);
       if (!job) {
         return res.status(404).json({ message: "Cron job not found" });
       }
@@ -122,10 +119,10 @@ export function registerCronJobRoutes(
       }
 
       // Execute the job via the scheduler (which handles run creation and logging)
-      await cronScheduler.manualRun(id, dbUser.id);
+      await cronScheduler.manualRun(name, dbUser.id);
 
       // Get the latest run for this job to return to the client
-      const latestRun = await storage.cronJobRuns.getLatestByJobId(id);
+      const latestRun = await storage.cronJobRuns.getLatestByJobName(name);
 
       res.status(201).json(latestRun);
     } catch (error) {

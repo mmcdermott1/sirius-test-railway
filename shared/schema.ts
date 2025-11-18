@@ -810,8 +810,7 @@ export type EmployerMonthlyPluginConfig = z.infer<typeof employerMonthlyPluginCo
 
 // Cron Jobs
 export const cronJobs = pgTable("cron_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  name: text("name").primaryKey(),
   description: text("description"),
   schedule: text("schedule").notNull(), // cron expression
   isEnabled: boolean("is_enabled").default(false).notNull(),
@@ -821,7 +820,7 @@ export const cronJobs = pgTable("cron_jobs", {
 
 export const cronJobRuns = pgTable("cron_job_runs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  jobId: varchar("job_id").notNull().references(() => cronJobs.id, { onDelete: 'cascade' }),
+  jobName: text("job_name").notNull().references(() => cronJobs.name, { onDelete: 'cascade' }),
   status: varchar("status").notNull(), // 'running', 'success', 'error'
   output: text("output"),
   error: text("error"),
@@ -831,7 +830,6 @@ export const cronJobRuns = pgTable("cron_job_runs", {
 });
 
 export const insertCronJobSchema = createInsertSchema(cronJobs).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
 });

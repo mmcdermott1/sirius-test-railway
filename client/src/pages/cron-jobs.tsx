@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface CronJobRun {
   id: string;
-  jobId: string;
+  jobName: string;
   status: string;
   output: string | null;
   error: string | null;
@@ -37,7 +37,6 @@ interface CronJobRun {
 }
 
 interface CronJob {
-  id: string;
   name: string;
   description: string | null;
   schedule: string;
@@ -60,9 +59,9 @@ function StatusBadge({ status }: { status: string }) {
 
 function RunHistoryDialog({ job }: { job: CronJob }) {
   const { data: runs = [], isLoading } = useQuery<CronJobRun[]>({
-    queryKey: ["/api/cron-jobs", job.id, "runs"],
+    queryKey: ["/api/cron-jobs", job.name, "runs"],
     queryFn: async () => {
-      const response = await fetch(`/api/cron-jobs/${job.id}/runs`);
+      const response = await fetch(`/api/cron-jobs/${encodeURIComponent(job.name)}/runs`);
       if (!response.ok) throw new Error('Failed to fetch run history');
       return response.json();
     },
@@ -71,7 +70,7 @@ function RunHistoryDialog({ job }: { job: CronJob }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" data-testid={`button-view-history-${job.id}`}>
+        <Button variant="outline" size="sm" data-testid={`button-view-history-${job.name}`}>
           <Eye className="h-4 w-4 mr-2" />
           View History
         </Button>
@@ -141,8 +140,8 @@ export default function CronJobs() {
   });
 
   const runMutation = useMutation({
-    mutationFn: async (jobId: string) => {
-      return await apiRequest("POST", `/api/cron-jobs/${jobId}/run`, {});
+    mutationFn: async (jobName: string) => {
+      return await apiRequest("POST", `/api/cron-jobs/${encodeURIComponent(jobName)}/run`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cron-jobs"] });
@@ -161,8 +160,8 @@ export default function CronJobs() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: async ({ id, isEnabled }: { id: string; isEnabled: boolean }) => {
-      return await apiRequest("PATCH", `/api/cron-jobs/${id}`, { isEnabled });
+    mutationFn: async ({ name, isEnabled }: { name: string; isEnabled: boolean }) => {
+      return await apiRequest("PATCH", `/api/cron-jobs/${encodeURIComponent(name)}`, { isEnabled });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cron-jobs"] });
@@ -232,10 +231,10 @@ export default function CronJobs() {
               </TableHeader>
               <TableBody>
                 {jobs.map((job) => (
-                  <TableRow key={job.id}>
+                  <TableRow key={job.name}>
                     <TableCell>
                       <div>
-                        <div className="font-medium" data-testid={`text-job-name-${job.id}`}>
+                        <div className="font-medium" data-testid={`text-job-name-${job.name}`}>
                           {job.name}
                         </div>
                         {job.description && (
@@ -253,10 +252,10 @@ export default function CronJobs() {
                         <Switch
                           checked={job.isEnabled}
                           onCheckedChange={(checked) => 
-                            toggleMutation.mutate({ id: job.id, isEnabled: checked })
+                            toggleMutation.mutate({ name: job.name, isEnabled: checked })
                           }
                           disabled={toggleMutation.isPending}
-                          data-testid={`switch-enabled-${job.id}`}
+                          data-testid={`switch-enabled-${job.name}`}
                         />
                         <span className="text-sm text-muted-foreground">
                           {job.isEnabled ? "Enabled" : "Disabled"}
@@ -285,9 +284,9 @@ export default function CronJobs() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => runMutation.mutate(job.id)}
+                          onClick={() => runMutation.mutate(job.name)}
                           disabled={runMutation.isPending}
-                          data-testid={`button-run-${job.id}`}
+                          data-testid={`button-run-${job.name}`}
                         >
                           <Play className="h-4 w-4 mr-2" />
                           Run Now
