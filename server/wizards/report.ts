@@ -1,38 +1,8 @@
 import { BaseWizard, WizardStep, WizardStatus, createStandardStatuses } from './base.js';
 import { storage } from '../storage/index.js';
+import type { RetentionPeriod, ReportConfig, ReportMeta, ReportData, ReportColumn } from '@shared/wizard-types';
 
-export interface ReportConfig {
-  filters?: Record<string, any>;
-  dateRange?: {
-    start: Date;
-    end: Date;
-  };
-}
-
-export interface ReportMeta {
-  generatedAt: string; // ISO string
-  recordCount: number;
-  columns: ReportColumn[];
-  primaryKeyField?: string; // Field name used as primary key (e.g., 'workerId', 'ssn')
-}
-
-export type RetentionPeriod = '1day' | '7days' | '30days' | '1year' | 'always';
-
-export interface ReportData {
-  config?: ReportConfig;
-  reportMeta?: ReportMeta; // Metadata from last report generation
-  recordCount?: number; // Deprecated: maintained for backward compatibility, use reportMeta.recordCount
-  generatedAt?: string; // Deprecated: maintained for backward compatibility (ISO string), use reportMeta.generatedAt
-  reportDataId?: string; // Reference to wizard_report_data entry
-  retention?: RetentionPeriod; // Data retention period for this report
-  progress?: {
-    [key: string]: {
-      status: string;
-      completedAt?: string;
-      percentComplete?: number;
-    };
-  };
-}
+export type { RetentionPeriod, ReportConfig, ReportMeta, ReportData, ReportColumn };
 
 export interface ReportRecord {
   [key: string]: any;
@@ -44,13 +14,6 @@ export interface ReportResults {
   records: ReportRecord[];
   generatedAt: Date;
   columns: ReportColumn[];
-}
-
-export interface ReportColumn {
-  id: string;
-  header: string;
-  type: 'string' | 'number' | 'date' | 'boolean';
-  width?: number;
 }
 
 export abstract class WizardReport extends BaseWizard {

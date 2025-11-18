@@ -5,13 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Clock } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { RetentionPeriod, ReportData } from "@shared/wizard-types";
 
 interface RetentionSettingsProps {
   wizardId: string;
-  currentRetention?: string;
+  currentRetention?: RetentionPeriod;
+  wizardData: ReportData;
 }
 
-const RETENTION_OPTIONS = [
+const RETENTION_OPTIONS: { value: RetentionPeriod; label: string }[] = [
   { value: '1day', label: '1 Day' },
   { value: '7days', label: '7 Days' },
   { value: '30days', label: '30 Days' },
@@ -19,13 +21,13 @@ const RETENTION_OPTIONS = [
   { value: 'always', label: 'Always' }
 ];
 
-export function RetentionSettings({ wizardId, currentRetention = '30days' }: RetentionSettingsProps) {
+export function RetentionSettings({ wizardId, currentRetention, wizardData }: RetentionSettingsProps) {
   const { toast } = useToast();
 
   const updateRetentionMutation = useMutation({
-    mutationFn: async (retention: string) => {
+    mutationFn: async (retention: RetentionPeriod) => {
       return await apiRequest("PATCH", `/api/wizards/${wizardId}`, {
-        data: { retention }
+        data: { ...(wizardData ?? {}), retention }
       });
     },
     onSuccess: () => {
@@ -60,7 +62,7 @@ export function RetentionSettings({ wizardId, currentRetention = '30days' }: Ret
           <Label htmlFor="retention-select">Retention Period</Label>
           <Select
             value={currentRetention}
-            onValueChange={(value) => updateRetentionMutation.mutate(value)}
+            onValueChange={(value) => updateRetentionMutation.mutate(value as RetentionPeriod)}
             disabled={updateRetentionMutation.isPending}
           >
             <SelectTrigger id="retention-select" data-testid="select-retention">

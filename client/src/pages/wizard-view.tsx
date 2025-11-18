@@ -7,13 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Wand2, ArrowLeft, Building2, Trash2, AlertTriangle } from "lucide-react";
+import { Wand2, ArrowLeft, Building2, Trash2, AlertTriangle, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { WizardStepper } from "@/components/wizards/WizardStepper";
+import { RetentionSettings } from "@/components/wizards/RetentionSettings";
 import { getStepComponent, getStepController } from "@/components/wizards/steps/registry";
 import type { WizardData } from "@shared/schema";
+import type { ReportData } from "@shared/wizard-types";
 
 interface Wizard {
   id: string;
@@ -30,6 +32,7 @@ interface WizardType {
   displayName: string;
   description?: string;
   isFeed?: boolean;
+  isReport?: boolean;
   entityType?: string;
 }
 
@@ -262,6 +265,12 @@ export default function WizardView() {
             <Wand2 className="h-4 w-4 mr-2" />
             Wizard
           </TabsTrigger>
+          {wizardType?.isReport && (
+            <TabsTrigger value="retention" data-testid="tab-retention">
+              <Clock className="h-4 w-4 mr-2" />
+              Retention
+            </TabsTrigger>
+          )}
           <TabsTrigger value="delete" data-testid="tab-delete">
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
@@ -293,6 +302,16 @@ export default function WizardView() {
             </div>
           )}
         </TabsContent>
+
+        {wizardType?.isReport && (
+          <TabsContent value="retention">
+            <RetentionSettings 
+              wizardId={wizard.id} 
+              currentRetention={(wizardData as ReportData)?.retention}
+              wizardData={(wizardData as ReportData) ?? {}}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="delete">
           <Card>
