@@ -28,6 +28,7 @@ import { registerLedgerPaymentRoutes } from "./modules/ledger/payments";
 import { registerAccessPolicyRoutes } from "./modules/access-policies";
 import { registerLogRoutes } from "./modules/logs";
 import { registerQuickstartRoutes } from "./modules/quickstart";
+import { registerCronJobRoutes } from "./modules/cron_jobs";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -285,6 +286,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register log management routes
   registerLogRoutes(app);
   registerQuickstartRoutes(app);
+
+  // Register cron job management routes
+  registerCronJobRoutes(app, requireAuth, requirePermission);
 
   // Worker routes (protected with authentication and permissions)
   
