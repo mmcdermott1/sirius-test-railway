@@ -69,6 +69,7 @@ import UserLogs from "@/pages/admin/user-logs";
 import AdminRolesPage from "@/pages/admin/roles";
 import AdminPermissionsPage from "@/pages/admin/permissions";
 import AdminQuickstarts from "@/pages/admin-quickstarts";
+import CronJobs from "@/pages/cron-jobs";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import ConfigurationLayout from "@/components/layouts/ConfigurationLayout";
 import UsersListPage from "@/pages/config/users/list";
@@ -901,6 +902,14 @@ function Router() {
         <ProtectedRoute policy="admin">
           <AuthenticatedLayout>
             <AdminQuickstarts />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/cron-jobs">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <CronJobs />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
