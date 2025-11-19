@@ -2,7 +2,7 @@ import { db } from "../../db";
 import { wizards, wizardReportData } from "@shared/schema";
 import { and, lt, eq } from "drizzle-orm";
 import { logger } from "../../logger";
-import type { CronJobHandler, CronJobContext } from "../registry";
+import type { CronJobHandler, CronJobContext, CronJobSummary } from "../registry";
 import type { RetentionPeriod, ReportData } from "@shared/wizard-types";
 import { wizardRegistry } from "../../wizards/registry";
 
@@ -32,7 +32,7 @@ function getCutoffDate(retentionDays: number): Date {
 export const deleteExpiredReportsHandler: CronJobHandler = {
   description: 'Deletes wizard report data that has exceeded its retention period',
   
-  async execute(context: CronJobContext): Promise<void> {
+  async execute(context: CronJobContext): Promise<CronJobSummary> {
     logger.info('Starting expired report cleanup', {
       service: 'cron-delete-expired-reports',
       jobId: context.jobId,
@@ -150,6 +150,13 @@ export const deleteExpiredReportsHandler: CronJobHandler = {
         reportsByRetention,
         totalWizardsChecked: reportWizards.length,
       });
+
+      return {
+        totalDeleted,
+        reportsByRetention,
+        totalWizardsChecked: reportWizards.length,
+        mode: context.mode,
+      };
 
     } catch (error) {
       logger.error('Failed to delete expired reports', {
