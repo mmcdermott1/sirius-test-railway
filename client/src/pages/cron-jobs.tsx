@@ -34,6 +34,9 @@ interface CronJobRun {
   startedAt: string;
   completedAt: string | null;
   triggeredBy: string | null;
+  userFirstName?: string | null;
+  userLastName?: string | null;
+  userEmail?: string | null;
 }
 
 interface CronJob {
@@ -54,6 +57,19 @@ function StatusBadge({ status }: { status: string }) {
     'outline';
   
   return <Badge variant={variant} data-testid={`badge-status-${status}`}>{status}</Badge>;
+}
+
+function formatTriggeredBy(run: CronJobRun): string {
+  if (!run.triggeredBy || run.triggeredBy === 'scheduler') {
+    return 'Scheduler';
+  }
+  
+  if (run.userEmail) {
+    const fullName = [run.userFirstName, run.userLastName].filter(Boolean).join(' ');
+    return fullName ? `${fullName} (${run.userEmail})` : run.userEmail;
+  }
+  
+  return run.triggeredBy;
 }
 
 
@@ -117,7 +133,7 @@ function RunHistoryDialog({ job }: { job: CronJob }) {
                     <StatusBadge status={run.status} />
                   </TableCell>
                   <TableCell className="text-sm">
-                    {run.triggeredBy || "Scheduler"}
+                    {formatTriggeredBy(run)}
                   </TableCell>
                   <TableCell className="text-sm max-w-xs truncate">
                     {run.error || run.output || "—"}
