@@ -111,6 +111,9 @@ class CronScheduler {
       }
     );
 
+    // Start the task immediately
+    task.start();
+
     this.scheduledJobs.set(cronJob.name, { cronJob, task });
 
     logger.info(`Scheduled job: ${cronJob.name}`, {
