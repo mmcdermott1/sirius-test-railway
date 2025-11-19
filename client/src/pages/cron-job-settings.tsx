@@ -40,7 +40,7 @@ function CronJobSettingsContent() {
   const { name } = useParams<{ name: string }>();
   const { job } = useCronJobLayout();
   const { toast } = useToast();
-  const [runMode, setRunMode] = useState<"live" | "test">("live");
+  const [runMode, setRunMode] = useState<"live" | "test">("test");
   const [pollingRunId, setPollingRunId] = useState<string | null>(null);
   const [completedRun, setCompletedRun] = useState<CronJobRun | null>(null);
   const [schedule, setSchedule] = useState(job.schedule);
