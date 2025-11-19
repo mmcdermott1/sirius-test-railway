@@ -8,8 +8,12 @@ export interface CronJobContext {
   mode: "live" | "test"; // "live" for production runs, "test" for dry-run (no DB changes)
 }
 
+export interface CronJobSummary {
+  [key: string]: any; // Flexible summary data specific to each job
+}
+
 export interface CronJobHandler {
-  execute: (context: CronJobContext) => Promise<void>;
+  execute: (context: CronJobContext) => Promise<CronJobSummary>;
   description?: string;
 }
 
@@ -50,7 +54,7 @@ class CronJobRegistry {
     return this.jobs.has(name);
   }
 
-  async execute(name: string, context: CronJobContext): Promise<void> {
+  async execute(name: string, context: CronJobContext): Promise<CronJobSummary> {
     const handler = this.jobs.get(name);
     if (!handler) {
       throw new Error(`Cron job "${name}" is not registered`);
@@ -64,11 +68,13 @@ class CronJobRegistry {
     });
 
     try {
-      await handler.execute(context);
+      const summary = await handler.execute(context);
       logger.info(`Cron job completed successfully: ${name}`, {
         service: 'cron-registry',
         jobId: context.jobId,
+        summary,
       });
+      return summary;
     } catch (error) {
       logger.error(`Cron job failed: ${name}`, {
         service: 'cron-registry',
