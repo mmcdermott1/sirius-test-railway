@@ -3,12 +3,14 @@ import { useParams } from "wouter";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Play, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Play, Loader2, CheckCircle2, XCircle, Save, Info } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CronJobLayout, useCronJobLayout } from "@/components/layouts/CronJobLayout";
@@ -41,6 +43,13 @@ function CronJobSettingsContent() {
   const [runMode, setRunMode] = useState<"live" | "test">("live");
   const [pollingRunId, setPollingRunId] = useState<string | null>(null);
   const [completedRun, setCompletedRun] = useState<CronJobRun | null>(null);
+  const [schedule, setSchedule] = useState(job.schedule);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  // Update local schedule when job changes
+  useEffect(() => {
+    setSchedule(job.schedule);
+  }, [job.schedule]);
 
   const runMutation = useMutation({
     mutationFn: async () => {
@@ -122,6 +131,62 @@ function CronJobSettingsContent() {
     },
   });
 
+  const updateScheduleMutation = useMutation({
+    mutationFn: async (newSchedule: string) => {
+      return await apiRequest("PATCH", `/api/cron-jobs/${encodeURIComponent(name!)}`, { 
+        schedule: newSchedule 
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cron-jobs", name] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cron-jobs"] });
+      setScheduleError(null);
+      toast({
+        title: "Schedule Updated",
+        description: "The cron job schedule has been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      const errorMessage = error.message || "Failed to update schedule";
+      setScheduleError(errorMessage);
+      toast({
+        title: "Failed to Update Schedule",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const validateCronExpression = (expr: string): boolean => {
+    // Basic validation - cron expressions have 5 or 6 parts separated by spaces
+    const parts = expr.trim().split(/\s+/);
+    if (parts.length < 5 || parts.length > 6) {
+      setScheduleError("Cron expression must have 5 or 6 parts");
+      return false;
+    }
+    
+    // Each part should be valid (number, *, /, -, or ,)
+    const cronPartRegex = /^(\*|(\d+|\d+-\d+)(,(\d+|\d+-\d+))*)(\/\d+)?$/;
+    for (let i = 0; i < parts.length; i++) {
+      if (!cronPartRegex.test(parts[i])) {
+        setScheduleError(`Invalid cron expression part: ${parts[i]}`);
+        return false;
+      }
+    }
+    
+    setScheduleError(null);
+    return true;
+  };
+
+  const handleScheduleUpdate = () => {
+    if (!validateCronExpression(schedule)) {
+      return;
+    }
+    updateScheduleMutation.mutate(schedule);
+  };
+
+  const hasScheduleChanges = schedule !== job.schedule;
+
   const parseOutputData = (output: string | null): CronJobOutputData | null => {
     if (!output) return null;
     try {
@@ -178,6 +243,71 @@ function CronJobSettingsContent() {
               disabled={toggleMutation.isPending}
               data-testid="switch-enabled"
             />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="schedule" className="font-medium">Schedule</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Cron expression defining when this job should run
+              </p>
+            </div>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  id="schedule"
+                  value={schedule}
+                  onChange={(e) => {
+                    setSchedule(e.target.value);
+                    setScheduleError(null);
+                  }}
+                  placeholder="0 2 * * *"
+                  className="font-mono"
+                  data-testid="input-schedule"
+                />
+                <Button
+                  onClick={handleScheduleUpdate}
+                  disabled={!hasScheduleChanges || updateScheduleMutation.isPending}
+                  data-testid="button-save-schedule"
+                >
+                  {updateScheduleMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
+              {scheduleError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{scheduleError}</AlertDescription>
+                </Alert>
+              )}
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium">Cron Expression Format:</p>
+                    <p className="text-xs font-mono">* * * * * (or * * * * * *)</p>
+                    <p className="text-xs">
+                      Minute (0-59), Hour (0-23), Day of Month (1-31), Month (1-12), Day of Week (0-7)
+                    </p>
+                    <div className="text-xs mt-2 space-y-1">
+                      <p><code className="bg-muted px-1 rounded">0 2 * * *</code> - Daily at 2:00 AM</p>
+                      <p><code className="bg-muted px-1 rounded">*/15 * * * *</code> - Every 15 minutes</p>
+                      <p><code className="bg-muted px-1 rounded">0 0 * * 0</code> - Weekly on Sunday at midnight</p>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </div>
           </div>
           <div className="pt-6 border-t">
             <p className="font-medium mb-2">Manual Execution</p>
