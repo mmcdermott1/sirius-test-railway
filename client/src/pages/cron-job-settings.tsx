@@ -230,19 +230,22 @@ function CronJobSettingsContent() {
           <CardDescription>Configure and manage this cron job</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between" data-testid="enable-job-container">
             <div>
               <p className="font-medium">Enable Job</p>
               <p className="text-sm text-muted-foreground">
                 Allow this job to run on its schedule
               </p>
             </div>
-            <Switch
-              checked={job.isEnabled}
-              onCheckedChange={(checked) => toggleMutation.mutate(checked)}
-              disabled={toggleMutation.isPending}
-              data-testid="switch-enabled"
-            />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{job.isEnabled ? 'Enabled' : 'Disabled'}</span>
+              <Switch
+                checked={job.isEnabled}
+                onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+                disabled={toggleMutation.isPending}
+                data-testid="switch-enabled"
+              />
+            </div>
           </div>
 
           <Separator />
