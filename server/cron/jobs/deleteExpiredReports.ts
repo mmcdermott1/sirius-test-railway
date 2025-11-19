@@ -39,9 +39,9 @@ export const deleteExpiredReportsHandler: CronJobHandler = {
       mode: context.mode,
     });
 
-    let totalRecordsDeleted = 0;
-    let wizardsWithExpiredData = 0;
-    const reportsByRetention: Record<string, number> = {};
+    let reportRunsDeleted = 0;
+    let wizardsWithExpiredRuns = 0;
+    const runsByRetention: Record<string, number> = {};
 
     try {
       // Get all wizards that are reports
@@ -94,9 +94,9 @@ export const deleteExpiredReportsHandler: CronJobHandler = {
             );
 
           if (toDelete.length > 0) {
-            totalRecordsDeleted += toDelete.length;
-            wizardsWithExpiredData++;
-            reportsByRetention[retention] = (reportsByRetention[retention] || 0) + toDelete.length;
+            reportRunsDeleted += toDelete.length;
+            wizardsWithExpiredRuns++;
+            runsByRetention[retention] = (runsByRetention[retention] || 0) + toDelete.length;
             
             logger.info(`[TEST MODE] Would delete ${toDelete.length} expired records from wizard ${wizard.id}`, {
               service: 'cron-delete-expired-reports',
@@ -120,9 +120,9 @@ export const deleteExpiredReportsHandler: CronJobHandler = {
             .returning();
 
           if (deleted.length > 0) {
-            totalRecordsDeleted += deleted.length;
-            wizardsWithExpiredData++;
-            reportsByRetention[retention] = (reportsByRetention[retention] || 0) + deleted.length;
+            reportRunsDeleted += deleted.length;
+            wizardsWithExpiredRuns++;
+            runsByRetention[retention] = (runsByRetention[retention] || 0) + deleted.length;
             
             logger.info(`Deleted ${deleted.length} expired records from wizard ${wizard.id}`, {
               service: 'cron-delete-expired-reports',
@@ -149,17 +149,17 @@ export const deleteExpiredReportsHandler: CronJobHandler = {
         service: 'cron-delete-expired-reports',
         jobId: context.jobId,
         mode: context.mode,
-        totalRecordsDeleted,
-        wizardsWithExpiredData,
-        totalWizardsChecked: reportWizards.length,
-        reportsByRetention,
+        reportRunsDeleted,
+        wizardsWithExpiredRuns,
+        reportWizardsChecked: reportWizards.length,
+        runsByRetention,
       });
 
       return {
-        totalRecordsDeleted,
-        wizardsWithExpiredData,
-        totalWizardsChecked: reportWizards.length,
-        reportsByRetention,
+        reportRunsDeleted,
+        wizardsWithExpiredRuns,
+        reportWizardsChecked: reportWizards.length,
+        runsByRetention,
         mode: context.mode,
       };
 
