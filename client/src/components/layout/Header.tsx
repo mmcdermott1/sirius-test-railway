@@ -14,6 +14,7 @@ import {
   Calendar,
   FileText,
   BookOpen,
+  Shield,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -182,6 +183,17 @@ export default function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <Link href="/trust/providers">
+              <Button
+                variant={location.startsWith("/trust/provider") ? "default" : "ghost"}
+                size="sm"
+                data-testid="nav-trust-providers"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Trust Providers
+              </Button>
+            </Link>
 
             {ledgerStaffPolicy?.allowed && (
               <Link href="/ledger/accounts">

@@ -174,7 +174,7 @@ export default function TrustProviderDetailPage() {
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-3">Additional Data</h3>
                 <pre className="text-sm bg-muted p-4 rounded-md overflow-x-auto" data-testid="text-provider-data">
-                  {JSON.stringify(provider.data, null, 2)}
+                  {JSON.stringify(provider.data, null, 2) as string}
                 </pre>
               </div>
             )}
