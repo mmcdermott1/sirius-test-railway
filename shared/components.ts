@@ -61,6 +61,13 @@ export const componentRegistry: ComponentDefinition[] = [
     description: "Ability for workers to log in",
     enabledByDefault: false,
     category: "authentication"
+  },
+  {
+    id: "trust_providers",
+    name: "Trust Providers",
+    description: "Management and tracking of trust providers",
+    enabledByDefault: false,
+    category: "core"
   }
 ];
 
