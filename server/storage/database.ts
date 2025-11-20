@@ -5,6 +5,7 @@ import { type EmployerStorage, createEmployerStorage } from "./employers";
 import { type ContactsStorage, createContactsStorage, type AddressStorage, type PhoneNumberStorage } from "./contacts";
 import { type OptionsStorage, createOptionsStorage, createEmployerContactTypeStorage, type EmployerContactTypeStorage } from "./options";
 import { type TrustBenefitStorage, createTrustBenefitStorage } from "./trust-benefits";
+import { type TrustProviderStorage, createTrustProviderStorage } from "./trust-providers";
 import { type WorkerIdStorage, createWorkerIdStorage } from "./worker-ids";
 import { type BookmarkStorage, createBookmarkStorage } from "./bookmarks";
 import { type LedgerStorage, createLedgerStorage } from "./ledger";
@@ -28,6 +29,7 @@ export interface IStorage {
   contacts: ContactsStorage;
   options: OptionsStorage;
   trustBenefits: TrustBenefitStorage;
+  trustProviders: TrustProviderStorage;
   workerIds: WorkerIdStorage;
   bookmarks: BookmarkStorage;
   ledger: LedgerStorage;
@@ -938,6 +940,7 @@ export class DatabaseStorage implements IStorage {
   contacts: ContactsStorage;
   options: OptionsStorage;
   trustBenefits: TrustBenefitStorage;
+  trustProviders: TrustProviderStorage;
   workerIds: WorkerIdStorage;
   bookmarks: BookmarkStorage;
   ledger: LedgerStorage;
@@ -974,6 +977,7 @@ export class DatabaseStorage implements IStorage {
       createTrustBenefitStorage(),
       trustBenefitLoggingConfig
     );
+    this.trustProviders = createTrustProviderStorage();
     this.workerIds = withStorageLogging(createWorkerIdStorage(), workerIdLoggingConfig);
     this.bookmarks = createBookmarkStorage();
     this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
