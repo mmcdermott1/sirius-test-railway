@@ -107,6 +107,12 @@ export const workerHours = pgTable("worker_hours", {
   uniqueWorkerEmployerYearMonthDay: unique().on(table.workerId, table.employerId, table.year, table.month, table.day),
 }));
 
+export const trustProviders = pgTable("trust_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  data: jsonb("data"),
+});
+
 export const trustBenefits = pgTable("trust_benefits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -421,6 +427,10 @@ export const insertWorkerHoursSchema = createInsertSchema(workerHours).omit({
   path: ["day"],
 });
 
+export const insertTrustProviderSchema = createInsertSchema(trustProviders).omit({
+  id: true,
+});
+
 export const insertTrustBenefitSchema = createInsertSchema(trustBenefits).omit({
   id: true,
 });
@@ -580,6 +590,9 @@ export type EmployerContact = typeof employerContacts.$inferSelect;
 
 export type InsertWorkerHours = z.infer<typeof insertWorkerHoursSchema>;
 export type WorkerHours = typeof workerHours.$inferSelect;
+
+export type InsertTrustProvider = z.infer<typeof insertTrustProviderSchema>;
+export type TrustProvider = typeof trustProviders.$inferSelect;
 
 export type InsertTrustBenefit = z.infer<typeof insertTrustBenefitSchema>;
 export type TrustBenefit = typeof trustBenefits.$inferSelect;
