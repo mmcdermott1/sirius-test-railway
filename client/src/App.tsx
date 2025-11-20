@@ -68,6 +68,11 @@ import TrustProviderViewPage from "@/pages/trust-provider-view";
 import TrustProviderEditPage from "@/pages/trust-provider-edit";
 import TrustProviderContactsPage from "@/pages/trust-provider-contacts";
 import TrustProviderContactView from "@/pages/trust-provider-contact-view";
+import TrustProviderContactEdit from "@/pages/trust-provider-contact-edit";
+import TrustProviderContactName from "@/pages/trust-provider-contact-name";
+import TrustProviderContactEmail from "@/pages/trust-provider-contact-email";
+import TrustProviderContactPhoneNumbers from "@/pages/trust-provider-contact-phone-numbers";
+import TrustProviderContactAddresses from "@/pages/trust-provider-contact-addresses";
 import TrustProviderLogsPage from "@/pages/trust-provider-logs";
 import AdminUsersPage from "@/pages/admin/users";
 import UserAccountPage from "@/pages/admin/user-account";
@@ -579,9 +584,51 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/trust-provider-contacts/:id/addresses">
+        <ProtectedRoute policy="staff">
+          <AuthenticatedLayout>
+            <TrustProviderContactAddresses />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust-provider-contacts/:id/phone-numbers">
+        <ProtectedRoute policy="staff">
+          <AuthenticatedLayout>
+            <TrustProviderContactPhoneNumbers />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust-provider-contacts/:id/email">
+        <ProtectedRoute policy="staff">
+          <AuthenticatedLayout>
+            <TrustProviderContactEmail />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust-provider-contacts/:id/name">
+        <ProtectedRoute policy="staff">
+          <AuthenticatedLayout>
+            <TrustProviderContactName />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust-provider-contacts/:id/edit">
+        <ProtectedRoute policy="staff">
+          <AuthenticatedLayout>
+            <TrustProviderContactEdit />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/trust-provider-contacts/:id">
         <ProtectedRoute policy="staff">
-          <TrustProviderContactView />
+          <AuthenticatedLayout>
+            <TrustProviderContactView />
+          </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
 
