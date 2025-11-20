@@ -136,7 +136,7 @@ function TrustProviderContactsContent() {
       family: "",
       generational: "",
       credentials: "",
-      contactTypeId: "",
+      contactTypeId: undefined,
     },
   });
 
@@ -259,16 +259,15 @@ function TrustProviderContactsContent() {
                           <FormItem>
                             <FormLabel>Contact Type</FormLabel>
                             <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              onValueChange={(value) => field.onChange(value || undefined)}
+                              value={field.value || undefined}
                             >
                               <FormControl>
                                 <SelectTrigger data-testid="select-contact-type">
-                                  <SelectValue placeholder="Select contact type" />
+                                  <SelectValue placeholder="Select contact type (optional)" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">None</SelectItem>
                                 {contactTypes?.map((type) => (
                                   <SelectItem key={type.id} value={type.id}>
                                     {type.name}
