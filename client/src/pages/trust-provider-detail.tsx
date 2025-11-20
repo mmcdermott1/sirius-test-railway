@@ -16,9 +16,9 @@ export default function TrustProviderDetailPage() {
   const [editName, setEditName] = useState("");
 
   const { data: provider, isLoading, error } = useQuery<TrustProvider>({
-    queryKey: ["/api/trust-providers", id],
+    queryKey: ["/api/trust/provider", id],
     queryFn: async () => {
-      const response = await fetch(`/api/trust-providers/${id}`);
+      const response = await fetch(`/api/trust/provider/${id}`);
       if (!response.ok) {
         throw new Error("Trust provider not found");
       }
@@ -28,11 +28,11 @@ export default function TrustProviderDetailPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: { name: string }) => {
-      return apiRequest("PUT", `/api/trust-providers/${id}`, data);
+      return apiRequest("PATCH", `/api/trust/provider/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trust-providers", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/trust-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trust/provider", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trust/providers"] });
       setIsEditing(false);
       toast({
         title: "Success",

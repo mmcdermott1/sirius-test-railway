@@ -39,7 +39,7 @@ export default function TrustProvidersPage() {
   const [formName, setFormName] = useState("");
 
   const { data: providers = [], isLoading } = useQuery<TrustProvider[]>({
-    queryKey: ["/api/trust-providers"],
+    queryKey: ["/api/trust/providers"],
   });
 
   // Filter providers by search term
@@ -54,10 +54,10 @@ export default function TrustProvidersPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: { name: string }) => {
-      return apiRequest("POST", "/api/trust-providers", data);
+      return apiRequest("POST", "/api/trust/providers", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trust-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trust/providers"] });
       setIsAddDialogOpen(false);
       resetForm();
       toast({
@@ -76,12 +76,12 @@ export default function TrustProvidersPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: { id: string; name: string }) => {
-      return apiRequest("PUT", `/api/trust-providers/${data.id}`, {
+      return apiRequest("PATCH", `/api/trust/provider/${data.id}`, {
         name: data.name,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trust-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trust/providers"] });
       setEditingId(null);
       resetForm();
       toast({
@@ -100,10 +100,10 @@ export default function TrustProvidersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/trust-providers/${id}`);
+      return apiRequest("DELETE", `/api/trust/provider/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/trust-providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trust/providers"] });
       setDeleteId(null);
       toast({
         title: "Success",

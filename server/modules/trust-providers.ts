@@ -7,8 +7,8 @@ export function registerTrustProvidersRoutes(
   requireAuth: any,
   requirePermission: any
 ) {
-  // GET /api/trust-providers - Get all trust providers (requires workers.view permission)
-  app.get("/api/trust-providers", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  // GET /api/trust/providers - Get all trust providers (requires workers.view permission)
+  app.get("/api/trust/providers", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
       const providers = await storage.trustProviders.getAllTrustProviders();
       res.json(providers);
@@ -17,8 +17,8 @@ export function registerTrustProvidersRoutes(
     }
   });
 
-  // GET /api/trust-providers/:id - Get a specific trust provider (requires workers.view permission)
-  app.get("/api/trust-providers/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  // GET /api/trust/provider/:id - Get a specific trust provider (requires workers.view permission)
+  app.get("/api/trust/provider/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
       const { id } = req.params;
       const provider = await storage.trustProviders.getTrustProvider(id);
@@ -34,8 +34,8 @@ export function registerTrustProvidersRoutes(
     }
   });
 
-  // POST /api/trust-providers - Create a new trust provider (requires workers.manage permission)
-  app.post("/api/trust-providers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  // POST /api/trust/providers - Create a new trust provider (requires workers.manage permission)
+  app.post("/api/trust/providers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const parsed = insertTrustProviderSchema.safeParse(req.body);
       
@@ -50,23 +50,23 @@ export function registerTrustProvidersRoutes(
     }
   });
 
-  // PUT /api/trust-providers/:id - Update a trust provider (requires workers.manage permission)
-  app.put("/api/trust-providers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  // PATCH /api/trust/provider/:id - Update a trust provider (requires workers.manage permission)
+  app.patch("/api/trust/provider/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, data } = req.body;
       
-      const updates: Partial<InsertTrustProvider> = {};
+      // Validate request body using partial insert schema
+      const parsed = insertTrustProviderSchema.partial().safeParse(req.body);
       
-      if (name !== undefined) {
-        if (!name || typeof name !== 'string' || !name.trim()) {
-          return res.status(400).json({ message: "Trust provider name cannot be empty" });
-        }
-        updates.name = name.trim();
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid trust provider data", errors: parsed.error.errors });
       }
       
-      if (data !== undefined) {
-        updates.data = data;
+      const updates = parsed.data;
+      
+      // Additional validation for name field if present
+      if (updates.name !== undefined && !updates.name.trim()) {
+        return res.status(400).json({ message: "Trust provider name cannot be empty" });
       }
       
       const updatedProvider = await storage.trustProviders.updateTrustProvider(id, updates);
@@ -82,8 +82,8 @@ export function registerTrustProvidersRoutes(
     }
   });
 
-  // DELETE /api/trust-providers/:id - Delete a trust provider (requires workers.manage permission)
-  app.delete("/api/trust-providers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  // DELETE /api/trust/provider/:id - Delete a trust provider (requires workers.manage permission)
+  app.delete("/api/trust/provider/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.trustProviders.deleteTrustProvider(id);
