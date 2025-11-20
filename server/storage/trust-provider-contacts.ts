@@ -156,12 +156,21 @@ export function createTrustProviderContactStorage(contactsStorage: ContactsStora
     },
 
     async updateContactEmail(id: string, email: string | null): Promise<(TrustProviderContact & { contact: Contact; contactType?: { id: string; name: string; description: string | null } | null }) | null> {
-      const providerContact = await this.get(id);
+      const providerContact = await db.query.trustProviderContacts.findFirst({
+        where: eq(trustProviderContacts.id, id),
+      });
+
       if (!providerContact) {
         return null;
       }
 
-      await contactsStorage.updateEmail(providerContact.contactId, email);
+      const normalizedEmail = email === null || email === "null" || email?.trim() === "" ? null : email.trim();
+
+      await db
+        .update(contacts)
+        .set({ email: normalizedEmail })
+        .where(eq(contacts.id, providerContact.contactId));
+
       return this.get(id);
     },
 
