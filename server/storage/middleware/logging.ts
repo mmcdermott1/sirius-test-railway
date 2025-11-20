@@ -299,6 +299,7 @@ function getEntityType(module: string): string {
     'options': 'option',
     'benefits': 'benefit',
     'accounts': 'account',
+    'trust-providers': 'trust provider',
   };
   
   // Return mapped singular form or the original if no mapping exists
