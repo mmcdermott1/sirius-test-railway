@@ -26,6 +26,7 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
 -   **User Provisioning**: Email-based user provisioning integrated with Replit accounts.
 -   **Data Validation**: Extensive Zod schema validation, `libphonenumber-js` for phone numbers, and custom SSN/date validation.
 -   **Employer & Contact Management**: Manages employer records and links them to contacts with type categorization.
+-   **Trust Provider Contacts Management**: Full CRUD operations for trust provider contacts with type categorization, similar to employer contacts. Supports listing by provider, filtering, and contact detail updates (name, email). Integrated with comprehensive audit logging for all mutations.
 -   **Bookmarks**: User-specific, entity-agnostic bookmarking for workers and employers.
 -   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets with unified settings storage and a generic settings API. Includes plugins for welcome messages, bookmarks, employer monthly uploads, and reports. The Reports plugin displays role-configured report cards showing the latest run information (date, record count) with links to detailed results.
 -   **Components Feature Flag System**: Centralized registry for managing application features with dependency management and access control.

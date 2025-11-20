@@ -113,6 +113,13 @@ export const trustProviders = pgTable("trust_providers", {
   data: jsonb("data"),
 });
 
+export const trustProviderContacts = pgTable("trust_provider_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  providerId: varchar("provider_id").notNull().references(() => trustProviders.id, { onDelete: 'cascade' }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+  contactTypeId: varchar("contact_type_id").references(() => optionsEmployerContactType.id, { onDelete: 'set null' }),
+});
+
 export const trustBenefits = pgTable("trust_benefits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -411,6 +418,10 @@ export const insertEmployerContactSchema = createInsertSchema(employerContacts).
   id: true,
 });
 
+export const insertTrustProviderContactSchema = createInsertSchema(trustProviderContacts).omit({
+  id: true,
+});
+
 export const insertWorkerHoursSchema = createInsertSchema(workerHours).omit({
   id: true,
 }).refine((data) => {
@@ -587,6 +598,9 @@ export type Employer = typeof employers.$inferSelect;
 
 export type InsertEmployerContact = z.infer<typeof insertEmployerContactSchema>;
 export type EmployerContact = typeof employerContacts.$inferSelect;
+
+export type InsertTrustProviderContact = z.infer<typeof insertTrustProviderContactSchema>;
+export type TrustProviderContact = typeof trustProviderContacts.$inferSelect;
 
 export type InsertWorkerHours = z.infer<typeof insertWorkerHoursSchema>;
 export type WorkerHours = typeof workerHours.$inferSelect;
