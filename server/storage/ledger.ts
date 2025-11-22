@@ -14,6 +14,7 @@ import type {
   InsertLedger
 } from "@shared/schema";
 import { eq, and, desc, or, isNull } from "drizzle-orm";
+import { alias as pgAlias } from "drizzle-orm/pg-core";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 
 export interface LedgerAccountStorage {
@@ -366,10 +367,10 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
     },
 
     async getTransactions(filter: { accountId: string } | { eaId: string }): Promise<LedgerEntryWithDetails[]> {
-      const refEmployers = employers.as('ref_employers');
-      const refTrustProviders = trustProviders.as('ref_trust_providers');
-      const refWorkers = workers.as('ref_workers');
-      const refContacts = contacts.as('ref_contacts');
+      const refEmployers = pgAlias(employers, 'ref_employers');
+      const refTrustProviders = pgAlias(trustProviders, 'ref_trust_providers');
+      const refWorkers = pgAlias(workers, 'ref_workers');
+      const refContacts = pgAlias(contacts, 'ref_contacts');
 
       const query = db
         .select({
