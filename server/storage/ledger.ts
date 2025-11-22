@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { ledgerAccounts, ledgerStripePaymentMethods, ledgerEa, ledgerPayments, employers } from "@shared/schema";
+import { ledgerAccounts, ledgerStripePaymentMethods, ledgerEa, ledgerPayments, ledger, employers } from "@shared/schema";
 import type { 
   LedgerAccount, 
   InsertLedgerAccount,
@@ -9,7 +9,9 @@ import type {
   InsertLedgerEa,
   LedgerPayment,
   InsertLedgerPayment,
-  LedgerPaymentWithEntity
+  LedgerPaymentWithEntity,
+  Ledger,
+  InsertLedger
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
@@ -56,11 +58,23 @@ export interface LedgerPaymentStorage {
   delete(id: string): Promise<boolean>;
 }
 
+export interface LedgerEntryStorage {
+  getAll(): Promise<Ledger[]>;
+  get(id: string): Promise<Ledger | undefined>;
+  getByEaId(eaId: string): Promise<Ledger[]>;
+  getByReference(referenceType: string, referenceId: string): Promise<Ledger[]>;
+  create(entry: InsertLedger): Promise<Ledger>;
+  update(id: string, entry: Partial<InsertLedger>): Promise<Ledger | undefined>;
+  delete(id: string): Promise<boolean>;
+  deleteByReference(referenceType: string, referenceId: string): Promise<number>;
+}
+
 export interface LedgerStorage {
   accounts: LedgerAccountStorage;
   stripePaymentMethods: StripePaymentMethodStorage;
   ea: LedgerEaStorage;
   payments: LedgerPaymentStorage;
+  entries: LedgerEntryStorage;
 }
 
 export function createLedgerAccountStorage(): LedgerAccountStorage {
@@ -316,11 +330,107 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
   };
 }
 
+export function createLedgerEntryStorage(): LedgerEntryStorage {
+  return {
+    async getAll(): Promise<Ledger[]> {
+      return await db.select().from(ledger);
+    },
+
+    async get(id: string): Promise<Ledger | undefined> {
+      const [entry] = await db.select().from(ledger).where(eq(ledger.id, id));
+      return entry || undefined;
+    },
+
+    async getByEaId(eaId: string): Promise<Ledger[]> {
+      return await db.select().from(ledger)
+        .where(eq(ledger.eaId, eaId));
+    },
+
+    async getByReference(referenceType: string, referenceId: string): Promise<Ledger[]> {
+      return await db.select().from(ledger)
+        .where(and(
+          eq(ledger.referenceType, referenceType),
+          eq(ledger.referenceId, referenceId)
+        ));
+    },
+
+    async create(insertEntry: InsertLedger): Promise<Ledger> {
+      const [entry] = await db.insert(ledger)
+        .values(insertEntry as any)
+        .returning();
+      return entry;
+    },
+
+    async update(id: string, entryUpdate: Partial<InsertLedger>): Promise<Ledger | undefined> {
+      const [entry] = await db.update(ledger)
+        .set(entryUpdate as any)
+        .where(eq(ledger.id, id))
+        .returning();
+      return entry || undefined;
+    },
+
+    async delete(id: string): Promise<boolean> {
+      const result = await db.delete(ledger)
+        .where(eq(ledger.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    },
+
+    async deleteByReference(referenceType: string, referenceId: string): Promise<number> {
+      const result = await db.delete(ledger)
+        .where(and(
+          eq(ledger.referenceType, referenceType),
+          eq(ledger.referenceId, referenceId)
+        ));
+      return result.rowCount || 0;
+    }
+  };
+}
+
+/**
+ * Allocate a payment to the ledger.
+ * 
+ * This function manages the allocation of a payment to the general ledger:
+ * - If payment status is "cleared", creates a ledger entry reflecting the payment
+ * - If payment status is anything else, deletes any existing ledger entries for this payment
+ * 
+ * This function MUST be called every time a payment is saved (created or updated).
+ * 
+ * @param payment - The payment to allocate
+ * @param ledgerStorage - The ledger storage instance to use for operations
+ * @returns Promise that resolves when allocation is complete
+ */
+export async function allocatePayment(
+  payment: LedgerPayment,
+  ledgerStorage: LedgerStorage
+): Promise<void> {
+  // Always delete existing allocations first to avoid duplicates
+  await ledgerStorage.entries.deleteByReference('payment', payment.id);
+
+  // If payment is cleared, create a new ledger entry
+  if (payment.status === 'cleared') {
+    await ledgerStorage.entries.create({
+      amount: payment.amount,
+      eaId: payment.ledgerEaId,
+      referenceType: 'payment',
+      referenceId: payment.id,
+      memo: payment.memo || null,
+      data: payment.details || null
+    });
+
+    // Mark payment as allocated
+    await ledgerStorage.payments.update(payment.id, { allocated: true });
+  } else {
+    // Mark payment as not allocated
+    await ledgerStorage.payments.update(payment.id, { allocated: false });
+  }
+}
+
 export function createLedgerStorage(
   accountLoggingConfig?: StorageLoggingConfig<LedgerAccountStorage>,
   stripePaymentMethodLoggingConfig?: StorageLoggingConfig<StripePaymentMethodStorage>,
   eaLoggingConfig?: StorageLoggingConfig<LedgerEaStorage>,
-  paymentLoggingConfig?: StorageLoggingConfig<LedgerPaymentStorage>
+  paymentLoggingConfig?: StorageLoggingConfig<LedgerPaymentStorage>,
+  entryLoggingConfig?: StorageLoggingConfig<LedgerEntryStorage>
 ): LedgerStorage {
   // Create nested storage instances with optional logging
   const accountStorage = accountLoggingConfig
@@ -338,11 +448,16 @@ export function createLedgerStorage(
   const paymentStorage = paymentLoggingConfig
     ? withStorageLogging(createLedgerPaymentStorage(), paymentLoggingConfig)
     : createLedgerPaymentStorage();
+
+  const entryStorage = entryLoggingConfig
+    ? withStorageLogging(createLedgerEntryStorage(), entryLoggingConfig)
+    : createLedgerEntryStorage();
   
   return {
     accounts: accountStorage,
     stripePaymentMethods: stripePaymentMethodStorage,
     ea: eaStorage,
-    payments: paymentStorage
+    payments: paymentStorage,
+    entries: entryStorage
   };
 }
