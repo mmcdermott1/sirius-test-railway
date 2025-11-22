@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { ledgerAccounts, ledgerStripePaymentMethods, ledgerEa, ledgerPayments, ledger, employers, workers } from "@shared/schema";
+import { ledgerAccounts, ledgerStripePaymentMethods, ledgerEa, ledgerPayments, ledger, employers, workers, contacts, trustProviders } from "@shared/schema";
 import type { 
   LedgerAccount, 
   InsertLedgerAccount,
@@ -13,7 +13,7 @@ import type {
   Ledger,
   InsertLedger
 } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, or, isNull } from "drizzle-orm";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 
 export interface LedgerAccountStorage {
@@ -368,7 +368,9 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
           entry: ledger,
           ea: ledgerEa,
           employer: employers,
-          workerId: workers.id,
+          trustProvider: trustProviders,
+          workerSiriusId: workers.siriusId,
+          workerContact: contacts,
         })
         .from(ledger)
         .innerJoin(ledgerEa, eq(ledger.eaId, ledgerEa.id))
@@ -380,22 +382,59 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
           )
         )
         .leftJoin(
+          trustProviders,
+          and(
+            eq(ledgerEa.entityType, 'trustProvider'),
+            eq(ledgerEa.entityId, trustProviders.id)
+          )
+        )
+        .leftJoin(
           workers,
           and(
             eq(ledgerEa.entityType, 'worker'),
             eq(ledgerEa.entityId, workers.id)
           )
         )
+        .leftJoin(
+          contacts,
+          and(
+            eq(ledgerEa.entityType, 'worker'),
+            eq(workers.contactId, contacts.id)
+          )
+        )
         .where(eq(ledgerEa.accountId, accountId))
         .orderBy(desc(ledger.date), desc(ledger.id));
 
-      return results.map(row => ({
-        ...row.entry,
-        entityType: row.ea.entityType,
-        entityId: row.ea.entityId,
-        entityName: row.employer?.name || (row.workerId ? 'Worker' : null),
-        eaAccountId: row.ea.accountId,
-      }));
+      return results.map(row => {
+          // Determine entity name based on entity type
+          let entityName: string | null = null;
+          const entityType = row.ea.entityType;
+          const entityId = row.ea.entityId;
+
+          if (entityType === 'employer' && row.employer) {
+            entityName = row.employer.name;
+          } else if (entityType === 'trustProvider' && row.trustProvider) {
+            entityName = row.trustProvider.name;
+          } else if (entityType === 'worker') {
+            if (row.workerContact) {
+              entityName = `${row.workerContact.given} ${row.workerContact.family}`;
+            } else if (row.workerSiriusId) {
+              // Fallback to worker ID if contact is missing
+              entityName = `Worker #${row.workerSiriusId}`;
+            }
+          } else {
+            // Fallback for other entity types not explicitly handled
+            entityName = `${entityType} ${entityId.substring(0, 8)}`;
+          }
+
+          return {
+            ...row.entry,
+            entityType,
+            entityId,
+            entityName,
+            eaAccountId: row.ea.accountId,
+          };
+        });
     },
 
     async create(insertEntry: InsertLedger): Promise<Ledger> {

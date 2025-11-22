@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Download, ArrowUpDown, Filter, X } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { stringify } from "csv-stringify/browser/esm/sync";
 
@@ -195,6 +195,8 @@ function AccountTransactionsContent() {
       Description: transaction.description || "",
       "Reference Type": transaction.referenceType || "",
       "Reference ID": transaction.referenceId || "",
+      "EA Account ID": transaction.eaAccountId,
+      "Transaction ID": transaction.id,
     }));
 
     const csv = stringify(csvData, {
@@ -207,6 +209,8 @@ function AccountTransactionsContent() {
         "Description",
         "Reference Type",
         "Reference ID",
+        "EA Account ID",
+        "Transaction ID",
       ],
     });
 
@@ -451,19 +455,21 @@ function AccountTransactionsContent() {
                     <ArrowUpDown size={16} className="ml-2" />
                   </Button>
                 </TableHead>
-                <TableHead>Reference</TableHead>
+                <TableHead>Reference Type</TableHead>
+                <TableHead>Reference ID</TableHead>
+                <TableHead>EA Account</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Loading transactions...
                   </TableCell>
                 </TableRow>
               ) : filteredAndSortedTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     {hasActiveFilters ? "No transactions match your filters" : "No transactions found"}
                   </TableCell>
                 </TableRow>
@@ -488,8 +494,14 @@ function AccountTransactionsContent() {
                     <TableCell data-testid={`cell-description-${transaction.id}`}>
                       {transaction.description || "—"}
                     </TableCell>
-                    <TableCell data-testid={`cell-reference-${transaction.id}`}>
-                      {transaction.referenceType ? `${transaction.referenceType}` : "—"}
+                    <TableCell data-testid={`cell-reference-type-${transaction.id}`}>
+                      {transaction.referenceType || "—"}
+                    </TableCell>
+                    <TableCell data-testid={`cell-reference-id-${transaction.id}`}>
+                      {transaction.referenceId || "—"}
+                    </TableCell>
+                    <TableCell data-testid={`cell-ea-account-${transaction.id}`}>
+                      {transaction.eaAccountId || "—"}
                     </TableCell>
                   </TableRow>
                 ))
