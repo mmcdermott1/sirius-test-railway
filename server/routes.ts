@@ -21,6 +21,7 @@ import { registerDashboardRoutes } from "./modules/dashboard";
 import { registerBookmarkRoutes } from "./modules/bookmarks";
 import { registerComponentRoutes } from "./modules/components";
 import { registerEmployerUserSettingsRoutes } from "./modules/employer-user-settings";
+import { registerTrustProviderUserSettingsRoutes } from "./modules/trust-provider-user-settings";
 import { registerWizardRoutes } from "./modules/wizards";
 import { registerFileRoutes } from "./modules/files";
 import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
@@ -236,6 +237,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register employer user settings routes
   registerEmployerUserSettingsRoutes(app, requireAuth, requirePermission);
+  
+  // Register trust provider user settings routes
+  registerTrustProviderUserSettingsRoutes(app, requireAuth, requirePermission);
   
   // Register postal address management routes
   registerPostalAddressRoutes(app, requireAuth, requirePermission);

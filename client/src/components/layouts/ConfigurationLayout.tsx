@@ -99,6 +99,13 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
       testId: "nav-config-provider-contact-types",
       permission: "admin",
     },
+    {
+      path: "/config/users/trust-provider-settings",
+      label: "Provider User Settings",
+      icon: Settings,
+      testId: "nav-config-users-trust-provider-settings",
+      permission: "admin",
+    },
   ];
 
   const themeItems = [
