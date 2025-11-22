@@ -304,7 +304,7 @@ export function registerTrustProviderContactRoutes(
       
       if (!user) {
         // Create new user
-        user = await storage.users.create({
+        user = await storage.users.createUser({
           email: providerContact.contact.email,
           firstName: firstName || null,
           lastName: lastName || null,
@@ -313,7 +313,7 @@ export function registerTrustProviderContactRoutes(
         });
       } else {
         // Update existing user
-        await storage.users.update(user.id, {
+        await storage.users.updateUser(user.id, {
           firstName: firstName !== undefined ? firstName : user.firstName,
           lastName: lastName !== undefined ? lastName : user.lastName,
           isActive: isActive !== undefined ? isActive : user.isActive,
@@ -357,10 +357,7 @@ export function registerTrustProviderContactRoutes(
         const isStillSelected = optionalRoleIds.includes(currentRoleId);
         
         if (isOptional && !isRequired && !isStillSelected) {
-          await storage.users.removeRoleFromUser({
-            userId: user.id,
-            roleId: currentRoleId,
-          });
+          await storage.users.unassignRoleFromUser(user.id, currentRoleId);
         }
       }
       
