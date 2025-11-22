@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import { createContext, useContext } from "react";
 
 interface Contact {
@@ -122,45 +122,70 @@ export function TrustProviderContactLayout({ children, activeTab }: TrustProvide
 
   return (
     <TrustProviderContactContext.Provider value={{ trustProviderContact, provider, isLoading }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href={provider ? `/trust/provider/${provider.id}/contacts` : "/trust/providers"}>
-              <Button variant="ghost" size="sm" data-testid="button-back">
-                <ArrowLeft size={16} className="mr-2" />
-                Back to {provider ? provider.name : "Providers"}
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold" data-testid="text-contact-name">
-              {trustProviderContact.contact.displayName}
-            </h1>
-            {trustProviderContact.contactType && (
-              <Badge variant="secondary" data-testid="badge-contact-type">
-                {trustProviderContact.contactType.name}
-              </Badge>
-            )}
+      {/* Entity Header */}
+      <section className="bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Users className="text-primary-foreground" size={16} />
+              </div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold text-foreground" data-testid="text-contact-name">
+                  {provider?.name ? `${provider.name} :: ${trustProviderContact.contact.displayName}` : trustProviderContact.contact.displayName}
+                </h1>
+                {trustProviderContact.contactType && (
+                  <Badge variant="secondary" data-testid="badge-contact-type">
+                    {trustProviderContact.contactType.name}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link href={provider ? `/trust/provider/${provider.id}/contacts` : "/trust/providers"}>
+                <Button variant="ghost" size="sm" data-testid="button-back">
+                  <ArrowLeft size={16} className="mr-2" />
+                  Back to {provider ? "Provider" : "Providers"}
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div className="mb-6">
-          <nav className="flex space-x-4 border-b">
-            {tabs.map((tab) => (
-              <Link key={tab.id} href={tab.href}>
-                <button
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 -mb-px ${
-                    activeTab === tab.id
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                  data-testid={`tab-${tab.id}`}
+      {/* Tab Navigation */}
+      <section className="bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center space-x-2 py-3">
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTab;
+              return isActive ? (
+                <Button
+                  key={tab.id}
+                  variant="default"
+                  size="sm"
+                  data-testid={`button-contact-${tab.id}`}
                 >
                   {tab.label}
-                </button>
-              </Link>
-            ))}
-          </nav>
+                </Button>
+              ) : (
+                <Link key={tab.id} href={tab.href}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid={`button-contact-${tab.id}`}
+                  >
+                    {tab.label}
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
         </div>
+      </section>
 
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </div>
     </TrustProviderContactContext.Provider>
