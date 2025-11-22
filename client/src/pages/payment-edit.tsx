@@ -70,10 +70,11 @@ function PaymentEditContent() {
       });
       setLocation(`/ledger/payment/${id}`);
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.error || error?.message || "Failed to update payment. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to update payment. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
