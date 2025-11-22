@@ -191,7 +191,7 @@ export default function Header() {
                 data-testid="nav-trust-providers"
               >
                 <Shield className="h-4 w-4 mr-2" />
-                Trust Providers
+                Providers
               </Button>
             </Link>
 
