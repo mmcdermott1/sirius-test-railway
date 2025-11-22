@@ -76,6 +76,7 @@ export interface LedgerEntryWithDetails extends Ledger {
   entityId: string;
   entityName: string | null;
   eaAccountId: string;
+  eaAccountName: string | null;
   referenceName: string | null;
 }
 
@@ -369,6 +370,7 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
         .select({
           entry: ledger,
           ea: ledgerEa,
+          account: ledgerAccounts,
           employer: employers,
           trustProvider: trustProviders,
           workerSiriusId: workers.siriusId,
@@ -377,6 +379,7 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
         })
         .from(ledger)
         .innerJoin(ledgerEa, eq(ledger.eaId, ledgerEa.id))
+        .innerJoin(ledgerAccounts, eq(ledgerEa.accountId, ledgerAccounts.id))
         .leftJoin(
           employers,
           and(
@@ -458,6 +461,7 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
             entityId,
             entityName,
             eaAccountId: row.ea.accountId,
+            eaAccountName: row.account?.name || null,
             referenceName,
           };
         });
