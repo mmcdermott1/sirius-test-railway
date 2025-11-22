@@ -407,9 +407,10 @@ export async function allocatePayment(
   await ledgerStorage.entries.deleteByReference('payment', payment.id);
 
   // If payment is cleared, create a new ledger entry
+  // Note: The amount is negated because a payment received (+$500) should reduce the liability (-$500)
   if (payment.status === 'cleared') {
     await ledgerStorage.entries.create({
-      amount: payment.amount,
+      amount: (-parseFloat(payment.amount)).toString(),
       eaId: payment.ledgerEaId,
       referenceType: 'payment',
       referenceId: payment.id,
