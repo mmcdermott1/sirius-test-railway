@@ -413,6 +413,7 @@ export async function allocatePayment(
       eaId: payment.ledgerEaId,
       referenceType: 'payment',
       referenceId: payment.id,
+      date: payment.dateCleared || null,
       memo: payment.memo || null,
       data: payment.details || null
     });

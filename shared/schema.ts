@@ -303,6 +303,7 @@ export const ledger = pgTable("ledger", {
   eaId: varchar("ea_id").notNull().references(() => ledgerEa.id, { onDelete: 'cascade' }),
   referenceType: varchar("reference_type"),
   referenceId: varchar("reference_id"),
+  date: timestamp("date"),
   memo: text("memo"),
   data: jsonb("data"),
 });
