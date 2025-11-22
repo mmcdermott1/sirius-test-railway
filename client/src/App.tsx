@@ -73,6 +73,7 @@ import TrustProviderContactName from "@/pages/trust-provider-contact-name";
 import TrustProviderContactEmail from "@/pages/trust-provider-contact-email";
 import TrustProviderContactPhoneNumbers from "@/pages/trust-provider-contact-phone-numbers";
 import TrustProviderContactAddresses from "@/pages/trust-provider-contact-addresses";
+import TrustProviderContactUser from "@/pages/trust-provider-contact-user";
 import TrustProviderLogsPage from "@/pages/trust-provider-logs";
 import AdminUsersPage from "@/pages/admin/users";
 import UserAccountPage from "@/pages/admin/user-account";
@@ -582,6 +583,14 @@ function Router() {
         <ProtectedRoute policy="staff">
           <AuthenticatedLayout>
             <TrustProviderLogsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust-provider-contacts/:id/user">
+        <ProtectedRoute policy="trustProviderUserManage">
+          <AuthenticatedLayout>
+            <TrustProviderContactUser />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

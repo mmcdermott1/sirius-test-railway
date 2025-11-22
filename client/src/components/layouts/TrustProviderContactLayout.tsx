@@ -62,7 +62,7 @@ export function useTrustProviderContactLayout() {
 
 interface TrustProviderContactLayoutProps {
   children: React.ReactNode;
-  activeTab: "view" | "edit" | "name" | "email" | "phone-numbers" | "addresses";
+  activeTab: "view" | "edit" | "name" | "email" | "phone-numbers" | "addresses" | "user";
 }
 
 export function TrustProviderContactLayout({ children, activeTab }: TrustProviderContactLayoutProps) {
@@ -117,6 +117,7 @@ export function TrustProviderContactLayout({ children, activeTab }: TrustProvide
     { id: "email", label: "Email", href: `/trust-provider-contacts/${id}/email` },
     { id: "phone-numbers", label: "Phone Numbers", href: `/trust-provider-contacts/${id}/phone-numbers` },
     { id: "addresses", label: "Addresses", href: `/trust-provider-contacts/${id}/addresses` },
+    { id: "user", label: "User", href: `/trust-provider-contacts/${id}/user` },
   ];
 
   return (

@@ -183,6 +183,197 @@ export function registerTrustProviderContactRoutes(
     }
   });
 
+  // GET /api/trust-provider-contacts/:contactId/user - Get user linked to provider contact
+  app.get("/api/trust-provider-contacts/:contactId/user", requireAuth, requireAccess(policies.trustProviderUserManage), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      
+      // Get provider contact
+      const providerContact = await storage.trustProviderContacts.get(contactId);
+      if (!providerContact) {
+        return res.status(404).json({ message: "Provider contact not found" });
+      }
+      
+      // Check if contact has an email
+      if (!providerContact.contact.email) {
+        return res.status(400).json({ 
+          message: "Contact must have an email address to link a user account",
+          hasEmail: false
+        });
+      }
+      
+      // Get trust provider user settings (required/optional roles)
+      const requiredVariable = await storage.variables.getByName('trust_provider_user_roles_required');
+      const optionalVariable = await storage.variables.getByName('trust_provider_user_roles_optional');
+      
+      const requiredRoleIds: string[] = (Array.isArray(requiredVariable?.value) ? requiredVariable.value : []) as string[];
+      const optionalRoleIds: string[] = (Array.isArray(optionalVariable?.value) ? optionalVariable.value : []) as string[];
+      
+      // Get user by email if exists
+      const user = await storage.users.getUserByEmail(providerContact.contact.email);
+      
+      if (user) {
+        // Get user's current roles
+        const userRoles = await storage.users.getUserRoles(user.id);
+        const userRoleIds = userRoles.map(r => r.id);
+        
+        return res.json({
+          hasUser: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            isActive: user.isActive,
+            accountStatus: user.accountStatus,
+          },
+          userRoleIds,
+          requiredRoleIds,
+          optionalRoleIds,
+          contactEmail: providerContact.contact.email,
+        });
+      } else {
+        // No user exists yet
+        return res.json({
+          hasUser: false,
+          user: null,
+          userRoleIds: [],
+          requiredRoleIds,
+          optionalRoleIds,
+          contactEmail: providerContact.contact.email,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching provider contact user:", error);
+      res.status(500).json({ message: "Failed to fetch provider contact user" });
+    }
+  });
+
+  // POST /api/trust-provider-contacts/:contactId/user - Create or update user linked to provider contact
+  app.post("/api/trust-provider-contacts/:contactId/user", requireAuth, requireAccess(policies.trustProviderUserManage), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      
+      // Validate request body with Zod
+      const requestSchema = z.object({
+        firstName: z.string().optional().nullable(),
+        lastName: z.string().optional().nullable(),
+        isActive: z.boolean().optional(),
+        optionalRoleIds: z.array(z.string()),
+      });
+      
+      const validationResult = requestSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid request body", 
+          errors: validationResult.error.errors 
+        });
+      }
+      
+      const { firstName, lastName, isActive, optionalRoleIds } = validationResult.data;
+      
+      // Get provider contact
+      const providerContact = await storage.trustProviderContacts.get(contactId);
+      if (!providerContact) {
+        return res.status(404).json({ message: "Provider contact not found" });
+      }
+      
+      // Check if contact has an email
+      if (!providerContact.contact.email) {
+        return res.status(400).json({ message: "Contact must have an email address" });
+      }
+      
+      // Get trust provider user settings (required/optional roles)
+      const requiredVariable = await storage.variables.getByName('trust_provider_user_roles_required');
+      const optionalVariable = await storage.variables.getByName('trust_provider_user_roles_optional');
+      
+      const requiredRoleIds: string[] = (Array.isArray(requiredVariable?.value) ? requiredVariable.value : []) as string[];
+      const optionalRoleIdsFromSettings: string[] = (Array.isArray(optionalVariable?.value) ? optionalVariable.value : []) as string[];
+      
+      // Validate that all provided optional role IDs are valid
+      for (const roleId of optionalRoleIds) {
+        if (!optionalRoleIdsFromSettings.includes(roleId)) {
+          return res.status(400).json({ 
+            message: `Invalid optional role ID: ${roleId}. Role is not configured as an optional role.` 
+          });
+        }
+      }
+      
+      // Check if user already exists
+      let user = await storage.users.getUserByEmail(providerContact.contact.email);
+      
+      if (!user) {
+        // Create new user
+        user = await storage.users.create({
+          email: providerContact.contact.email,
+          firstName: firstName || null,
+          lastName: lastName || null,
+          isActive: isActive !== undefined ? isActive : true,
+          accountStatus: 'active',
+        });
+      } else {
+        // Update existing user
+        await storage.users.update(user.id, {
+          firstName: firstName !== undefined ? firstName : user.firstName,
+          lastName: lastName !== undefined ? lastName : user.lastName,
+          isActive: isActive !== undefined ? isActive : user.isActive,
+        });
+      }
+      
+      // Get user's current roles
+      const currentRoles = await storage.users.getUserRoles(user.id);
+      const currentRoleIds = currentRoles.map(r => r.id);
+      
+      // Assign all required roles (idempotent)
+      for (const roleId of requiredRoleIds) {
+        if (!currentRoleIds.includes(roleId)) {
+          await storage.users.assignRoleToUser({
+            userId: user.id,
+            roleId,
+          });
+        }
+      }
+      
+      // Reconcile optional roles
+      // Add new optional roles
+      for (const roleId of optionalRoleIds) {
+        if (!currentRoleIds.includes(roleId) && !requiredRoleIds.includes(roleId)) {
+          await storage.users.assignRoleToUser({
+            userId: user.id,
+            roleId,
+          });
+        }
+      }
+      
+      // Remove optional roles that are no longer selected
+      // Only remove roles that are:
+      // 1. Currently assigned to the user
+      // 2. In the optional roles settings (removable)
+      // 3. Not in the new selection
+      // 4. Not required roles
+      for (const currentRoleId of currentRoleIds) {
+        const isOptional = optionalRoleIdsFromSettings.includes(currentRoleId);
+        const isRequired = requiredRoleIds.includes(currentRoleId);
+        const isStillSelected = optionalRoleIds.includes(currentRoleId);
+        
+        if (isOptional && !isRequired && !isStillSelected) {
+          await storage.users.removeRoleFromUser({
+            userId: user.id,
+            roleId: currentRoleId,
+          });
+        }
+      }
+      
+      res.json({ 
+        message: "User account saved successfully",
+        userId: user.id,
+      });
+    } catch (error) {
+      console.error("Error saving provider contact user:", error);
+      res.status(500).json({ message: "Failed to save user account" });
+    }
+  });
+
   // DELETE /api/trust-provider-contacts/:id - Delete a provider contact (requires admin policy)
   app.delete("/api/trust-provider-contacts/:id", requireAuth, requireAccess(policies.admin), async (req, res) => {
     try {
