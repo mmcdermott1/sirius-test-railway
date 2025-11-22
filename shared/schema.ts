@@ -117,7 +117,7 @@ export const trustProviderContacts = pgTable("trust_provider_contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   providerId: varchar("provider_id").notNull().references(() => trustProviders.id, { onDelete: 'cascade' }),
   contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  contactTypeId: varchar("contact_type_id").references(() => optionsEmployerContactType.id, { onDelete: 'set null' }),
+  contactTypeId: varchar("contact_type_id").references(() => optionsTrustProviderType.id, { onDelete: 'set null' }),
 });
 
 export const trustBenefits = pgTable("trust_benefits", {

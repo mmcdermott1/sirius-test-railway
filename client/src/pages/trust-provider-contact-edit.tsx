@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { EmployerContactType } from "@shared/schema";
+import type { TrustProviderType } from "@shared/schema";
 
 const updateContactTypeSchema = z.object({
   contactTypeId: z.string().nullable(),
@@ -24,8 +24,8 @@ function TrustProviderContactEditContent() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  const { data: contactTypes } = useQuery<EmployerContactType[]>({
-    queryKey: ["/api/employer-contact-types"],
+  const { data: contactTypes } = useQuery<TrustProviderType[]>({
+    queryKey: ["/api/provider-contact-types"],
   });
 
   const form = useForm<UpdateContactTypeFormData>({

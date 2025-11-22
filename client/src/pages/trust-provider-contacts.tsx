@@ -15,7 +15,7 @@ import { Trash2, Plus, Eye, Phone, MapPin, User } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { EmployerContactType, PhoneNumber, PostalAddress } from "@shared/schema";
+import type { TrustProviderType, PhoneNumber, PostalAddress } from "@shared/schema";
 import { generateDisplayName } from "@shared/schema";
 
 interface TrustProviderContactResponse {
@@ -73,8 +73,8 @@ function TrustProviderContactsContent() {
     enabled: !!provider,
   });
 
-  const { data: contactTypes } = useQuery<EmployerContactType[]>({
-    queryKey: ["/api/employer-contact-types"],
+  const { data: contactTypes } = useQuery<TrustProviderType[]>({
+    queryKey: ["/api/provider-contact-types"],
   });
 
   // Fetch phone numbers and addresses for all contacts
