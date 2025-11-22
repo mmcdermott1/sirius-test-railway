@@ -14,19 +14,11 @@ interface AccountData {
   invoiceFooter?: string;
 }
 
-interface LedgerAccount {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  data: AccountData | null;
-}
-
 function AccountSettingsContent() {
   const { account } = useLedgerAccountLayout();
   const { toast } = useToast();
 
-  const accountData = (account as LedgerAccount).data || {};
+  const accountData = account.data || {};
   const [invoiceHeader, setInvoiceHeader] = useState(accountData.invoiceHeader || "");
   const [invoiceFooter, setInvoiceFooter] = useState(accountData.invoiceFooter || "");
 

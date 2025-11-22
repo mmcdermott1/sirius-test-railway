@@ -11,6 +11,10 @@ interface LedgerAccount {
   name: string;
   description: string | null;
   isActive: boolean;
+  data: {
+    invoiceHeader?: string;
+    invoiceFooter?: string;
+  } | null;
 }
 
 interface LedgerAccountLayoutContextValue {

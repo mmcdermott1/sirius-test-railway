@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../../storage";
-import { insertLedgerAccountSchema } from "@shared/schema";
+import { insertLedgerAccountSchema, ledgerAccountDataSchema } from "@shared/schema";
 import { policies } from "../../policies";
 import { requireAccess } from "../../accessControl";
 
@@ -76,7 +76,15 @@ export function registerLedgerAccountRoutes(app: Express) {
       const { id } = req.params;
       const { data } = req.body;
       
-      const account = await storage.ledger.accounts.update(id, { data });
+      // Validate the data structure - explicitly handle undefined and null
+      let validatedData;
+      if (data === undefined || data === null) {
+        validatedData = null;
+      } else {
+        validatedData = ledgerAccountDataSchema.parse(data);
+      }
+      
+      const account = await storage.ledger.accounts.update(id, { data: validatedData });
       
       if (!account) {
         res.status(404).json({ message: "Ledger account not found" });
@@ -85,7 +93,11 @@ export function registerLedgerAccountRoutes(app: Express) {
       
       res.json(account);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update ledger account settings" });
+      if (error instanceof Error && error.name === "ZodError") {
+        res.status(400).json({ message: "Invalid account data format" });
+      } else {
+        res.status(500).json({ message: "Failed to update ledger account settings" });
+      }
     }
   });
 
