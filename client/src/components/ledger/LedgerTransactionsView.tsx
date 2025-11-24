@@ -8,6 +8,7 @@ import { Download, ArrowUpDown, Filter, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { stringify } from "csv-stringify/browser/esm/sync";
+import { Link } from "wouter";
 
 interface LedgerEntryWithDetails {
   id: string;
@@ -32,6 +33,24 @@ interface LedgerTransactionsViewProps {
   queryKey: string[];
   title: string;
   csvFilename: string;
+}
+
+// Helper function to generate reference link based on type and ID
+function getReferenceLink(referenceType: string | null, referenceId: string | null): string | null {
+  if (!referenceType || !referenceId) return null;
+  
+  switch (referenceType) {
+    case "employer":
+      return `/employers/${referenceId}/view`;
+    case "worker":
+      return `/workers/${referenceId}/view`;
+    case "trustProvider":
+      return `/trust-providers/${referenceId}/view`;
+    case "payment":
+      return `/ledger/payments/${referenceId}/view`;
+    default:
+      return null;
+  }
 }
 
 export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerTransactionsViewProps) {
@@ -501,10 +520,29 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                       {transaction.referenceType || "—"}
                     </TableCell>
                     <TableCell data-testid={`cell-reference-${transaction.id}`}>
-                      {transaction.referenceName || "—"}
+                      {(() => {
+                        const link = getReferenceLink(transaction.referenceType, transaction.referenceId);
+                        if (link && transaction.referenceName) {
+                          return (
+                            <Link href={link} className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline">
+                              {transaction.referenceName}
+                            </Link>
+                          );
+                        }
+                        return transaction.referenceName || "—";
+                      })()}
                     </TableCell>
                     <TableCell data-testid={`cell-ea-account-${transaction.id}`}>
-                      {transaction.eaAccountName || "—"}
+                      {transaction.eaAccountName ? (
+                        <Link 
+                          href={`/ledger/ea/${transaction.eaId}/view`}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                        >
+                          {transaction.eaAccountName}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
