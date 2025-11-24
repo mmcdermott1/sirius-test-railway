@@ -1,9 +1,11 @@
 import { EALayout } from "@/components/layouts/EALayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText, Loader2 } from "lucide-react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface InvoiceSummary {
   month: number;
@@ -13,6 +15,33 @@ interface InvoiceSummary {
   incomingBalance: string;
   invoiceBalance: string;
   outgoingBalance: string;
+}
+
+interface LedgerEntryWithDetails {
+  id: string;
+  amount: string;
+  date: string;
+  description: string | null;
+  eaId: string;
+  referenceType: string | null;
+  referenceId: string | null;
+  referenceName: string | null;
+  entityType: string;
+  entityId: string;
+  entityName: string | null;
+  eaAccountId: string;
+  eaAccountName: string | null;
+}
+
+interface InvoiceDetails {
+  month: number;
+  year: number;
+  totalAmount: string;
+  entryCount: number;
+  incomingBalance: string;
+  invoiceBalance: string;
+  outgoingBalance: string;
+  entries: LedgerEntryWithDetails[];
 }
 
 const MONTH_NAMES = [
@@ -31,6 +60,7 @@ function formatAmount(amount: string): string {
 
 function EAInvoicesContent() {
   const { id } = useParams<{ id: string }>();
+  const [selectedInvoice, setSelectedInvoice] = useState<{ month: number; year: number } | null>(null);
 
   const { data: invoices, isLoading } = useQuery<InvoiceSummary[]>({
     queryKey: [`/api/ledger/ea/${id}/invoices`],
@@ -94,6 +124,8 @@ function EAInvoicesContent() {
                 <TableRow 
                   key={`${invoice.year}-${invoice.month}`}
                   data-testid={`row-invoice-${invoice.year}-${invoice.month}`}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setSelectedInvoice({ month: invoice.month, year: invoice.year })}
                 >
                   <TableCell data-testid={`cell-period-${invoice.year}-${invoice.month}`}>
                     {MONTH_NAMES[invoice.month - 1]} {invoice.year}
@@ -128,7 +160,144 @@ function EAInvoicesContent() {
           </Table>
         </div>
       </CardContent>
+
+      <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          {selectedInvoice && (
+            <InvoiceDetailsModal
+              eaId={id!}
+              month={selectedInvoice.month}
+              year={selectedInvoice.year}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
+  );
+}
+
+interface InvoiceDetailsModalProps {
+  eaId: string;
+  month: number;
+  year: number;
+}
+
+function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
+  const { data: invoiceDetails, isLoading } = useQuery<InvoiceDetails>({
+    queryKey: [`/api/ledger/ea/${eaId}/invoices/${month}/${year}`],
+    enabled: !!eaId && !!month && !!year,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!invoiceDetails) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">Invoice not found</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          Invoice: {MONTH_NAMES[invoiceDetails.month - 1]} {invoiceDetails.year}
+        </DialogTitle>
+        <DialogDescription>
+          Detailed invoice with ledger entries for this month
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Incoming Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${parseFloat(invoiceDetails.incomingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+              {formatAmount(invoiceDetails.incomingBalance)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Invoice Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${parseFloat(invoiceDetails.invoiceBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+              {formatAmount(invoiceDetails.invoiceBalance)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Outgoing Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${parseFloat(invoiceDetails.outgoingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+              {formatAmount(invoiceDetails.outgoingBalance)}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ledger Entries</CardTitle>
+          <CardDescription>
+            {invoiceDetails.entryCount} {invoiceDetails.entryCount === 1 ? 'entry' : 'entries'} for this month
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Entity Type</TableHead>
+                  <TableHead>Entity</TableHead>
+                  <TableHead>Reference</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoiceDetails.entries.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell>
+                      {entry.date ? new Date(entry.date).toLocaleDateString() : 'No date'}
+                    </TableCell>
+                    <TableCell className={`text-right ${parseFloat(entry.amount) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+                      {formatAmount(entry.amount)}
+                    </TableCell>
+                    <TableCell>{entry.description || '-'}</TableCell>
+                    <TableCell className="capitalize">{entry.entityType}</TableCell>
+                    <TableCell>{entry.entityName || '-'}</TableCell>
+                    <TableCell>{entry.referenceName || '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
