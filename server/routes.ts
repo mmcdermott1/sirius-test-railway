@@ -533,8 +533,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Return empty array for now - employment history feature has been removed
-      res.json([]);
+      // Query to get all workers for this employer from worker_hours
+      const result = await db.execute(sql`
+        SELECT DISTINCT
+          w.id,
+          w.sirius_id,
+          c.given as first_name,
+          c.family as last_name,
+          c.display_name,
+          c.email,
+          wh.home as is_home_employer
+        FROM workers w
+        INNER JOIN worker_hours wh ON w.id = wh.worker_id
+        INNER JOIN contacts c ON w.contact_id = c.id
+        WHERE wh.employer_id = ${employerId}
+        ORDER BY c.family, c.given
+      `);
+      
+      res.json(result.rows);
     } catch (error) {
       console.error("Failed to fetch employer workers:", error);
       res.status(500).json({ message: "Failed to fetch employer workers" });
