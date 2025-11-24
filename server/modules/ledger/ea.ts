@@ -3,6 +3,7 @@ import { storage } from "../../storage";
 import { insertLedgerEaSchema } from "@shared/schema";
 import { policies } from "../../policies";
 import { requireAccess } from "../../accessControl";
+import { generateInvoicePdf } from "../../utils/pdfGenerator";
 
 export function registerLedgerEaRoutes(app: Express) {
   // GET /api/ledger/ea - Get all ledger EA entries
@@ -165,6 +166,86 @@ export function registerLedgerEaRoutes(app: Express) {
       res.json(invoice);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch invoice details" });
+    }
+  });
+
+  // GET /api/ledger/ea/:id/invoices/:month/:year/pdf - Download invoice as PDF
+  app.get("/api/ledger/ea/:id/invoices/:month/:year/pdf", requireAccess(policies.ledgerStaff), async (req, res) => {
+    try {
+      const { id, month, year } = req.params;
+      
+      // Check if EA exists
+      const ea = await storage.ledger.ea.get(id);
+      if (!ea) {
+        res.status(404).json({ message: "Ledger EA entry not found" });
+        return;
+      }
+
+      // Get account info
+      const account = await storage.ledger.accounts.get(ea.accountId);
+      if (!account) {
+        res.status(404).json({ message: "Account not found" });
+        return;
+      }
+
+      // Get entity name
+      let entityName = "Unknown Entity";
+      if (ea.entityType === "employer") {
+        const employer = await storage.employers.getEmployer(ea.entityId);
+        entityName = employer ? employer.name : "Unknown Employer";
+      } else if (ea.entityType === "worker") {
+        const worker = await storage.workers.getWorker(ea.entityId);
+        if (worker) {
+          const contact = await storage.contacts.getContact(worker.contactId);
+          entityName = contact ? `${contact.given} ${contact.family}` : "Unknown Worker";
+        } else {
+          entityName = "Unknown Worker";
+        }
+      } else if (ea.entityType === "trust_provider") {
+        const provider = await storage.trustProviders.getTrustProvider(ea.entityId);
+        entityName = provider ? provider.name : "Unknown Trust Provider";
+      }
+
+      // Get invoice details
+      const invoice = await storage.ledger.invoices.getDetails(
+        id,
+        parseInt(month, 10),
+        parseInt(year, 10)
+      );
+
+      if (!invoice) {
+        res.status(404).json({ message: "Invoice not found" });
+        return;
+      }
+
+      // Generate PDF
+      const pdfBuffer = await generateInvoicePdf({
+        eaName: entityName,
+        accountName: account.name,
+        month: invoice.month,
+        year: invoice.year,
+        incomingBalance: invoice.incomingBalance,
+        invoiceBalance: invoice.invoiceBalance,
+        outgoingBalance: invoice.outgoingBalance,
+        entries: invoice.entries,
+      });
+
+      // Set headers for PDF download
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const monthName = monthNames[invoice.month - 1];
+      const filename = `invoice-${monthName}-${invoice.year}.pdf`;
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Length", pdfBuffer.length);
+      
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      res.status(500).json({ message: "Failed to generate PDF" });
     }
   });
 }

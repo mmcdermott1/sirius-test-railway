@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2, Eye } from "lucide-react";
+import { FileText, Loader2, Eye, Download } from "lucide-react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -155,14 +155,29 @@ function EAInvoicesContent() {
                     {invoice.entryCount}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedInvoice({ month: invoice.month, year: invoice.year })}
-                      data-testid={`button-view-${invoice.year}-${invoice.month}`}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedInvoice({ month: invoice.month, year: invoice.year })}
+                        data-testid={`button-view-${invoice.year}-${invoice.month}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                        data-testid={`button-download-${invoice.year}-${invoice.month}`}
+                      >
+                        <a 
+                          href={`/api/ledger/ea/${id}/invoices/${invoice.month}/${invoice.year}/pdf`}
+                          download
+                        >
+                          <Download className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
