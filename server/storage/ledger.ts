@@ -702,9 +702,9 @@ function createLedgerInvoiceStorage(): LedgerInvoiceStorage {
 
       // Convert to summaries
       const summaries: InvoiceSummary[] = [];
-      for (const bucket of invoiceMap.values()) {
+      for (const bucket of Array.from(invoiceMap.values())) {
         const invoiceBalanceCents = bucket.entries.reduce(
-          (sum, e) => sum + toCents(e.amount),
+          (sum: bigint, e: SimpleLedgerEntry) => sum + toCents(e.amount),
           BigInt(0)
         );
         const outgoingBalanceCents = bucket.incomingBalanceCents + invoiceBalanceCents;

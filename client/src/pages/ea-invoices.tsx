@@ -10,6 +10,9 @@ interface InvoiceSummary {
   year: number;
   totalAmount: string;
   entryCount: number;
+  incomingBalance: string;
+  invoiceBalance: string;
+  outgoingBalance: string;
 }
 
 const MONTH_NAMES = [
@@ -80,9 +83,9 @@ function EAInvoicesContent() {
             <TableHeader>
               <TableRow>
                 <TableHead>Period</TableHead>
-                <TableHead>Month</TableHead>
-                <TableHead>Year</TableHead>
-                <TableHead className="text-right">Total Amount</TableHead>
+                <TableHead className="text-right">Incoming Balance</TableHead>
+                <TableHead className="text-right">Invoice Balance</TableHead>
+                <TableHead className="text-right">Outgoing Balance</TableHead>
                 <TableHead className="text-right">Entries</TableHead>
               </TableRow>
             </TableHeader>
@@ -95,17 +98,23 @@ function EAInvoicesContent() {
                   <TableCell data-testid={`cell-period-${invoice.year}-${invoice.month}`}>
                     {MONTH_NAMES[invoice.month - 1]} {invoice.year}
                   </TableCell>
-                  <TableCell data-testid={`cell-month-${invoice.year}-${invoice.month}`}>
-                    {MONTH_NAMES[invoice.month - 1]}
-                  </TableCell>
-                  <TableCell data-testid={`cell-year-${invoice.year}-${invoice.month}`}>
-                    {invoice.year}
+                  <TableCell 
+                    className={`text-right ${parseFloat(invoice.incomingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+                    data-testid={`cell-incoming-${invoice.year}-${invoice.month}`}
+                  >
+                    {formatAmount(invoice.incomingBalance)}
                   </TableCell>
                   <TableCell 
-                    className={`text-right ${parseFloat(invoice.totalAmount) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
-                    data-testid={`cell-amount-${invoice.year}-${invoice.month}`}
+                    className={`text-right ${parseFloat(invoice.invoiceBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+                    data-testid={`cell-invoice-${invoice.year}-${invoice.month}`}
                   >
-                    {formatAmount(invoice.totalAmount)}
+                    {formatAmount(invoice.invoiceBalance)}
+                  </TableCell>
+                  <TableCell 
+                    className={`text-right ${parseFloat(invoice.outgoingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+                    data-testid={`cell-outgoing-${invoice.year}-${invoice.month}`}
+                  >
+                    {formatAmount(invoice.outgoingBalance)}
                   </TableCell>
                   <TableCell 
                     className="text-right"
