@@ -33,6 +33,10 @@ interface LedgerTransactionsViewProps {
   queryKey: string[];
   title: string;
   csvFilename: string;
+  showEntityType?: boolean;
+  showEntityName?: boolean;
+  showEaAccount?: boolean;
+  showEaLink?: boolean;
 }
 
 // Helper function to generate reference link based on type and ID
@@ -53,7 +57,15 @@ function getReferenceLink(referenceType: string | null, referenceId: string | nu
   }
 }
 
-export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerTransactionsViewProps) {
+export function LedgerTransactionsView({ 
+  queryKey, 
+  title, 
+  csvFilename,
+  showEntityType = true,
+  showEntityName = true,
+  showEaAccount = true,
+  showEaLink = true,
+}: LedgerTransactionsViewProps) {
   const { toast } = useToast();
   
   // Filter state
@@ -73,6 +85,12 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
   const { data: transactions, isLoading } = useQuery<LedgerEntryWithDetails[]>({
     queryKey,
   });
+
+  // Calculate total columns for colSpan
+  const totalColumns = 6 + // Base columns: Date, Amount, Description, Reference Type, Reference, Links
+    (showEntityType ? 1 : 0) +
+    (showEntityName ? 1 : 0) +
+    (showEaAccount ? 1 : 0);
 
   // Filter and sort transactions
   const filteredAndSortedTransactions = useMemo(() => {
@@ -454,18 +472,20 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                     <ArrowUpDown size={16} className="ml-2" />
                   </Button>
                 </TableHead>
-                <TableHead>Entity Type</TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleSort("entityName")}
-                    data-testid="button-sort-entity-name"
-                  >
-                    Entity Name
-                    <ArrowUpDown size={16} className="ml-2" />
-                  </Button>
-                </TableHead>
+                {showEntityType && <TableHead>Entity Type</TableHead>}
+                {showEntityName && (
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSort("entityName")}
+                      data-testid="button-sort-entity-name"
+                    >
+                      Entity Name
+                      <ArrowUpDown size={16} className="ml-2" />
+                    </Button>
+                  </TableHead>
+                )}
                 <TableHead>
                   <Button
                     variant="ghost"
@@ -479,20 +499,20 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                 </TableHead>
                 <TableHead>Reference Type</TableHead>
                 <TableHead>Reference</TableHead>
-                <TableHead>EA Account</TableHead>
+                {showEaAccount && <TableHead>EA Account</TableHead>}
                 <TableHead>Links</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={totalColumns} className="text-center py-8 text-muted-foreground">
                     Loading transactions...
                   </TableCell>
                 </TableRow>
               ) : filteredAndSortedTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={totalColumns} className="text-center py-8 text-muted-foreground">
                     {hasActiveFilters ? "No transactions match your filters" : "No transactions found"}
                   </TableCell>
                 </TableRow>
@@ -508,12 +528,16 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                     >
                       {formatAmount(transaction.amount)}
                     </TableCell>
-                    <TableCell data-testid={`cell-entity-type-${transaction.id}`}>
-                      {transaction.entityType}
-                    </TableCell>
-                    <TableCell data-testid={`cell-entity-name-${transaction.id}`}>
-                      {transaction.entityName || "—"}
-                    </TableCell>
+                    {showEntityType && (
+                      <TableCell data-testid={`cell-entity-type-${transaction.id}`}>
+                        {transaction.entityType}
+                      </TableCell>
+                    )}
+                    {showEntityName && (
+                      <TableCell data-testid={`cell-entity-name-${transaction.id}`}>
+                        {transaction.entityName || "—"}
+                      </TableCell>
+                    )}
                     <TableCell data-testid={`cell-description-${transaction.id}`}>
                       {transaction.description || "—"}
                     </TableCell>
@@ -523,9 +547,11 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                     <TableCell data-testid={`cell-reference-${transaction.id}`}>
                       {transaction.referenceName || "—"}
                     </TableCell>
-                    <TableCell data-testid={`cell-ea-account-${transaction.id}`}>
-                      {transaction.eaAccountName || "—"}
-                    </TableCell>
+                    {showEaAccount && (
+                      <TableCell data-testid={`cell-ea-account-${transaction.id}`}>
+                        {transaction.eaAccountName || "—"}
+                      </TableCell>
+                    )}
                     <TableCell data-testid={`cell-links-${transaction.id}`}>
                       <div className="flex gap-2 items-center">
                         {(() => {
@@ -544,17 +570,19 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                             </Link>
                           ) : null;
                         })()}
-                        <Link href={`/ea/${transaction.eaId}`}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2"
-                            title="View EA record"
-                            data-testid={`button-link-ea-${transaction.id}`}
-                          >
-                            Acct
-                          </Button>
-                        </Link>
+                        {showEaLink && (
+                          <Link href={`/ea/${transaction.eaId}`}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2"
+                              title="View EA record"
+                              data-testid={`button-link-ea-${transaction.id}`}
+                            >
+                              Acct
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

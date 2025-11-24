@@ -10,6 +10,10 @@ function EATransactionsContent() {
       queryKey={[`/api/ledger/ea/${id}/transactions`]}
       title="Transactions"
       csvFilename="ea-transactions"
+      showEntityType={false}
+      showEntityName={false}
+      showEaAccount={false}
+      showEaLink={false}
     />
   );
 }
