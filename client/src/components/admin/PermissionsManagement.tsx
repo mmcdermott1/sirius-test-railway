@@ -132,11 +132,21 @@ export default function PermissionsManagement() {
   };
 
   const getAvailablePermissions = (): Permission[] => {
+    console.log('getAvailablePermissions called', {
+      selectedRoleId,
+      totalPermissions: permissions.length,
+      permissions,
+      rolePermissions,
+    });
+    
     if (!selectedRoleId) {
       return permissions;
     }
     const rolePermissionKeys = getPermissionsForRole(selectedRoleId);
-    return permissions.filter(p => !rolePermissionKeys.includes(p.key));
+    console.log('Role permission keys for role', selectedRoleId, ':', rolePermissionKeys);
+    const available = permissions.filter(p => !rolePermissionKeys.includes(p.key));
+    console.log('Available permissions after filter:', available);
+    return available;
   };
 
   if (permissionsLoading || rolesLoading || assignmentsLoading) {
@@ -193,11 +203,17 @@ export default function PermissionsManagement() {
                   <SelectValue placeholder={selectedRoleId ? "Choose a permission..." : "Select a role first..."} />
                 </SelectTrigger>
                 <SelectContent>
-                  {getAvailablePermissions().map((permission: Permission) => (
-                    <SelectItem key={permission.key} value={permission.key}>
-                      {permission.key} - {permission.description}
-                    </SelectItem>
-                  ))}
+                  {getAvailablePermissions().length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      {selectedRoleId ? "All permissions are already assigned to this role" : "Select a role first"}
+                    </div>
+                  ) : (
+                    getAvailablePermissions().map((permission: Permission) => (
+                      <SelectItem key={permission.key} value={permission.key}>
+                        {permission.key} - {permission.description}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
