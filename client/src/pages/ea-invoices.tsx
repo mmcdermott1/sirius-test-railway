@@ -20,7 +20,7 @@ interface InvoiceSummary {
 interface LedgerEntryWithDetails {
   id: string;
   amount: string;
-  date: string;
+  date: string | null;
   description: string | null;
   eaId: string;
   referenceType: string | null;
@@ -183,7 +183,7 @@ interface InvoiceDetailsModalProps {
 }
 
 function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
-  const { data: invoiceDetails, isLoading } = useQuery<InvoiceDetails>({
+  const { data: invoiceDetails, isLoading, error } = useQuery<InvoiceDetails>({
     queryKey: [`/api/ledger/ea/${eaId}/invoices/${month}/${year}`],
     enabled: !!eaId && !!month && !!year,
   });
@@ -192,6 +192,16 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">Failed to load invoice details</p>
+        <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
       </div>
     );
   }
@@ -224,7 +234,10 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${parseFloat(invoiceDetails.incomingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+            <div 
+              className={`text-2xl font-bold ${parseFloat(invoiceDetails.incomingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+              data-testid={`balance-incoming-${year}-${month}`}
+            >
               {formatAmount(invoiceDetails.incomingBalance)}
             </div>
           </CardContent>
@@ -237,7 +250,10 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${parseFloat(invoiceDetails.invoiceBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+            <div 
+              className={`text-2xl font-bold ${parseFloat(invoiceDetails.invoiceBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+              data-testid={`balance-invoice-${year}-${month}`}
+            >
               {formatAmount(invoiceDetails.invoiceBalance)}
             </div>
           </CardContent>
@@ -250,7 +266,10 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${parseFloat(invoiceDetails.outgoingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+            <div 
+              className={`text-2xl font-bold ${parseFloat(invoiceDetails.outgoingBalance) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+              data-testid={`balance-outgoing-${year}-${month}`}
+            >
               {formatAmount(invoiceDetails.outgoingBalance)}
             </div>
           </CardContent>
@@ -265,36 +284,68 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Entity Type</TableHead>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Reference</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoiceDetails.entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>
-                      {entry.date ? new Date(entry.date).toLocaleDateString() : 'No date'}
-                    </TableCell>
-                    <TableCell className={`text-right ${parseFloat(entry.amount) < 0 ? "text-red-600 dark:text-red-400" : ""}`}>
-                      {formatAmount(entry.amount)}
-                    </TableCell>
-                    <TableCell>{entry.description || '-'}</TableCell>
-                    <TableCell className="capitalize">{entry.entityType}</TableCell>
-                    <TableCell>{entry.entityName || '-'}</TableCell>
-                    <TableCell>{entry.referenceName || '-'}</TableCell>
+          {invoiceDetails.entries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <FileText className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground" data-testid="text-no-entries">
+                No ledger entries found for this invoice
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Entity Type</TableHead>
+                    <TableHead>Entity</TableHead>
+                    <TableHead>Reference</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {invoiceDetails.entries.map((entry) => {
+                    const formattedDate = entry.date 
+                      ? (() => {
+                          try {
+                            return new Date(entry.date).toLocaleDateString();
+                          } catch {
+                            return 'Invalid date';
+                          }
+                        })()
+                      : 'No date';
+                    
+                    return (
+                      <TableRow key={entry.id} data-testid={`entry-row-${entry.id}`}>
+                        <TableCell data-testid={`entry-date-${entry.id}`}>
+                          {formattedDate}
+                        </TableCell>
+                        <TableCell 
+                          className={`text-right ${parseFloat(entry.amount) < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+                          data-testid={`entry-amount-${entry.id}`}
+                        >
+                          {formatAmount(entry.amount)}
+                        </TableCell>
+                        <TableCell data-testid={`entry-description-${entry.id}`}>
+                          {entry.description || '-'}
+                        </TableCell>
+                        <TableCell className="capitalize" data-testid={`entry-entity-type-${entry.id}`}>
+                          {entry.entityType}
+                        </TableCell>
+                        <TableCell data-testid={`entry-entity-name-${entry.id}`}>
+                          {entry.entityName || '-'}
+                        </TableCell>
+                        <TableCell data-testid={`entry-reference-${entry.id}`}>
+                          {entry.referenceName || '-'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </>
