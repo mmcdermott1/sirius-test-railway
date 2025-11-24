@@ -228,6 +228,8 @@ export function registerLedgerEaRoutes(app: Express) {
         invoiceBalance: invoice.invoiceBalance,
         outgoingBalance: invoice.outgoingBalance,
         entries: invoice.entries,
+        invoiceHeader: invoice.invoiceHeader,
+        invoiceFooter: invoice.invoiceFooter,
       });
 
       // Set headers for PDF download

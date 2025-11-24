@@ -93,6 +93,8 @@ export interface InvoiceSummary {
 
 export interface InvoiceDetails extends InvoiceSummary {
   entries: LedgerEntryWithDetails[];
+  invoiceHeader?: string | null;
+  invoiceFooter?: string | null;
 }
 
 export interface LedgerInvoiceStorage {
@@ -730,6 +732,18 @@ function createLedgerInvoiceStorage(): LedgerInvoiceStorage {
     },
 
     async getDetails(eaId: string, month: number, year: number): Promise<InvoiceDetails | undefined> {
+      // Get EA to fetch accountId
+      const ea = await db.select().from(ledgerEa).where(eq(ledgerEa.id, eaId)).limit(1);
+      if (ea.length === 0) {
+        return undefined;
+      }
+
+      // Get account to fetch invoice header/footer
+      const account = await db.select().from(ledgerAccounts).where(eq(ledgerAccounts.id, ea[0].accountId)).limit(1);
+      const accountData = (account.length > 0 && account[0]?.data) 
+        ? account[0].data as { invoiceHeader?: string; invoiceFooter?: string } 
+        : null;
+
       // Get all ledger entries for this EA (need all for running balance)
       const simpleEntries = await db.select({
         id: ledger.id,
@@ -775,7 +789,9 @@ function createLedgerInvoiceStorage(): LedgerInvoiceStorage {
         incomingBalance: fromCents(bucket.incomingBalanceCents),
         invoiceBalance: fromCents(invoiceBalanceCents),
         outgoingBalance: fromCents(outgoingBalanceCents),
-        entries: monthEntries
+        entries: monthEntries,
+        invoiceHeader: accountData?.invoiceHeader ?? null,
+        invoiceFooter: accountData?.invoiceFooter ?? null,
       };
     }
   };

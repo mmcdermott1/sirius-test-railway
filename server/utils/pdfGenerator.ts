@@ -42,6 +42,8 @@ interface InvoiceData {
   invoiceBalance: string;
   outgoingBalance: string;
   entries: InvoiceEntry[];
+  invoiceHeader?: string | null;
+  invoiceFooter?: string | null;
 }
 
 const MONTH_NAMES = [
@@ -97,118 +99,140 @@ export function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buffer> {
         ]),
       ];
 
+      const content: any[] = [
+        // Header
+        {
+          text: "INVOICE",
+          style: "header",
+          alignment: "center",
+        },
+        {
+          text: `${monthName} ${invoiceData.year}`,
+          style: "subheader",
+          alignment: "center",
+          margin: [0, 0, 0, 20],
+        },
+      ];
+
+      // Add invoice header if present
+      if (invoiceData.invoiceHeader) {
+        content.push({
+          text: invoiceData.invoiceHeader,
+          style: "invoiceHeaderText",
+          margin: [0, 0, 0, 20],
+        });
+      }
+
+      content.push(
+        // EA and Account info
+        {
+          columns: [
+            {
+              width: "*",
+              stack: [
+                { text: "Entity-Account:", style: "label" },
+                { text: invoiceData.eaName, style: "value" },
+              ],
+            },
+            {
+              width: "*",
+              stack: [
+                { text: "Account:", style: "label" },
+                { text: invoiceData.accountName, style: "value" },
+              ],
+            },
+          ],
+          margin: [0, 0, 0, 20],
+        },
+
+        // Balance Summary
+        {
+          text: "Balance Summary",
+          style: "sectionHeader",
+          margin: [0, 0, 0, 10],
+        },
+        {
+          columns: [
+            {
+              width: "*",
+              stack: [
+                { text: "Incoming Balance", style: "label" },
+                {
+                  text: formatAmount(invoiceData.incomingBalance),
+                  style: parseFloat(invoiceData.incomingBalance) < 0 ? "negativeAmount" : "value",
+                  bold: true,
+                },
+              ],
+            },
+            {
+              width: "*",
+              stack: [
+                { text: "Invoice Balance", style: "label" },
+                {
+                  text: formatAmount(invoiceData.invoiceBalance),
+                  style: parseFloat(invoiceData.invoiceBalance) < 0 ? "negativeAmount" : "value",
+                  bold: true,
+                },
+              ],
+            },
+            {
+              width: "*",
+              stack: [
+                { text: "Outgoing Balance", style: "label" },
+                {
+                  text: formatAmount(invoiceData.outgoingBalance),
+                  style: parseFloat(invoiceData.outgoingBalance) < 0 ? "negativeAmount" : "value",
+                  bold: true,
+                },
+              ],
+            },
+          ],
+          margin: [0, 0, 0, 20],
+        },
+
+        // Ledger Entries Table
+        {
+          text: "Ledger Entries",
+          style: "sectionHeader",
+          margin: [0, 0, 0, 10],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: ["auto", "auto", "*", "auto", "auto", "auto"],
+            body: tableBody,
+          },
+          layout: {
+            fillColor: (rowIndex: number) => {
+              return rowIndex === 0 ? "#f3f4f6" : null;
+            },
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+            hLineColor: () => "#e5e7eb",
+            vLineColor: () => "#e5e7eb",
+          },
+        },
+
+        // Footer with entry count
+        {
+          text: `Total Entries: ${invoiceData.entries.length}`,
+          style: "footer",
+          margin: [0, 20, 0, 0],
+          alignment: "right",
+        }
+      );
+
+      // Add invoice footer if present
+      if (invoiceData.invoiceFooter) {
+        content.push({
+          text: invoiceData.invoiceFooter,
+          style: "invoiceFooterText",
+          margin: [0, 20, 0, 0],
+        });
+      }
+
       const docDefinition: TDocumentDefinitions = {
-        content: [
-          // Header
-          {
-            text: "INVOICE",
-            style: "header",
-            alignment: "center",
-          },
-          {
-            text: `${monthName} ${invoiceData.year}`,
-            style: "subheader",
-            alignment: "center",
-            margin: [0, 0, 0, 20],
-          },
-          
-          // EA and Account info
-          {
-            columns: [
-              {
-                width: "*",
-                stack: [
-                  { text: "Entity-Account:", style: "label" },
-                  { text: invoiceData.eaName, style: "value" },
-                ],
-              },
-              {
-                width: "*",
-                stack: [
-                  { text: "Account:", style: "label" },
-                  { text: invoiceData.accountName, style: "value" },
-                ],
-              },
-            ],
-            margin: [0, 0, 0, 20],
-          },
-
-          // Balance Summary
-          {
-            text: "Balance Summary",
-            style: "sectionHeader",
-            margin: [0, 0, 0, 10],
-          },
-          {
-            columns: [
-              {
-                width: "*",
-                stack: [
-                  { text: "Incoming Balance", style: "label" },
-                  {
-                    text: formatAmount(invoiceData.incomingBalance),
-                    style: parseFloat(invoiceData.incomingBalance) < 0 ? "negativeAmount" : "value",
-                    bold: true,
-                  },
-                ],
-              },
-              {
-                width: "*",
-                stack: [
-                  { text: "Invoice Balance", style: "label" },
-                  {
-                    text: formatAmount(invoiceData.invoiceBalance),
-                    style: parseFloat(invoiceData.invoiceBalance) < 0 ? "negativeAmount" : "value",
-                    bold: true,
-                  },
-                ],
-              },
-              {
-                width: "*",
-                stack: [
-                  { text: "Outgoing Balance", style: "label" },
-                  {
-                    text: formatAmount(invoiceData.outgoingBalance),
-                    style: parseFloat(invoiceData.outgoingBalance) < 0 ? "negativeAmount" : "value",
-                    bold: true,
-                  },
-                ],
-              },
-            ],
-            margin: [0, 0, 0, 20],
-          },
-
-          // Ledger Entries Table
-          {
-            text: "Ledger Entries",
-            style: "sectionHeader",
-            margin: [0, 0, 0, 10],
-          },
-          {
-            table: {
-              headerRows: 1,
-              widths: ["auto", "auto", "*", "auto", "auto", "auto"],
-              body: tableBody,
-            },
-            layout: {
-              fillColor: (rowIndex: number) => {
-                return rowIndex === 0 ? "#f3f4f6" : null;
-              },
-              hLineWidth: () => 0.5,
-              vLineWidth: () => 0.5,
-              hLineColor: () => "#e5e7eb",
-              vLineColor: () => "#e5e7eb",
-            },
-          },
-
-          // Footer with entry count
-          {
-            text: `Total Entries: ${invoiceData.entries.length}`,
-            style: "footer",
-            margin: [0, 20, 0, 0],
-            alignment: "right",
-          },
-        ],
+        content,
         styles: {
           header: {
             fontSize: 24,
@@ -246,6 +270,16 @@ export function generateInvoicePdf(invoiceData: InvoiceData): Promise<Buffer> {
             fontSize: 10,
             color: "#6b7280",
             italics: true,
+          },
+          invoiceHeaderText: {
+            fontSize: 10,
+            color: "#374151",
+            alignment: "left",
+          },
+          invoiceFooterText: {
+            fontSize: 10,
+            color: "#374151",
+            alignment: "left",
           },
         },
         defaultStyle: {

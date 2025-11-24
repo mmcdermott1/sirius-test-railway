@@ -14,7 +14,7 @@ interface LedgerEntryWithDetails {
   id: string;
   amount: string;
   date: string;
-  description: string | null;
+  memo: string | null;
   eaId: string;
   referenceType: string | null;
   referenceId: string | null;
@@ -26,7 +26,7 @@ interface LedgerEntryWithDetails {
   eaAccountName: string | null;
 }
 
-type SortField = "amount" | "date" | "entityName" | "description";
+type SortField = "amount" | "date" | "entityName" | "memo";
 type SortDirection = "asc" | "desc";
 
 interface LedgerTransactionsViewProps {
@@ -87,7 +87,7 @@ export function LedgerTransactionsView({
   });
 
   // Calculate total columns for colSpan
-  const totalColumns = 6 + // Base columns: Date, Amount, Description, Reference Type, Reference, Links
+  const totalColumns = 6 + // Base columns: Date, Amount, Memo, Reference Type, Reference, Links
     (showEntityType ? 1 : 0) +
     (showEntityName ? 1 : 0) +
     (showEaAccount ? 1 : 0);
@@ -111,7 +111,7 @@ export function LedgerTransactionsView({
 
     if (filterDescription) {
       result = result.filter(t => {
-        return t.description?.toLowerCase().includes(filterDescription.toLowerCase());
+        return t.memo?.toLowerCase().includes(filterDescription.toLowerCase());
       });
     }
 
@@ -149,9 +149,9 @@ export function LedgerTransactionsView({
       } else if (sortField === "entityName") {
         aValue = a.entityName || "";
         bValue = b.entityName || "";
-      } else if (sortField === "description") {
-        aValue = a.description || "";
-        bValue = b.description || "";
+      } else if (sortField === "memo") {
+        aValue = a.memo || "";
+        bValue = b.memo || "";
       } else if (sortField === "date") {
         aValue = a.date ? new Date(a.date).getTime() : null;
         bValue = b.date ? new Date(b.date).getTime() : null;
@@ -159,7 +159,7 @@ export function LedgerTransactionsView({
         return 0;
       }
 
-      // Handle string sorting (entity name, description)
+      // Handle string sorting (entity name, memo)
       if (typeof aValue === "string" && typeof bValue === "string") {
         return sortDirection === "asc" 
           ? aValue.localeCompare(bValue) 
@@ -232,7 +232,7 @@ export function LedgerTransactionsView({
       Amount: parseFloat(transaction.amount).toFixed(2),
       "Entity Type": transaction.entityType,
       "Entity Name": transaction.entityName || "",
-      Description: transaction.description || "",
+      Memo: transaction.memo || "",
       "Reference Type": transaction.referenceType || "",
       "Reference": transaction.referenceName || "",
       "EA Account": transaction.eaAccountName || "",
@@ -246,7 +246,7 @@ export function LedgerTransactionsView({
         "Amount",
         "Entity Type",
         "Entity Name",
-        "Description",
+        "Memo",
         "Reference Type",
         "Reference",
         "EA Account",
@@ -382,14 +382,14 @@ export function LedgerTransactionsView({
                 />
               </div>
 
-              {/* Description Filter */}
+              {/* Memo Filter */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">Memo</label>
                 <Input
-                  placeholder="Search description..."
+                  placeholder="Search memo..."
                   value={filterDescription}
                   onChange={(e) => setFilterDescription(e.target.value)}
-                  data-testid="input-filter-description"
+                  data-testid="input-filter-memo"
                 />
               </div>
 
@@ -490,10 +490,10 @@ export function LedgerTransactionsView({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleSort("description")}
-                    data-testid="button-sort-description"
+                    onClick={() => handleSort("memo")}
+                    data-testid="button-sort-memo"
                   >
-                    Description
+                    Memo
                     <ArrowUpDown size={16} className="ml-2" />
                   </Button>
                 </TableHead>
@@ -538,8 +538,8 @@ export function LedgerTransactionsView({
                         {transaction.entityName || "—"}
                       </TableCell>
                     )}
-                    <TableCell data-testid={`cell-description-${transaction.id}`}>
-                      {transaction.description || "—"}
+                    <TableCell data-testid={`cell-memo-${transaction.id}`}>
+                      {transaction.memo || "—"}
                     </TableCell>
                     <TableCell data-testid={`cell-reference-type-${transaction.id}`}>
                       {transaction.referenceType || "—"}

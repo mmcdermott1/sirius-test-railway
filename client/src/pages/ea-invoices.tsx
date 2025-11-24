@@ -22,7 +22,7 @@ interface LedgerEntryWithDetails {
   id: string;
   amount: string;
   date: string | null;
-  description: string | null;
+  memo: string | null;
   eaId: string;
   referenceType: string | null;
   referenceId: string | null;
@@ -43,6 +43,8 @@ interface InvoiceDetails {
   invoiceBalance: string;
   outgoingBalance: string;
   entries: LedgerEntryWithDetails[];
+  invoiceHeader?: string | null;
+  invoiceFooter?: string | null;
 }
 
 const MONTH_NAMES = [
@@ -251,6 +253,19 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
         </DialogDescription>
       </DialogHeader>
 
+      {invoiceDetails.invoiceHeader && (
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Invoice Header</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm" data-testid="invoice-header">
+              {invoiceDetails.invoiceHeader}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-3">
@@ -323,7 +338,7 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead>Memo</TableHead>
                     <TableHead>Entity Type</TableHead>
                     <TableHead>Entity</TableHead>
                     <TableHead>Reference</TableHead>
@@ -352,8 +367,8 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
                         >
                           {formatAmount(entry.amount)}
                         </TableCell>
-                        <TableCell data-testid={`entry-description-${entry.id}`}>
-                          {entry.description || '-'}
+                        <TableCell data-testid={`entry-memo-${entry.id}`}>
+                          {entry.memo || '-'}
                         </TableCell>
                         <TableCell className="capitalize" data-testid={`entry-entity-type-${entry.id}`}>
                           {entry.entityType}
@@ -373,6 +388,19 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
           )}
         </CardContent>
       </Card>
+
+      {invoiceDetails.invoiceFooter && (
+        <Card className="mt-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Invoice Footer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm" data-testid="invoice-footer">
+              {invoiceDetails.invoiceFooter}
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }
