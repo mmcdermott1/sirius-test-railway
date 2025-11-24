@@ -5,11 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
-  throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
-}
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 
 interface PaymentMethodFormProps {
   onSuccess: (paymentMethodId: string) => void;
@@ -101,6 +98,21 @@ export default function PaymentMethodCollector({
   onSuccess, 
   onCancel
 }: PaymentMethodCollectorProps) {
+  if (!stripePromise) {
+    return (
+      <div className="p-4 border border-yellow-200 bg-yellow-50 rounded">
+        <p className="text-sm text-yellow-800">
+          Stripe payment processing is not configured. Please contact your administrator to set up payment processing.
+        </p>
+        <div className="flex justify-end mt-4">
+          <Button variant="outline" onClick={onCancel}>
+            Close
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const options: StripeElementsOptions = {
     clientSecret,
     appearance: {
