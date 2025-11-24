@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,27 +12,13 @@ export default function ComponentsConfigPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const allComponents = getAllComponents();
+  const allComponents = useMemo(() => getAllComponents(), []);
 
-  const { data: componentConfigs = [], isLoading } = useQuery<ComponentConfig[]>({
+  const { data: componentConfigs = [], isLoading, isFetching } = useQuery<ComponentConfig[]>({
     queryKey: ["/api/components/config"],
   });
 
   const [localStates, setLocalStates] = useState<Record<string, boolean>>({});
-  const isInitialized = useRef(false);
-
-  useEffect(() => {
-    // Initialize local states from configs or defaults only once
-    if (!isInitialized.current && componentConfigs.length > 0) {
-      const states: Record<string, boolean> = {};
-      allComponents.forEach((component: ComponentDefinition) => {
-        const config = componentConfigs.find(c => c.componentId === component.id);
-        states[component.id] = config ? config.enabled : component.enabledByDefault;
-      });
-      setLocalStates(states);
-      isInitialized.current = true;
-    }
-  }, [componentConfigs, allComponents]);
 
   const updateComponentMutation = useMutation({
     mutationFn: async ({ componentId, enabled }: { componentId: string; enabled: boolean }) => {
@@ -58,6 +44,20 @@ export default function ComponentsConfigPage() {
       }));
     },
   });
+
+  useEffect(() => {
+    // Sync local states with server configs only when:
+    // 1. No mutation is pending (to preserve optimistic updates)
+    // 2. No query is fetching (to avoid using stale data)
+    if (!updateComponentMutation.isPending && !isFetching) {
+      const states: Record<string, boolean> = {};
+      allComponents.forEach((component: ComponentDefinition) => {
+        const config = componentConfigs.find(c => c.componentId === component.id);
+        states[component.id] = config ? config.enabled : component.enabledByDefault;
+      });
+      setLocalStates(states);
+    }
+  }, [componentConfigs, allComponents, updateComponentMutation.isPending, isFetching]);
 
   const handleToggle = (componentId: string, enabled: boolean) => {
     // Optimistic update
