@@ -5,7 +5,7 @@ import { ChevronRight, FileText } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
 interface EALayoutProps {
-  activeTab: "view" | "invoices" | "payments";
+  activeTab: "view" | "invoices" | "payments" | "transactions";
   children: ReactNode;
 }
 
@@ -130,6 +130,17 @@ export function EALayout({ activeTab, children }: EALayoutProps) {
             data-testid="tab-payments"
           >
             Payments
+          </Link>
+          <Link
+            href={`/ea/${id}/transactions`}
+            className={`pb-3 border-b-2 transition-colors ${
+              activeTab === "transactions"
+                ? "border-primary text-primary font-medium"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-transactions"
+          >
+            Transactions
           </Link>
         </nav>
       </div>
