@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { Download, ArrowUpDown, Filter, X, ExternalLink } from "lucide-react";
+import { Download, ArrowUpDown, Filter, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { stringify } from "csv-stringify/browser/esm/sync";
@@ -535,11 +535,11 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0"
+                                className="h-8 px-2"
                                 title={`View ${transaction.referenceType || 'reference'}`}
                                 data-testid={`button-link-reference-${transaction.id}`}
                               >
-                                <ExternalLink className="h-4 w-4" />
+                                Ref
                               </Button>
                             </Link>
                           ) : null;
@@ -548,11 +548,11 @@ export function LedgerTransactionsView({ queryKey, title, csvFilename }: LedgerT
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0"
+                            className="h-8 px-2"
                             title="View EA record"
                             data-testid={`button-link-ea-${transaction.id}`}
                           >
-                            <ExternalLink className="h-4 w-4" />
+                            Acct
                           </Button>
                         </Link>
                       </div>
