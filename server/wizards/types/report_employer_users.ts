@@ -12,12 +12,6 @@ export class ReportEmployerUsers extends WizardReport {
   getColumns(): ReportColumn[] {
     return [
       {
-        id: 'viewLink',
-        header: 'View',
-        type: 'string',
-        width: 80
-      },
-      {
         id: 'employerName',
         header: 'Employer',
         type: 'string',
@@ -52,6 +46,12 @@ export class ReportEmployerUsers extends WizardReport {
         header: 'Last Login',
         type: 'date',
         width: 180
+      },
+      {
+        id: 'viewLink',
+        header: 'View',
+        type: 'string',
+        width: 80
       }
     ];
   }
