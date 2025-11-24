@@ -254,16 +254,11 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
       </DialogHeader>
 
       {invoiceDetails.invoiceHeader && (
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Invoice Header</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm" data-testid="invoice-header">
-              {invoiceDetails.invoiceHeader}
-            </p>
-          </CardContent>
-        </Card>
+        <div 
+          className="mb-4" 
+          data-testid="invoice-header"
+          dangerouslySetInnerHTML={{ __html: invoiceDetails.invoiceHeader }}
+        />
       )}
 
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -390,16 +385,11 @@ function InvoiceDetailsModal({ eaId, month, year }: InvoiceDetailsModalProps) {
       </Card>
 
       {invoiceDetails.invoiceFooter && (
-        <Card className="mt-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Invoice Footer</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm" data-testid="invoice-footer">
-              {invoiceDetails.invoiceFooter}
-            </p>
-          </CardContent>
-        </Card>
+        <div 
+          className="mt-4" 
+          data-testid="invoice-footer"
+          dangerouslySetInnerHTML={{ __html: invoiceDetails.invoiceFooter }}
+        />
       )}
     </>
   );
