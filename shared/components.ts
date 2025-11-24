@@ -42,6 +42,13 @@ export const componentRegistry: ComponentDefinition[] = [
     category: "site-specific"
   },
   {
+    id: "sitespecific.gbhet.legal",
+    name: "GBHET Legal Benefit",
+    description: "Custom legal benefit functionality for GBHET",
+    enabledByDefault: false,
+    category: "sitespecific.gbhet"
+  },
+  {
     id: "sitespecific.btu",
     name: "BTU Customization",
     description: "Custom functionality for BTU",
