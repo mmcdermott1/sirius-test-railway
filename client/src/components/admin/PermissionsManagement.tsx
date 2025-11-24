@@ -13,7 +13,7 @@ import { useState } from 'react';
 interface Permission {
   key: string;
   description: string;
-  category: string;
+  module?: string;
 }
 
 interface Role {
