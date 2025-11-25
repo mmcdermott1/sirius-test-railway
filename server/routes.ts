@@ -307,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/workers/with-details - Get all workers with contact and phone data (optimized for list view)
   app.get("/api/workers/with-details", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
-      // Optimized query that joins workers, contacts, and phone numbers in a single query
+      // Optimized query that joins workers, contacts, phone numbers, and addresses in a single query
       const result = await db.execute(sql`
         SELECT 
           w.id,
@@ -322,7 +322,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           c.given,
           c.family,
           p.phone_number,
-          p.is_primary
+          p.is_primary,
+          a.id as address_id,
+          a.friendly_name as address_friendly_name,
+          a.street as address_street,
+          a.city as address_city,
+          a.state as address_state,
+          a.postal_code as address_postal_code,
+          a.country as address_country,
+          a.is_primary as address_is_primary
         FROM workers w
         INNER JOIN contacts c ON w.contact_id = c.id
         LEFT JOIN LATERAL (
@@ -332,6 +340,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ORDER BY is_primary DESC NULLS LAST, created_at ASC
           LIMIT 1
         ) p ON true
+        LEFT JOIN LATERAL (
+          SELECT id, friendly_name, street, city, state, postal_code, country, is_primary
+          FROM postal_addresses
+          WHERE contact_id = c.id AND is_active = true
+          ORDER BY is_primary DESC NULLS LAST, created_at ASC
+          LIMIT 1
+        ) a ON true
         ORDER BY c.family, c.given
       `);
       

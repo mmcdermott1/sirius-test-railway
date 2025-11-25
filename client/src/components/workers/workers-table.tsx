@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { ArrowUpDown, User, Eye, Search, Home, Building2 } from "lucide-react";
+import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Worker, Contact, PhoneNumber, Employer } from "@shared/schema";
+import { Worker, Contact, PhoneNumber, Employer, PostalAddress } from "@shared/schema";
 import { formatSSN } from "@shared/schema";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 interface WorkersTableProps {
   workers: Worker[];
@@ -28,6 +33,7 @@ interface WorkerWithContact extends Worker {
   email?: string;
   phoneNumber?: string;
   employers?: EmployerInfo[];
+  address?: PostalAddress | null;
 }
 
 interface EmployerInfo {
@@ -69,7 +75,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   // Create map for worker employers
   const employerMap = new Map(workerEmployers.map(we => [we.workerId, we.employers]));
 
-  // Add employer information to workers (contact and phone data already included in workers from optimized endpoint)
+  // Add employer information to workers (contact, phone, and address data already included in workers from optimized endpoint)
   const workersWithNames: WorkerWithContact[] = workers.map((worker: any) => {
     const employers = employerMap.get(worker.id) || [];
     
@@ -83,6 +89,28 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       }
     }
     
+    // Build address object if address data exists
+    let address: PostalAddress | null = null;
+    if (worker.address_id) {
+      address = {
+        id: worker.address_id,
+        contactId: worker.contact_id,
+        friendlyName: worker.address_friendly_name,
+        street: worker.address_street,
+        city: worker.address_city,
+        state: worker.address_state,
+        postalCode: worker.address_postal_code,
+        country: worker.address_country,
+        isPrimary: worker.address_is_primary,
+        isActive: true,
+        validationResponse: null,
+        latitude: null,
+        longitude: null,
+        accuracy: null,
+        createdAt: new Date(),
+      };
+    }
+    
     return {
       ...worker,
       contactId: worker.contact_id,
@@ -94,6 +122,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       email: worker.contact_email || '',
       phoneNumber: formattedPhone,
       employers,
+      address,
     };
   });
 
@@ -251,6 +280,9 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                   <span>Phone</span>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <span>Address</span>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <span>Employers</span>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -292,6 +324,51 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                     >
                       {worker.phoneNumber || <span className="text-muted-foreground italic">No phone</span>}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {worker.address ? (
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer"
+                            data-testid={`address-indicator-${worker.id}`}
+                          >
+                            <CheckCircle2 size={16} className="text-green-600" />
+                            <span className="text-sm text-green-600">Has Address</span>
+                          </div>
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-80" data-testid={`address-hover-${worker.id}`}>
+                          <div className="space-y-2">
+                            <div className="flex items-start gap-2">
+                              <MapPin size={16} className="text-muted-foreground mt-0.5" />
+                              <div className="flex-1">
+                                {worker.address.friendlyName && (
+                                  <p className="text-sm font-semibold text-foreground mb-1">
+                                    {worker.address.friendlyName}
+                                  </p>
+                                )}
+                                <p className="text-sm text-foreground">
+                                  {worker.address.street}
+                                </p>
+                                <p className="text-sm text-foreground">
+                                  {worker.address.city}, {worker.address.state} {worker.address.postalCode}
+                                </p>
+                                {worker.address.country && worker.address.country !== 'US' && (
+                                  <p className="text-sm text-foreground">
+                                    {worker.address.country}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
+                    ) : (
+                      <div className="flex items-center gap-2" data-testid={`address-indicator-${worker.id}`}>
+                        <XCircle size={16} className="text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground italic">No address</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1" data-testid={`text-worker-employers-${worker.id}`}>
