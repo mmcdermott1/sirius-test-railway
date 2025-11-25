@@ -15,11 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface ChargePluginMetadata {
   id: string;
-  displayName: string;
+  name: string;
   description: string;
-  version: string;
-  author: string;
   triggers: string[];
+  defaultScope: "global" | "employer";
+  settingsSchema?: any;
 }
 
 interface ChargePluginConfig {
@@ -223,17 +223,14 @@ export default function ChargePluginsPage() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle>{plugin.displayName}</CardTitle>
+                      <CardTitle>{plugin.name}</CardTitle>
                       <CardDescription className="mt-2">{plugin.description}</CardDescription>
                       <div className="flex gap-2 mt-3">
                         <Badge variant="outline" className="text-xs">
-                          v{plugin.version}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {plugin.author}
+                          Scope: {plugin.defaultScope}
                         </Badge>
                         <Badge variant="secondary" className="text-xs">
-                          {plugin.triggers.join(", ")}
+                          Triggers: {plugin.triggers.join(", ")}
                         </Badge>
                       </div>
                     </div>
@@ -314,7 +311,7 @@ export default function ChargePluginsPage() {
                 <SelectContent>
                   {plugins.map((plugin) => (
                     <SelectItem key={plugin.id} value={plugin.id}>
-                      {plugin.displayName}
+                      {plugin.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
