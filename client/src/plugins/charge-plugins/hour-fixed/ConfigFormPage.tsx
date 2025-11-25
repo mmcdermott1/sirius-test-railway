@@ -375,7 +375,7 @@ export default function HourFixedConfigFormPage() {
                         name={`rateHistory.${index}.rate`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Rate ($/hour)</FormLabel>
+                            <FormLabel>Rate</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
