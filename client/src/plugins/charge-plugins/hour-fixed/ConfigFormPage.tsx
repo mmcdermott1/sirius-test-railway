@@ -110,7 +110,7 @@ export default function HourFixedConfigFormPage() {
 
   // Fetch employment statuses
   const { data: employmentStatuses = [] } = useQuery<EmploymentStatus[]>({
-    queryKey: ["/api/options/employment-status"],
+    queryKey: ["/api/employment-statuses"],
   });
 
   const form = useForm<FormData>({
