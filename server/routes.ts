@@ -351,7 +351,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 AND tb.is_active = true
             ),
             '[]'::json
-          ) as benefit_ids
+          ) as benefit_ids,
+          COALESCE(
+            (
+              SELECT json_agg(DISTINCT jsonb_build_object(
+                'id', tb.id,
+                'name', tb.name,
+                'typeName', bt.name
+              ))
+              FROM trust_wmb wmb
+              INNER JOIN trust_benefits tb ON wmb.benefit_id = tb.id
+              INNER JOIN options_trust_benefit_type bt ON tb.benefit_type = bt.id
+              WHERE wmb.worker_id = w.id
+                AND tb.is_active = true
+            ),
+            '[]'::json
+          ) as benefits
         FROM workers w
         INNER JOIN contacts c ON w.contact_id = c.id
         LEFT JOIN LATERAL (

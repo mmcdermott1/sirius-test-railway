@@ -34,6 +34,12 @@ interface WorkersTableProps {
   isLoading: boolean;
 }
 
+interface WorkerBenefit {
+  id: string;
+  name: string;
+  typeName: string;
+}
+
 interface WorkerWithContact extends Worker {
   contactName?: string;
   email?: string;
@@ -42,6 +48,7 @@ interface WorkerWithContact extends Worker {
   address?: PostalAddress | null;
   benefitTypes?: string[];
   benefitIds?: string[];
+  benefits?: WorkerBenefit[];
 }
 
 interface EmployerInfo {
@@ -167,6 +174,18 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       }
     }
     
+    // Parse benefits from JSON array
+    let benefits: WorkerBenefit[] = [];
+    if (worker.benefits) {
+      try {
+        benefits = Array.isArray(worker.benefits) 
+          ? worker.benefits 
+          : JSON.parse(worker.benefits);
+      } catch {
+        benefits = [];
+      }
+    }
+    
     return {
       ...worker,
       contactId: worker.contact_id,
@@ -181,6 +200,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       address,
       benefitTypes,
       benefitIds,
+      benefits,
     };
   });
 
@@ -475,9 +495,9 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <TooltipProvider>
                       <div className="flex items-center gap-2" data-testid={`benefits-icons-${worker.id}`}>
-                        {worker.benefitTypes && worker.benefitTypes.length > 0 ? (
-                          worker.benefitTypes.map((benefitType, index) => {
-                            const { Icon, color, label } = getBenefitIcon(benefitType);
+                        {worker.benefits && worker.benefits.length > 0 ? (
+                          worker.benefits.map((benefit, index) => {
+                            const { Icon, color } = getBenefitIcon(benefit.typeName);
                             return (
                               <Tooltip key={index}>
                                 <TooltipTrigger asChild>
@@ -486,7 +506,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{label}</p>
+                                  <p>{benefit.name}</p>
                                 </TooltipContent>
                               </Tooltip>
                             );
