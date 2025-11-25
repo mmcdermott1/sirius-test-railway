@@ -47,89 +47,38 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch contacts for all workers
-  const contactIds = workers.map(w => w.contactId);
-  const { data: contacts = [] } = useQuery<Contact[]>({
-    queryKey: ["/api/contacts", contactIds],
-    queryFn: async () => {
-      // Fetch contacts individually for now - could be optimized with a batch endpoint
-      const contactPromises = contactIds.map(async (id) => {
-        const res = await fetch(`/api/contacts/${id}`);
-        if (res.ok) {
-          return res.json();
-        }
-        return null;
-      });
-      const results = await Promise.all(contactPromises);
-      return results.filter((c): c is Contact => c !== null);
-    },
-    enabled: contactIds.length > 0,
-  });
-
-  // Fetch phone numbers for all contacts
-  const { data: phoneNumbers = [] } = useQuery<PhoneNumber[]>({
-    queryKey: ["/api/contacts/phone-numbers", contactIds],
-    queryFn: async () => {
-      const phonePromises = contactIds.map(async (contactId) => {
-        const res = await fetch(`/api/contacts/${contactId}/phone-numbers`);
-        if (res.ok) {
-          return res.json();
-        }
-        return [];
-      });
-      const results = await Promise.all(phonePromises);
-      return results.flat();
-    },
-    enabled: contactIds.length > 0,
-  });
-
   // Fetch worker-employer summary
   const { data: workerEmployers = [] } = useQuery<WorkerEmployerSummary[]>({
     queryKey: ["/api/workers/employers/summary"],
     enabled: workers.length > 0,
   });
 
-  // Create maps for contact data
-  const contactMap = new Map(contacts.map(c => [c.id, c]));
-  const phoneMap = new Map<string, PhoneNumber>();
-  
-  // Map primary phone numbers to contacts
-  phoneNumbers.forEach(phone => {
-    if (phone.isPrimary && !phoneMap.has(phone.contactId)) {
-      phoneMap.set(phone.contactId, phone);
-    }
-  });
-  
-  // If no primary, use first phone number
-  phoneNumbers.forEach(phone => {
-    if (!phoneMap.has(phone.contactId)) {
-      phoneMap.set(phone.contactId, phone);
-    }
-  });
-
   // Create map for worker employers
   const employerMap = new Map(workerEmployers.map(we => [we.workerId, we.employers]));
 
-  // Add contact names and details to workers
-  const workersWithNames: WorkerWithContact[] = workers.map(worker => {
-    const contact = contactMap.get(worker.contactId);
-    const phone = phoneMap.get(worker.contactId);
+  // Add employer information to workers (contact and phone data already included in workers from optimized endpoint)
+  const workersWithNames: WorkerWithContact[] = workers.map((worker: any) => {
     const employers = employerMap.get(worker.id) || [];
     
     let formattedPhone = '';
-    if (phone?.phoneNumber) {
+    if (worker.phone_number) {
       try {
-        const parsed = parsePhoneNumber(phone.phoneNumber, 'US');
-        formattedPhone = parsed ? parsed.formatNational() : phone.phoneNumber;
+        const parsed = parsePhoneNumber(worker.phone_number, 'US');
+        formattedPhone = parsed ? parsed.formatNational() : worker.phone_number;
       } catch {
-        formattedPhone = phone.phoneNumber;
+        formattedPhone = worker.phone_number;
       }
     }
     
     return {
       ...worker,
-      contactName: contact?.displayName || 'Unknown',
-      email: contact?.email || '',
+      contactId: worker.contact_id,
+      siriusId: worker.sirius_id,
+      denormWsId: worker.denorm_ws_id,
+      denormHomeEmployerId: worker.denorm_home_employer_id,
+      denormEmployerIds: worker.denorm_employer_ids,
+      contactName: worker.contact_name || 'Unknown',
+      email: worker.contact_email || '',
       phoneNumber: formattedPhone,
       employers,
     };

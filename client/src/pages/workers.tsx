@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 export default function Workers() {
   const [location] = useLocation();
   const { data: workers = [], isLoading } = useQuery<Worker[]>({
-    queryKey: ["/api/workers"],
+    queryKey: ["/api/workers/with-details"],
   });
 
   const tabs = [

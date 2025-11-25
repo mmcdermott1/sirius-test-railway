@@ -304,6 +304,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Worker routes (protected with authentication and permissions)
   
+  // GET /api/workers/with-details - Get all workers with contact and phone data (optimized for list view)
+  app.get("/api/workers/with-details", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      // Optimized query that joins workers, contacts, and phone numbers in a single query
+      const result = await db.execute(sql`
+        SELECT 
+          w.id,
+          w.sirius_id,
+          w.contact_id,
+          w.ssn,
+          w.denorm_ws_id,
+          w.denorm_home_employer_id,
+          w.denorm_employer_ids,
+          c.display_name as contact_name,
+          c.email as contact_email,
+          c.given,
+          c.family,
+          p.phone_number,
+          p.is_primary
+        FROM workers w
+        INNER JOIN contacts c ON w.contact_id = c.id
+        LEFT JOIN LATERAL (
+          SELECT phone_number, is_primary
+          FROM phone_numbers
+          WHERE contact_id = c.id
+          ORDER BY is_primary DESC NULLS LAST, created_at ASC
+          LIMIT 1
+        ) p ON true
+        ORDER BY c.family, c.given
+      `);
+      
+      res.json(result.rows);
+    } catch (error) {
+      console.error("Failed to fetch workers with details:", error);
+      res.status(500).json({ message: "Failed to fetch workers" });
+    }
+  });
+  
   // GET /api/workers - Get all workers (requires workers.view permission)
   app.get("/api/workers", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
