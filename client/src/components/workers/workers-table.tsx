@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle, Scale, Stethoscope, Smile, Eye as EyeIcon, Star } from "lucide-react";
+import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle, Scale, Stethoscope, Smile, Eye as EyeIcon, Star, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,7 @@ import { formatSSN } from "@shared/schema";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { parsePhoneNumber } from "libphonenumber-js";
+import { stringify } from 'csv-stringify/browser/esm/sync';
 import {
   Select,
   SelectContent,
@@ -44,6 +45,9 @@ interface WorkerWithContact extends Worker {
   contactName?: string;
   email?: string;
   phoneNumber?: string;
+  given?: string;
+  middle?: string;
+  family?: string;
   employers?: EmployerInfo[];
   address?: PostalAddress | null;
   benefitTypes?: string[];
@@ -196,6 +200,9 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       contactName: worker.contact_name || 'Unknown',
       email: worker.contact_email || '',
       phoneNumber: formattedPhone,
+      given: worker.given,
+      middle: worker.middle,
+      family: worker.family,
       employers,
       address,
       benefitTypes,
@@ -254,6 +261,51 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
+  // CSV Export function
+  const handleExportCSV = () => {
+    // Prepare data for CSV export
+    const csvData = sortedWorkers.map(worker => ({
+      'First Name': worker.given || '',
+      'Middle Name': worker.middle || '',
+      'Last Name': worker.family || '',
+      'Street': worker.address?.street || '',
+      'City': worker.address?.city || '',
+      'State': worker.address?.state || '',
+      'Postal Code': worker.address?.postalCode || '',
+      'Country': worker.address?.country || '',
+      'Email': worker.email || '',
+      'Phone Number': worker.phoneNumber || '',
+    }));
+
+    // Generate CSV string
+    const csv = stringify(csvData, {
+      header: true,
+      columns: [
+        'First Name',
+        'Middle Name',
+        'Last Name',
+        'Street',
+        'City',
+        'State',
+        'Postal Code',
+        'Country',
+        'Email',
+        'Phone Number'
+      ]
+    });
+
+    // Create download link
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `workers_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <Card className="shadow-sm overflow-hidden">
@@ -281,7 +333,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
         <div className="px-6 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Workers Database</h2>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-4">
               <div className="flex items-center space-x-2">
                 <ArrowUpDown className="text-muted-foreground" size={16} />
                 <span className="text-sm text-muted-foreground">Sort by Name</span>
@@ -289,6 +341,16 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
               <span className="text-sm font-medium text-primary" data-testid="text-total-workers">
                 {filteredWorkers.length} of {workers.length}
               </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                data-testid="button-export-csv"
+                className="gap-2"
+              >
+                <Download size={16} />
+                Export CSV
+              </Button>
             </div>
           </div>
           

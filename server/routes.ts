@@ -320,6 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           c.display_name as contact_name,
           c.email as contact_email,
           c.given,
+          c.middle,
           c.family,
           p.phone_number,
           p.is_primary,
