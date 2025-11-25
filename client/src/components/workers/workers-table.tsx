@@ -85,6 +85,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmployerId, setSelectedEmployerId] = useState<string>("all");
+  const [selectedBenefitId, setSelectedBenefitId] = useState<string>("all");
 
   // Fetch worker-employer summary
   const { data: workerEmployers = [] } = useQuery<WorkerEmployerSummary[]>({
@@ -95,6 +96,11 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   // Fetch employers for filter dropdown
   const { data: employers = [] } = useQuery<Employer[]>({
     queryKey: ["/api/employers"],
+  });
+
+  // Fetch trust benefits for filter dropdown
+  const { data: trustBenefits = [] } = useQuery<any[]>({
+    queryKey: ["/api/trust-benefits"],
   });
 
   // Create map for worker employers
@@ -164,7 +170,16 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     };
   });
 
-  // Filter workers based on search query and employer
+  // Create a map of workers to their benefit IDs
+  const workerBenefitMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    
+    // We need to fetch worker benefits to map workers to benefit IDs
+    // For now, we'll use the benefit type names to filter
+    return map;
+  }, []);
+
+  // Filter workers based on search query, employer, and benefit
   const filteredWorkers = useMemo(() => {
     let filtered = workersWithNames;
     
@@ -173,6 +188,16 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       filtered = filtered.filter(worker => 
         worker.employers?.some(emp => emp.id === selectedEmployerId)
       );
+    }
+    
+    // Filter by benefit if selected
+    if (selectedBenefitId !== "all") {
+      const selectedBenefit = trustBenefits.find(b => b.id === selectedBenefitId);
+      if (selectedBenefit && selectedBenefit.benefitTypeName) {
+        filtered = filtered.filter(worker => 
+          worker.benefitTypes?.includes(selectedBenefit.benefitTypeName)
+        );
+      }
     }
     
     // Filter by search query
@@ -192,7 +217,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     }
     
     return filtered;
-  }, [workersWithNames, searchQuery, selectedEmployerId]);
+  }, [workersWithNames, searchQuery, selectedEmployerId, selectedBenefitId, trustBenefits]);
 
   const sortedWorkers = [...filteredWorkers].sort((a, b) => {
     const nameA = a.contactName || '';
@@ -286,6 +311,42 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                         {employer.name}
                       </SelectItem>
                     ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Benefit Filter */}
+            <div className="w-64">
+              <Select
+                value={selectedBenefitId}
+                onValueChange={setSelectedBenefitId}
+              >
+                <SelectTrigger data-testid="select-benefit-filter">
+                  <div className="flex items-center gap-2">
+                    <Star size={16} className="text-muted-foreground" />
+                    <SelectValue placeholder="All Benefits" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Benefits</SelectItem>
+                  {trustBenefits
+                    .filter(benefit => benefit.isActive)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((benefit) => {
+                      const { Icon, color } = getBenefitIcon(benefit.benefitTypeName || '');
+                      return (
+                        <SelectItem 
+                          key={benefit.id} 
+                          value={benefit.id}
+                          data-testid={`select-benefit-${benefit.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon size={14} className={color} />
+                            <span>{benefit.name}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                 </SelectContent>
               </Select>
             </div>
