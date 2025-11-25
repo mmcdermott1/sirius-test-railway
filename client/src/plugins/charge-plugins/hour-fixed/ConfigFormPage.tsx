@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { Link, useParams, useLocation } from "wouter";
 
@@ -22,6 +23,7 @@ const rateHistoryEntrySchema = z.object({
 
 const formSchema = z.object({
   accountId: z.string().uuid("Please select an account"),
+  employmentStatusIds: z.array(z.string()).min(1, "At least one employment status must be selected"),
   rateHistory: z.array(rateHistoryEntrySchema).min(1, "At least one rate entry is required"),
   scope: z.enum(["global", "employer"]),
   employerId: z.string().optional(),
@@ -55,6 +57,12 @@ interface Employer {
   isActive: boolean;
 }
 
+interface EmploymentStatus {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface ChargePluginConfig {
   id: string;
   pluginId: string;
@@ -63,6 +71,7 @@ interface ChargePluginConfig {
   employerId: string | null;
   settings: {
     accountId?: string;
+    employmentStatusIds?: string[];
     rateHistory?: Array<{
       effectiveDate: string;
       rate: number;
@@ -99,10 +108,16 @@ export default function HourFixedConfigFormPage() {
     queryKey: ["/api/employers"],
   });
 
+  // Fetch employment statuses
+  const { data: employmentStatuses = [] } = useQuery<EmploymentStatus[]>({
+    queryKey: ["/api/options/employment-status"],
+  });
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       accountId: "",
+      employmentStatusIds: [],
       rateHistory: [{ effectiveDate: "", rate: 0 }],
       scope: "global",
       employerId: "",
@@ -115,6 +130,7 @@ export default function HourFixedConfigFormPage() {
     if (isEditMode && existingConfig) {
       form.reset({
         accountId: existingConfig.settings?.accountId || "",
+        employmentStatusIds: existingConfig.settings?.employmentStatusIds || [],
         rateHistory: existingConfig.settings?.rateHistory || [{ effectiveDate: "", rate: 0 }],
         scope: existingConfig.scope as "global" | "employer",
         employerId: existingConfig.employerId || "",
@@ -137,6 +153,7 @@ export default function HourFixedConfigFormPage() {
         enabled: data.enabled,
         settings: {
           accountId: data.accountId,
+          employmentStatusIds: data.employmentStatusIds,
           rateHistory: data.rateHistory,
         },
       };
@@ -329,6 +346,47 @@ export default function HourFixedConfigFormPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Employment Status selection */}
+              <FormField
+                control={form.control}
+                name="employmentStatusIds"
+                render={() => (
+                  <FormItem>
+                    <FormLabel>Employment Status</FormLabel>
+                    <div className="grid grid-cols-2 gap-3 p-3 border rounded-md">
+                      {employmentStatuses.map((status) => (
+                        <FormField
+                          key={status.id}
+                          control={form.control}
+                          name="employmentStatusIds"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(status.id)}
+                                  onCheckedChange={(checked) => {
+                                    const currentValues = field.value || [];
+                                    const newValues = checked
+                                      ? [...currentValues, status.id]
+                                      : currentValues.filter((id) => id !== status.id);
+                                    field.onChange(newValues);
+                                  }}
+                                  data-testid={`checkbox-employment-status-${status.code}`}
+                                />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer">
+                                {status.name}
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
