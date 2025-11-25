@@ -19,6 +19,7 @@ export function createTrustBenefitStorage(): TrustBenefitStorage {
           name: trustBenefits.name,
           benefitType: trustBenefits.benefitType,
           benefitTypeName: optionsTrustBenefitType.name,
+          benefitTypeIcon: optionsTrustBenefitType.icon,
           isActive: trustBenefits.isActive,
           description: trustBenefits.description,
         })
@@ -35,6 +36,7 @@ export function createTrustBenefitStorage(): TrustBenefitStorage {
           name: trustBenefits.name,
           benefitType: trustBenefits.benefitType,
           benefitTypeName: optionsTrustBenefitType.name,
+          benefitTypeIcon: optionsTrustBenefitType.icon,
           isActive: trustBenefits.isActive,
           description: trustBenefits.description,
         })

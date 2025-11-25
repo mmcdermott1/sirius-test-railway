@@ -358,7 +358,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               SELECT json_agg(DISTINCT jsonb_build_object(
                 'id', tb.id,
                 'name', tb.name,
-                'typeName', bt.name
+                'typeName', bt.name,
+                'typeIcon', bt.icon
               ))
               FROM trust_wmb wmb
               INNER JOIN trust_benefits tb ON wmb.benefit_id = tb.id

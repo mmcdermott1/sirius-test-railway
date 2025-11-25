@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Edit, Trash2, Save, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Save, X, ArrowUp, ArrowDown, Scale, Stethoscope, Smile, Eye, Star, Home, GraduationCap, Heart, Laptop, ShoppingBag, type LucideIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,12 +23,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TrustBenefitType {
   id: string;
   name: string;
+  icon?: string;
   sequence: number;
 }
+
+// Available icons for benefit types
+const availableIcons: { name: string; Icon: LucideIcon }[] = [
+  { name: 'Scale', Icon: Scale },
+  { name: 'Stethoscope', Icon: Stethoscope },
+  { name: 'Smile', Icon: Smile },
+  { name: 'Eye', Icon: Eye },
+  { name: 'Star', Icon: Star },
+  { name: 'Home', Icon: Home },
+  { name: 'GraduationCap', Icon: GraduationCap },
+  { name: 'Heart', Icon: Heart },
+  { name: 'Laptop', Icon: Laptop },
+  { name: 'ShoppingBag', Icon: ShoppingBag },
+];
 
 export default function TrustBenefitTypesPage() {
   const { toast } = useToast();
@@ -38,13 +60,14 @@ export default function TrustBenefitTypesPage() {
   
   // Form state
   const [formName, setFormName] = useState("");
+  const [formIcon, setFormIcon] = useState<string>("Star");
   
   const { data: trustBenefitTypes = [], isLoading } = useQuery<TrustBenefitType[]>({
     queryKey: ["/api/trust-benefit-types"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string }) => {
+    mutationFn: async (data: { name: string; icon: string }) => {
       // Find the highest sequence number
       const maxSequence = trustBenefitTypes.reduce((max, option) => Math.max(max, option.sequence), -1);
       return apiRequest("POST", "/api/trust-benefit-types", { 
@@ -71,9 +94,10 @@ export default function TrustBenefitTypesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string }) => {
+    mutationFn: async (data: { id: string; name: string; icon: string }) => {
       return apiRequest("PUT", `/api/trust-benefit-types/${data.id}`, {
         name: data.name,
+        icon: data.icon,
       });
     },
     onSuccess: () => {
@@ -128,11 +152,13 @@ export default function TrustBenefitTypesPage() {
 
   const resetForm = () => {
     setFormName("");
+    setFormIcon("Star");
   };
 
   const handleEdit = (option: TrustBenefitType) => {
     setEditingId(option.id);
     setFormName(option.name);
+    setFormIcon(option.icon || "Star");
   };
 
   const handleCancelEdit = () => {
@@ -152,6 +178,7 @@ export default function TrustBenefitTypesPage() {
     updateMutation.mutate({
       id: editingId!,
       name: formName.trim(),
+      icon: formIcon,
     });
   };
 
@@ -166,6 +193,7 @@ export default function TrustBenefitTypesPage() {
     }
     createMutation.mutate({
       name: formName.trim(),
+      icon: formIcon,
     });
   };
 
@@ -224,6 +252,7 @@ export default function TrustBenefitTypesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order</TableHead>
+                  <TableHead>Icon</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -252,6 +281,31 @@ export default function TrustBenefitTypesPage() {
                           <ArrowDown className="h-4 w-4" />
                         </Button>
                       </div>
+                    </TableCell>
+                    <TableCell data-testid={`icon-${option.id}`}>
+                      {editingId === option.id ? (
+                        <Select value={formIcon} onValueChange={setFormIcon}>
+                          <SelectTrigger data-testid={`select-edit-icon-${option.id}`} className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableIcons.map(({ name, Icon }) => (
+                              <SelectItem key={name} value={name}>
+                                <div className="flex items-center gap-2">
+                                  <Icon size={16} />
+                                  <span>{name}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        (() => {
+                          const selectedIcon = availableIcons.find(i => i.name === option.icon);
+                          const IconComponent = selectedIcon?.Icon || Star;
+                          return <IconComponent size={20} className="text-muted-foreground" />;
+                        })()
+                      )}
                     </TableCell>
                     <TableCell data-testid={`text-name-${option.id}`}>
                       {editingId === option.id ? (
@@ -336,6 +390,24 @@ export default function TrustBenefitTypesPage() {
                 onChange={(e) => setFormName(e.target.value)}
                 data-testid="input-add-name"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-icon">Icon</Label>
+              <Select value={formIcon} onValueChange={setFormIcon}>
+                <SelectTrigger id="add-icon" data-testid="select-add-icon">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableIcons.map(({ name, Icon }) => (
+                    <SelectItem key={name} value={name}>
+                      <div className="flex items-center gap-2">
+                        <Icon size={16} />
+                        <span>{name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

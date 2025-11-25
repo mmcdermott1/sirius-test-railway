@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle, Scale, Stethoscope, Smile, Eye as EyeIcon, Star, Download } from "lucide-react";
+import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle, Scale, Stethoscope, Smile, Eye as EyeIcon, Star, Download, GraduationCap, Heart, Laptop, ShoppingBag, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +39,7 @@ interface WorkerBenefit {
   id: string;
   name: string;
   typeName: string;
+  typeIcon?: string;
 }
 
 interface WorkerWithContact extends Worker {
@@ -75,22 +76,39 @@ const avatarColors = [
   "bg-red-100 text-red-600",
 ];
 
-// Map benefit types to icons and colors
-const getBenefitIcon = (benefitType: string) => {
-  const type = benefitType.toLowerCase();
-  if (type.includes('legal')) {
-    return { Icon: Scale, color: 'text-blue-600', label: 'Legal' };
-  }
-  if (type.includes('medical') || type.includes('health')) {
-    return { Icon: Stethoscope, color: 'text-red-600', label: 'Medical' };
-  }
-  if (type.includes('dental')) {
-    return { Icon: Smile, color: 'text-green-600', label: 'Dental' };
-  }
-  if (type.includes('vision')) {
-    return { Icon: EyeIcon, color: 'text-purple-600', label: 'Vision' };
-  }
-  return { Icon: Star, color: 'text-yellow-600', label: benefitType };
+// Map icon names from database to Lucide React components
+const iconMap: Record<string, LucideIcon> = {
+  'Scale': Scale,
+  'Stethoscope': Stethoscope,
+  'Smile': Smile,
+  'Eye': EyeIcon,
+  'Star': Star,
+  'Home': Home,
+  'GraduationCap': GraduationCap,
+  'Heart': Heart,
+  'Laptop': Laptop,
+  'ShoppingBag': ShoppingBag,
+};
+
+// Map icon names to colors
+const iconColorMap: Record<string, string> = {
+  'Scale': 'text-blue-600',
+  'Stethoscope': 'text-red-600',
+  'Smile': 'text-green-600',
+  'Eye': 'text-purple-600',
+  'Star': 'text-yellow-600',
+  'Home': 'text-orange-600',
+  'GraduationCap': 'text-indigo-600',
+  'Heart': 'text-pink-600',
+  'Laptop': 'text-cyan-600',
+  'ShoppingBag': 'text-teal-600',
+};
+
+// Get icon component and color from icon name
+const getIconByName = (iconName?: string) => {
+  const Icon = iconName && iconMap[iconName] ? iconMap[iconName] : Star;
+  const color = iconName && iconColorMap[iconName] ? iconColorMap[iconName] : 'text-gray-600';
+  return { Icon, color };
 };
 
 export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
@@ -427,7 +445,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                     .filter(benefit => benefit.isActive)
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((benefit) => {
-                      const { Icon, color } = getBenefitIcon(benefit.benefitTypeName || '');
+                      const { Icon, color } = getIconByName(benefit.benefitTypeIcon);
                       return (
                         <SelectItem 
                           key={benefit.id} 
@@ -569,7 +587,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                       <div className="flex items-center gap-2" data-testid={`benefits-icons-${worker.id}`}>
                         {worker.benefits && worker.benefits.length > 0 ? (
                           worker.benefits.map((benefit, index) => {
-                            const { Icon, color } = getBenefitIcon(benefit.typeName);
+                            const { Icon, color } = getIconByName(benefit.typeIcon);
                             return (
                               <Tooltip key={index}>
                                 <TooltipTrigger asChild>
