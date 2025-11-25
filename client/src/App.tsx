@@ -114,6 +114,7 @@ import PaymentTypesPage from "@/pages/config/ledger/stripe/payment-types";
 import LedgerPaymentTypesPage from "@/pages/config/ledger-payment-types";
 import ChargePluginsListPage from "@/pages/config/ledger/charge-plugins-list";
 import ChargePluginConfigPage from "@/pages/config/ledger/charge-plugin-config";
+import ChargePluginFormPage from "@/pages/config/ledger/charge-plugin-form";
 
 // Import charge plugin UIs to register them
 import "@/plugins/charge-plugins";
@@ -970,6 +971,26 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <ChargePluginsListPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ledger/charge-plugins/:pluginId/new">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <ChargePluginFormPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ledger/charge-plugins/:pluginId/edit/:configId">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <ChargePluginFormPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

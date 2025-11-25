@@ -1,9 +1,9 @@
 import { registerChargePluginUI } from "../registry";
-import ConfigForm from "./ConfigForm";
+import ConfigList from "./ConfigList";
 
 registerChargePluginUI({
   pluginId: "hour-fixed",
-  configComponent: ConfigForm,
+  configComponent: ConfigList,
 });
 
-export { ConfigForm };
+export { ConfigList };
