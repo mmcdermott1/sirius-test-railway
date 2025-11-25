@@ -1,15 +1,22 @@
 import { useState, useMemo } from "react";
-import { ArrowUpDown, User, Eye, Search, Home } from "lucide-react";
+import { ArrowUpDown, User, Eye, Search, Home, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Worker, Contact, PhoneNumber } from "@shared/schema";
+import { Worker, Contact, PhoneNumber, Employer } from "@shared/schema";
 import { formatSSN } from "@shared/schema";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { parsePhoneNumber } from "libphonenumber-js";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface WorkersTableProps {
   workers: Worker[];
@@ -46,11 +53,17 @@ const avatarColors = [
 export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEmployerId, setSelectedEmployerId] = useState<string>("all");
 
   // Fetch worker-employer summary
   const { data: workerEmployers = [] } = useQuery<WorkerEmployerSummary[]>({
     queryKey: ["/api/workers/employers/summary"],
     enabled: workers.length > 0,
+  });
+
+  // Fetch employers for filter dropdown
+  const { data: employers = [] } = useQuery<Employer[]>({
+    queryKey: ["/api/employers"],
   });
 
   // Create map for worker employers
@@ -84,23 +97,35 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     };
   });
 
-  // Filter workers based on search query
+  // Filter workers based on search query and employer
   const filteredWorkers = useMemo(() => {
-    if (!searchQuery.trim()) return workersWithNames;
+    let filtered = workersWithNames;
     
-    const query = searchQuery.toLowerCase();
-    return workersWithNames.filter(worker => {
-      const name = (worker.contactName || '').toLowerCase();
-      const email = (worker.email || '').toLowerCase();
-      const phone = (worker.phoneNumber || '').toLowerCase();
-      const ssn = formatSSN(worker.ssn).toLowerCase();
-      
-      return name.includes(query) || 
-             email.includes(query) || 
-             phone.includes(query) || 
-             ssn.includes(query);
-    });
-  }, [workersWithNames, searchQuery]);
+    // Filter by employer if selected
+    if (selectedEmployerId !== "all") {
+      filtered = filtered.filter(worker => 
+        worker.employers?.some(emp => emp.id === selectedEmployerId)
+      );
+    }
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(worker => {
+        const name = (worker.contactName || '').toLowerCase();
+        const email = (worker.email || '').toLowerCase();
+        const phone = (worker.phoneNumber || '').toLowerCase();
+        const ssn = formatSSN(worker.ssn).toLowerCase();
+        
+        return name.includes(query) || 
+               email.includes(query) || 
+               phone.includes(query) || 
+               ssn.includes(query);
+      });
+    }
+    
+    return filtered;
+  }, [workersWithNames, searchQuery, selectedEmployerId]);
 
   const sortedWorkers = [...filteredWorkers].sort((a, b) => {
     const nameA = a.contactName || '';
@@ -153,17 +178,50 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
             </div>
           </div>
           
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-            <Input
-              type="text"
-              placeholder="Search by name, email, phone, or SSN..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-workers"
-            />
+          {/* Filters */}
+          <div className="flex gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
+              <Input
+                type="text"
+                placeholder="Search by name, email, phone, or SSN..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-workers"
+              />
+            </div>
+            
+            {/* Employer Filter */}
+            <div className="w-64">
+              <Select
+                value={selectedEmployerId}
+                onValueChange={setSelectedEmployerId}
+              >
+                <SelectTrigger data-testid="select-employer-filter">
+                  <div className="flex items-center gap-2">
+                    <Building2 size={16} className="text-muted-foreground" />
+                    <SelectValue placeholder="All Employers" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employers</SelectItem>
+                  {employers
+                    .filter(emp => emp.isActive)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((employer) => (
+                      <SelectItem 
+                        key={employer.id} 
+                        value={employer.id}
+                        data-testid={`select-employer-${employer.id}`}
+                      >
+                        {employer.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
