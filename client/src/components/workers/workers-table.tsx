@@ -371,11 +371,10 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                       <HoverCard>
                         <HoverCardTrigger asChild>
                           <div 
-                            className="flex items-center gap-2 cursor-pointer"
+                            className="cursor-pointer"
                             data-testid={`address-indicator-${worker.id}`}
                           >
                             <CheckCircle2 size={16} className="text-green-600" />
-                            <span className="text-sm text-green-600">Has Address</span>
                           </div>
                         </HoverCardTrigger>
                         <HoverCardContent className="w-80" data-testid={`address-hover-${worker.id}`}>
@@ -405,9 +404,8 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                         </HoverCardContent>
                       </HoverCard>
                     ) : (
-                      <div className="flex items-center gap-2" data-testid={`address-indicator-${worker.id}`}>
+                      <div data-testid={`address-indicator-${worker.id}`}>
                         <XCircle size={16} className="text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground italic">No address</span>
                       </div>
                     )}
                   </td>
