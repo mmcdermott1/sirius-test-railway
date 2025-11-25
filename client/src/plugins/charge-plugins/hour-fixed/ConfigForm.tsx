@@ -18,10 +18,10 @@ import type { ChargePluginConfigProps } from "../registry";
 const rateHistoryEntrySchema = z.object({
   effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   rate: z.coerce.number().positive("Rate must be positive"),
-  accountId: z.string().uuid("Please select an account"),
 });
 
 const formSchema = z.object({
+  accountId: z.string().uuid("Please select an account"),
   rateHistory: z.array(rateHistoryEntrySchema).min(1, "At least one rate entry is required"),
   scope: z.enum(["global", "employer"]),
   employerId: z.string().optional(),
@@ -62,10 +62,10 @@ interface ChargePluginConfig {
   scope: string;
   employerId: string | null;
   settings: {
+    accountId?: string;
     rateHistory?: Array<{
       effectiveDate: string;
       rate: number;
-      accountId: string;
     }>;
   };
 }
@@ -100,7 +100,8 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      rateHistory: globalConfig?.settings?.rateHistory || [{ effectiveDate: "", rate: 0, accountId: "" }],
+      accountId: globalConfig?.settings?.accountId || "",
+      rateHistory: globalConfig?.settings?.rateHistory || [{ effectiveDate: "", rate: 0 }],
       scope: "global",
       employerId: "",
       enabled: globalConfig?.enabled || false,
@@ -117,7 +118,8 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
     if (!config) {
       // New global config
       form.reset({
-        rateHistory: [{ effectiveDate: "", rate: 0, accountId: "" }],
+        accountId: "",
+        rateHistory: [{ effectiveDate: "", rate: 0 }],
         scope: "global",
         employerId: "",
         enabled: false,
@@ -125,7 +127,8 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
       setSelectedConfigId(null);
     } else {
       form.reset({
-        rateHistory: config.settings?.rateHistory || [{ effectiveDate: "", rate: 0, accountId: "" }],
+        accountId: config.settings?.accountId || "",
+        rateHistory: config.settings?.rateHistory || [{ effectiveDate: "", rate: 0 }],
         scope: config.scope as "global" | "employer",
         employerId: config.employerId || "",
         enabled: config.enabled,
@@ -142,6 +145,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
         employerId: data.scope === "employer" ? data.employerId : undefined,
         enabled: data.enabled,
         settings: {
+          accountId: data.accountId,
           rateHistory: data.rateHistory,
         },
       };
@@ -365,6 +369,32 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                 )}
               />
 
+              {/* Account selection */}
+              <FormField
+                control={form.control}
+                name="accountId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-account">
+                          <SelectValue placeholder="Select account..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {accounts.filter(a => a.isActive).map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {/* Rate history */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -373,7 +403,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => append({ effectiveDate: "", rate: 0, accountId: "" })}
+                    onClick={() => append({ effectiveDate: "", rate: 0 })}
                     data-testid="button-add-rate"
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -383,7 +413,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
 
                 <div className="space-y-3">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-start p-3 border rounded-md">
+                    <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-3 items-start p-3 border rounded-md">
                       <FormField
                         control={form.control}
                         name={`rateHistory.${index}.effectiveDate`}
@@ -416,30 +446,6 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                                 data-testid={`input-rate-${index}`}
                               />
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`rateHistory.${index}.accountId`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Account</FormLabel>
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <FormControl>
-                                <SelectTrigger data-testid={`select-account-${index}`}>
-                                  <SelectValue placeholder="Select..." />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {accounts.filter(a => a.isActive).map((account) => (
-                                  <SelectItem key={account.id} value={account.id}>
-                                    {account.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}

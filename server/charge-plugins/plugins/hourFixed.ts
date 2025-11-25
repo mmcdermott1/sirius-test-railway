@@ -14,10 +14,10 @@ import { logger } from "../../logger";
 const rateHistoryEntrySchema = z.object({
   effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   rate: z.number().positive("Rate must be positive"),
-  accountId: z.string().uuid("Account ID must be a valid UUID"),
 });
 
 const hourFixedSettingsSchema = z.object({
+  accountId: z.string().uuid("Account ID must be a valid UUID"),
   rateHistory: z.array(rateHistoryEntrySchema).min(1, "At least one rate entry is required"),
 });
 
@@ -89,7 +89,7 @@ class HourFixedPlugin extends ChargePlugin {
 
       // Create ledger transaction
       const transaction: LedgerTransaction = {
-        accountId: applicableRate.accountId,
+        accountId: settings.accountId,
         entityType: "employer",
         entityId: hoursContext.employerId,
         amount: charge.toFixed(2),
@@ -113,7 +113,7 @@ class HourFixedPlugin extends ChargePlugin {
         charge,
         rate: applicableRate.rate,
         hours: hoursContext.hours,
-        accountId: applicableRate.accountId,
+        accountId: settings.accountId,
       });
 
       return {
