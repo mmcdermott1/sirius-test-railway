@@ -22,11 +22,23 @@ const rateHistoryEntrySchema = z.object({
 });
 
 const formSchema = z.object({
-  rates: z.array(rateHistoryEntrySchema).min(1, "At least one rate entry is required"),
+  rateHistory: z.array(rateHistoryEntrySchema).min(1, "At least one rate entry is required"),
   scope: z.enum(["global", "employer"]),
   employerId: z.string().optional(),
   enabled: z.boolean(),
-});
+}).refine(
+  (data) => {
+    // If scope is employer, employerId must be provided
+    if (data.scope === "employer") {
+      return data.employerId && data.employerId.trim().length > 0;
+    }
+    return true;
+  },
+  {
+    message: "Employer must be selected for employer-scoped configuration",
+    path: ["employerId"],
+  }
+);
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -49,7 +61,7 @@ interface ChargePluginConfig {
   scope: string;
   employerId: string | null;
   settings: {
-    rates?: Array<{
+    rateHistory?: Array<{
       effectiveDate: string;
       rate: number;
       accountId: string;
@@ -87,7 +99,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      rates: globalConfig?.settings?.rates || [{ effectiveDate: "", rate: 0, accountId: "" }],
+      rateHistory: globalConfig?.settings?.rateHistory || [{ effectiveDate: "", rate: 0, accountId: "" }],
       scope: "global",
       employerId: "",
       enabled: globalConfig?.enabled || false,
@@ -96,7 +108,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "rates",
+    name: "rateHistory",
   });
 
   // Load config into form when switching between configs
@@ -104,7 +116,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
     if (!config) {
       // New global config
       form.reset({
-        rates: [{ effectiveDate: "", rate: 0, accountId: "" }],
+        rateHistory: [{ effectiveDate: "", rate: 0, accountId: "" }],
         scope: "global",
         employerId: "",
         enabled: false,
@@ -112,7 +124,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
       setSelectedConfigId(null);
     } else {
       form.reset({
-        rates: config.settings?.rates || [{ effectiveDate: "", rate: 0, accountId: "" }],
+        rateHistory: config.settings?.rateHistory || [{ effectiveDate: "", rate: 0, accountId: "" }],
         scope: config.scope as "global" | "employer",
         employerId: config.employerId || "",
         enabled: config.enabled,
@@ -129,7 +141,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
         employerId: data.scope === "employer" ? data.employerId : undefined,
         enabled: data.enabled,
         settings: {
-          rates: data.rates,
+          rateHistory: data.rateHistory,
         },
       };
 
@@ -217,7 +229,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                 <div>
                   <span className="font-medium">Global Configuration</span>
                   <p className="text-sm text-muted-foreground">
-                    {globalConfig.settings?.rates?.length || 0} rate(s) configured
+                    {globalConfig.settings?.rateHistory?.length || 0} rate(s) configured
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -242,7 +254,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                   <div>
                     <span className="font-medium">{employer?.name || config.employerId}</span>
                     <p className="text-sm text-muted-foreground">
-                      {config.settings?.rates?.length || 0} rate(s) configured
+                      {config.settings?.rateHistory?.length || 0} rate(s) configured
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -373,7 +385,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                     <div key={field.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-start p-3 border rounded-md">
                       <FormField
                         control={form.control}
-                        name={`rates.${index}.effectiveDate`}
+                        name={`rateHistory.${index}.effectiveDate`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Effective Date</FormLabel>
@@ -390,7 +402,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                       />
                       <FormField
                         control={form.control}
-                        name={`rates.${index}.rate`}
+                        name={`rateHistory.${index}.rate`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Rate ($/hour)</FormLabel>
@@ -409,7 +421,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                       />
                       <FormField
                         control={form.control}
-                        name={`rates.${index}.accountId`}
+                        name={`rateHistory.${index}.accountId`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Account</FormLabel>
