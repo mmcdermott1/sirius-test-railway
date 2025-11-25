@@ -533,21 +533,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Query to get all workers for this employer from worker_hours
+      // Query to get all workers for this employer from worker_hours (one row per worker)
       const result = await db.execute(sql`
-        SELECT DISTINCT
-          w.id,
-          w.sirius_id,
-          c.given as first_name,
-          c.family as last_name,
-          c.display_name,
-          c.email,
-          wh.home as is_home_employer
+        SELECT DISTINCT ON (w.id)
+          w.id as "workerId",
+          w.sirius_id as "workerSiriusId",
+          c.display_name as "contactName",
+          wh.id as "employmentHistoryId",
+          NULL as "employmentStatusId",
+          NULL as "employmentStatusName",
+          NULL as position,
+          NULL as date,
+          wh.home
         FROM workers w
         INNER JOIN worker_hours wh ON w.id = wh.worker_id
         INNER JOIN contacts c ON w.contact_id = c.id
         WHERE wh.employer_id = ${employerId}
-        ORDER BY c.family, c.given
+        ORDER BY w.id, c.family, c.given
       `);
       
       res.json(result.rows);
