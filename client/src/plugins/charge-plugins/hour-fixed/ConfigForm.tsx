@@ -4,6 +4,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { sortRatesDescending } from "@/lib/rateHistory";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,7 +102,9 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
     resolver: zodResolver(formSchema),
     defaultValues: {
       accountId: globalConfig?.settings?.accountId || "",
-      rateHistory: globalConfig?.settings?.rateHistory || [{ effectiveDate: "", rate: 0 }],
+      rateHistory: globalConfig?.settings?.rateHistory 
+        ? sortRatesDescending(globalConfig.settings.rateHistory) 
+        : [{ effectiveDate: "", rate: 0 }],
       scope: "global",
       employerId: "",
       enabled: globalConfig?.enabled || false,
@@ -128,7 +131,9 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
     } else {
       form.reset({
         accountId: config.settings?.accountId || "",
-        rateHistory: config.settings?.rateHistory || [{ effectiveDate: "", rate: 0 }],
+        rateHistory: config.settings?.rateHistory 
+          ? sortRatesDescending(config.settings.rateHistory) 
+          : [{ effectiveDate: "", rate: 0 }],
         scope: config.scope as "global" | "employer",
         employerId: config.employerId || "",
         enabled: config.enabled,

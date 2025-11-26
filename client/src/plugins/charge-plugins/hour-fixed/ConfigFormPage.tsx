@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { sortRatesDescending } from "@/lib/rateHistory";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,7 +133,9 @@ export default function HourFixedConfigFormPage() {
       form.reset({
         accountId: existingConfig.settings?.accountId || "",
         employmentStatusIds: existingConfig.settings?.employmentStatusIds || undefined,
-        rateHistory: existingConfig.settings?.rateHistory || [{ effectiveDate: "", rate: 0 }],
+        rateHistory: existingConfig.settings?.rateHistory 
+          ? sortRatesDescending(existingConfig.settings.rateHistory) 
+          : [{ effectiveDate: "", rate: 0 }],
         scope: existingConfig.scope as "global" | "employer",
         employerId: existingConfig.employerId || "",
         enabled: existingConfig.enabled,
