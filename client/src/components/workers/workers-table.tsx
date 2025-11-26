@@ -123,6 +123,12 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     enabled: workers.length > 0,
   });
 
+  // Fetch current month benefits for all workers
+  const { data: workerCurrentBenefits = [] } = useQuery<any[]>({
+    queryKey: ["/api/workers/benefits/current"],
+    enabled: workers.length > 0,
+  });
+
   // Fetch employers for filter dropdown
   const { data: employers = [] } = useQuery<Employer[]>({
     queryKey: ["/api/employers"],
@@ -135,6 +141,9 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
 
   // Create map for worker employers
   const employerMap = new Map(workerEmployers.map(we => [we.workerId, we.employers]));
+
+  // Create map for worker current benefits
+  const currentBenefitsMap = new Map(workerCurrentBenefits.map((wb: any) => [wb.workerId, wb.benefits]));
 
   // Add employer information to workers (contact, phone, and address data already included in workers from optimized endpoint)
   const workersWithNames: WorkerWithContact[] = workers.map((worker: any) => {
@@ -292,18 +301,27 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   // CSV Export function
   const handleExportCSV = () => {
     // Prepare data for CSV export
-    const csvData = sortedWorkers.map(worker => ({
-      'First Name': worker.given || '',
-      'Middle Name': worker.middle || '',
-      'Last Name': worker.family || '',
-      'Street': worker.address?.street || '',
-      'City': worker.address?.city || '',
-      'State': worker.address?.state || '',
-      'Postal Code': worker.address?.postalCode || '',
-      'Country': worker.address?.country || '',
-      'Email': worker.email || '',
-      'Phone Number': worker.phoneNumber || '',
-    }));
+    const csvData = sortedWorkers.map(worker => {
+      // Get current benefits for this worker
+      const currentBenefits = currentBenefitsMap.get(worker.id) || [];
+      const benefitsString = currentBenefits
+        .map((b: any) => `${b.name} (${b.employerName})`)
+        .join('; ');
+
+      return {
+        'First Name': worker.given || '',
+        'Middle Name': worker.middle || '',
+        'Last Name': worker.family || '',
+        'Street': worker.address?.street || '',
+        'City': worker.address?.city || '',
+        'State': worker.address?.state || '',
+        'Postal Code': worker.address?.postalCode || '',
+        'Country': worker.address?.country || '',
+        'Email': worker.email || '',
+        'Phone Number': worker.phoneNumber || '',
+        'Current Benefits': benefitsString,
+      };
+    });
 
     // Generate CSV string
     const csv = stringify(csvData, {
@@ -318,7 +336,8 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
         'Postal Code',
         'Country',
         'Email',
-        'Phone Number'
+        'Phone Number',
+        'Current Benefits'
       ]
     });
 
