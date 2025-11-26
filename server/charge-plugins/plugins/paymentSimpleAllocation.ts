@@ -94,7 +94,7 @@ class PaymentSimpleAllocationPlugin extends ChargePlugin {
 
       const transaction: LedgerTransaction = {
         chargePlugin: this.metadata.id,
-        chargePluginKey: `${config.id}:${paymentContext.paymentId}`,
+        chargePluginKey: `${config.id}:${paymentContext.paymentId}:cleared`,
         accountId: paymentContext.accountId,
         entityType: paymentContext.entityType,
         entityId: paymentContext.entityId,

@@ -12,6 +12,14 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## November 26, 2025 - Payment Simple Allocation Charge Plugin
+- Created new charge plugin `payment-simple-allocation` triggered by `PAYMENT_SAVED` events
+- Plugin creates negative ledger entries when payments with status "cleared" are saved
+- Configuration UI allows selecting which accounts should trigger automatic allocation
+- chargePluginKey format: `{configId}:{paymentId}:cleared` ensures unique constraint prevents duplicates
+- Added charge plugin trigger to payment create/update routes in `server/modules/ledger/payments.ts`
+- Updated PaymentSavedContext with additional fields: accountId, ledgerEaId, entityType, entityId, dateCleared, memo
+
 ## November 26, 2025 - Ledger Charge Plugin Fields
 - Added `charge_plugin` (varchar, NOT NULL) and `charge_plugin_key` (varchar, NOT NULL) columns to the `ledger` table
 - Added unique constraint on (charge_plugin, charge_plugin_key) combination
