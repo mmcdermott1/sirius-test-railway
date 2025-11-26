@@ -441,6 +441,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/workers/benefits/current - Get current month benefits for all workers (requires workers.view permission)
+  app.get("/api/workers/benefits/current", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      // Get current month and year
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+
+      // Query to get current benefits for each worker
+      const result = await db.execute(sql`
+        SELECT 
+          w.id as worker_id,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', tb.id,
+                'name', tb.name,
+                'typeName', tbt.name,
+                'employerName', e.name
+              )
+              ORDER BY tb.name
+            ) FILTER (WHERE tb.id IS NOT NULL),
+            '[]'::json
+          ) as benefits
+        FROM workers w
+        LEFT JOIN trust_wmb wmb ON w.id = wmb.worker_id 
+          AND wmb.month = ${currentMonth} 
+          AND wmb.year = ${currentYear}
+        LEFT JOIN trust_benefits tb ON wmb.benefit_id = tb.id
+        LEFT JOIN options_trust_benefit_type tbt ON tb.benefit_type_id = tbt.id
+        LEFT JOIN employers e ON wmb.employer_id = e.id
+        GROUP BY w.id
+      `);
+      
+      // Transform the result into a more usable format
+      const workerBenefits = result.rows.map((row: any) => ({
+        workerId: row.worker_id,
+        benefits: row.benefits || []
+      }));
+      
+      res.json(workerBenefits);
+    } catch (error) {
+      console.error("Failed to fetch worker current benefits:", error);
+      res.status(500).json({ message: "Failed to fetch worker current benefits" });
+    }
+  });
+
   // GET /api/workers/:id - Get a specific worker (requires worker policy: staff or worker with matching email)
   app.get("/api/workers/:id", requireAccess(policies.worker), async (req, res) => {
     try {
