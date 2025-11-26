@@ -3,7 +3,6 @@ import { storage } from "../../storage";
 import { insertLedgerPaymentSchema } from "@shared/schema";
 import { policies } from "../../policies";
 import { requireAccess } from "../../accessControl";
-import { allocatePayment } from "../../storage/ledger";
 
 export function registerLedgerPaymentRoutes(app: Express) {
   // GET /api/ledger/payment-types - Get all payment types
@@ -76,9 +75,6 @@ export function registerLedgerPaymentRoutes(app: Express) {
       const validatedData = insertLedgerPaymentSchema.parse(processedBody);
       const payment = await storage.ledger.payments.create(validatedData);
       
-      // Allocate the payment to the ledger
-      await allocatePayment(payment, storage.ledger);
-      
       res.status(201).json(payment);
     } catch (error) {
       console.error("Error creating payment:", error);
@@ -116,9 +112,6 @@ export function registerLedgerPaymentRoutes(app: Express) {
         res.status(404).json({ message: "Payment not found" });
         return;
       }
-      
-      // Allocate the payment to the ledger
-      await allocatePayment(payment, storage.ledger);
       
       res.json(payment);
     } catch (error) {

@@ -679,47 +679,6 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
   };
 }
 
-/**
- * Allocate a payment to the ledger.
- * 
- * This function manages the allocation of a payment to the general ledger:
- * - If payment status is "cleared", creates a ledger entry reflecting the payment
- * - If payment status is anything else, deletes any existing ledger entries for this payment
- * 
- * This function MUST be called every time a payment is saved (created or updated).
- * 
- * @param payment - The payment to allocate
- * @param ledgerStorage - The ledger storage instance to use for operations
- * @returns Promise that resolves when allocation is complete
- */
-export async function allocatePayment(
-  payment: LedgerPayment,
-  ledgerStorage: LedgerStorage
-): Promise<void> {
-  // Always delete existing allocations first to avoid duplicates
-  await ledgerStorage.entries.deleteByReference('payment', payment.id);
-
-  // If payment is cleared, create a new ledger entry
-  // Note: The amount is negated because a payment received (+$500) should reduce the liability (-$500)
-  if (payment.status === 'cleared') {
-    await ledgerStorage.entries.create({
-      amount: (-parseFloat(payment.amount)).toString(),
-      eaId: payment.ledgerEaId,
-      referenceType: 'payment',
-      referenceId: payment.id,
-      date: payment.dateCleared || null,
-      memo: payment.memo || null,
-      data: payment.details || null
-    });
-
-    // Mark payment as allocated
-    await ledgerStorage.payments.update(payment.id, { allocated: true });
-  } else {
-    // Mark payment as not allocated
-    await ledgerStorage.payments.update(payment.id, { allocated: false });
-  }
-}
-
 // Cents-based arithmetic helpers for precise decimal calculations
 function toCents(amount: string): bigint {
   const num = parseFloat(amount);
