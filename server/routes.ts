@@ -454,31 +454,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           w.id as worker_id,
           COALESCE(
-            json_agg(
-              DISTINCT jsonb_build_object(
-                'id', tb.id,
-                'name', tb.name,
-                'typeName', tbt.name,
-                'employerName', e.name
-              )
-              ORDER BY tb.name
-            ) FILTER (WHERE tb.id IS NOT NULL),
+            (
+              SELECT json_agg(benefit_data)
+              FROM (
+                SELECT DISTINCT ON (tb.id, e.id)
+                  jsonb_build_object(
+                    'id', tb.id,
+                    'name', tb.name,
+                    'typeName', tbt.name,
+                    'employerName', e.name
+                  ) as benefit_data
+                FROM trust_wmb wmb
+                INNER JOIN trust_benefits tb ON wmb.benefit_id = tb.id
+                LEFT JOIN options_trust_benefit_type tbt ON tb.benefit_type = tbt.id
+                LEFT JOIN employers e ON wmb.employer_id = e.id
+                WHERE wmb.worker_id = w.id
+                  AND wmb.month = ${currentMonth}
+                  AND wmb.year = ${currentYear}
+                ORDER BY tb.id, e.id
+              ) benefit_rows
+            ),
             '[]'::json
           ) as benefits
         FROM workers w
-        LEFT JOIN trust_wmb wmb ON w.id = wmb.worker_id 
-          AND wmb.month = ${currentMonth} 
-          AND wmb.year = ${currentYear}
-        LEFT JOIN trust_benefits tb ON wmb.benefit_id = tb.id
-        LEFT JOIN options_trust_benefit_type tbt ON tb.benefit_type_id = tbt.id
-        LEFT JOIN employers e ON wmb.employer_id = e.id
-        GROUP BY w.id
       `);
       
       // Transform the result into a more usable format
       const workerBenefits = result.rows.map((row: any) => ({
         workerId: row.worker_id,
-        benefits: row.benefits || []
+        benefits: Array.isArray(row.benefits) ? row.benefits : []
       }));
       
       res.json(workerBenefits);

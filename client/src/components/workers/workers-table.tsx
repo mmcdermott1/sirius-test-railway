@@ -305,7 +305,13 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       // Get current benefits for this worker
       const currentBenefits = currentBenefitsMap.get(worker.id) || [];
       const benefitsString = currentBenefits
-        .map((b: any) => `${b.name} (${b.employerName})`)
+        .filter((b: any) => b && b.name)
+        .map((b: any) => {
+          if (b.employerName) {
+            return `${b.name} (${b.employerName})`;
+          }
+          return b.name;
+        })
         .join('; ');
 
       return {
