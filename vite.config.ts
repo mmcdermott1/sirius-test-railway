@@ -35,10 +35,15 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     strictPort: false,
-    hmr: {
-      clientPort: 443,
-      protocol: "wss",
-    },
+    // Configure HMR for Replit's proxy environment
+    // When running on Replit, HMR must use wss protocol on port 443
+    // to work through the iframe proxy. Local dev uses default ws://localhost.
+    ...(process.env.REPL_ID && {
+      hmr: {
+        clientPort: 443,
+        protocol: "wss",
+      },
+    }),
     fs: {
       strict: true,
       deny: ["**/.*"],
