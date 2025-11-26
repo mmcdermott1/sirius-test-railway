@@ -26,6 +26,7 @@ const rateHistoryEntrySchema = baseRateHistoryEntrySchema.extend({
 const formSchema = z.object({
   accountId: z.string().uuid("Please select an account"),
   chargeTo: z.enum(["worker", "employer"]),
+  fixedMonthly: z.boolean(),
   employmentStatusIds: z.array(z.string()).optional(),
   rateHistory: z.array(rateHistoryEntrySchema).min(1, "At least one rate entry is required"),
   scope: z.enum(["global", "employer"]),
@@ -75,6 +76,7 @@ interface ChargePluginConfig {
   settings: {
     accountId?: string;
     chargeTo?: "worker" | "employer";
+    fixedMonthly?: boolean;
     employmentStatusIds?: string[];
     rateHistory?: Array<{
       effectiveDate: string;
@@ -122,6 +124,7 @@ export default function HourFixedConfigFormPage() {
     defaultValues: {
       accountId: "",
       chargeTo: "worker",
+      fixedMonthly: false,
       employmentStatusIds: [],
       rateHistory: [{ effectiveDate: "", rate: 0 }],
       scope: "global",
@@ -136,6 +139,7 @@ export default function HourFixedConfigFormPage() {
       form.reset({
         accountId: existingConfig.settings?.accountId || "",
         chargeTo: existingConfig.settings?.chargeTo || "worker",
+        fixedMonthly: existingConfig.settings?.fixedMonthly || false,
         employmentStatusIds: existingConfig.settings?.employmentStatusIds || undefined,
         rateHistory: existingConfig.settings?.rateHistory 
           ? sortRatesDescending(existingConfig.settings.rateHistory) 
@@ -158,6 +162,7 @@ export default function HourFixedConfigFormPage() {
         settings: {
           accountId: data.accountId,
           chargeTo: data.chargeTo,
+          fixedMonthly: data.fixedMonthly,
           employmentStatusIds: data.employmentStatusIds,
           rateHistory: data.rateHistory,
         },
@@ -168,6 +173,7 @@ export default function HourFixedConfigFormPage() {
         const updateSettings: any = {
           accountId: data.accountId,
           chargeTo: data.chargeTo,
+          fixedMonthly: data.fixedMonthly,
           rateHistory: data.rateHistory,
         };
         
@@ -386,6 +392,29 @@ export default function HourFixedConfigFormPage() {
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Fixed Monthly toggle */}
+              <FormField
+                control={form.control}
+                name="fixedMonthly"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between p-3 border rounded-md">
+                    <div>
+                      <FormLabel>Fixed Monthly?</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        If enabled, the rate is fixed monthly per worker. If disabled, the rate is per hour.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-fixed-monthly"
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

@@ -24,6 +24,7 @@ const rateHistoryEntrySchema = z.object({
 const formSchema = z.object({
   accountId: z.string().uuid("Please select an account"),
   chargeTo: z.enum(["worker", "employer"]),
+  fixedMonthly: z.boolean(),
   rateHistory: z.array(rateHistoryEntrySchema).min(1, "At least one rate entry is required"),
   scope: z.enum(["global", "employer"]),
   employerId: z.string().optional(),
@@ -66,6 +67,7 @@ interface ChargePluginConfig {
   settings: {
     accountId?: string;
     chargeTo?: "worker" | "employer";
+    fixedMonthly?: boolean;
     rateHistory?: Array<{
       effectiveDate: string;
       rate: number;
@@ -105,6 +107,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
     defaultValues: {
       accountId: globalConfig?.settings?.accountId || "",
       chargeTo: globalConfig?.settings?.chargeTo || "worker",
+      fixedMonthly: globalConfig?.settings?.fixedMonthly || false,
       rateHistory: globalConfig?.settings?.rateHistory 
         ? sortRatesDescending(globalConfig.settings.rateHistory) 
         : [{ effectiveDate: "", rate: 0 }],
@@ -126,6 +129,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
       form.reset({
         accountId: "",
         chargeTo: "worker",
+        fixedMonthly: false,
         rateHistory: [{ effectiveDate: "", rate: 0 }],
         scope: "global",
         employerId: "",
@@ -136,6 +140,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
       form.reset({
         accountId: config.settings?.accountId || "",
         chargeTo: config.settings?.chargeTo || "worker",
+        fixedMonthly: config.settings?.fixedMonthly || false,
         rateHistory: config.settings?.rateHistory 
           ? sortRatesDescending(config.settings.rateHistory) 
           : [{ effectiveDate: "", rate: 0 }],
@@ -157,6 +162,7 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
         settings: {
           accountId: data.accountId,
           chargeTo: data.chargeTo,
+          fixedMonthly: data.fixedMonthly,
           rateHistory: data.rateHistory,
         },
       };
@@ -425,6 +431,29 @@ export default function HourFixedConfigForm({ pluginId }: ChargePluginConfigProp
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Fixed Monthly toggle */}
+              <FormField
+                control={form.control}
+                name="fixedMonthly"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between p-3 border rounded-md">
+                    <div>
+                      <FormLabel>Fixed Monthly?</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        If enabled, the rate is fixed monthly per worker. If disabled, the rate is per hour.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-fixed-monthly"
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />
