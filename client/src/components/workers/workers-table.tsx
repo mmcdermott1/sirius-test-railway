@@ -621,17 +621,21 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                           <div 
                             className="cursor-pointer"
                             data-testid={`address-indicator-${worker.id}`}
+                            aria-label={`Address for ${worker.contactName}`}
                           >
-                            <CheckCircle2 size={16} className="text-green-600" />
+                            <Home size={16} className="text-green-600" />
                           </div>
                         </HoverCardTrigger>
                         <HoverCardContent className="w-80" data-testid={`address-hover-${worker.id}`}>
                           <div className="space-y-2">
+                            <p className="text-sm font-semibold text-foreground">
+                              {worker.contactName}
+                            </p>
                             <div className="flex items-start gap-2">
                               <MapPin size={16} className="text-muted-foreground mt-0.5" />
                               <div className="flex-1">
                                 {worker.address.friendlyName && (
-                                  <p className="text-sm font-semibold text-foreground mb-1">
+                                  <p className="text-sm font-medium text-foreground mb-1">
                                     {worker.address.friendlyName}
                                   </p>
                                 )}
@@ -652,8 +656,11 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                         </HoverCardContent>
                       </HoverCard>
                     ) : (
-                      <div data-testid={`address-indicator-${worker.id}`}>
-                        <XCircle size={16} className="text-muted-foreground" />
+                      <div 
+                        data-testid={`address-indicator-${worker.id}`}
+                        aria-label={`No address for ${worker.contactName}`}
+                      >
+                        <Home size={16} className="text-muted-foreground" />
                       </div>
                     )}
                   </td>

@@ -4,7 +4,7 @@ Sirius is a full-stack web application for comprehensive worker management, prov
 
 # Recent Changes (November 26, 2025)
 
--   **Worker List Contact Indicators**: Updated workers table to show phone and email as icon indicators instead of full text. Mail icon (green if email exists, gray if not) and Phone icon (green if phone exists, gray if not) with hover cards showing the worker name for verification along with the actual contact data. Improves table density while maintaining data accessibility.
+-   **Worker List Contact Indicators**: Updated workers table to show phone, email, and address as icon indicators instead of full text. Mail icon, Phone icon, and Home icon (green if data exists, gray if not) with hover cards showing the worker name for verification along with the actual contact data. Improves table density while maintaining data accessibility.
 -   **Worker Benefits CSV Export**: Added current benefits to workers list CSV export. Created new `/api/workers/benefits/current` endpoint that efficiently fetches current month benefits for all workers using PostgreSQL DISTINCT ON with ORDER BY for deduplication. Backend uses double null-safety (SQL COALESCE + Array.isArray guard) to ensure reliable empty arrays for workers without benefits. CSV export includes "Current Benefits" column showing benefit names with employer names, gracefully handling null values.
 
 # User Preferences
