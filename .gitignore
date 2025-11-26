@@ -3,4 +3,7 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
-*.tar.gz
+*.tar.gz.replit
+replit.nix
+.cache/
+__replit_disk_meta.json
