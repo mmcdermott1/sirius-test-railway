@@ -1,43 +1,137 @@
+import { createContext, useContext, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useLocation, Link } from "wouter";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useParams, Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LedgerPayment, LedgerPaymentType } from "@shared/schema";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { getPaymentTitle } from "@/lib/payment-utils";
 
+interface PaymentLayoutContextValue {
+  payment: LedgerPayment;
+  paymentType: LedgerPaymentType | undefined;
+  isLoading: boolean;
+  isError: boolean;
+}
+
+const PaymentLayoutContext = createContext<PaymentLayoutContextValue | null>(null);
+
+export function usePaymentLayout() {
+  const context = useContext(PaymentLayoutContext);
+  if (!context) {
+    throw new Error("usePaymentLayout must be used within PaymentLayout");
+  }
+  return context;
+}
+
 interface PaymentLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
   activeTab: "view" | "edit";
 }
 
 export function PaymentLayout({ children, activeTab }: PaymentLayoutProps) {
   const { id } = useParams<{ id: string }>();
-  const [, setLocation] = useLocation();
 
-  const { data: payment, isLoading: isLoadingPayment } = useQuery<LedgerPayment>({
+  const { data: payment, isLoading: isLoadingPayment, error: paymentError } = useQuery<LedgerPayment>({
     queryKey: ["/api/ledger/payments", id],
   });
 
-  const { data: paymentTypes = [] } = useQuery<LedgerPaymentType[]>({
+  const { data: paymentTypes = [], isLoading: isLoadingTypes } = useQuery<LedgerPaymentType[]>({
     queryKey: ["/api/ledger/payment-types"],
   });
 
-  if (isLoadingPayment) {
+  const isLoading = isLoadingPayment || isLoadingTypes;
+  const isError = !!paymentError;
+
+  if (paymentError) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-64 w-full" />
+      <div className="bg-background text-foreground min-h-screen">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <CreditCard className="text-primary-foreground" size={16} />
+                </div>
+                <h1 className="text-xl font-semibold text-foreground">Sirius</h1>
+                <span className="text-muted-foreground text-sm font-medium">Payment Not Found</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.history.back()}
+                  data-testid="button-back"
+                >
+                  <ArrowLeft size={16} className="mr-2" />
+                  Back
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                <CreditCard className="text-muted-foreground" size={32} />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">Payment Not Found</h3>
+              <p className="text-muted-foreground text-center">
+                The payment you're looking for doesn't exist or has been removed.
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => window.history.back()}
+                data-testid="button-go-back"
+              >
+                Go Back
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     );
   }
 
-  if (!payment) {
+  if (isLoading || !payment) {
     return (
-      <div className="container mx-auto py-6">
-        <p className="text-muted-foreground">Payment not found</p>
+      <div className="bg-background text-foreground min-h-screen">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <CreditCard className="text-primary-foreground" size={16} />
+                </div>
+                <Skeleton className="h-6 w-48" />
+              </div>
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.history.back()}
+                  data-testid="button-back"
+                >
+                  <ArrowLeft size={16} className="mr-2" />
+                  Back
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Skeleton className="h-16 w-16 rounded-full mb-4" />
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-64" />
+            </CardContent>
+          </Card>
+        </main>
       </div>
     );
   }
@@ -45,41 +139,81 @@ export function PaymentLayout({ children, activeTab }: PaymentLayoutProps) {
   const paymentType = paymentTypes.find(pt => pt.id === payment.paymentType);
   const paymentTitle = getPaymentTitle(payment, paymentType);
 
+  const mainTabs = [
+    { id: "view", label: "View", href: `/ledger/payment/${id}` },
+    { id: "edit", label: "Edit", href: `/ledger/payment/${id}/edit` },
+  ];
+
+  const contextValue: PaymentLayoutContextValue = {
+    payment,
+    paymentType,
+    isLoading: false,
+    isError: false,
+  };
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => window.history.back()}
-          data-testid="button-back"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+    <PaymentLayoutContext.Provider value={contextValue}>
+      <div className="bg-background text-foreground min-h-screen">
+        <header className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <CreditCard className="text-primary-foreground" size={16} />
+                </div>
+                <h1 className="text-xl font-semibold text-foreground" data-testid="text-payment-title">
+                  {paymentTitle}
+                </h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.history.back()}
+                  data-testid="button-back"
+                >
+                  <ArrowLeft size={16} className="mr-2" />
+                  Back
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="bg-card border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center space-x-2 py-3">
+              {mainTabs.map((tab) => {
+                const isActive = tab.id === activeTab;
+                return isActive ? (
+                  <Button
+                    key={tab.id}
+                    variant="default"
+                    size="sm"
+                    data-testid={`button-payment-${tab.id}`}
+                  >
+                    {tab.label}
+                  </Button>
+                ) : (
+                  <Link key={tab.id} href={tab.href}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      data-testid={`button-payment-${tab.id}`}
+                    >
+                      {tab.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+        </main>
       </div>
-
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
-          {paymentTitle}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Manage this payment record
-        </p>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={(value) => setLocation(`/ledger/payment/${id}/${value === "view" ? "" : value}`)}>
-        <TabsList>
-          <TabsTrigger value="view" data-testid="tab-view">
-            View
-          </TabsTrigger>
-          <TabsTrigger value="edit" data-testid="tab-edit">
-            Edit
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {children}
-    </div>
+    </PaymentLayoutContext.Provider>
   );
 }
