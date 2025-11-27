@@ -5,6 +5,7 @@ import {
   PluginExecutionResult, 
   HoursSavedContext,
   LedgerTransaction,
+  LedgerNotification,
 } from "../types";
 import { registerChargePlugin } from "../registry";
 import { z } from "zod";
@@ -185,9 +186,16 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
           month: hoursContext.month,
         });
 
+        const notification: LedgerNotification = {
+          type: "deleted",
+          amount: existingEntry.amount,
+          description: `Ledger entry deleted: -$${existingEntry.amount}`,
+        };
+
         return {
           success: true,
           transactions: [],
+          notifications: [notification],
           message: "Deleted ledger entry - no longer qualifying hours in month",
         };
       }
@@ -217,9 +225,16 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
           totalHours: (expectedEntry.metadata as any).totalHours,
         });
 
+        const notification: LedgerNotification = {
+          type: "created",
+          amount: expectedEntry.amount,
+          description: `Ledger entry created: $${expectedEntry.amount}`,
+        };
+
         return {
           success: true,
           transactions: [transaction],
+          notifications: [notification],
           message: `Created monthly entry for $${expectedEntry.amount} - ${expectedEntry.description}`,
         };
       }
@@ -270,9 +285,19 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
           referenceIdChanged,
         });
 
+        const notification: LedgerNotification = {
+          type: "updated",
+          amount: expectedEntry.amount,
+          previousAmount: existingEntry.amount,
+          description: amountChanged 
+            ? `Ledger entry updated: $${existingEntry.amount} → $${expectedEntry.amount}`
+            : `Ledger entry updated: $${expectedEntry.amount}`,
+        };
+
         return {
           success: true,
           transactions: [],
+          notifications: [notification],
           message: `Updated entry: ${changes} changed`,
         };
       }
