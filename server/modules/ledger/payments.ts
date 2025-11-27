@@ -6,10 +6,7 @@ import { requireAccess } from "../../accessControl";
 import { executeChargePlugins, TriggerType, PaymentSavedContext } from "../../charge-plugins";
 import { logger } from "../../logger";
 
-async function triggerPaymentChargePlugins(
-  payment: LedgerPayment, 
-  previousPayment?: LedgerPayment | null
-): Promise<void> {
+async function triggerPaymentChargePlugins(payment: LedgerPayment): Promise<void> {
   try {
     const ea = await storage.ledger.ea.get(payment.ledgerEaId);
     if (!ea) {
@@ -19,29 +16,6 @@ async function triggerPaymentChargePlugins(
         ledgerEaId: payment.ledgerEaId,
       });
       return;
-    }
-
-    const previousWasCleared = previousPayment?.status === "cleared";
-    const currentIsCleared = payment.status === "cleared";
-    const amountChanged = previousPayment && previousPayment.amount !== payment.amount;
-
-    if (previousWasCleared && (!currentIsCleared || amountChanged)) {
-      logger.info("Deleting existing ledger entries for payment due to status or amount change", {
-        service: "ledger-payments",
-        paymentId: payment.id,
-        previousStatus: previousPayment?.status,
-        currentStatus: payment.status,
-        previousAmount: previousPayment?.amount,
-        currentAmount: payment.amount,
-      });
-
-      const deletedCount = await storage.ledger.entries.deleteByReference("payment", payment.id);
-      
-      logger.info("Deleted ledger entries for payment", {
-        service: "ledger-payments",
-        paymentId: payment.id,
-        deletedCount,
-      });
     }
 
     const context: PaymentSavedContext = {
@@ -138,8 +112,8 @@ export function registerLedgerPaymentRoutes(app: Express) {
       const validatedData = insertLedgerPaymentSchema.parse(processedBody);
       const payment = await storage.ledger.payments.create(validatedData);
       
-      // Trigger charge plugins after payment is saved (no previous payment for new payments)
-      await triggerPaymentChargePlugins(payment, null);
+      // Trigger charge plugins - they handle their own reconciliation
+      await triggerPaymentChargePlugins(payment);
       
       res.status(201).json(payment);
     } catch (error) {
@@ -163,14 +137,6 @@ export function registerLedgerPaymentRoutes(app: Express) {
     try {
       const { id } = req.params;
       
-      // Fetch the previous payment state BEFORE updating
-      const previousPayment = await storage.ledger.payments.get(id);
-      
-      if (!previousPayment) {
-        res.status(404).json({ message: "Payment not found" });
-        return;
-      }
-      
       // Convert date strings to Date objects
       const processedBody = {
         ...req.body,
@@ -187,8 +153,8 @@ export function registerLedgerPaymentRoutes(app: Express) {
         return;
       }
       
-      // Trigger charge plugins after payment is updated, passing previous state
-      await triggerPaymentChargePlugins(payment, previousPayment);
+      // Trigger charge plugins - they handle their own reconciliation
+      await triggerPaymentChargePlugins(payment);
       
       res.json(payment);
     } catch (error) {

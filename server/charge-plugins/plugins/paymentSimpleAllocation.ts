@@ -9,12 +9,24 @@ import {
 import { registerChargePlugin } from "../registry";
 import { z } from "zod";
 import { logger } from "../../logger";
+import { storage } from "../../storage";
 
 const paymentSimpleAllocationSettingsSchema = z.object({
   accountIds: z.array(z.string().uuid("Account ID must be a valid UUID")).min(1, "At least one account is required"),
 });
 
 type PaymentSimpleAllocationSettings = z.infer<typeof paymentSimpleAllocationSettingsSchema>;
+
+interface ExpectedEntry {
+  chargePluginKey: string;
+  amount: string;
+  description: string;
+  transactionDate: Date;
+  eaId: string;
+  referenceType: string;
+  referenceId: string;
+  metadata: Record<string, any>;
+}
 
 class PaymentSimpleAllocationPlugin extends ChargePlugin {
   readonly metadata = {
@@ -25,6 +37,40 @@ class PaymentSimpleAllocationPlugin extends ChargePlugin {
     defaultScope: "global" as const,
     settingsSchema: paymentSimpleAllocationSettingsSchema,
   };
+
+  private computeExpectedEntry(
+    paymentContext: PaymentSavedContext,
+    configId: string
+  ): ExpectedEntry | null {
+    if (paymentContext.status !== "cleared") {
+      return null;
+    }
+
+    const paymentAmount = parseFloat(paymentContext.amount);
+    const allocatedAmount = -paymentAmount;
+    const transactionDate = paymentContext.dateCleared || new Date();
+    
+    const description = paymentContext.memo 
+      ? `Payment allocation: ${paymentContext.memo}`
+      : "Payment allocation";
+
+    return {
+      chargePluginKey: `${configId}:${paymentContext.paymentId}:cleared`,
+      amount: allocatedAmount.toFixed(2),
+      description,
+      transactionDate,
+      eaId: paymentContext.ledgerEaId,
+      referenceType: "payment",
+      referenceId: paymentContext.paymentId,
+      metadata: {
+        pluginId: this.metadata.id,
+        pluginConfigId: configId,
+        paymentId: paymentContext.paymentId,
+        originalAmount: paymentContext.amount,
+        ledgerEaId: paymentContext.ledgerEaId,
+      },
+    };
+  }
 
   async execute(
     context: PluginContext,
@@ -71,8 +117,17 @@ class PaymentSimpleAllocationPlugin extends ChargePlugin {
         };
       }
 
-      if (paymentContext.status !== "cleared") {
-        logger.debug("Payment status is not cleared, skipping", {
+      const chargePluginKey = `${config.id}:${paymentContext.paymentId}:cleared`;
+      
+      const expectedEntry = this.computeExpectedEntry(paymentContext, config.id);
+      
+      const existingEntry = await storage.ledger.entries.getByChargePluginKey(
+        this.metadata.id,
+        chargePluginKey
+      );
+
+      if (!expectedEntry && !existingEntry) {
+        logger.debug("No entry expected and none exists, nothing to do", {
           service: "charge-plugin-payment-simple-allocation",
           paymentId: paymentContext.paymentId,
           status: paymentContext.status,
@@ -80,51 +135,105 @@ class PaymentSimpleAllocationPlugin extends ChargePlugin {
         return {
           success: true,
           transactions: [],
-          message: `Payment status is ${paymentContext.status}, not cleared`,
+          message: `Payment status is ${paymentContext.status}, no entry needed`,
         };
       }
 
-      const paymentAmount = parseFloat(paymentContext.amount);
-      const allocatedAmount = -paymentAmount;
-      const transactionDate = paymentContext.dateCleared || new Date();
-      
-      const description = paymentContext.memo 
-        ? `Payment allocation: ${paymentContext.memo}`
-        : "Payment allocation";
-
-      const transaction: LedgerTransaction = {
-        chargePlugin: this.metadata.id,
-        chargePluginKey: `${config.id}:${paymentContext.paymentId}:cleared`,
-        accountId: paymentContext.accountId,
-        entityType: paymentContext.entityType,
-        entityId: paymentContext.entityId,
-        amount: allocatedAmount.toFixed(2),
-        description,
-        transactionDate,
-        referenceType: "payment",
-        referenceId: paymentContext.paymentId,
-        metadata: {
-          pluginId: this.metadata.id,
-          pluginConfigId: config.id,
+      if (!expectedEntry && existingEntry) {
+        await storage.ledger.entries.deleteByChargePluginKey(
+          this.metadata.id,
+          chargePluginKey
+        );
+        
+        logger.info("Deleted ledger entry - payment no longer cleared", {
+          service: "charge-plugin-payment-simple-allocation",
           paymentId: paymentContext.paymentId,
-          originalAmount: paymentContext.amount,
-          ledgerEaId: paymentContext.ledgerEaId,
-        },
-      };
+          deletedEntryId: existingEntry.id,
+          previousAmount: existingEntry.amount,
+        });
 
-      logger.info("Payment Simple Allocation plugin executed successfully", {
-        service: "charge-plugin-payment-simple-allocation",
-        paymentId: paymentContext.paymentId,
-        allocatedAmount,
-        accountId: paymentContext.accountId,
-        entityType: paymentContext.entityType,
-        entityId: paymentContext.entityId,
-      });
+        return {
+          success: true,
+          transactions: [],
+          message: "Deleted ledger entry - payment status changed from cleared",
+        };
+      }
+
+      if (expectedEntry && !existingEntry) {
+        const transaction: LedgerTransaction = {
+          chargePlugin: this.metadata.id,
+          chargePluginKey: expectedEntry.chargePluginKey,
+          accountId: paymentContext.accountId,
+          entityType: paymentContext.entityType,
+          entityId: paymentContext.entityId,
+          amount: expectedEntry.amount,
+          description: expectedEntry.description,
+          transactionDate: expectedEntry.transactionDate,
+          referenceType: expectedEntry.referenceType,
+          referenceId: expectedEntry.referenceId,
+          metadata: expectedEntry.metadata,
+        };
+
+        logger.info("Creating new ledger entry for cleared payment", {
+          service: "charge-plugin-payment-simple-allocation",
+          paymentId: paymentContext.paymentId,
+          amount: expectedEntry.amount,
+        });
+
+        return {
+          success: true,
+          transactions: [transaction],
+          message: `Created entry for $${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)} allocation`,
+        };
+      }
+
+      if (expectedEntry && existingEntry) {
+        const amountChanged = existingEntry.amount !== expectedEntry.amount;
+        const memoChanged = existingEntry.memo !== expectedEntry.description;
+        const dateChanged = existingEntry.date?.getTime() !== expectedEntry.transactionDate.getTime();
+
+        if (!amountChanged && !memoChanged && !dateChanged) {
+          logger.debug("Ledger entry matches expected state, no update needed", {
+            service: "charge-plugin-payment-simple-allocation",
+            paymentId: paymentContext.paymentId,
+            entryId: existingEntry.id,
+          });
+          return {
+            success: true,
+            transactions: [],
+            message: "Ledger entry already matches expected state",
+          };
+        }
+
+        await storage.ledger.entries.update(existingEntry.id, {
+          amount: expectedEntry.amount,
+          memo: expectedEntry.description,
+          date: expectedEntry.transactionDate,
+          data: expectedEntry.metadata,
+        });
+
+        logger.info("Updated ledger entry to match payment", {
+          service: "charge-plugin-payment-simple-allocation",
+          paymentId: paymentContext.paymentId,
+          entryId: existingEntry.id,
+          previousAmount: existingEntry.amount,
+          newAmount: expectedEntry.amount,
+          amountChanged,
+          memoChanged,
+          dateChanged,
+        });
+
+        return {
+          success: true,
+          transactions: [],
+          message: `Updated entry: ${amountChanged ? 'amount' : ''}${memoChanged ? ' memo' : ''}${dateChanged ? ' date' : ''} changed`,
+        };
+      }
 
       return {
         success: true,
-        transactions: [transaction],
-        message: `Allocated $${Math.abs(allocatedAmount).toFixed(2)} from payment`,
+        transactions: [],
+        message: "No action taken",
       };
 
     } catch (error) {

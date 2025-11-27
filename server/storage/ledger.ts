@@ -56,12 +56,14 @@ export interface LedgerEntryStorage {
   get(id: string): Promise<Ledger | undefined>;
   getByEaId(eaId: string): Promise<Ledger[]>;
   getByReference(referenceType: string, referenceId: string): Promise<Ledger[]>;
+  getByChargePluginKey(chargePlugin: string, chargePluginKey: string): Promise<Ledger | undefined>;
   getTransactions(filter: { accountId: string } | { eaId: string }): Promise<LedgerEntryWithDetails[]>;
   getByAccountId(accountId: string): Promise<LedgerEntryWithDetails[]>;
   create(entry: InsertLedger): Promise<Ledger>;
   update(id: string, entry: Partial<InsertLedger>): Promise<Ledger | undefined>;
   delete(id: string): Promise<boolean>;
   deleteByReference(referenceType: string, referenceId: string): Promise<number>;
+  deleteByChargePluginKey(chargePlugin: string, chargePluginKey: string): Promise<boolean>;
 }
 
 export interface LedgerEntryWithDetails extends Ledger {
@@ -675,6 +677,26 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
           eq(ledger.referenceId, referenceId)
         ));
       return result.rowCount || 0;
+    },
+
+    async getByChargePluginKey(chargePlugin: string, chargePluginKey: string): Promise<Ledger | undefined> {
+      const [entry] = await db.select()
+        .from(ledger)
+        .where(and(
+          eq(ledger.chargePlugin, chargePlugin),
+          eq(ledger.chargePluginKey, chargePluginKey)
+        ))
+        .limit(1);
+      return entry || undefined;
+    },
+
+    async deleteByChargePluginKey(chargePlugin: string, chargePluginKey: string): Promise<boolean> {
+      const result = await db.delete(ledger)
+        .where(and(
+          eq(ledger.chargePlugin, chargePlugin),
+          eq(ledger.chargePluginKey, chargePluginKey)
+        ));
+      return result.rowCount ? result.rowCount > 0 : false;
     }
   };
 }
