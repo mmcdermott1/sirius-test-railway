@@ -54,9 +54,19 @@ export interface LedgerTransaction {
   metadata?: Record<string, any>;
 }
 
+export type LedgerNotificationType = "created" | "updated" | "deleted";
+
+export interface LedgerNotification {
+  type: LedgerNotificationType;
+  amount: string;
+  previousAmount?: string; // Only for "updated" type
+  description: string;
+}
+
 export interface PluginExecutionResult {
   success: boolean;
   transactions: LedgerTransaction[];
+  notifications?: LedgerNotification[];
   message?: string;
   error?: string;
 }
