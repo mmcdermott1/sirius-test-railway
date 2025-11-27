@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { RateHistorySection } from "@/components/charge-plugins/RateHistorySection";
+import { sortRatesDescending } from "@/lib/rateHistory";
 import { useEffect } from "react";
 
 const formSchema = z.object({
@@ -91,12 +92,14 @@ export default function GbhetLegalHourlyConfigFormPage() {
 
   useEffect(() => {
     if (existingConfig && isEditMode) {
+      const rateHistory = existingConfig.settings.rateHistory && existingConfig.settings.rateHistory.length > 0
+        ? sortRatesDescending(existingConfig.settings.rateHistory)
+        : [{ effectiveDate: "", rate: 0 }];
+      
       form.reset({
         accountId: existingConfig.settings.accountId || "",
         employmentStatusIds: existingConfig.settings.employmentStatusIds || [],
-        rateHistory: existingConfig.settings.rateHistory && existingConfig.settings.rateHistory.length > 0
-          ? existingConfig.settings.rateHistory
-          : [{ effectiveDate: "", rate: 0 }],
+        rateHistory,
       });
     }
   }, [existingConfig, isEditMode, form]);
