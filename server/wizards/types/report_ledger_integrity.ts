@@ -72,7 +72,7 @@ export class ReportLedgerIntegrity extends WizardReport {
         if (parts.length >= 2) {
           const workerId = parts[0];
           return {
-            url: `/workers/${workerId}/hours`,
+            url: `/workers/${workerId}/employment/monthly`,
             label: 'View Hours'
           };
         }
