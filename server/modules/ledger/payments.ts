@@ -99,6 +99,20 @@ export function registerLedgerPaymentRoutes(app: Express) {
     }
   });
 
+  // GET /api/ledger/payments/:id/transactions - Get ledger entries for a payment
+  app.get("/api/ledger/payments/:id/transactions", requireAccess(policies.ledgerStaff), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const transactions = await storage.ledger.entries.getTransactions({
+        referenceType: "payment",
+        referenceId: id,
+      });
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payment transactions" });
+    }
+  });
+
   // POST /api/ledger/payments - Create a new payment
   app.post("/api/ledger/payments", requireAccess(policies.ledgerStaff), async (req, res) => {
     try {

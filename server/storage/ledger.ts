@@ -51,13 +51,18 @@ export interface LedgerPaymentStorage {
   delete(id: string): Promise<boolean>;
 }
 
+export type TransactionFilter = 
+  | { accountId: string } 
+  | { eaId: string } 
+  | { referenceType: string; referenceId: string };
+
 export interface LedgerEntryStorage {
   getAll(): Promise<Ledger[]>;
   get(id: string): Promise<Ledger | undefined>;
   getByEaId(eaId: string): Promise<Ledger[]>;
   getByReference(referenceType: string, referenceId: string): Promise<Ledger[]>;
   getByChargePluginKey(chargePlugin: string, chargePluginKey: string): Promise<Ledger | undefined>;
-  getTransactions(filter: { accountId: string } | { eaId: string }): Promise<LedgerEntryWithDetails[]>;
+  getTransactions(filter: TransactionFilter): Promise<LedgerEntryWithDetails[]>;
   getByAccountId(accountId: string): Promise<LedgerEntryWithDetails[]>;
   create(entry: InsertLedger): Promise<Ledger>;
   update(id: string, entry: Partial<InsertLedger>): Promise<Ledger | undefined>;
@@ -493,7 +498,7 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
         ));
     },
 
-    async getTransactions(filter: { accountId: string } | { eaId: string }): Promise<LedgerEntryWithDetails[]> {
+    async getTransactions(filter: TransactionFilter): Promise<LedgerEntryWithDetails[]> {
       const refEmployers = pgAlias(employers, 'ref_employers');
       const refTrustProviders = pgAlias(trustProviders, 'ref_trust_providers');
       const refWorkers = pgAlias(workers, 'ref_workers');
@@ -581,9 +586,17 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
           )
         );
 
-      const whereClause = 'accountId' in filter
-        ? eq(ledgerEa.accountId, filter.accountId)
-        : eq(ledger.eaId, filter.eaId);
+      let whereClause;
+      if ('accountId' in filter) {
+        whereClause = eq(ledgerEa.accountId, filter.accountId);
+      } else if ('eaId' in filter) {
+        whereClause = eq(ledger.eaId, filter.eaId);
+      } else {
+        whereClause = and(
+          eq(ledger.referenceType, filter.referenceType),
+          eq(ledger.referenceId, filter.referenceId)
+        );
+      }
 
       const results = await query
         .where(whereClause)
