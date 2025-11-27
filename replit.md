@@ -2,45 +2,9 @@
 
 Sirius is a full-stack web application for comprehensive worker management, providing robust CRUD operations and configurable organizational settings. It aims to streamline worker administration, enhance user experience, and deliver significant business value through efficiency and reliability.
 
-# Recent Changes (November 27, 2025)
-
--   **GBHET Legal Hourly Plugin - Monthly Rate Model**: Refactored the GBHET Legal Hourly charge plugin to use per-month billing instead of per-hour. The plugin now:
-    - Charges a flat monthly rate when there are nonzero qualifying hours in a month
-    - Uses chargePluginKey format `{configId}:{eaId}:{workerId}:{year}:{month}` to constrain one entry per employer/account/worker/year/month
-    - Aggregates hours across all daily entries for a worker/employer/year/month combination
-    - Added new storage methods: `getByEntityAndAccount`, `getOrCreate` (for EA), and `getMonthlyHoursTotal` (for worker hours)
-    - Charge plugins now trigger on all hours operations (create, update, delete) for proper monthly reconciliation
-
-# Recent Changes (November 26, 2025)
-
--   **Worker Benefits CSV Export**: Added current benefits to workers list CSV export. Created new `/api/workers/benefits/current` endpoint that efficiently fetches current month benefits for all workers using PostgreSQL DISTINCT ON with ORDER BY for deduplication. Backend uses double null-safety (SQL COALESCE + Array.isArray guard) to ensure reliable empty arrays for workers without benefits. CSV export includes "Current Benefits" column showing benefit names with employer names, gracefully handling null values.
-
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
-
-# Recent Changes
-
-## November 26, 2025 - Payment Simple Allocation Charge Plugin
-- Created new charge plugin `payment-simple-allocation` triggered by `PAYMENT_SAVED` events
-- Plugin creates negative ledger entries when payments with status "cleared" are saved
-- Configuration UI allows selecting which accounts should trigger automatic allocation
-- chargePluginKey format: `{configId}:{paymentId}:cleared` ensures unique constraint prevents duplicates
-- Added charge plugin trigger to payment create/update routes in `server/modules/ledger/payments.ts`
-- Updated PaymentSavedContext with additional fields: accountId, ledgerEaId, entityType, entityId, dateCleared, memo
-
-## November 26, 2025 - Ledger Charge Plugin Fields
-- Added `charge_plugin` (varchar, NOT NULL) and `charge_plugin_key` (varchar, NOT NULL) columns to the `ledger` table
-- Added unique constraint on (charge_plugin, charge_plugin_key) combination
-- Created migration helper script: `scripts/db-clear-ledger.ts` - must be run before `db:push` on existing databases
-- **Migration Note**: When deploying to other environments, run `npx tsx scripts/db-clear-ledger.ts` before `npm run db:push` to avoid NOT NULL column addition failures
-
-## November 26, 2025 - Initial Replit Setup
-- Configured Vite dev server for Replit environment with conditional HMR settings (wss://443 when REPL_ID is present)
-- Modified object storage service to allow app startup without DEFAULT_OBJECT_STORAGE_BUCKET_ID (throws error only when storage methods are called)
-- Set up deployment configuration (autoscale with build and start commands)
-- Created PostgreSQL database and ran initial migrations
-- Note: Object storage features require DEFAULT_OBJECT_STORAGE_BUCKET_ID environment variable to be configured before use
 
 # System Architecture
 
@@ -62,24 +26,18 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
 -   **User Provisioning**: Email-based user provisioning integrated with Replit accounts.
 -   **Data Validation**: Extensive Zod schema validation, `libphonenumber-js` for phone numbers, and custom SSN/date validation.
 -   **Employer & Contact Management**: Manages employer records and links them to contacts with type categorization.
--   **Trust Provider Contacts Management**: Full CRUD operations for trust provider contacts with type categorization, similar to employer contacts. Supports listing by provider, filtering, and contact detail updates (name, email). Integrated with comprehensive audit logging for all mutations.
+-   **Trust Provider Contacts Management**: Full CRUD operations for trust provider contacts with type categorization.
 -   **Bookmarks**: User-specific, entity-agnostic bookmarking for workers and employers.
--   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets with unified settings storage and a generic settings API. Includes plugins for welcome messages, bookmarks, employer monthly uploads, and reports. The Reports plugin displays role-configured report cards showing the latest run information (date, record count) with links to detailed results.
+-   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets with unified settings storage.
 -   **Components Feature Flag System**: Centralized registry for managing application features with dependency management and access control.
--   **Routing Architecture**: Consistent routing patterns for configuration and detail pages. Reports use a two-tier structure: `/reports` displays report type cards with summary information, while `/reports/:reportType` shows all reports of a specific type with creation controls.
--   **Ledger System**: Manages financial transactions with comprehensive features:
-    -   **Accounts**: Full CRUD for ledger accounts with routing-based detail pages.
-    -   **Payments**: Payment tracking with entity association (employers, workers, trust providers) and Stripe integration.
-    -   **Transactions**: Unified transaction viewing system with a shared component for both Account and EA pages. Features filtering (entity type, entity name, amount range, date range, description), sorting, pagination, and CSV export. Backend uses unified `getTransactions({ accountId | eaId })` storage method with INNER JOIN on ledgerEa for account scoping. Frontend implements `LedgerTransactionsView` reusable component used by thin wrapper pages for accounts (`/ledger/accounts/:id/transactions`) and EA entries (`/ledger/ea/:id/transactions`).
-    -   **Entity-Account (EA)**: Links entities to accounts for proper transaction scoping. Includes full layout component (LedgerEaLayout) with tabs for View, Edit, and Transactions.
-    -   **Payment Allocation**: Status-based allocation system where "cleared" payments create ledger entries with reversed amounts.
--   **Wizards**: Flexible workflow state management for multi-step processes, supporting type-specific steps, status transitions, data validation, and audit logging. Includes specialized "Feed Wizards" for data generation with CSV/JSON serialization, batch processing, and user-specific column mapping preferences. Features robust step completion validation and launch constraints to ensure data integrity and prevent race conditions. Report outputs are stored in `wizard_report_data` for clear separation from wizard state.
+-   **Routing Architecture**: Consistent routing patterns for configuration and detail pages; reports use a two-tier structure.
+-   **Ledger System**: Manages financial transactions with comprehensive features: Accounts, Payments, Transactions (unified viewing with filtering, sorting, pagination, CSV export), Entity-Account (EA) linking, and Payment Allocation. Includes a Ledger Integrity Report to verify ledger entries against charge plugin computations.
+-   **Wizards**: Flexible workflow state management for multi-step processes, supporting type-specific steps, status transitions, data validation, and audit logging. Includes "Feed Wizards" for data generation and a Report Wizard Framework for worker data analysis.
 -   **File Storage System**: Comprehensive file management with metadata tracking, access control, and RESTful API endpoints.
--   **Report Wizard Framework**: Extensible framework for worker data analysis, featuring a three-step workflow (Inputs → Run → Results) and dual storage architecture for report metadata and results. Supports flexible primary keys per report type via `getPrimaryKeyField()` and `getPrimaryKeyValue()` methods in the WizardReport base class. Report metadata includes `primaryKeyField` to track which field is used as the unique identifier. Supports re-run functionality and includes concrete implementations like `ReportWorkersMissingSSN` (pk: workerId), `ReportWorkersInvalidSSN` (pk: workerId), and `ReportWorkersDuplicateSSN` (pk: ssn - one row per duplicate SSN with embedded worker details for frontend rendering). API endpoints for generation and retrieval, and frontend components for configuration, execution, and results display with CSV export.
--   **Worker Hours & Employment Views**: `worker_hours` table tracks worker hours with fields for year, month, day, worker_id, employer_id, employment_status_id, hours, and home status. Provides specialized views for current employment status, employment history, monthly aggregated hours, and daily full CRUD. API endpoints support RESTful operations with view parameters. Integrated into wizards for atomic upsert of hours with audit logging.
--   **Work Status History Auto-Sync**: The `worker_wsh` table tracks historical work status entries with automatic synchronization to `workers.denorm_ws_id`. Each time a work status history entry is created, updated, or deleted, the worker's current work status is automatically updated to reflect the most recent history entry (ordered by date DESC, then createdAt DESC). The `workerWsh` table includes a `createdAt` timestamp field to ensure proper temporal ordering when multiple entries exist on the same date. The sync logic uses robust ordering with NULLS LAST and id DESC fallback for deterministic results.
--   **Database Quickstarts**: Admin-only feature for exporting and importing complete database snapshots as JSON files. Enables rapid setup of preview/demo environments with pre-populated data. Features include: named quickstart files stored in `database/quickstarts/`, transaction-safe import with complete rollback on error, dependency-aware table ordering for foreign key integrity, schema versioning for compatibility checking, comprehensive validation to prevent corrupt data, and path traversal protection for security. Export captures all application data (excluding sessions, logs, and files) while import performs atomic replacement of all tables with the quickstart data.
--   **Cron Job System**: Complete scheduled task execution framework with registry pattern, database-backed job configuration, and node-cron scheduler. Features include: job handler registry (`server/cron/registry.ts`) for registering named handlers with type-safe execution context, bootstrap system for seeding default jobs into database, scheduler that matches database records to registered handlers and executes on schedule, admin UI with dedicated detail pages matching the application's standard layout pattern (similar to WorkerLayout). Each job has three separate routed tabs with full page reloads: View (displays latest run status and details), Settings (enable/disable toggle, manual run button with live/test mode selector), and History (complete run history table showing execution mode). The `CronJobLayout` component provides consistent header, navigation, and content structure. Cron run history displays user information (name and email) instead of UUIDs for manual runs via database joins. Supports execution modes: "live" for production runs with database changes, and "test" for dry runs that report actions without mutations. Job handlers check `context.mode` to skip database writes in test mode. The `cron_job_runs` table tracks the execution mode for each run. Includes two default jobs: `delete-expired-reports` (2 AM daily) that cleans up wizard report data based on configurable retention periods, and `delete-old-cron-logs` (3 AM daily) that removes cron job run logs older than 30 days. Initialization order ensures handlers are registered, default jobs are bootstrapped, and scheduler starts before server accepts requests. Routes: `/cron-jobs` (list view), `/cron-jobs/:name/view`, `/cron-jobs/:name/settings`, `/cron-jobs/:name/history` (separate tab pages with full page routing).
+-   **Worker Hours & Employment Views**: Tracks worker hours and employment history with full CRUD and API support, including monthly rate models for charge plugins.
+-   **Work Status History Auto-Sync**: Automatically synchronizes worker's current work status based on historical entries.
+-   **Database Quickstarts**: Admin-only feature for exporting and importing complete database snapshots as JSON files for rapid environment setup.
+-   **Cron Job System**: Complete scheduled task execution framework with registry pattern, database-backed job configuration, and node-cron scheduler. Supports "live" and "test" execution modes and includes default jobs for data cleanup.
 
 # External Dependencies
 
