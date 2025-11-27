@@ -25,12 +25,41 @@ const paymentStatuses = ["draft", "canceled", "cleared", "error"] as const;
 type SortField = "amount" | "dateCreated" | "dateReceived" | "dateCleared";
 type SortDirection = "asc" | "desc";
 
+interface LedgerNotification {
+  type: "created" | "updated" | "deleted";
+  amount: string;
+  description: string;
+}
+
+function formatCurrency(amount: string | number): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(num);
+}
+
 function EAPaymentsContent() {
   const { id } = useParams<{ id: string }>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [merchant, setMerchant] = useState("");
   const [checkTransactionNumber, setCheckTransactionNumber] = useState("");
   const { toast } = useToast();
+  
+  const showLedgerNotifications = (notifications: LedgerNotification[] | undefined) => {
+    if (!notifications || notifications.length === 0) return;
+    
+    for (const notification of notifications) {
+      const typeLabel = notification.type === "created" ? "Ledger Entry Created" :
+                        notification.type === "updated" ? "Ledger Entry Updated" :
+                        "Ledger Entry Deleted";
+      
+      toast({
+        title: typeLabel,
+        description: `${formatCurrency(notification.amount)} - ${notification.description}`,
+      });
+    }
+  };
   
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -77,7 +106,7 @@ function EAPaymentsContent() {
     mutationFn: async (data: z.infer<typeof insertLedgerPaymentSchema>) => {
       return await apiRequest("POST", "/api/ledger/payments", data);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/ledger/payments/ea", id] });
       setDialogOpen(false);
       setMerchant("");
@@ -97,6 +126,7 @@ function EAPaymentsContent() {
         title: "Payment created",
         description: "The payment has been created successfully.",
       });
+      showLedgerNotifications(data?.ledgerNotifications);
     },
     onError: () => {
       toast({

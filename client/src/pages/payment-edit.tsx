@@ -19,10 +19,39 @@ import type { z } from "zod";
 
 const paymentStatuses = ["draft", "canceled", "cleared", "error"] as const;
 
+interface LedgerNotification {
+  type: "created" | "updated" | "deleted";
+  amount: string;
+  description: string;
+}
+
+function formatCurrency(amount: string | number): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(num);
+}
+
 function PaymentEditContent() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  
+  const showLedgerNotifications = (notifications: LedgerNotification[] | undefined) => {
+    if (!notifications || notifications.length === 0) return;
+    
+    for (const notification of notifications) {
+      const typeLabel = notification.type === "created" ? "Ledger Entry Created" :
+                        notification.type === "updated" ? "Ledger Entry Updated" :
+                        "Ledger Entry Deleted";
+      
+      toast({
+        title: typeLabel,
+        description: `${formatCurrency(notification.amount)} - ${notification.description}`,
+      });
+    }
+  };
   const [merchant, setMerchant] = useState("");
   const [checkTransactionNumber, setCheckTransactionNumber] = useState("");
 
@@ -61,13 +90,14 @@ function PaymentEditContent() {
     mutationFn: async (data: z.infer<typeof insertLedgerPaymentSchema>) => {
       return await apiRequest("PUT", `/api/ledger/payments/${id}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/ledger/payments", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/ledger/payments/ea", payment?.ledgerEaId] });
       toast({
         title: "Payment updated",
         description: "The payment has been updated successfully.",
       });
+      showLedgerNotifications(data?.ledgerNotifications);
       setLocation(`/ledger/payment/${id}`);
     },
     onError: (error: any) => {
