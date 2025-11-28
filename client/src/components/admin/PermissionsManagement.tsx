@@ -132,21 +132,14 @@ export default function PermissionsManagement() {
   };
 
   const getAvailablePermissions = (): Permission[] => {
-    console.log('getAvailablePermissions called', {
-      selectedRoleId,
-      totalPermissions: permissions.length,
-      permissions,
-      rolePermissions,
-    });
-    
+    let available: Permission[];
     if (!selectedRoleId) {
-      return permissions;
+      available = permissions;
+    } else {
+      const rolePermissionKeys = getPermissionsForRole(selectedRoleId);
+      available = permissions.filter(p => !rolePermissionKeys.includes(p.key));
     }
-    const rolePermissionKeys = getPermissionsForRole(selectedRoleId);
-    console.log('Role permission keys for role', selectedRoleId, ':', rolePermissionKeys);
-    const available = permissions.filter(p => !rolePermissionKeys.includes(p.key));
-    console.log('Available permissions after filter:', available);
-    return available;
+    return [...available].sort((a, b) => a.key.localeCompare(b.key));
   };
 
   if (permissionsLoading || rolesLoading || assignmentsLoading) {
@@ -264,7 +257,7 @@ export default function PermissionsManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {permissions.map((permission: Permission) => {
+                {[...permissions].sort((a, b) => a.key.localeCompare(b.key)).map((permission: Permission) => {
                   const assignedRoles = rolePermissions
                     .filter(rp => rp.permissionKey === permission.key)
                     .map(rp => rp.role);
