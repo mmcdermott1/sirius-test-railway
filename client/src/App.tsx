@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import LoginPage from "@/pages/login";
 import UnauthorizedPage from "@/pages/unauthorized";
 import Bootstrap from "@/pages/bootstrap";
+import SmsOptinPage from "@/pages/sms-optin";
 import Dashboard from "@/pages/dashboard";
 import Bookmarks from "@/pages/bookmarks";
 import Reports from "@/pages/reports";
@@ -182,6 +183,7 @@ function Router() {
       <Route path="/bootstrap" component={Bootstrap} />
       <Route path="/login" component={LoginPage} />
       <Route path="/unauthorized" component={UnauthorizedPage} />
+      <Route path="/sms/optin/:token" component={SmsOptinPage} />
 
       {/* Protected routes */}
       <Route path="/workers/add">
