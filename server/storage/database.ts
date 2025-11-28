@@ -273,7 +273,7 @@ async function getParentEntityForContact(contactId: string): Promise<string> {
 export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
   module: 'contacts.addresses',
   methods: {
-    createPostalAddress: {
+    createContactPostal: {
       enabled: true,
       getEntityId: (args) => args[0]?.contactId || 'new address',
       getHostEntityId: async (args, result) => {
@@ -288,7 +288,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
         return `Created address "${addressDisplay}"`;
       }
     },
-    updatePostalAddress: {
+    updateContactPostal: {
       enabled: true,
       getEntityId: (args) => args[0], // Address ID
       getHostEntityId: async (args, result, beforeState) => {
@@ -296,7 +296,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
         return await getParentEntityForContact(contactId);
       },
       before: async (args, storage) => {
-        return await storage.getPostalAddress(args[0]); // Current state
+        return await storage.getContactPostal(args[0]); // Current state
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)
@@ -314,7 +314,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
         return `Updated address "${addressDisplay}" (changed: ${fieldList})`;
       }
     },
-    deletePostalAddress: {
+    deleteContactPostal: {
       enabled: true,
       getEntityId: (args) => args[0], // Address ID
       getHostEntityId: async (args, result, beforeState) => {
@@ -322,7 +322,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
         return await getParentEntityForContact(contactId);
       },
       before: async (args, storage) => {
-        return await storage.getPostalAddress(args[0]); // Capture what's being deleted
+        return await storage.getContactPostal(args[0]); // Capture what's being deleted
       },
       getDescription: (args, result, beforeState, afterState) => {
         const addressDisplay = formatAddressForLog(beforeState);
@@ -337,7 +337,7 @@ export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
         return await getParentEntityForContact(contactId);
       },
       before: async (args, storage) => {
-        return await storage.getPostalAddress(args[0]); // Current state
+        return await storage.getContactPostal(args[0]); // Current state
       },
       after: async (args, result, storage) => {
         return result; // New state (diff auto-calculated)

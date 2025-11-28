@@ -2,12 +2,12 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { insertWorkerSchema, type InsertEmployer, winstonLogs, type WorkerId, type PostalAddress, type PhoneNumber, workerHours } from "@shared/schema";
+import { insertWorkerSchema, type InsertEmployer, winstonLogs, type WorkerId, type ContactPostal, type PhoneNumber, workerHours } from "@shared/schema";
 import { eq, and, inArray, gte, lte, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import { registerUserRoutes } from "./modules/users";
 import { registerVariableRoutes } from "./modules/variables";
-import { registerPostalAddressRoutes } from "./modules/postal-addresses";
+import { registerContactPostalRoutes } from "./modules/contact-postal";
 import { registerPhoneNumberRoutes } from "./modules/phone-numbers";
 import { registerEmployerContactRoutes } from "./modules/employer-contacts";
 import { registerTrustBenefitsRoutes } from "./modules/trust-benefits";
@@ -242,8 +242,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register trust provider user settings routes
   registerTrustProviderUserSettingsRoutes(app, requireAuth, requirePermission);
   
-  // Register postal address management routes
-  registerPostalAddressRoutes(app, requireAuth, requirePermission);
+  // Register contact postal address management routes
+  registerContactPostalRoutes(app, requireAuth, requirePermission);
   
   // Register phone number management routes
   registerPhoneNumberRoutes(app, requireAuth, requirePermission);

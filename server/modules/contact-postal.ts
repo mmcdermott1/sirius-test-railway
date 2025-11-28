@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
-import { insertPostalAddressSchema } from "@shared/schema";
+import { insertContactPostalSchema } from "@shared/schema";
 
 // Type for middleware functions that we'll accept from the main routes
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -31,7 +31,7 @@ function extractGeometryFromValidationResponse(validationResponse: any): {
   };
 }
 
-export function registerPostalAddressRoutes(
+export function registerContactPostalRoutes(
   app: Express, 
   requireAuth: AuthMiddleware, 
   requirePermission: PermissionMiddleware
@@ -41,7 +41,7 @@ export function registerPostalAddressRoutes(
   app.get("/api/contacts/:contactId/addresses", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
       const { contactId } = req.params;
-      const addresses = await storage.contacts.addresses.getPostalAddressesByContact(contactId);
+      const addresses = await storage.contacts.addresses.getContactPostalByContact(contactId);
       res.json(addresses);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch addresses" });
@@ -52,7 +52,7 @@ export function registerPostalAddressRoutes(
   app.get("/api/addresses/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
       const { id } = req.params;
-      const address = await storage.contacts.addresses.getPostalAddress(id);
+      const address = await storage.contacts.addresses.getContactPostal(id);
       
       if (!address) {
         return res.status(404).json({ message: "Address not found" });
@@ -72,13 +72,13 @@ export function registerPostalAddressRoutes(
       // Extract geometry data from validationResponse if present
       const geometryData = extractGeometryFromValidationResponse(req.body.validationResponse);
       
-      const addressData = insertPostalAddressSchema.parse({ 
+      const addressData = insertContactPostalSchema.parse({ 
         ...req.body,
         ...geometryData,
         contactId 
       });
       
-      const newAddress = await storage.contacts.addresses.createPostalAddress(addressData);
+      const newAddress = await storage.contacts.addresses.createContactPostal(addressData);
       res.status(201).json(newAddress);
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {
@@ -100,12 +100,12 @@ export function registerPostalAddressRoutes(
       const geometryData = extractGeometryFromValidationResponse(req.body.validationResponse);
       
       // Parse the update data, but don't require contactId since it shouldn't change
-      const updateData = insertPostalAddressSchema.partial().omit({ contactId: true }).parse({
+      const updateData = insertContactPostalSchema.partial().omit({ contactId: true }).parse({
         ...req.body,
         ...geometryData,
       });
       
-      const updatedAddress = await storage.contacts.addresses.updatePostalAddress(id, updateData);
+      const updatedAddress = await storage.contacts.addresses.updateContactPostal(id, updateData);
       
       if (!updatedAddress) {
         return res.status(404).json({ message: "Address not found" });
@@ -129,7 +129,7 @@ export function registerPostalAddressRoutes(
       const { id } = req.params;
       
       // First get the address to know the contactId
-      const currentAddress = await storage.contacts.addresses.getPostalAddress(id);
+      const currentAddress = await storage.contacts.addresses.getContactPostal(id);
       if (!currentAddress) {
         return res.status(404).json({ message: "Address not found" });
       }
@@ -153,7 +153,7 @@ export function registerPostalAddressRoutes(
   app.delete("/api/addresses/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const deleted = await storage.contacts.addresses.deletePostalAddress(id);
+      const deleted = await storage.contacts.addresses.deleteContactPostal(id);
       
       if (!deleted) {
         return res.status(404).json({ message: "Address not found" });

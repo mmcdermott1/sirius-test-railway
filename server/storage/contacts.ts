@@ -1,17 +1,17 @@
 import { db } from "../db";
-import { contacts, postalAddresses, phoneNumbers, optionsGender, type Contact, type InsertContact, type PostalAddress, type InsertPostalAddress, type PhoneNumber, type InsertPhoneNumber } from "@shared/schema";
+import { contacts, contactPostal, phoneNumbers, optionsGender, type Contact, type InsertContact, type ContactPostal, type InsertContactPostal, type PhoneNumber, type InsertPhoneNumber } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 
 // Address Storage Interface
 export interface AddressStorage {
-  getAllPostalAddresses(): Promise<PostalAddress[]>;
-  getPostalAddress(id: string): Promise<PostalAddress | undefined>;
-  getPostalAddressesByContact(contactId: string): Promise<PostalAddress[]>;
-  createPostalAddress(address: InsertPostalAddress): Promise<PostalAddress>;
-  updatePostalAddress(id: string, address: Partial<InsertPostalAddress>): Promise<PostalAddress | undefined>;
-  deletePostalAddress(id: string): Promise<boolean>;
-  setAddressAsPrimary(addressId: string, contactId: string): Promise<PostalAddress | undefined>;
+  getAllContactPostal(): Promise<ContactPostal[]>;
+  getContactPostal(id: string): Promise<ContactPostal | undefined>;
+  getContactPostalByContact(contactId: string): Promise<ContactPostal[]>;
+  createContactPostal(address: InsertContactPostal): Promise<ContactPostal>;
+  updateContactPostal(id: string, address: Partial<InsertContactPostal>): Promise<ContactPostal | undefined>;
+  deleteContactPostal(id: string): Promise<boolean>;
+  setAddressAsPrimary(addressId: string, contactId: string): Promise<ContactPostal | undefined>;
 }
 
 // Phone Number Storage Interface
@@ -70,43 +70,43 @@ export interface ContactsStorage {
 // Create Address Storage implementation
 export function createAddressStorage(): AddressStorage {
   return {
-    async getAllPostalAddresses(): Promise<PostalAddress[]> {
-      return await db.select().from(postalAddresses);
+    async getAllContactPostal(): Promise<ContactPostal[]> {
+      return await db.select().from(contactPostal);
     },
 
-    async getPostalAddress(id: string): Promise<PostalAddress | undefined> {
-      const [address] = await db.select().from(postalAddresses).where(eq(postalAddresses.id, id));
+    async getContactPostal(id: string): Promise<ContactPostal | undefined> {
+      const [address] = await db.select().from(contactPostal).where(eq(contactPostal.id, id));
       return address || undefined;
     },
 
-    async getPostalAddressesByContact(contactId: string): Promise<PostalAddress[]> {
-      return await db.select().from(postalAddresses).where(eq(postalAddresses.contactId, contactId)).orderBy(desc(postalAddresses.isPrimary));
+    async getContactPostalByContact(contactId: string): Promise<ContactPostal[]> {
+      return await db.select().from(contactPostal).where(eq(contactPostal.contactId, contactId)).orderBy(desc(contactPostal.isPrimary));
     },
 
-    async createPostalAddress(insertPostalAddress: InsertPostalAddress): Promise<PostalAddress> {
+    async createContactPostal(insertContactPostal: InsertContactPostal): Promise<ContactPostal> {
       // Validation: Prevent creating an inactive primary address
-      if (insertPostalAddress.isPrimary && insertPostalAddress.isActive === false) {
+      if (insertContactPostal.isPrimary && insertContactPostal.isActive === false) {
         throw new Error("Cannot create an inactive address as primary. Either activate the address or don't set it as primary.");
       }
 
       // If creating a primary address, first unset any existing primary addresses for this contact
-      if (insertPostalAddress.isPrimary) {
+      if (insertContactPostal.isPrimary) {
         await db
-          .update(postalAddresses)
+          .update(contactPostal)
           .set({ isPrimary: false })
-          .where(eq(postalAddresses.contactId, insertPostalAddress.contactId));
+          .where(eq(contactPostal.contactId, insertContactPostal.contactId));
       }
       
       const [address] = await db
-        .insert(postalAddresses)
-        .values(insertPostalAddress)
+        .insert(contactPostal)
+        .values(insertContactPostal)
         .returning();
       return address;
     },
 
-    async updatePostalAddress(id: string, addressUpdate: Partial<InsertPostalAddress>): Promise<PostalAddress | undefined> {
+    async updateContactPostal(id: string, addressUpdate: Partial<InsertContactPostal>): Promise<ContactPostal | undefined> {
       // Get the current address to perform validation checks
-      const [currentAddress] = await db.select().from(postalAddresses).where(eq(postalAddresses.id, id));
+      const [currentAddress] = await db.select().from(contactPostal).where(eq(contactPostal.id, id));
       if (!currentAddress) {
         throw new Error("Address not found");
       }
@@ -124,28 +124,28 @@ export function createAddressStorage(): AddressStorage {
       // If setting as primary, unset any existing primary addresses for this contact
       if (addressUpdate.isPrimary) {
         await db
-          .update(postalAddresses)
+          .update(contactPostal)
           .set({ isPrimary: false })
-          .where(eq(postalAddresses.contactId, currentAddress.contactId));
+          .where(eq(contactPostal.contactId, currentAddress.contactId));
       }
       
       const [address] = await db
-        .update(postalAddresses)
+        .update(contactPostal)
         .set(addressUpdate)
-        .where(eq(postalAddresses.id, id))
+        .where(eq(contactPostal.id, id))
         .returning();
       
       return address || undefined;
     },
 
-    async deletePostalAddress(id: string): Promise<boolean> {
-      const result = await db.delete(postalAddresses).where(eq(postalAddresses.id, id)).returning();
+    async deleteContactPostal(id: string): Promise<boolean> {
+      const result = await db.delete(contactPostal).where(eq(contactPostal.id, id)).returning();
       return result.length > 0;
     },
 
-    async setAddressAsPrimary(addressId: string, contactId: string): Promise<PostalAddress | undefined> {
+    async setAddressAsPrimary(addressId: string, contactId: string): Promise<ContactPostal | undefined> {
       // Get the current address to validate it can be set as primary
-      const [currentAddress] = await db.select().from(postalAddresses).where(eq(postalAddresses.id, addressId));
+      const [currentAddress] = await db.select().from(contactPostal).where(eq(contactPostal.id, addressId));
       if (!currentAddress) {
         throw new Error("Address not found");
       }
@@ -157,15 +157,15 @@ export function createAddressStorage(): AddressStorage {
 
       // First, unset all primary addresses for this contact
       await db
-        .update(postalAddresses)
+        .update(contactPostal)
         .set({ isPrimary: false })
-        .where(eq(postalAddresses.contactId, contactId));
+        .where(eq(contactPostal.contactId, contactId));
       
       // Then set the specified address as primary
       const [address] = await db
-        .update(postalAddresses)
+        .update(contactPostal)
         .set({ isPrimary: true })
-        .where(and(eq(postalAddresses.id, addressId), eq(postalAddresses.contactId, contactId)))
+        .where(and(eq(contactPostal.id, addressId), eq(contactPostal.contactId, contactId)))
         .returning();
       
       return address || undefined;
