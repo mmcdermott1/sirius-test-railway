@@ -1,8 +1,7 @@
-import { getTwilioClient } from '../lib/twilio-client';
-import { getDefaultTwilioPhoneNumber } from './twilio-config';
+import { serviceRegistry } from './service-registry';
 import { getSystemMode } from './system-mode';
 import { createCommStorage, createCommSmsStorage, createCommSmsOptinStorage } from '../storage/comm';
-import { phoneValidationService } from './phone-validation';
+import type { SmsTransport } from './providers/sms';
 import type { Comm, CommSms } from '@shared/schema';
 
 export interface SendSmsRequest {
@@ -17,8 +16,8 @@ export interface SendSmsResult {
   comm?: Comm;
   commSms?: CommSms;
   error?: string;
-  errorCode?: 'NOT_OPTED_IN' | 'NOT_ALLOWLISTED' | 'TWILIO_ERROR' | 'VALIDATION_ERROR' | 'UNKNOWN_ERROR';
-  twilioMessageSid?: string;
+  errorCode?: 'NOT_OPTED_IN' | 'NOT_ALLOWLISTED' | 'PROVIDER_ERROR' | 'VALIDATION_ERROR' | 'SMS_NOT_SUPPORTED' | 'UNKNOWN_ERROR';
+  messageId?: string;
 }
 
 const commStorage = createCommStorage();
@@ -29,8 +28,18 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResult> {
   const { contactId, toPhoneNumber, message, userId } = request;
 
   try {
-    const validationResult = await phoneValidationService.validateAndFormat(toPhoneNumber);
-    if (!validationResult.isValid || !validationResult.e164Format) {
+    const smsTransport = await serviceRegistry.resolve<SmsTransport>('sms');
+
+    if (!smsTransport.supportsSms()) {
+      return {
+        success: false,
+        error: 'SMS sending is not supported by the current provider. Configure a provider with SMS capability (e.g., Twilio).',
+        errorCode: 'SMS_NOT_SUPPORTED',
+      };
+    }
+
+    const validationResult = await smsTransport.validatePhone(toPhoneNumber);
+    if (!validationResult.valid || !validationResult.formatted) {
       return {
         success: false,
         error: `Invalid phone number: ${validationResult.error || 'Unknown validation error'}`,
@@ -38,7 +47,7 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResult> {
       };
     }
 
-    const normalizedPhone = validationResult.e164Format;
+    const normalizedPhone = validationResult.formatted;
 
     const comm = await commStorage.createComm({
       medium: 'sms',
@@ -99,8 +108,7 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResult> {
     }
 
     try {
-      const twilioClient = await getTwilioClient();
-      const fromNumber = await getDefaultTwilioPhoneNumber();
+      const fromNumber = await smsTransport.getDefaultFromNumber();
 
       const baseUrl = process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
@@ -110,19 +118,39 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResult> {
 
       const statusCallbackUrl = baseUrl ? `${baseUrl}/api/webhooks/twilio/sms-status` : undefined;
 
-      const twilioMessage = await twilioClient.messages.create({
+      const sendResult = await smsTransport.sendSms({
+        to: normalizedPhone,
         body: message,
         from: fromNumber,
-        to: normalizedPhone,
-        statusCallback: statusCallbackUrl,
+        statusCallbackUrl,
       });
+
+      if (!sendResult.success) {
+        await commStorage.updateComm(comm.id, {
+          status: 'failed',
+          data: {
+            ...comm.data as object,
+            errorCode: 'PROVIDER_ERROR',
+            errorMessage: sendResult.error,
+            providerDetails: sendResult.details,
+          },
+        });
+
+        return {
+          success: false,
+          comm: { ...comm, status: 'failed' },
+          commSms,
+          error: sendResult.error || 'Failed to send SMS',
+          errorCode: 'PROVIDER_ERROR',
+        };
+      }
 
       await commSmsStorage.updateCommSms(commSms.id, {
         data: {
           ...commSms.data as object,
-          twilioMessageSid: twilioMessage.sid,
-          twilioStatus: twilioMessage.status,
-          twilioDateSent: twilioMessage.dateSent,
+          messageId: sendResult.messageId,
+          providerStatus: sendResult.status,
+          providerDetails: sendResult.details,
         },
       });
 
@@ -130,8 +158,8 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResult> {
         status: 'sending',
         data: {
           ...comm.data as object,
-          twilioMessageSid: twilioMessage.sid,
-          twilioInitialStatus: twilioMessage.status,
+          messageId: sendResult.messageId,
+          initialStatus: sendResult.status,
         },
       });
 
@@ -139,20 +167,20 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResult> {
         success: true,
         comm: { ...comm, status: 'sending' },
         commSms,
-        twilioMessageSid: twilioMessage.sid,
+        messageId: sendResult.messageId,
       };
 
-    } catch (twilioError: any) {
-      const errorMessage = twilioError?.message || 'Failed to send SMS via Twilio';
+    } catch (providerError: any) {
+      const errorMessage = providerError?.message || 'Failed to send SMS';
       
       await commStorage.updateComm(comm.id, {
         status: 'failed',
         data: {
           ...comm.data as object,
-          errorCode: 'TWILIO_ERROR',
+          errorCode: 'PROVIDER_ERROR',
           errorMessage,
-          twilioErrorCode: twilioError?.code,
-          twilioErrorStatus: twilioError?.status,
+          providerErrorCode: providerError?.code,
+          providerErrorStatus: providerError?.status,
         },
       });
 
@@ -161,7 +189,7 @@ export async function sendSms(request: SendSmsRequest): Promise<SendSmsResult> {
         comm: { ...comm, status: 'failed' },
         commSms,
         error: errorMessage,
-        errorCode: 'TWILIO_ERROR',
+        errorCode: 'PROVIDER_ERROR',
       };
     }
 

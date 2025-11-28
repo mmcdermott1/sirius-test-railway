@@ -14,6 +14,10 @@ import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReports
 // Note: Individual plugins are registered in ./charge-plugins/index.ts
 import "./charge-plugins";
 
+// Import service providers module to trigger registration
+// Note: SMS, Email, and other providers are registered here
+import "./services/providers";
+
 // Helper function to redact sensitive data from responses before logging
 function redactSensitiveData(data: any): any {
   if (!data || typeof data !== 'object') return data;

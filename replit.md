@@ -57,7 +57,15 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
 -   **libphonenumber-js**: Phone number parsing, validation, and formatting.
 
 ## Third-Party Integrations
--   **Twilio**: Phone number lookup and validation (Twilio Lookup API).
+-   **Twilio**: Phone number lookup, validation (Twilio Lookup API), and SMS messaging with delivery status webhooks.
+
+## Service Provider Architecture
+-   **Service Registry**: Modular provider system supporting multiple service categories (SMS, Email, Postal). Located in `server/services/service-registry.ts`.
+-   **SMS Providers**: 
+    -   TwilioSmsProvider (`server/services/providers/sms/twilio.ts`): Full SMS and phone validation via Twilio.
+    -   LocalSmsProvider (`server/services/providers/sms/local.ts`): Local validation only using libphonenumber-js, no SMS capability.
+-   **Configuration**: Provider settings stored in Variables table with key `service_config:sms`. Supports runtime provider switching and per-provider configuration.
+-   **Orchestration Layers**: `sms-sender.ts` handles business logic (opt-in, allowlist, system mode) and delegates to the active provider.
 
 ## API and State Management
 -   **TanStack Query**: Server state management.

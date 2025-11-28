@@ -4,10 +4,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, CheckCircle, XCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Phone, CheckCircle, XCircle, RefreshCw, Loader2, Settings } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface SmsProviderInfo {
+  id: string;
+  displayName: string;
+  supportedFeatures: string[];
+}
+
+interface SmsConfig {
+  defaultProvider: string;
+  providers: SmsProviderInfo[];
+  currentProvider: {
+    id: string;
+    displayName: string;
+    supportedFeatures: string[];
+    supportsSms: boolean;
+    config: Record<string, unknown>;
+    connection: {
+      success: boolean;
+      message?: string;
+      error?: string;
+      details?: Record<string, unknown>;
+    };
+  };
+}
 
 interface TwilioAccountInfo {
   connected: boolean;
@@ -16,6 +41,7 @@ interface TwilioAccountInfo {
   configuredPhoneNumber?: string;
   defaultPhoneNumber?: string;
   error?: string;
+  currentProvider?: string;
 }
 
 interface TwilioPhoneNumber {
@@ -31,14 +57,21 @@ interface TwilioPhoneNumber {
 
 interface TestConnectionResult {
   success: boolean;
-  accountSid?: string;
-  accountName?: string;
-  status?: string;
+  message?: string;
   error?: string;
+  details?: {
+    accountSid?: string;
+    accountName?: string;
+    status?: string;
+  };
 }
 
 export default function TwilioConfigPage() {
   const { toast } = useToast();
+
+  const { data: smsConfig, isLoading: isLoadingSmsConfig } = useQuery<SmsConfig>({
+    queryKey: ["/api/config/sms"],
+  });
 
   const { data: accountInfo, isLoading: isLoadingAccount } = useQuery<TwilioAccountInfo>({
     queryKey: ["/api/config/twilio"],
@@ -49,23 +82,45 @@ export default function TwilioConfigPage() {
     enabled: accountInfo?.connected === true,
   });
 
+  const setProviderMutation = useMutation({
+    mutationFn: async (providerId: string) => {
+      return await apiRequest("PUT", "/api/config/sms/provider", { providerId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/config/sms"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/config/twilio"] });
+      toast({
+        title: "Provider Updated",
+        description: "The SMS provider has been changed",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update provider",
+        variant: "destructive",
+      });
+    },
+  });
+
   const testConnectionMutation = useMutation({
     mutationFn: async (): Promise<TestConnectionResult> => {
-      const response = await apiRequest("POST", "/api/config/twilio/test");
+      const response = await apiRequest("POST", "/api/config/sms/test");
       return response as TestConnectionResult;
     },
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/config/sms"] });
       queryClient.invalidateQueries({ queryKey: ["/api/config/twilio"] });
       if (data.success) {
         toast({
           title: "Connection Successful",
-          description: `Connected to Twilio account: ${data.accountName || data.accountSid}`,
+          description: data.message || `Connected to SMS provider`,
         });
         refetchNumbers();
       } else {
         toast({
           title: "Connection Failed",
-          description: data.error || "Unable to connect to Twilio",
+          description: data.error || "Unable to connect to provider",
           variant: "destructive",
         });
       }
@@ -81,10 +136,11 @@ export default function TwilioConfigPage() {
 
   const setDefaultPhoneMutation = useMutation({
     mutationFn: async (phoneNumber: string) => {
-      return await apiRequest("PUT", "/api/config/twilio/default-phone", { phoneNumber });
+      return await apiRequest("PUT", "/api/config/sms/default-phone", { phoneNumber });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/config/twilio"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/config/sms"] });
       toast({
         title: "Default Phone Updated",
         description: "The default outbound phone number has been updated",
@@ -103,14 +159,72 @@ export default function TwilioConfigPage() {
     setDefaultPhoneMutation.mutate(phoneNumber);
   };
 
+  const handleProviderChange = (providerId: string) => {
+    setProviderMutation.mutate(providerId);
+  };
+
+  const currentProviderId = smsConfig?.defaultProvider || smsConfig?.currentProvider?.id;
+  const isTwilioActive = currentProviderId === 'twilio';
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold" data-testid="heading-twilio-config">Twilio Configuration</h2>
+        <h2 className="text-2xl font-bold" data-testid="heading-sms-config">SMS Configuration</h2>
         <p className="text-muted-foreground mt-1">
-          Manage your Twilio integration for SMS messaging and phone validation
+          Manage your SMS provider for messaging and phone validation
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            SMS Provider
+          </CardTitle>
+          <CardDescription>
+            Select which service to use for SMS messaging and phone validation
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingSmsConfig ? (
+            <Skeleton className="h-10 w-64" />
+          ) : (
+            <div className="flex items-center gap-4 flex-wrap">
+              <Select
+                value={currentProviderId}
+                onValueChange={handleProviderChange}
+                disabled={setProviderMutation.isPending}
+              >
+                <SelectTrigger className="w-64" data-testid="select-sms-provider">
+                  <SelectValue placeholder="Select a provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {smsConfig?.providers?.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {smsConfig?.currentProvider && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {smsConfig.currentProvider.supportedFeatures.map((feature) => (
+                    <Badge key={feature} variant="outline" className="text-xs">
+                      {feature}
+                    </Badge>
+                  ))}
+                  {!smsConfig.currentProvider.supportsSms && (
+                    <Badge variant="secondary" className="text-xs">
+                      No SMS Support
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -119,27 +233,27 @@ export default function TwilioConfigPage() {
             Connection Status
           </CardTitle>
           <CardDescription>
-            View and test your Twilio account connection
+            View and test your SMS provider connection
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isLoadingAccount ? (
+          {isLoadingAccount || isLoadingSmsConfig ? (
             <div className="space-y-3">
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-4 w-64" />
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-3">
-                {accountInfo?.connected ? (
+              <div className="flex items-center gap-3 flex-wrap">
+                {smsConfig?.currentProvider?.connection?.success ? (
                   <>
                     <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Connected
                     </Badge>
-                    {accountInfo.accountName && (
+                    {smsConfig.currentProvider.connection.message && (
                       <span className="text-sm text-muted-foreground">
-                        {accountInfo.accountName}
+                        {smsConfig.currentProvider.connection.message}
                       </span>
                     )}
                   </>
@@ -149,16 +263,16 @@ export default function TwilioConfigPage() {
                       <XCircle className="h-3 w-3 mr-1" />
                       Not Connected
                     </Badge>
-                    {accountInfo?.error && (
+                    {smsConfig?.currentProvider?.connection?.error && (
                       <span className="text-sm text-muted-foreground">
-                        {accountInfo.error}
+                        {smsConfig.currentProvider.connection.error}
                       </span>
                     )}
                   </>
                 )}
               </div>
 
-              {accountInfo?.accountSid && (
+              {isTwilioActive && accountInfo?.accountSid && (
                 <div className="text-sm">
                   <span className="text-muted-foreground">Account SID: </span>
                   <code className="bg-muted px-1 py-0.5 rounded text-xs">
@@ -167,7 +281,7 @@ export default function TwilioConfigPage() {
                 </div>
               )}
 
-              {accountInfo?.configuredPhoneNumber && (
+              {isTwilioActive && accountInfo?.configuredPhoneNumber && (
                 <div className="text-sm">
                   <span className="text-muted-foreground">Environment Phone: </span>
                   <code className="bg-muted px-1 py-0.5 rounded text-xs">
@@ -180,7 +294,7 @@ export default function TwilioConfigPage() {
                 onClick={() => testConnectionMutation.mutate()}
                 disabled={testConnectionMutation.isPending}
                 variant="outline"
-                data-testid="button-test-twilio-connection"
+                data-testid="button-test-connection"
               >
                 {testConnectionMutation.isPending ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -194,7 +308,7 @@ export default function TwilioConfigPage() {
         </CardContent>
       </Card>
 
-      {accountInfo?.connected && (
+      {isTwilioActive && accountInfo?.connected && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -236,7 +350,7 @@ export default function TwilioConfigPage() {
                     <div className="flex-1">
                       <Label
                         htmlFor={`phone-${phone.sid}`}
-                        className="text-base font-medium cursor-pointer flex items-center gap-2"
+                        className="text-base font-medium cursor-pointer flex items-center gap-2 flex-wrap"
                       >
                         {phone.phoneNumber}
                         {accountInfo?.defaultPhoneNumber === phone.phoneNumber && (
@@ -248,7 +362,7 @@ export default function TwilioConfigPage() {
                           {phone.friendlyName}
                         </p>
                       )}
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex gap-2 mt-2 flex-wrap">
                         {phone.capabilities.sms && (
                           <Badge variant="outline" className="text-xs">SMS</Badge>
                         )}
@@ -274,7 +388,7 @@ export default function TwilioConfigPage() {
         </Card>
       )}
 
-      {!accountInfo?.connected && !isLoadingAccount && (
+      {isTwilioActive && !accountInfo?.connected && !isLoadingAccount && (
         <Card>
           <CardContent className="py-8">
             <div className="text-center text-muted-foreground">
@@ -290,6 +404,21 @@ export default function TwilioConfigPage() {
               </div>
               <p className="text-sm mt-4">
                 Add these to your environment secrets, then test the connection.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isTwilioActive && (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
+              <Phone className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium mb-2">Local Provider Active</p>
+              <p className="text-sm">
+                The local provider can validate phone numbers but cannot send SMS messages.
+                Switch to Twilio to enable SMS functionality.
               </p>
             </div>
           </CardContent>

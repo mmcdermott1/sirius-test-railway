@@ -1,6 +1,7 @@
 import { parsePhoneNumber, CountryCode, PhoneNumber } from 'libphonenumber-js';
-import { getTwilioClient } from '../lib/twilio-client';
+import { serviceRegistry } from './service-registry';
 import { storage } from '../storage';
+import type { SmsTransport } from './providers/sms';
 
 export interface PhoneValidationConfig {
   mode: "local" | "twilio";
@@ -66,16 +67,16 @@ export class PhoneValidationService {
 
     if (config.mode === 'twilio' && config.twilio.enabled) {
       try {
-        return await this.validateWithTwilio(phoneNumberInput, config);
+        return await this.validateWithProvider(phoneNumberInput);
       } catch (error) {
-        console.error('Twilio validation failed:', error);
+        console.error('Provider validation failed:', error);
         if (config.fallback.useLocalOnTwilioFailure) {
           console.log('Falling back to local validation');
           return this.validateLocally(phoneNumberInput, country);
         }
         return {
           isValid: false,
-          error: error instanceof Error ? error.message : 'Twilio validation failed'
+          error: error instanceof Error ? error.message : 'Provider validation failed'
         };
       }
     }
@@ -83,9 +84,7 @@ export class PhoneValidationService {
     return this.validateLocally(phoneNumberInput, country);
   }
 
-  private async validateWithTwilio(phoneNumberInput: string, config: PhoneValidationConfig): Promise<PhoneValidationResult> {
-    const twilioClient = await getTwilioClient();
-    
+  private async validateWithProvider(phoneNumberInput: string): Promise<PhoneValidationResult> {
     const parsed = parsePhoneNumber(phoneNumberInput, this.defaultCountry);
     if (!parsed || !parsed.isValid()) {
       return {
@@ -94,22 +93,31 @@ export class PhoneValidationService {
       };
     }
 
-    const e164Number = parsed.format('E.164');
-
-    const fields = config.twilio.lookupType.join(',');
-    const phoneNumberLookup = await twilioClient.lookups.v2
-      .phoneNumbers(e164Number)
-      .fetch({ fields });
-
-    return {
-      isValid: true,
-      e164Format: phoneNumberLookup.phoneNumber,
-      nationalFormat: parsed.formatNational(),
-      internationalFormat: parsed.formatInternational(),
-      country: phoneNumberLookup.countryCode,
-      type: phoneNumberLookup.lineTypeIntelligence?.type || parsed.getType(),
-      twilioData: phoneNumberLookup
-    };
+    try {
+      const smsTransport = await serviceRegistry.resolve<SmsTransport>('sms');
+      const result = await smsTransport.validatePhone(phoneNumberInput);
+      
+      return {
+        isValid: result.valid,
+        e164Format: result.formatted,
+        nationalFormat: parsed.formatNational(),
+        internationalFormat: parsed.formatInternational(),
+        country: result.countryCode,
+        type: result.type || parsed.getType(),
+        twilioData: {
+          carrier: result.carrier,
+        }
+      };
+    } catch (error) {
+      return {
+        isValid: true,
+        e164Format: parsed.format('E.164'),
+        nationalFormat: parsed.formatNational(),
+        internationalFormat: parsed.formatInternational(),
+        country: parsed.country,
+        type: parsed.getType(),
+      };
+    }
   }
 
   private validateLocally(phoneNumberInput: string, country?: CountryCode): PhoneValidationResult {
