@@ -1,5 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
+import { db } from "../db";
+import { winstonLogs } from "@shared/schema";
+import { eq, and, gte, lte, desc, or } from "drizzle-orm";
 import { createCommStorage, createCommSmsOptinStorage } from "../storage";
 import { sendSms } from "../services/sms-sender";
 import { handleStatusCallback } from "../services/comm-status/handler";
@@ -129,5 +132,48 @@ export function registerCommRoutes(
   app.post("/api/comm/statuscallback/:commId", async (req, res) => {
     const { commId } = req.params;
     await handleStatusCallback(req, res, commId);
+  });
+
+  app.get("/api/comm/:id/logs", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { module, operation, startDate, endDate } = req.query;
+
+      const record = await commStorage.getCommWithSms(id);
+      if (!record) {
+        return res.status(404).json({ message: "Communication record not found" });
+      }
+
+      const conditions = [
+        or(
+          eq(winstonLogs.entityId, id),
+          eq(winstonLogs.hostEntityId, id)
+        )
+      ];
+      
+      if (module && typeof module === 'string') {
+        conditions.push(eq(winstonLogs.module, module));
+      }
+      if (operation && typeof operation === 'string') {
+        conditions.push(eq(winstonLogs.operation, operation));
+      }
+      if (startDate && typeof startDate === 'string') {
+        conditions.push(gte(winstonLogs.timestamp, new Date(startDate)));
+      }
+      if (endDate && typeof endDate === 'string') {
+        conditions.push(lte(winstonLogs.timestamp, new Date(endDate)));
+      }
+
+      const logs = await db
+        .select()
+        .from(winstonLogs)
+        .where(and(...conditions))
+        .orderBy(desc(winstonLogs.timestamp));
+
+      res.json(logs);
+    } catch (error) {
+      console.error("Failed to fetch comm logs:", error);
+      res.status(500).json({ message: "Failed to fetch communication logs" });
+    }
   });
 }
