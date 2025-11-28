@@ -33,6 +33,8 @@ import WorkerHoursDaily from "@/pages/worker-hours-daily";
 import WorkerLogs from "@/pages/worker-logs";
 import WorkerAddresses from "@/pages/worker-addresses";
 import WorkerPhoneNumbers from "@/pages/worker-phone-numbers";
+import WorkerCommHistory from "@/pages/worker-comm-history";
+import WorkerSendSms from "@/pages/worker-send-sms";
 import WorkerDelete from "@/pages/worker-delete";
 import Employers from "@/pages/employers";
 import EmployersAdd from "@/pages/employers-add";
@@ -198,6 +200,22 @@ function Router() {
         <ProtectedRoute permission="workers.view">
           <AuthenticatedLayout>
             <WorkerPhoneNumbers />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/comm/history">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerCommHistory />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/comm/send-sms">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerSendSms />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
