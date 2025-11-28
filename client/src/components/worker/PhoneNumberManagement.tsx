@@ -167,7 +167,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
     },
   });
 
-  // Fetch SMS opt-in status for selected phone number
+  // Fetch SMS opt-in status for selected phone number (no caching for real-time updates)
   const { data: smsOptinData, isLoading: isLoadingOptin } = useQuery<SmsOptinResponse>({
     queryKey: ["/api/sms-optin", smsOptinPhoneNumber?.phoneNumber],
     queryFn: async () => {
@@ -181,6 +181,8 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
       return response.json();
     },
     enabled: !!smsOptinPhoneNumber,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // Fetch public token for selected phone number
@@ -197,6 +199,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
       return response.json();
     },
     enabled: !!smsOptinPhoneNumber,
+    staleTime: 0,
   });
 
   // Construct the public opt-in URL
