@@ -139,46 +139,6 @@ export default function SystemModePage() {
           )}
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Mode Effects</CardTitle>
-          <CardDescription>
-            How the system mode affects application behavior
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 text-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-gray-500 mt-1.5" />
-              <div>
-                <span className="font-medium">Development (dev)</span>
-                <p className="text-muted-foreground">
-                  Disables live payment processing, uses test APIs, and allows experimental features
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-yellow-500 mt-1.5" />
-              <div>
-                <span className="font-medium">Test</span>
-                <p className="text-muted-foreground">
-                  Enables test mode for external services, validates integrations before going live
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5" />
-              <div>
-                <span className="font-medium">Live</span>
-                <p className="text-muted-foreground">
-                  Full production mode - enables real payment processing and live API connections
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
