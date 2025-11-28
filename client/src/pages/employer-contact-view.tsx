@@ -2,7 +2,7 @@ import { EmployerContactLayout, useEmployerContactLayout } from "@/components/la
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
-import { PhoneNumber, PostalAddress } from "@shared/schema";
+import { PhoneNumber, ContactPostal } from "@shared/schema";
 import { Phone, MapPin } from "lucide-react";
 
 function EmployerContactViewContent() {
@@ -14,14 +14,14 @@ function EmployerContactViewContent() {
   });
 
   // Fetch primary address
-  const { data: addresses = [] } = useQuery<PostalAddress[]>({
+  const { data: addresses = [] } = useQuery<ContactPostal[]>({
     queryKey: ["/api/contacts", employerContact.contactId, "addresses"],
   });
 
   const primaryPhone = phoneNumbers.find(p => p.isPrimary && p.isActive);
   const primaryAddress = addresses.find(a => a.isPrimary && a.isActive);
 
-  const formatAddress = (address: PostalAddress) => {
+  const formatAddress = (address: ContactPostal) => {
     return `${address.street}, ${address.city}, ${address.state} ${address.postalCode}`;
   };
 

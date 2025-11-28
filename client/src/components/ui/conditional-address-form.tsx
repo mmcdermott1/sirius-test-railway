@@ -10,7 +10,7 @@ import { GooglePlacesAutocomplete, parseGooglePlace, ParsedAddress } from "./goo
 import { AddressValidationDisplay } from "./address-validation";
 import { useAddressValidation } from "@/hooks/useAddressValidation";
 import { useAddressValidationConfig } from "@/hooks/useAddressValidationConfig";
-import { insertPostalAddressSchema } from "@shared/schema";
+import { insertContactPostalSchema } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface AddressFormData {
@@ -42,7 +42,7 @@ export function ConditionalAddressForm({
   const { data: config, isLoading: configLoading } = useAddressValidationConfig();
   const validation = useAddressValidation();
   
-  const addressFormSchema = insertPostalAddressSchema.omit({ contactId: true });
+  const addressFormSchema = insertContactPostalSchema.omit({ contactId: true });
   
   const form = useForm<AddressFormData>({
     resolver: zodResolver(addressFormSchema),

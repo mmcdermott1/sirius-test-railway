@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { PostalAddress, InsertPostalAddress } from "@shared/schema";
+import { ContactPostal, InsertContactPostal } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,18 +17,18 @@ interface AddressManagementProps {
   contactId: string;
 }
 
-interface AddressFormData extends Omit<InsertPostalAddress, 'contactId'> {}
+interface AddressFormData extends Omit<InsertContactPostal, 'contactId'> {}
 
 export default function AddressManagement({ workerId, contactId }: AddressManagementProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<PostalAddress | null>(null);
-  const [viewingAddress, setViewingAddress] = useState<PostalAddress | null>(null);
-  const [jsonViewAddress, setJsonViewAddress] = useState<PostalAddress | null>(null);
+  const [editingAddress, setEditingAddress] = useState<ContactPostal | null>(null);
+  const [viewingAddress, setViewingAddress] = useState<ContactPostal | null>(null);
+  const [jsonViewAddress, setJsonViewAddress] = useState<ContactPostal | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch addresses for this contact
-  const { data: addresses = [], isLoading, error } = useQuery<PostalAddress[]>({
+  const { data: addresses = [], isLoading, error } = useQuery<ContactPostal[]>({
     queryKey: ["/api/contacts", contactId, "addresses"],
     queryFn: async () => {
       const response = await fetch(`/api/contacts/${contactId}/addresses`);
@@ -142,7 +142,7 @@ export default function AddressManagement({ workerId, contactId }: AddressManage
     }
   };
 
-  const handleEdit = (address: PostalAddress) => {
+  const handleEdit = (address: ContactPostal) => {
     setEditingAddress(address);
   };
 

@@ -15,7 +15,7 @@ import { Trash2, Plus, Eye, Phone, MapPin, User } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { TrustProviderType, PhoneNumber, PostalAddress } from "@shared/schema";
+import type { TrustProviderType, PhoneNumber, ContactPostal } from "@shared/schema";
 import { generateDisplayName } from "@shared/schema";
 
 interface TrustProviderContactResponse {
@@ -60,7 +60,7 @@ type CreateContactFormData = z.infer<typeof createContactSchema>;
 
 interface ContactWithDetails extends TrustProviderContactResponse {
   primaryPhone?: PhoneNumber;
-  primaryAddress?: PostalAddress;
+  primaryAddress?: ContactPostal;
 }
 
 function TrustProviderContactsContent() {
@@ -117,7 +117,7 @@ function TrustProviderContactsContent() {
     const addressData = addressQueries.data?.find(a => a.contactId === contact.contactId);
     
     const primaryPhone = phoneData?.phones?.find((p: PhoneNumber) => p.isPrimary && p.isActive);
-    const primaryAddress = addressData?.addresses?.find((a: PostalAddress) => a.isPrimary && a.isActive);
+    const primaryAddress = addressData?.addresses?.find((a: ContactPostal) => a.isPrimary && a.isActive);
 
     return {
       ...contact,

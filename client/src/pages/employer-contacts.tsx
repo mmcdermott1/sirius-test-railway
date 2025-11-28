@@ -15,7 +15,7 @@ import { Trash2, Plus, Eye, Phone, MapPin, User } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { EmployerContactType, PhoneNumber, PostalAddress } from "@shared/schema";
+import type { EmployerContactType, PhoneNumber, ContactPostal } from "@shared/schema";
 import { generateDisplayName } from "@shared/schema";
 
 interface EmployerContactResponse {
@@ -60,7 +60,7 @@ type CreateContactFormData = z.infer<typeof createContactSchema>;
 
 interface ContactWithDetails extends EmployerContactResponse {
   primaryPhone?: PhoneNumber;
-  primaryAddress?: PostalAddress;
+  primaryAddress?: ContactPostal;
   hasUser?: boolean;
 }
 
@@ -142,7 +142,7 @@ function EmployerContactsContent() {
     const userStatusData = userStatusQueries.data?.find(u => u.employerContactId === contact.id);
     
     const primaryPhone = phoneData?.phones?.find((p: PhoneNumber) => p.isPrimary && p.isActive);
-    const primaryAddress = addressData?.addresses?.find((a: PostalAddress) => a.isPrimary && a.isActive);
+    const primaryAddress = addressData?.addresses?.find((a: ContactPostal) => a.isPrimary && a.isActive);
 
     return {
       ...contact,

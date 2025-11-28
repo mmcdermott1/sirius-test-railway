@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Worker, Contact, PhoneNumber, Employer, PostalAddress } from "@shared/schema";
+import { Worker, Contact, PhoneNumber, Employer, ContactPostal } from "@shared/schema";
 import { formatSSN } from "@shared/schema";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -50,7 +50,7 @@ interface WorkerWithContact extends Worker {
   middle?: string;
   family?: string;
   employers?: EmployerInfo[];
-  address?: PostalAddress | null;
+  address?: ContactPostal | null;
   benefitTypes?: string[];
   benefitIds?: string[];
   benefits?: WorkerBenefit[];
@@ -160,7 +160,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     }
     
     // Build address object if address data exists
-    let address: PostalAddress | null = null;
+    let address: ContactPostal | null = null;
     if (worker.address_id) {
       address = {
         id: worker.address_id,

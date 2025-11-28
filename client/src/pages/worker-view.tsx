@@ -1,7 +1,7 @@
 import { Mail, Phone, MapPin, Calendar, IdCard, Gift, Building2, Home, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { PostalAddress, PhoneNumber as PhoneNumberType, WorkerId, WorkerIdType, TrustWmb, TrustBenefit, Employer, WorkerWs, EmploymentStatus } from "@shared/schema";
+import { ContactPostal, PhoneNumber as PhoneNumberType, WorkerId, WorkerIdType, TrustWmb, TrustBenefit, Employer, WorkerWs, EmploymentStatus } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { WorkerLayout, useWorkerLayout } from "@/components/layouts/WorkerLayout";
@@ -31,7 +31,7 @@ function WorkerDetailsContent() {
   const { worker, contact } = useWorkerLayout();
 
   // Fetch primary address
-  const { data: addresses = [] } = useQuery<PostalAddress[]>({
+  const { data: addresses = [] } = useQuery<ContactPostal[]>({
     queryKey: ["/api/contacts", worker.contactId, "addresses"],
     queryFn: async () => {
       const response = await fetch(`/api/contacts/${worker.contactId}/addresses`);

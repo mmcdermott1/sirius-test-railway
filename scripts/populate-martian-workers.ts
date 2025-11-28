@@ -182,7 +182,7 @@ async function populateWorkers() {
       // 85% chance of primary address
       if (Math.random() < 0.85) {
         const address = generateAddress();
-        await storage.contacts.addresses.createPostalAddress({
+        await storage.contacts.addresses.createContactPostal({
           contactId,
           ...address,
           friendlyName: 'Home',
@@ -195,7 +195,7 @@ async function populateWorkers() {
         if (Math.random() < 0.2) {
           const address2 = generateAddress();
           const addressTypes = ['Work', 'Mailing', 'Seasonal'];
-          await storage.contacts.addresses.createPostalAddress({
+          await storage.contacts.addresses.createContactPostal({
             contactId,
             ...address2,
             friendlyName: getRandomElement(addressTypes),

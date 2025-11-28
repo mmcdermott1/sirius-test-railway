@@ -11,7 +11,7 @@ import { Loader2, CheckCircle, AlertCircle, Edit, MapPin } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ParseAddressRequest, ParseAddressResponse, StructuredAddress } from "@shared/schema";
-import { insertPostalAddressSchema } from "@shared/schema";
+import { insertContactPostalSchema } from "@shared/schema";
 import { useAddressValidationConfig } from "@/hooks/useAddressValidationConfig";
 
 interface AddressFormData {
@@ -59,7 +59,7 @@ export function UnifiedAddressInput({
   const [isGeocoding, setIsGeocoding] = useState(false);
   const geocodingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const addressFormSchema = insertPostalAddressSchema.omit({ contactId: true });
+  const addressFormSchema = insertContactPostalSchema.omit({ contactId: true });
   
   const form = useForm<AddressFormData>({
     resolver: zodResolver(addressFormSchema),

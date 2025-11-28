@@ -112,13 +112,13 @@ async function updateWorkerContacts() {
       
       // Delete existing addresses for this contact
       await db.execute(sql`
-        DELETE FROM postal_addresses
+        DELETE FROM contact_postal
         WHERE contact_id = ${worker.contact_id}
       `);
       
       // Insert new address
       await db.execute(sql`
-        INSERT INTO postal_addresses (
+        INSERT INTO contact_postal (
           id, contact_id, friendly_name, street, city, state, 
           postal_code, country, is_primary, is_active, created_at
         )
