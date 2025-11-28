@@ -1000,6 +1000,7 @@ export const commSmsOptin = pgTable("comm_sms_optin", {
   optinDate: timestamp("optin_date"),
   optinIp: varchar("optin_ip"),
   allowlist: boolean("allowlist").default(false).notNull(),
+  publicToken: varchar("public_token").unique(),
 });
 
 const ipAddressRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}$/;

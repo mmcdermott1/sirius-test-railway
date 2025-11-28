@@ -105,10 +105,13 @@ export function createCommSmsStorage(): CommSmsStorage {
 
 export interface CommSmsOptinStorage {
   getSmsOptinByPhoneNumber(phoneNumber: string): Promise<CommSmsOptin | undefined>;
+  getSmsOptinByPublicToken(token: string): Promise<CommSmsOptin | undefined>;
   getSmsOptin(id: string): Promise<CommSmsOptin | undefined>;
   createSmsOptin(data: InsertCommSmsOptin): Promise<CommSmsOptin>;
   updateSmsOptin(id: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined>;
   updateSmsOptinByPhoneNumber(phoneNumber: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined>;
+  updateSmsOptinByPublicToken(token: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined>;
+  getOrCreatePublicToken(phoneNumber: string): Promise<string>;
   deleteSmsOptin(id: string): Promise<boolean>;
 }
 
@@ -119,6 +122,11 @@ export function createCommSmsOptinStorage(): CommSmsOptinStorage {
       const normalizedPhone = validationResult.e164Format || phoneNumber;
       
       const [result] = await db.select().from(commSmsOptin).where(eq(commSmsOptin.phoneNumber, normalizedPhone));
+      return result || undefined;
+    },
+
+    async getSmsOptinByPublicToken(token: string): Promise<CommSmsOptin | undefined> {
+      const [result] = await db.select().from(commSmsOptin).where(eq(commSmsOptin.publicToken, token));
       return result || undefined;
     },
 
@@ -171,6 +179,46 @@ export function createCommSmsOptinStorage(): CommSmsOptinStorage {
 
       const [result] = await db.update(commSmsOptin).set(updateData).where(eq(commSmsOptin.phoneNumber, normalizedPhone)).returning();
       return result || undefined;
+    },
+
+    async updateSmsOptinByPublicToken(token: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined> {
+      let updateData = { ...data };
+      
+      if (data.phoneNumber !== undefined) {
+        const validationResult = await phoneValidationService.validateAndFormat(data.phoneNumber);
+        if (!validationResult.isValid) {
+          throw new Error(`Invalid phone number: ${validationResult.error}`);
+        }
+        updateData.phoneNumber = validationResult.e164Format || data.phoneNumber;
+      }
+
+      const [result] = await db.update(commSmsOptin).set(updateData).where(eq(commSmsOptin.publicToken, token)).returning();
+      return result || undefined;
+    },
+
+    async getOrCreatePublicToken(phoneNumber: string): Promise<string> {
+      const validationResult = await phoneValidationService.validateAndFormat(phoneNumber);
+      const normalizedPhone = validationResult.e164Format || phoneNumber;
+      
+      const [existing] = await db.select().from(commSmsOptin).where(eq(commSmsOptin.phoneNumber, normalizedPhone));
+      
+      if (existing) {
+        if (existing.publicToken) {
+          return existing.publicToken;
+        }
+        const newToken = crypto.randomUUID();
+        await db.update(commSmsOptin).set({ publicToken: newToken }).where(eq(commSmsOptin.id, existing.id));
+        return newToken;
+      }
+      
+      const newToken = crypto.randomUUID();
+      await db.insert(commSmsOptin).values({
+        phoneNumber: normalizedPhone,
+        optin: false,
+        allowlist: false,
+        publicToken: newToken,
+      });
+      return newToken;
     },
 
     async deleteSmsOptin(id: string): Promise<boolean> {
