@@ -960,9 +960,9 @@ export type CronJobRun = typeof cronJobRuns.$inferSelect;
 // Communications
 export const comm = pgTable("comm", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  medium: varchar("medium"),
+  medium: varchar("medium").notNull(),
   contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
-  status: varchar("status"),
+  status: varchar("status").notNull(),
   sent: timestamp("sent"),
   received: timestamp("received"),
   data: jsonb("data"),
