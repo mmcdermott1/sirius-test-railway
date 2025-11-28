@@ -313,5 +313,98 @@ export function registerPhoneNumberRoutes(
         res.status(500).json({ message: "Failed to update SMS opt-in status" });
       }
     });
+
+    // GET /api/sms-optin/:phoneNumber/public-token - Get or create public token for a phone number
+    app.get("/api/sms-optin/:phoneNumber/public-token", requireAuth, requireAccess(policies.admin), async (req, res) => {
+      try {
+        const { phoneNumber } = req.params;
+        
+        const validationResult = await phoneValidationService.validateAndFormat(phoneNumber);
+        if (!validationResult.isValid) {
+          return res.status(400).json({ message: validationResult.error || "Invalid phone number" });
+        }
+        
+        const token = await smsOptinStorage.getOrCreatePublicToken(validationResult.e164Format || phoneNumber);
+        res.json({ token });
+      } catch (error) {
+        console.error("Failed to get/create public token:", error);
+        res.status(500).json({ message: "Failed to get public token" });
+      }
+    });
   }
+
+  // Public routes (no auth required)
+  const publicOptinSchema = z.object({
+    optin: z.boolean(),
+  });
+
+  // GET /api/public/sms-optin/:token - Get opt-in status by public token (no auth)
+  app.get("/api/public/sms-optin/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token || token.length < 32) {
+        return res.status(400).json({ message: "Invalid token" });
+      }
+      
+      const optin = await smsOptinStorage.getSmsOptinByPublicToken(token);
+      
+      if (!optin) {
+        return res.status(404).json({ message: "Opt-in record not found" });
+      }
+      
+      // Return only necessary fields for the public page
+      res.json({
+        phoneNumber: optin.phoneNumber.replace(/(\+\d{1})\d{6}(\d{4})/, '$1******$2'),
+        optin: optin.optin,
+      });
+    } catch (error) {
+      console.error("Failed to fetch public opt-in:", error);
+      res.status(500).json({ message: "Failed to fetch opt-in status" });
+    }
+  });
+
+  // POST /api/public/sms-optin/:token - Update opt-in status by public token (no auth)
+  app.post("/api/public/sms-optin/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token || token.length < 32) {
+        return res.status(400).json({ message: "Invalid token" });
+      }
+      
+      const parsed = publicOptinSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid request body", errors: parsed.error.flatten() });
+      }
+      
+      const { optin } = parsed.data;
+      
+      // Get client IP address
+      const clientIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown';
+      const ip = clientIp.split(',')[0].trim();
+      
+      const updateData: any = {
+        optin,
+        optinDate: new Date(),
+        optinIp: ip,
+        optinUser: null,
+      };
+      
+      const updated = await smsOptinStorage.updateSmsOptinByPublicToken(token, updateData);
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Opt-in record not found" });
+      }
+      
+      res.json({
+        phoneNumber: updated.phoneNumber.replace(/(\+\d{1})\d{6}(\d{4})/, '$1******$2'),
+        optin: updated.optin,
+        success: true,
+      });
+    } catch (error) {
+      console.error("Failed to update public opt-in:", error);
+      res.status(500).json({ message: "Failed to update opt-in status" });
+    }
+  });
 }
