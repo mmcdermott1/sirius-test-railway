@@ -5,18 +5,41 @@ import type { PhoneNumber, InsertPhoneNumber } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhoneNumberSchema } from "@shared/schema";
-import { Phone, Plus, Edit, Trash2, Star, Copy, FileJson, Eye } from "lucide-react";
+import { Phone, Plus, Edit, Trash2, Star, Copy, FileJson, Eye, MessageSquare, User, Globe, Calendar } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { z } from "zod";
 import { formatPhoneNumberForDisplay, validatePhoneNumber } from "@/lib/phone-utils";
+import { format } from "date-fns";
+
+interface SmsOptinResponse {
+  exists: boolean;
+  optin: {
+    id: string;
+    phoneNumber: string;
+    optin: boolean;
+    optinUser: string | null;
+    optinDate: string | null;
+    optinIp: string | null;
+    allowlist: boolean;
+    optinUserDetails: {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+    } | null;
+  } | null;
+}
 
 // Form schema that omits contactId since it's provided as a prop and adds client-side validation
 const phoneNumberFormSchema = insertPhoneNumberSchema.omit({ contactId: true }).extend({
@@ -37,6 +60,7 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
   const [editingPhoneNumber, setEditingPhoneNumber] = useState<PhoneNumber | null>(null);
   const [viewingPhoneNumber, setViewingPhoneNumber] = useState<PhoneNumber | null>(null);
   const [jsonViewPhoneNumber, setJsonViewPhoneNumber] = useState<PhoneNumber | null>(null);
+  const [smsOptinPhoneNumber, setSmsOptinPhoneNumber] = useState<PhoneNumber | null>(null);
 
   // Fetch phone numbers for this contact
   const { data: phoneNumbers = [], isLoading } = useQuery<PhoneNumber[]>({
@@ -137,6 +161,35 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
       toast({
         title: "Error",
         description: error.message || "Failed to set primary phone number",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Fetch SMS opt-in status for selected phone number
+  const { data: smsOptinData, isLoading: isLoadingOptin } = useQuery<SmsOptinResponse>({
+    queryKey: ["/api/sms-optin", smsOptinPhoneNumber?.phoneNumber],
+    enabled: !!smsOptinPhoneNumber,
+  });
+
+  // Update SMS opt-in mutation
+  const updateSmsOptinMutation = useMutation({
+    mutationFn: async ({ phoneNumber, optin, allowlist }: { phoneNumber: string; optin?: boolean; allowlist?: boolean }) => {
+      return await apiRequest("PUT", `/api/sms-optin/${encodeURIComponent(phoneNumber)}`, { optin, allowlist });
+    },
+    onSuccess: () => {
+      if (smsOptinPhoneNumber) {
+        queryClient.invalidateQueries({ queryKey: ["/api/sms-optin", smsOptinPhoneNumber.phoneNumber] });
+      }
+      toast({
+        title: "SMS Opt-in Updated",
+        description: "The SMS opt-in status has been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update SMS opt-in status",
         variant: "destructive",
       });
     },
@@ -495,6 +548,119 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
         </DialogContent>
       </Dialog>
 
+      {/* SMS Opt-in Dialog */}
+      <Dialog open={smsOptinPhoneNumber !== null} onOpenChange={() => setSmsOptinPhoneNumber(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              SMS Opt-in Settings
+            </DialogTitle>
+            <DialogDescription>
+              Manage SMS opt-in status for {smsOptinPhoneNumber && formatPhoneNumberForDisplay(smsOptinPhoneNumber.phoneNumber)}
+            </DialogDescription>
+          </DialogHeader>
+          {smsOptinPhoneNumber && (
+            <div className="space-y-6">
+              {isLoadingOptin ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-sm text-muted-foreground">Loading opt-in status...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="optin-switch">SMS Opt-in</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Allow sending SMS messages to this number
+                        </p>
+                      </div>
+                      <Switch
+                        id="optin-switch"
+                        checked={smsOptinData?.optin?.optin ?? false}
+                        onCheckedChange={(checked) => {
+                          updateSmsOptinMutation.mutate({
+                            phoneNumber: smsOptinPhoneNumber.phoneNumber,
+                            optin: checked,
+                          });
+                        }}
+                        disabled={updateSmsOptinMutation.isPending}
+                        data-testid="switch-sms-optin"
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="allowlist-switch">Allowlist</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Add to SMS allowlist for priority messaging
+                        </p>
+                      </div>
+                      <Switch
+                        id="allowlist-switch"
+                        checked={smsOptinData?.optin?.allowlist ?? false}
+                        onCheckedChange={(checked) => {
+                          updateSmsOptinMutation.mutate({
+                            phoneNumber: smsOptinPhoneNumber.phoneNumber,
+                            allowlist: checked,
+                          });
+                        }}
+                        disabled={updateSmsOptinMutation.isPending}
+                        data-testid="switch-sms-allowlist"
+                      />
+                    </div>
+                  </div>
+
+                  {smsOptinData?.exists && smsOptinData.optin && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium">Opt-in Tracking</h4>
+                        <div className="space-y-2 text-sm">
+                          {smsOptinData.optin.optinUserDetails && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <User className="h-4 w-4" />
+                              <span>
+                                Set by: {smsOptinData.optin.optinUserDetails.firstName || ''} {smsOptinData.optin.optinUserDetails.lastName || ''} ({smsOptinData.optin.optinUserDetails.email})
+                              </span>
+                            </div>
+                          )}
+                          {smsOptinData.optin.optinDate && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              <span>
+                                Date: {format(new Date(smsOptinData.optin.optinDate), 'PPpp')}
+                              </span>
+                            </div>
+                          )}
+                          {smsOptinData.optin.optinIp && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Globe className="h-4 w-4" />
+                              <span>
+                                IP Address: {smsOptinData.optin.optinIp}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <Button onClick={() => setSmsOptinPhoneNumber(null)} data-testid="button-close-optin">
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {phoneNumbers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -546,6 +712,15 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
                       data-testid={`button-view-phone-${phoneNumber.id}`}
                     >
                       <Eye size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSmsOptinPhoneNumber(phoneNumber)}
+                      data-testid={`button-sms-optin-${phoneNumber.id}`}
+                      title="SMS Opt-in Settings"
+                    >
+                      <MessageSquare size={14} />
                     </Button>
                     <Button
                       variant="ghost"

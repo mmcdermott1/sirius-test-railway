@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { comm, commSms, type Comm, type InsertComm, type CommSms, type InsertCommSms } from "@shared/schema";
+import { comm, commSms, commSmsOptin, type Comm, type InsertComm, type CommSms, type InsertCommSms, type CommSmsOptin, type InsertCommSmsOptin } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { phoneValidationService } from "../services/phone-validation";
 
@@ -98,6 +98,83 @@ export function createCommSmsStorage(): CommSmsStorage {
 
     async deleteCommSms(id: string): Promise<boolean> {
       const result = await db.delete(commSms).where(eq(commSms.id, id)).returning();
+      return result.length > 0;
+    },
+  };
+}
+
+export interface CommSmsOptinStorage {
+  getSmsOptinByPhoneNumber(phoneNumber: string): Promise<CommSmsOptin | undefined>;
+  getSmsOptin(id: string): Promise<CommSmsOptin | undefined>;
+  createSmsOptin(data: InsertCommSmsOptin): Promise<CommSmsOptin>;
+  updateSmsOptin(id: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined>;
+  updateSmsOptinByPhoneNumber(phoneNumber: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined>;
+  deleteSmsOptin(id: string): Promise<boolean>;
+}
+
+export function createCommSmsOptinStorage(): CommSmsOptinStorage {
+  return {
+    async getSmsOptinByPhoneNumber(phoneNumber: string): Promise<CommSmsOptin | undefined> {
+      const validationResult = await phoneValidationService.validateAndFormat(phoneNumber);
+      const normalizedPhone = validationResult.e164Format || phoneNumber;
+      
+      const [result] = await db.select().from(commSmsOptin).where(eq(commSmsOptin.phoneNumber, normalizedPhone));
+      return result || undefined;
+    },
+
+    async getSmsOptin(id: string): Promise<CommSmsOptin | undefined> {
+      const [result] = await db.select().from(commSmsOptin).where(eq(commSmsOptin.id, id));
+      return result || undefined;
+    },
+
+    async createSmsOptin(data: InsertCommSmsOptin): Promise<CommSmsOptin> {
+      const validationResult = await phoneValidationService.validateAndFormat(data.phoneNumber);
+      if (!validationResult.isValid) {
+        throw new Error(`Invalid phone number: ${validationResult.error}`);
+      }
+      const normalizedPhone = validationResult.e164Format || data.phoneNumber;
+
+      const [result] = await db.insert(commSmsOptin).values({
+        ...data,
+        phoneNumber: normalizedPhone,
+      }).returning();
+      return result;
+    },
+
+    async updateSmsOptin(id: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined> {
+      let updateData = { ...data };
+      
+      if (data.phoneNumber !== undefined) {
+        const validationResult = await phoneValidationService.validateAndFormat(data.phoneNumber);
+        if (!validationResult.isValid) {
+          throw new Error(`Invalid phone number: ${validationResult.error}`);
+        }
+        updateData.phoneNumber = validationResult.e164Format || data.phoneNumber;
+      }
+
+      const [result] = await db.update(commSmsOptin).set(updateData).where(eq(commSmsOptin.id, id)).returning();
+      return result || undefined;
+    },
+
+    async updateSmsOptinByPhoneNumber(phoneNumber: string, data: Partial<InsertCommSmsOptin>): Promise<CommSmsOptin | undefined> {
+      const validationResult = await phoneValidationService.validateAndFormat(phoneNumber);
+      const normalizedPhone = validationResult.e164Format || phoneNumber;
+
+      let updateData = { ...data };
+      if (data.phoneNumber !== undefined) {
+        const validationResult2 = await phoneValidationService.validateAndFormat(data.phoneNumber);
+        if (!validationResult2.isValid) {
+          throw new Error(`Invalid phone number: ${validationResult2.error}`);
+        }
+        updateData.phoneNumber = validationResult2.e164Format || data.phoneNumber;
+      }
+
+      const [result] = await db.update(commSmsOptin).set(updateData).where(eq(commSmsOptin.phoneNumber, normalizedPhone)).returning();
+      return result || undefined;
+    },
+
+    async deleteSmsOptin(id: string): Promise<boolean> {
+      const result = await db.delete(commSmsOptin).where(eq(commSmsOptin.id, id)).returning();
       return result.length > 0;
     },
   };

@@ -246,7 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerContactPostalRoutes(app, requireAuth, requirePermission);
   
   // Register phone number management routes
-  registerPhoneNumberRoutes(app, requireAuth, requirePermission);
+  registerPhoneNumberRoutes(app, requireAuth, requirePermission, requireAccess);
   
   // Register employer contact routes
   registerEmployerContactRoutes(app, requireAuth, requirePermission);

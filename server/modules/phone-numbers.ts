@@ -1,16 +1,27 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "../storage";
-import { insertPhoneNumberSchema } from "@shared/schema";
+import { storage, createCommSmsOptinStorage } from "../storage";
+import { insertPhoneNumberSchema, insertCommSmsOptinSchema } from "@shared/schema";
 import { phoneValidationService } from "../services/phone-validation";
+import { policies } from "../policies";
+import { z } from "zod";
+
+const updateSmsOptinSchema = z.object({
+  optin: z.boolean().optional(),
+  allowlist: z.boolean().optional(),
+});
 
 // Type for middleware functions
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+type PolicyMiddleware = (policy: any) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+
+const smsOptinStorage = createCommSmsOptinStorage();
 
 export function registerPhoneNumberRoutes(
   app: Express, 
   requireAuth: AuthMiddleware, 
-  requirePermission: PermissionMiddleware
+  requirePermission: PermissionMiddleware,
+  requireAccess?: PolicyMiddleware
 ) {
   
   // GET /api/contacts/:contactId/phone-numbers - Get all phone numbers for a contact
@@ -158,4 +169,149 @@ export function registerPhoneNumberRoutes(
       res.status(500).json({ message: "Failed to delete phone number" });
     }
   });
+
+  // SMS Opt-in Routes (requires admin policy)
+  if (requireAccess) {
+    // GET /api/sms-optin/:phoneNumber - Get SMS opt-in status for a phone number
+    app.get("/api/sms-optin/:phoneNumber", requireAuth, requireAccess(policies.admin), async (req, res) => {
+      try {
+        const { phoneNumber } = req.params;
+        const optin = await smsOptinStorage.getSmsOptinByPhoneNumber(phoneNumber);
+        
+        if (!optin) {
+          return res.json({ exists: false, optin: null });
+        }
+        
+        // If we have an optin user, fetch their details
+        let optinUserDetails = null;
+        if (optin.optinUser) {
+          const user = await storage.users.getUser(optin.optinUser);
+          if (user) {
+            optinUserDetails = {
+              id: user.id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+            };
+          }
+        }
+        
+        res.json({ 
+          exists: true, 
+          optin: {
+            ...optin,
+            optinUserDetails,
+          }
+        });
+      } catch (error) {
+        console.error("Failed to fetch SMS opt-in:", error);
+        res.status(500).json({ message: "Failed to fetch SMS opt-in status" });
+      }
+    });
+
+    // PUT /api/sms-optin/:phoneNumber - Create or update SMS opt-in for a phone number
+    app.put("/api/sms-optin/:phoneNumber", requireAuth, requireAccess(policies.admin), async (req, res) => {
+      try {
+        const { phoneNumber } = req.params;
+        
+        const parsed = updateSmsOptinSchema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({ message: "Invalid request body", errors: parsed.error.flatten() });
+        }
+        
+        const { optin, allowlist } = parsed.data;
+        const user = (req as any).user;
+        
+        // Get client IP address
+        const clientIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown';
+        const ip = clientIp.split(',')[0].trim();
+        
+        // Check if opt-in record already exists
+        const existingOptin = await smsOptinStorage.getSmsOptinByPhoneNumber(phoneNumber);
+        
+        if (existingOptin) {
+          // Update existing record
+          const updateData: any = {};
+          
+          if (optin !== undefined) {
+            updateData.optin = optin;
+            if (optin) {
+              updateData.optinUser = user?.id || null;
+              updateData.optinDate = new Date();
+              updateData.optinIp = ip;
+            }
+          }
+          
+          if (allowlist !== undefined) {
+            updateData.allowlist = allowlist;
+          }
+          
+          const updated = await smsOptinStorage.updateSmsOptinByPhoneNumber(phoneNumber, updateData);
+          
+          if (!updated) {
+            return res.status(404).json({ message: "Failed to update SMS opt-in" });
+          }
+          
+          // Fetch user details for response
+          let optinUserDetails = null;
+          if (updated.optinUser) {
+            const optinUser = await storage.users.getUser(updated.optinUser);
+            if (optinUser) {
+              optinUserDetails = {
+                id: optinUser.id,
+                email: optinUser.email,
+                firstName: optinUser.firstName,
+                lastName: optinUser.lastName,
+              };
+            }
+          }
+          
+          res.json({
+            ...updated,
+            optinUserDetails,
+          });
+        } else {
+          // Create new record
+          const validationResult = await phoneValidationService.validateAndFormat(phoneNumber);
+          if (!validationResult.isValid) {
+            return res.status(400).json({ message: validationResult.error || "Invalid phone number" });
+          }
+          
+          const newOptin = await smsOptinStorage.createSmsOptin({
+            phoneNumber: validationResult.e164Format || phoneNumber,
+            optin: optin ?? false,
+            optinUser: optin ? (user?.id || null) : null,
+            optinDate: optin ? new Date() : null,
+            optinIp: optin ? ip : null,
+            allowlist: allowlist ?? false,
+          });
+          
+          // Fetch user details for response
+          let optinUserDetails = null;
+          if (newOptin.optinUser) {
+            const optinUser = await storage.users.getUser(newOptin.optinUser);
+            if (optinUser) {
+              optinUserDetails = {
+                id: optinUser.id,
+                email: optinUser.email,
+                firstName: optinUser.firstName,
+                lastName: optinUser.lastName,
+              };
+            }
+          }
+          
+          res.status(201).json({
+            ...newOptin,
+            optinUserDetails,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to update SMS opt-in:", error);
+        if (error instanceof Error) {
+          return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: "Failed to update SMS opt-in status" });
+      }
+    });
+  }
 }
