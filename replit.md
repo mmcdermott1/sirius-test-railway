@@ -66,6 +66,7 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
     -   LocalSmsProvider (`server/services/providers/sms/local.ts`): Local validation only using libphonenumber-js, no SMS capability.
 -   **Configuration**: Provider settings stored in Variables table with key `service_config:sms`. Supports runtime provider switching and per-provider configuration.
 -   **Orchestration Layers**: `sms-sender.ts` handles business logic (opt-in, allowlist, system mode) and delegates to the active provider.
+-   **Phone Validation Consolidation**: Phone validation settings are consolidated with SMS provider selection. The PhoneValidationService uses the active SMS provider for validation (Twilio Lookup for 'twilio' mode, libphonenumber-js for 'local' mode). Settings are stored per-provider: defaultCountry/strictValidation in 'local' provider, lookupType/fallback flags in 'twilio' provider. Legacy API (`/api/variables/phone_validation_config`) maintained for backward compatibility.
 
 ## API and State Management
 -   **TanStack Query**: Server state management.
