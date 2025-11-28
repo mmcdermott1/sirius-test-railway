@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPhoneNumberSchema } from "@shared/schema";
-import { Phone, Plus, Edit, Trash2, Star, Copy, FileJson, Eye, MessageSquare, User, Globe, Calendar } from "lucide-react";
+import { Phone, Plus, Edit, Trash2, Star, Copy, FileJson, Eye, MessageSquare, User, Globe, Calendar, Link, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { z } from "zod";
 import { formatPhoneNumberForDisplay, validatePhoneNumber } from "@/lib/phone-utils";
 import { format } from "date-fns";
+import { QRCodeSVG } from "qrcode.react";
 
 interface SmsOptinResponse {
   exists: boolean;
@@ -169,8 +170,39 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
   // Fetch SMS opt-in status for selected phone number
   const { data: smsOptinData, isLoading: isLoadingOptin } = useQuery<SmsOptinResponse>({
     queryKey: ["/api/sms-optin", smsOptinPhoneNumber?.phoneNumber],
+    queryFn: async () => {
+      if (!smsOptinPhoneNumber) return null;
+      const response = await fetch(`/api/sms-optin/${encodeURIComponent(smsOptinPhoneNumber.phoneNumber)}`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch SMS opt-in status`);
+      }
+      return response.json();
+    },
     enabled: !!smsOptinPhoneNumber,
   });
+
+  // Fetch public token for selected phone number
+  const { data: publicTokenData, isLoading: isLoadingToken } = useQuery<{ token: string }>({
+    queryKey: ["/api/sms-optin", smsOptinPhoneNumber?.phoneNumber, "public-token"],
+    queryFn: async () => {
+      if (!smsOptinPhoneNumber) return null;
+      const response = await fetch(`/api/sms-optin/${encodeURIComponent(smsOptinPhoneNumber.phoneNumber)}/public-token`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch public token`);
+      }
+      return response.json();
+    },
+    enabled: !!smsOptinPhoneNumber,
+  });
+
+  // Construct the public opt-in URL
+  const publicOptinUrl = publicTokenData?.token 
+    ? `${window.location.origin}/sms/optin/${publicTokenData.token}`
+    : null;
 
   // Update SMS opt-in mutation
   const updateSmsOptinMutation = useMutation({
@@ -648,6 +680,63 @@ export function PhoneNumberManagement({ contactId }: PhoneNumberManagementProps)
                       </div>
                     </>
                   )}
+
+                  <Separator />
+                  
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Link className="h-4 w-4" />
+                      Public Opt-in Link
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Share this link to allow the phone number owner to manage their opt-in preference.
+                    </p>
+                    
+                    {isLoadingToken ? (
+                      <div className="flex items-center justify-center py-4">
+                        <p className="text-sm text-muted-foreground">Generating link...</p>
+                      </div>
+                    ) : publicOptinUrl ? (
+                      <div className="space-y-4">
+                        <div className="flex flex-col items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-md border">
+                          <QRCodeSVG 
+                            value={publicOptinUrl} 
+                            size={150}
+                            level="M"
+                            includeMargin={true}
+                            data-testid="qr-code-sms-optin"
+                          />
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            value={publicOptinUrl} 
+                            readOnly 
+                            className="text-xs font-mono"
+                            data-testid="input-optin-url"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => copyToClipboard(publicOptinUrl, "Opt-in link")}
+                            data-testid="button-copy-optin-url"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => window.open(publicOptinUrl, '_blank')}
+                            data-testid="button-open-optin-url"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Failed to generate link</p>
+                    )}
+                  </div>
                 </>
               )}
 
