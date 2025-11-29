@@ -120,148 +120,98 @@ class PaymentSimpleAllocationPlugin extends ChargePlugin {
         };
       }
 
-      const chargePluginKey = `${config.id}:${paymentContext.paymentId}`;
-      
       const expectedEntry = this.computeExpectedEntry(paymentContext, config.id);
       
-      const existingEntry = await storage.ledger.entries.getByChargePluginKey(
-        this.metadata.id,
-        chargePluginKey
+      // Find ALL existing entries for this payment + config combination
+      // This catches entries with any chargePluginKey format (including legacy formats)
+      const existingEntries = await storage.ledger.entries.getByReferenceAndConfig(
+        paymentContext.paymentId,
+        config.id
       );
+      
+      // Filter to only entries from this plugin
+      const ourEntries = existingEntries.filter(e => e.chargePlugin === this.metadata.id);
+      
+      // Delete all stale entries first
+      const notifications: LedgerNotification[] = [];
+      for (const staleEntry of ourEntries) {
+        await storage.ledger.entries.delete(staleEntry.id);
+        logger.info("Deleted stale ledger entry", {
+          service: "charge-plugin-payment-simple-allocation",
+          paymentId: paymentContext.paymentId,
+          deletedEntryId: staleEntry.id,
+          previousAmount: staleEntry.amount,
+          previousKey: staleEntry.chargePluginKey,
+        });
+      }
 
-      if (!expectedEntry && !existingEntry) {
-        logger.debug("No entry expected and none exists, nothing to do", {
+      // If no entry is expected, we're done (already deleted any stale entries)
+      if (!expectedEntry) {
+        if (ourEntries.length > 0) {
+          const totalDeleted = ourEntries.reduce((sum, e) => sum + Math.abs(parseFloat(e.amount)), 0);
+          notifications.push({
+            type: "deleted",
+            amount: (-totalDeleted).toFixed(2),
+            description: `Deleted ${ourEntries.length} ledger entry(s): -$${totalDeleted.toFixed(2)}`,
+          });
+        }
+        
+        logger.debug("No entry expected for payment", {
           service: "charge-plugin-payment-simple-allocation",
           paymentId: paymentContext.paymentId,
           status: paymentContext.status,
+          deletedCount: ourEntries.length,
         });
-        return {
-          success: true,
-          transactions: [],
-          message: `Payment status is ${paymentContext.status}, no entry needed`,
-        };
-      }
-
-      if (!expectedEntry && existingEntry) {
-        await storage.ledger.entries.deleteByChargePluginKey(
-          this.metadata.id,
-          chargePluginKey
-        );
         
-        logger.info("Deleted ledger entry - payment no longer cleared", {
-          service: "charge-plugin-payment-simple-allocation",
-          paymentId: paymentContext.paymentId,
-          deletedEntryId: existingEntry.id,
-          previousAmount: existingEntry.amount,
-        });
-
-        const notification: LedgerNotification = {
-          type: "deleted",
-          amount: existingEntry.amount,
-          description: `Ledger entry deleted: -$${Math.abs(parseFloat(existingEntry.amount)).toFixed(2)}`,
-        };
-
         return {
           success: true,
           transactions: [],
-          notifications: [notification],
-          message: "Deleted ledger entry - payment status changed from cleared",
+          notifications,
+          message: ourEntries.length > 0 
+            ? `Deleted ${ourEntries.length} stale entry(s) - payment status is ${paymentContext.status}`
+            : `Payment status is ${paymentContext.status}, no entry needed`,
         };
       }
 
-      if (expectedEntry && !existingEntry) {
-        const transaction: LedgerTransaction = {
-          chargePlugin: this.metadata.id,
-          chargePluginKey: expectedEntry.chargePluginKey,
-          chargePluginConfigId: config.id,
-          accountId: paymentContext.accountId,
-          entityType: paymentContext.entityType,
-          entityId: paymentContext.entityId,
-          amount: expectedEntry.amount,
-          description: expectedEntry.description,
-          transactionDate: expectedEntry.transactionDate,
-          referenceType: expectedEntry.referenceType,
-          referenceId: expectedEntry.referenceId,
-          metadata: expectedEntry.metadata,
-        };
+      // Create the new entry with the correct key format
+      const transaction: LedgerTransaction = {
+        chargePlugin: this.metadata.id,
+        chargePluginKey: expectedEntry.chargePluginKey,
+        chargePluginConfigId: config.id,
+        accountId: paymentContext.accountId,
+        entityType: paymentContext.entityType,
+        entityId: paymentContext.entityId,
+        amount: expectedEntry.amount,
+        description: expectedEntry.description,
+        transactionDate: expectedEntry.transactionDate,
+        referenceType: expectedEntry.referenceType,
+        referenceId: expectedEntry.referenceId,
+        metadata: expectedEntry.metadata,
+      };
 
-        logger.info("Creating new ledger entry for cleared payment", {
-          service: "charge-plugin-payment-simple-allocation",
-          paymentId: paymentContext.paymentId,
-          amount: expectedEntry.amount,
-        });
+      const actionType = ourEntries.length > 0 ? "recreated" : "created";
+      logger.info(`${actionType} ledger entry for cleared payment`, {
+        service: "charge-plugin-payment-simple-allocation",
+        paymentId: paymentContext.paymentId,
+        amount: expectedEntry.amount,
+        deletedStaleCount: ourEntries.length,
+      });
 
-        const notification: LedgerNotification = {
-          type: "created",
-          amount: expectedEntry.amount,
-          description: `Ledger entry created: -$${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)}`,
-        };
-
-        return {
-          success: true,
-          transactions: [transaction],
-          notifications: [notification],
-          message: `Created entry for $${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)} allocation`,
-        };
-      }
-
-      if (expectedEntry && existingEntry) {
-        const amountChanged = existingEntry.amount !== expectedEntry.amount;
-        const memoChanged = existingEntry.memo !== expectedEntry.description;
-        const dateChanged = existingEntry.date?.getTime() !== expectedEntry.transactionDate.getTime();
-
-        if (!amountChanged && !memoChanged && !dateChanged) {
-          logger.debug("Ledger entry matches expected state, no update needed", {
-            service: "charge-plugin-payment-simple-allocation",
-            paymentId: paymentContext.paymentId,
-            entryId: existingEntry.id,
-          });
-          return {
-            success: true,
-            transactions: [],
-            message: "Ledger entry already matches expected state",
-          };
-        }
-
-        await storage.ledger.entries.update(existingEntry.id, {
-          amount: expectedEntry.amount,
-          memo: expectedEntry.description,
-          date: expectedEntry.transactionDate,
-          data: expectedEntry.metadata,
-        });
-
-        logger.info("Updated ledger entry to match payment", {
-          service: "charge-plugin-payment-simple-allocation",
-          paymentId: paymentContext.paymentId,
-          entryId: existingEntry.id,
-          previousAmount: existingEntry.amount,
-          newAmount: expectedEntry.amount,
-          amountChanged,
-          memoChanged,
-          dateChanged,
-        });
-
-        const notification: LedgerNotification = {
-          type: "updated",
-          amount: expectedEntry.amount,
-          previousAmount: existingEntry.amount,
-          description: amountChanged
-            ? `Ledger entry updated: -$${Math.abs(parseFloat(existingEntry.amount)).toFixed(2)} → -$${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)}`
-            : `Ledger entry updated: -$${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)}`,
-        };
-
-        return {
-          success: true,
-          transactions: [],
-          notifications: [notification],
-          message: `Updated entry: ${amountChanged ? 'amount' : ''}${memoChanged ? ' memo' : ''}${dateChanged ? ' date' : ''} changed`,
-        };
-      }
+      notifications.push({
+        type: ourEntries.length > 0 ? "updated" : "created",
+        amount: expectedEntry.amount,
+        description: ourEntries.length > 0
+          ? `Ledger entry updated: -$${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)}`
+          : `Ledger entry created: -$${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)}`,
+      });
 
       return {
         success: true,
-        transactions: [],
-        message: "No action taken",
+        transactions: [transaction],
+        notifications,
+        message: ourEntries.length > 0
+          ? `Replaced ${ourEntries.length} stale entry(s) with correct entry`
+          : `Created entry for $${Math.abs(parseFloat(expectedEntry.amount)).toFixed(2)} allocation`,
       };
 
     } catch (error) {
