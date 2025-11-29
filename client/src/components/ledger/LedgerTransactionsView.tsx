@@ -10,6 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { stringify } from "csv-stringify/browser/esm/sync";
 import { Link } from "wouter";
 
+interface LedgerEntryData {
+  workerId?: string;
+  employerId?: string;
+  [key: string]: any;
+}
+
 interface LedgerEntryWithDetails {
   id: string;
   amount: string;
@@ -24,6 +30,7 @@ interface LedgerEntryWithDetails {
   entityName: string | null;
   eaAccountId: string;
   eaAccountName: string | null;
+  data?: LedgerEntryData | null;
 }
 
 type SortField = "amount" | "date" | "entityName" | "memo";
@@ -40,7 +47,11 @@ interface LedgerTransactionsViewProps {
 }
 
 // Helper function to generate reference link based on type and ID
-function getReferenceLink(referenceType: string | null, referenceId: string | null): string | null {
+function getReferenceLink(
+  referenceType: string | null, 
+  referenceId: string | null,
+  data?: LedgerEntryData | null
+): string | null {
   if (!referenceType || !referenceId) return null;
   
   switch (referenceType) {
@@ -52,6 +63,20 @@ function getReferenceLink(referenceType: string | null, referenceId: string | nu
       return `/trust/provider/${referenceId}`;
     case "payment":
       return `/ledger/payment/${referenceId}`;
+    case "hour":
+    case "hours":
+      // For hour entries, we need the workerId from the data field
+      // referenceId is the hour entry ID (for "hours" type) or composite key (for "hour" type)
+      if (data?.workerId) {
+        // For "hours" type, referenceId is the hour entry ID directly
+        if (referenceType === "hours") {
+          return `/workers/${data.workerId}/hours/${referenceId}`;
+        }
+        // For "hour" type (gbhet plugin), we need to find the hour entry differently
+        // The referenceId is a composite key, so we link to the worker's hours page
+        return `/workers/${data.workerId}/hours/daily`;
+      }
+      return null;
     default:
       return null;
   }
@@ -555,7 +580,7 @@ export function LedgerTransactionsView({
                     <TableCell data-testid={`cell-links-${transaction.id}`}>
                       <div className="flex gap-2 items-center">
                         {(() => {
-                          const refLink = getReferenceLink(transaction.referenceType, transaction.referenceId);
+                          const refLink = getReferenceLink(transaction.referenceType, transaction.referenceId, transaction.data);
                           return refLink ? (
                             <Link href={refLink}>
                               <Button
