@@ -1018,3 +1018,28 @@ export const insertCommSmsOptinSchema = createInsertSchema(commSmsOptin, {
 
 export type InsertCommSmsOptin = z.infer<typeof insertCommSmsOptinSchema>;
 export type CommSmsOptin = typeof commSmsOptin.$inferSelect;
+
+// Communications - Email Opt-in
+export const commEmailOptin = pgTable("comm_email_optin", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  optin: boolean("optin").default(false).notNull(),
+  optinUser: varchar("optin_user").references(() => users.id, { onDelete: 'set null' }),
+  optinDate: timestamp("optin_date"),
+  optinIp: varchar("optin_ip"),
+  allowlist: boolean("allowlist").default(false).notNull(),
+  publicToken: varchar("public_token").unique(),
+  emailValid: boolean("email_valid"),
+  validatedAt: timestamp("validated_at"),
+  validationResponse: jsonb("validation_response"),
+});
+
+export const insertCommEmailOptinSchema = createInsertSchema(commEmailOptin, {
+  email: z.string().email("Invalid email address"),
+  optinIp: z.string().regex(ipAddressRegex, "Invalid IP address format").optional().nullable(),
+}).omit({
+  id: true,
+});
+
+export type InsertCommEmailOptin = z.infer<typeof insertCommEmailOptinSchema>;
+export type CommEmailOptin = typeof commEmailOptin.$inferSelect;
