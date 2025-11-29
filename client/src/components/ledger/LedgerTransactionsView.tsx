@@ -65,20 +65,18 @@ function getReferenceLink(
       return `/ledger/payment/${referenceId}`;
     case "hour":
     case "hours":
-      // For hour entries, we need the workerId from the data field
-      // referenceId is the hour entry ID
-      if (data?.workerId) {
-        // Check if referenceId is a legacy composite key (workerId:employerId:year:month)
-        // or the new format (hoursId UUID)
-        const isLegacyFormat = referenceId.split(":").length === 4;
-        if (isLegacyFormat) {
-          // Legacy format - link to the worker's daily hours page
+      // Check if referenceId is a legacy composite key (workerId:employerId:year:month)
+      // or the new format (hoursId UUID)
+      const isLegacyFormat = referenceId.split(":").length === 4;
+      if (isLegacyFormat) {
+        // Legacy format - link to the worker's daily hours page
+        if (data?.workerId) {
           return `/workers/${data.workerId}/employment/daily`;
         }
-        // New format - referenceId is the hour entry ID directly
-        return `/workers/${data.workerId}/hours/${referenceId}`;
+        return null;
       }
-      return null;
+      // New format - referenceId is the hour entry ID directly
+      return `/hours/${referenceId}`;
     default:
       return null;
   }

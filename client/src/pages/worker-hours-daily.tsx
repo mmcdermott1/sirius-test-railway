@@ -370,7 +370,7 @@ function WorkerHoursContent() {
                   <TableCell className="text-right">{entry.hours?.toFixed(2) || "-"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Link href={`/workers/${worker.id}/hours/${entry.id}`}>
+                      <Link href={`/hours/${entry.id}`}>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -379,7 +379,7 @@ function WorkerHoursContent() {
                           <Eye size={16} />
                         </Button>
                       </Link>
-                      <Link href={`/workers/${worker.id}/hours/${entry.id}/edit`}>
+                      <Link href={`/hours/${entry.id}/edit`}>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -388,7 +388,7 @@ function WorkerHoursContent() {
                           <Pencil size={16} />
                         </Button>
                       </Link>
-                      <Link href={`/workers/${worker.id}/hours/${entry.id}/delete`}>
+                      <Link href={`/hours/${entry.id}/delete`}>
                         <Button
                           variant="ghost"
                           size="sm"
