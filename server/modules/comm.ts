@@ -5,6 +5,7 @@ import { winstonLogs } from "@shared/schema";
 import { eq, and, gte, lte, desc, or } from "drizzle-orm";
 import { createCommStorage, createCommSmsOptinStorage } from "../storage";
 import { sendSms } from "../services/sms-sender";
+import { sendEmail } from "../services/email-sender";
 import { handleStatusCallback } from "../services/comm-status/handler";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -19,6 +20,17 @@ const sendSmsSchema = z.object({
   message: z.string().min(1, "Message is required").max(1600, "Message too long (max 1600 characters)"),
 });
 
+const sendEmailSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  name: z.string().optional(),
+  subject: z.string().min(1, "Subject is required").max(500, "Subject too long"),
+  bodyText: z.string().optional(),
+  bodyHtml: z.string().optional(),
+  replyTo: z.string().email().optional(),
+}).refine(data => data.bodyText || data.bodyHtml, {
+  message: "Either bodyText or bodyHtml is required",
+});
+
 export function registerCommRoutes(
   app: Express, 
   requireAuth: AuthMiddleware, 
@@ -29,7 +41,7 @@ export function registerCommRoutes(
   app.get("/api/contacts/:contactId/comm", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
       const { contactId } = req.params;
-      const records = await commStorage.getCommsByContactWithSms(contactId);
+      const records = await commStorage.getCommsByContactWithDetails(contactId);
       res.json(records);
     } catch (error) {
       console.error("Failed to fetch comm records:", error);
@@ -40,7 +52,7 @@ export function registerCommRoutes(
   app.get("/api/comm/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
       const { id } = req.params;
-      const record = await commStorage.getCommWithSms(id);
+      const record = await commStorage.getCommWithDetails(id);
       
       if (!record) {
         return res.status(404).json({ message: "Communication record not found" });
@@ -103,6 +115,58 @@ export function registerCommRoutes(
     }
   });
 
+  app.post("/api/contacts/:contactId/email", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      
+      const parsed = sendEmailSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          message: "Invalid request body", 
+          errors: parsed.error.flatten() 
+        });
+      }
+
+      const { email, name, subject, bodyText, bodyHtml, replyTo } = parsed.data;
+      const user = (req as any).user;
+
+      const result = await sendEmail({
+        contactId,
+        toEmail: email,
+        toName: name,
+        subject,
+        bodyText,
+        bodyHtml,
+        replyTo,
+        userId: user?.id,
+      });
+
+      if (!result.success) {
+        const statusCode = result.errorCode === 'VALIDATION_ERROR' 
+          ? 400 
+          : 500;
+        
+        return res.status(statusCode).json({
+          message: result.error,
+          errorCode: result.errorCode,
+          comm: result.comm,
+          commEmail: result.commEmail,
+        });
+      }
+
+      res.status(201).json({
+        message: "Email sent successfully",
+        comm: result.comm,
+        commEmail: result.commEmail,
+        messageId: result.messageId,
+      });
+
+    } catch (error) {
+      console.error("Failed to send email:", error);
+      res.status(500).json({ message: "Failed to send email" });
+    }
+  });
+
   app.get("/api/phone-numbers/:phoneNumber/sms-optin", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
       const { phoneNumber } = req.params;
@@ -139,7 +203,7 @@ export function registerCommRoutes(
       const { id } = req.params;
       const { module, operation, startDate, endDate } = req.query;
 
-      const record = await commStorage.getCommWithSms(id);
+      const record = await commStorage.getCommWithDetails(id);
       if (!record) {
         return res.status(404).json({ message: "Communication record not found" });
       }

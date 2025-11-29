@@ -26,7 +26,7 @@ export function useWorkerLayout() {
 }
 
 interface WorkerLayoutProps {
-  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "benefits" | "logs" | "delete";
+  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "benefits" | "logs" | "delete";
   children: ReactNode;
 }
 
@@ -174,6 +174,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const commSubTabs = [
     { id: "comm-history", label: "History", href: `/workers/${worker.id}/comm/history` },
     { id: "send-sms", label: "Send SMS", href: `/workers/${worker.id}/comm/send-sms` },
+    { id: "send-email", label: "Send Email", href: `/workers/${worker.id}/comm/send-email` },
   ];
 
   const employmentSubTabs = [
@@ -186,7 +187,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   // Determine if we're in a sub-tab
   const isIdentitySubTab = ["name", "ids", "birth-date", "gender", "work-status"].includes(activeTab);
   const isContactSubTab = ["email", "addresses", "phone-numbers"].includes(activeTab);
-  const isCommSubTab = ["comm-history", "send-sms"].includes(activeTab);
+  const isCommSubTab = ["comm-history", "send-sms", "send-email"].includes(activeTab);
   const isEmploymentSubTab = ["current", "history", "monthly", "daily"].includes(activeTab);
   const showIdentitySubTabs = isIdentitySubTab;
   const showContactSubTabs = isContactSubTab;

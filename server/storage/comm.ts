@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { comm, commSms, commSmsOptin, type Comm, type InsertComm, type CommSms, type InsertCommSms, type CommSmsOptin, type InsertCommSmsOptin } from "@shared/schema";
+import { comm, commSms, commSmsOptin, commEmail, type Comm, type InsertComm, type CommSms, type InsertCommSms, type CommSmsOptin, type InsertCommSmsOptin, type CommEmail, type InsertCommEmail } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { phoneValidationService } from "../services/phone-validation";
 
@@ -7,11 +7,22 @@ export interface CommWithSms extends Comm {
   smsDetails?: CommSms | null;
 }
 
+export interface CommWithEmail extends Comm {
+  emailDetails?: CommEmail | null;
+}
+
+export interface CommWithDetails extends Comm {
+  smsDetails?: CommSms | null;
+  emailDetails?: CommEmail | null;
+}
+
 export interface CommStorage {
   getComm(id: string): Promise<Comm | undefined>;
   getCommsByContact(contactId: string): Promise<Comm[]>;
   getCommsByContactWithSms(contactId: string): Promise<CommWithSms[]>;
+  getCommsByContactWithDetails(contactId: string): Promise<CommWithDetails[]>;
   getCommWithSms(id: string): Promise<CommWithSms | undefined>;
+  getCommWithDetails(id: string): Promise<CommWithDetails | undefined>;
   createComm(data: InsertComm): Promise<Comm>;
   updateComm(id: string, data: Partial<InsertComm>): Promise<Comm | undefined>;
   deleteComm(id: string): Promise<boolean>;
@@ -30,6 +41,20 @@ export interface CommSmsStorage {
   updateCommSms(id: string, data: Partial<InsertCommSms>): Promise<CommSms | undefined>;
   updateCommSmsByTwilioSid(twilioSid: string, data: Partial<InsertCommSms>): Promise<CommSms | undefined>;
   deleteCommSms(id: string): Promise<boolean>;
+}
+
+export interface CommEmailWithComm {
+  commEmail: CommEmail;
+  comm: Comm;
+}
+
+export interface CommEmailStorage {
+  getCommEmail(id: string): Promise<CommEmail | undefined>;
+  getCommEmailByComm(commId: string): Promise<CommEmail | undefined>;
+  getCommEmailBySendGridId(sendgridMessageId: string): Promise<CommEmailWithComm | undefined>;
+  createCommEmail(data: InsertCommEmail): Promise<CommEmail>;
+  updateCommEmail(id: string, data: Partial<InsertCommEmail>): Promise<CommEmail | undefined>;
+  deleteCommEmail(id: string): Promise<boolean>;
 }
 
 export function createCommStorage(): CommStorage {
@@ -69,6 +94,40 @@ export function createCommStorage(): CommStorage {
       }
       
       return { ...c, smsDetails: null };
+    },
+
+    async getCommsByContactWithDetails(contactId: string): Promise<CommWithDetails[]> {
+      const comms = await db.select().from(comm).where(eq(comm.contactId, contactId)).orderBy(desc(comm.sent));
+      
+      const result: CommWithDetails[] = await Promise.all(
+        comms.map(async (c) => {
+          if (c.medium === 'sms') {
+            const [smsDetails] = await db.select().from(commSms).where(eq(commSms.commId, c.id));
+            return { ...c, smsDetails: smsDetails || null, emailDetails: null };
+          } else if (c.medium === 'email') {
+            const [emailDetails] = await db.select().from(commEmail).where(eq(commEmail.commId, c.id));
+            return { ...c, smsDetails: null, emailDetails: emailDetails || null };
+          }
+          return { ...c, smsDetails: null, emailDetails: null };
+        })
+      );
+      
+      return result;
+    },
+
+    async getCommWithDetails(id: string): Promise<CommWithDetails | undefined> {
+      const [c] = await db.select().from(comm).where(eq(comm.id, id));
+      if (!c) return undefined;
+      
+      if (c.medium === 'sms') {
+        const [smsDetails] = await db.select().from(commSms).where(eq(commSms.commId, c.id));
+        return { ...c, smsDetails: smsDetails || null, emailDetails: null };
+      } else if (c.medium === 'email') {
+        const [emailDetails] = await db.select().from(commEmail).where(eq(commEmail.commId, c.id));
+        return { ...c, smsDetails: null, emailDetails: emailDetails || null };
+      }
+      
+      return { ...c, smsDetails: null, emailDetails: null };
     },
 
     async createComm(data: InsertComm): Promise<Comm> {
@@ -302,6 +361,51 @@ export function createCommSmsOptinStorage(): CommSmsOptinStorage {
 
     async deleteSmsOptin(id: string): Promise<boolean> {
       const result = await db.delete(commSmsOptin).where(eq(commSmsOptin.id, id)).returning();
+      return result.length > 0;
+    },
+  };
+}
+
+export function createCommEmailStorage(): CommEmailStorage {
+  return {
+    async getCommEmail(id: string): Promise<CommEmail | undefined> {
+      const [result] = await db.select().from(commEmail).where(eq(commEmail.id, id));
+      return result || undefined;
+    },
+
+    async getCommEmailByComm(commId: string): Promise<CommEmail | undefined> {
+      const [result] = await db.select().from(commEmail).where(eq(commEmail.commId, commId));
+      return result || undefined;
+    },
+
+    async getCommEmailBySendGridId(sendgridMessageId: string): Promise<CommEmailWithComm | undefined> {
+      const allEmailRecords = await db.select().from(commEmail);
+      
+      for (const email of allEmailRecords) {
+        const data = email.data as { sendgridMessageId?: string } | null;
+        if (data?.sendgridMessageId === sendgridMessageId) {
+          const [commRecord] = await db.select().from(comm).where(eq(comm.id, email.commId));
+          if (commRecord) {
+            return { commEmail: email, comm: commRecord };
+          }
+        }
+      }
+      
+      return undefined;
+    },
+
+    async createCommEmail(data: InsertCommEmail): Promise<CommEmail> {
+      const [result] = await db.insert(commEmail).values(data).returning();
+      return result;
+    },
+
+    async updateCommEmail(id: string, data: Partial<InsertCommEmail>): Promise<CommEmail | undefined> {
+      const [result] = await db.update(commEmail).set(data).where(eq(commEmail.id, id)).returning();
+      return result || undefined;
+    },
+
+    async deleteCommEmail(id: string): Promise<boolean> {
+      const result = await db.delete(commEmail).where(eq(commEmail.id, id)).returning();
       return result.length > 0;
     },
   };

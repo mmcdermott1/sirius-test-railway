@@ -992,6 +992,28 @@ export const insertCommSmsSchema = createInsertSchema(commSms).omit({
 export type InsertCommSms = z.infer<typeof insertCommSmsSchema>;
 export type CommSms = typeof commSms.$inferSelect;
 
+// Communications - Email
+export const commEmail = pgTable("comm_email", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commId: varchar("comm_id").notNull().references(() => comm.id, { onDelete: 'cascade' }),
+  to: text("to"),
+  toName: varchar("to_name"),
+  from: text("from_address"),
+  fromName: varchar("from_name"),
+  replyTo: text("reply_to"),
+  subject: text("subject"),
+  bodyText: text("body_text"),
+  bodyHtml: text("body_html"),
+  data: jsonb("data"),
+});
+
+export const insertCommEmailSchema = createInsertSchema(commEmail).omit({
+  id: true,
+});
+
+export type InsertCommEmail = z.infer<typeof insertCommEmailSchema>;
+export type CommEmail = typeof commEmail.$inferSelect;
+
 // Communications - SMS Opt-in
 export const commSmsOptin = pgTable("comm_sms_optin", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -40,7 +40,7 @@ export async function handleStatusCallback(
   commId: string
 ): Promise<void> {
   try {
-    const comm = await commStorage.getCommWithSms(commId);
+    const comm = await commStorage.getCommWithDetails(commId);
     
     if (!comm) {
       console.warn(`Status callback received for unknown comm: ${commId}`);

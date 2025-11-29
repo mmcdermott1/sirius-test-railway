@@ -38,6 +38,7 @@ import WorkerAddresses from "@/pages/worker-addresses";
 import WorkerPhoneNumbers from "@/pages/worker-phone-numbers";
 import WorkerCommHistory from "@/pages/worker-comm-history";
 import WorkerSendSms from "@/pages/worker-send-sms";
+import WorkerSendEmail from "@/pages/worker-send-email";
 import CommDetail from "@/pages/comm-detail";
 import WorkerDelete from "@/pages/worker-delete";
 import Employers from "@/pages/employers";
@@ -221,6 +222,14 @@ function Router() {
         <ProtectedRoute permission="workers.view">
           <AuthenticatedLayout>
             <WorkerSendSms />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/comm/send-email">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerSendEmail />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

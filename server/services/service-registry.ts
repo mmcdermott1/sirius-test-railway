@@ -179,6 +179,16 @@ class ServiceRegistry {
         defaultProvider = 'twilio';
       }
     }
+
+    if (category === 'email') {
+      const hasSendGridCredentials = !!process.env.SENDGRID_API_KEY;
+      
+      if (!hasSendGridCredentials && registeredProviders.includes('local')) {
+        defaultProvider = 'local';
+      } else if (hasSendGridCredentials && registeredProviders.includes('sendgrid')) {
+        defaultProvider = 'sendgrid';
+      }
+    }
     
     const providers: Record<string, ProviderConfig> = {};
     for (const providerId of registeredProviders) {
