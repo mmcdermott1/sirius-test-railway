@@ -221,6 +221,8 @@ export class LobPostalProvider implements PostalTransport {
       };
     }
 
+    const isTestMode = apiKey.startsWith('test_');
+
     try {
       const response = await fetch(`${this.baseUrl}/us_verifications`, {
         method: 'POST',
@@ -267,9 +269,19 @@ export class LobPostalProvider implements PostalTransport {
         data.deliverability === 'deliverable_incorrect_unit' ||
         data.deliverability === 'deliverable_missing_unit';
 
+      // In test mode, Lob doesn't actually verify real addresses - it only works with 
+      // specific test addresses. For real addresses in test mode, we accept the address
+      // as valid if it has the required fields and Lob returned a response with components.
+      // This allows testing the opt-in workflow without needing Lob's live API key.
+      const isValidInTestMode = isTestMode && 
+        !!data.components && 
+        !!data.components.city && 
+        !!data.components.state && 
+        !!data.components.zip_code;
+
       return {
-        valid: data.valid_address,
-        deliverable: isDeliverable,
+        valid: data.valid_address || isValidInTestMode,
+        deliverable: isDeliverable || isValidInTestMode,
         canonicalAddress,
         normalizedAddress,
         deliverabilityAnalysis: {
