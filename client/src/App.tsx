@@ -121,6 +121,7 @@ import MasqueradePage from "@/pages/config/masquerade";
 import SystemModePage from "@/pages/config/system-mode";
 import TwilioConfigPage from "@/pages/config/twilio";
 import EmailConfigPage from "@/pages/config/email";
+import PostalConfigPage from "@/pages/config/postal";
 import LogsPage from "@/pages/config/logs";
 import DashboardPluginsConfigPage from "@/pages/config/dashboard-plugins";
 import PluginSettingsPage from "@/pages/config/plugin-settings";
@@ -1066,6 +1067,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <EmailConfigPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/postal">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <PostalConfigPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
