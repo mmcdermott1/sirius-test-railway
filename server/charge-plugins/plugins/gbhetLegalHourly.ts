@@ -82,12 +82,12 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
     }
 
     const ea = await storage.ledger.ea.getOrCreate(
-      "worker",
-      hoursContext.workerId,
+      "employer",
+      hoursContext.employerId,
       settings.accountId
     );
 
-    const chargePluginKey = `${config.id}:${ea.id}:${hoursContext.workerId}:${hoursContext.year}:${hoursContext.month}`;
+    const chargePluginKey = `${config.id}:${ea.id}:${hoursContext.employerId}:${hoursContext.workerId}:${hoursContext.year}:${hoursContext.month}`;
     const monthName = monthDate.toLocaleString('default', { month: 'long' });
     const description = `GBHET Legal: ${monthName} ${hoursContext.year} (${totalHours} qualifying hours)`;
 
@@ -145,12 +145,12 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
       const settings = config.settings as GbhetLegalHourlySettings;
 
       const ea = await storage.ledger.ea.getOrCreate(
-        "worker",
-        hoursContext.workerId,
+        "employer",
+        hoursContext.employerId,
         settings.accountId
       );
 
-      const chargePluginKey = `${config.id}:${ea.id}:${hoursContext.workerId}:${hoursContext.year}:${hoursContext.month}`;
+      const chargePluginKey = `${config.id}:${ea.id}:${hoursContext.employerId}:${hoursContext.workerId}:${hoursContext.year}:${hoursContext.month}`;
 
       const expectedEntry = await this.computeExpectedEntry(hoursContext, config, settings);
 
@@ -207,8 +207,8 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
           chargePlugin: this.metadata.id,
           chargePluginKey: expectedEntry.chargePluginKey,
           accountId: settings.accountId,
-          entityType: "worker",
-          entityId: hoursContext.workerId,
+          entityType: "employer",
+          entityId: hoursContext.employerId,
           amount: expectedEntry.amount,
           description: expectedEntry.description,
           transactionDate: expectedEntry.transactionDate,
