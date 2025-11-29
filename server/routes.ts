@@ -1291,15 +1291,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
       
-      // Build the composite reference ID used by the GBHET plugin
-      // Format: workerId:employerId:year:month
-      const compositeReferenceId = `${hoursEntry.workerId}:${hoursEntry.employerId}:${hoursEntry.year}:${hoursEntry.month}`;
+      // Query for both new format (hoursId) and legacy format (composite key)
+      // New format: referenceId = hoursId (UUID)
+      const newFormatTransactions = await storage.ledger.entries.getTransactions({
+        referenceType: "hour",
+        referenceId: id,
+      });
       
-      const transactions = await storage.ledger.entries.getTransactions({
+      // Legacy format: workerId:employerId:year:month
+      const compositeReferenceId = `${hoursEntry.workerId}:${hoursEntry.employerId}:${hoursEntry.year}:${hoursEntry.month}`;
+      const legacyTransactions = await storage.ledger.entries.getTransactions({
         referenceType: "hour",
         referenceId: compositeReferenceId,
       });
-      res.json(transactions);
+      
+      // Also check for "hours" referenceType (used by hourFixed plugin)
+      const hoursTypeTransactions = await storage.ledger.entries.getTransactions({
+        referenceType: "hours",
+        referenceId: id,
+      });
+      
+      // Combine all results, avoiding duplicates by id
+      const allTransactions = [...newFormatTransactions, ...legacyTransactions, ...hoursTypeTransactions];
+      const uniqueTransactions = allTransactions.filter((tx, index, self) => 
+        index === self.findIndex(t => t.id === tx.id)
+      );
+      
+      res.json(uniqueTransactions);
     } catch (error) {
       console.error("Failed to fetch hours transactions:", error);
       res.status(500).json({ message: "Failed to fetch hours transactions" });
