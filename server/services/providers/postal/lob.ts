@@ -242,6 +242,7 @@ export class LobPostalProvider implements PostalTransport {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.log('[Lob] API error response:', response.status, errorData);
         return {
           valid: false,
           deliverable: false,
@@ -249,16 +250,21 @@ export class LobPostalProvider implements PostalTransport {
         };
       }
 
-      const data: LobVerificationResponse = await response.json();
+      const data = await response.json();
+      console.log('[Lob] Verification response:', JSON.stringify(data, null, 2));
+      
+      // Safely extract components - Lob test mode may return different structure
+      const components = data.components || {};
+      const deliverabilityAnalysis = data.deliverability_analysis || {};
       
       const normalizedAddress: PostalAddress = {
         name: address.name,
         company: address.company,
-        addressLine1: data.primary_line,
+        addressLine1: data.primary_line || address.addressLine1,
         addressLine2: data.secondary_line || undefined,
-        city: data.components.city,
-        state: data.components.state,
-        zip: data.components.zip_code + (data.components.zip_code_plus_4 ? `-${data.components.zip_code_plus_4}` : ''),
+        city: components.city || address.city,
+        state: components.state || address.state,
+        zip: (components.zip_code || address.zip) + (components.zip_code_plus_4 ? `-${components.zip_code_plus_4}` : ''),
         country: 'US',
       };
 
@@ -273,52 +279,51 @@ export class LobPostalProvider implements PostalTransport {
       // specific test addresses. For real addresses in test mode, we accept the address
       // as valid if it has the required fields and Lob returned a response with components.
       // This allows testing the opt-in workflow without needing Lob's live API key.
-      const isValidInTestMode = isTestMode && 
-        !!data.components && 
-        !!data.components.city && 
-        !!data.components.state && 
-        !!data.components.zip_code;
+      const hasAddressComponents = components.city && components.state && components.zip_code;
+      const isValidInTestMode = isTestMode && hasAddressComponents;
+      
+      console.log('[Lob] isTestMode:', isTestMode, 'hasComponents:', hasAddressComponents, 'valid_address:', data.valid_address);
 
       return {
-        valid: data.valid_address || isValidInTestMode,
+        valid: data.valid_address === true || isValidInTestMode,
         deliverable: isDeliverable || isValidInTestMode,
         canonicalAddress,
         normalizedAddress,
         deliverabilityAnalysis: {
-          dpvMatchCode: data.deliverability_analysis.dpv_match_code,
-          dpvFootnotes: data.deliverability_analysis.dpv_footnotes,
-          dpvCmra: data.deliverability_analysis.dpv_cmra,
-          dpvVacant: data.deliverability_analysis.dpv_vacant,
-          dpvActive: data.deliverability_analysis.dpv_active,
-          lacsLinkCode: data.deliverability_analysis.lacs_link_code,
-          lacsLinkIndicator: data.deliverability_analysis.lacs_link_indicator,
-          suiteReturnCode: data.deliverability_analysis.suite_return_code,
-          primaryNumber: data.components.primary_number,
-          streetPredirection: data.components.street_predirection,
-          streetName: data.components.street_name,
-          streetSuffix: data.components.street_suffix,
-          streetPostdirection: data.components.street_postdirection,
-          secondaryDesignator: data.components.secondary_designator,
-          secondaryNumber: data.components.secondary_number,
-          pmbDesignator: data.components.pmb_designator,
-          pmbNumber: data.components.pmb_number,
-          extraSecondaryDesignator: data.components.extra_secondary_designator,
-          extraSecondaryNumber: data.components.extra_secondary_number,
-          city: data.components.city,
-          state: data.components.state,
-          zipCode: data.components.zip_code,
-          zipCodePlus4: data.components.zip_code_plus_4,
-          zipCodeType: data.components.zip_code_type,
-          deliveryPointBarcode: data.components.delivery_point_barcode,
-          addressType: data.components.address_type,
-          recordType: data.components.record_type,
-          defaultBuildingAddress: data.components.default_building_address,
-          county: data.components.county,
-          countyFips: data.components.county_fips,
-          carrierRoute: data.components.carrier_route,
-          carrierRouteType: data.components.carrier_route_type,
-          latitude: data.components.latitude,
-          longitude: data.components.longitude,
+          dpvMatchCode: deliverabilityAnalysis.dpv_match_code,
+          dpvFootnotes: deliverabilityAnalysis.dpv_footnotes,
+          dpvCmra: deliverabilityAnalysis.dpv_cmra,
+          dpvVacant: deliverabilityAnalysis.dpv_vacant,
+          dpvActive: deliverabilityAnalysis.dpv_active,
+          lacsLinkCode: deliverabilityAnalysis.lacs_link_code,
+          lacsLinkIndicator: deliverabilityAnalysis.lacs_link_indicator,
+          suiteReturnCode: deliverabilityAnalysis.suite_return_code,
+          primaryNumber: components.primary_number,
+          streetPredirection: components.street_predirection,
+          streetName: components.street_name,
+          streetSuffix: components.street_suffix,
+          streetPostdirection: components.street_postdirection,
+          secondaryDesignator: components.secondary_designator,
+          secondaryNumber: components.secondary_number,
+          pmbDesignator: components.pmb_designator,
+          pmbNumber: components.pmb_number,
+          extraSecondaryDesignator: components.extra_secondary_designator,
+          extraSecondaryNumber: components.extra_secondary_number,
+          city: components.city,
+          state: components.state,
+          zipCode: components.zip_code,
+          zipCodePlus4: components.zip_code_plus_4,
+          zipCodeType: components.zip_code_type,
+          deliveryPointBarcode: components.delivery_point_barcode,
+          addressType: components.address_type,
+          recordType: components.record_type,
+          defaultBuildingAddress: components.default_building_address,
+          county: components.county,
+          countyFips: components.county_fips,
+          carrierRoute: components.carrier_route,
+          carrierRouteType: components.carrier_route_type,
+          latitude: components.latitude,
+          longitude: components.longitude,
         },
         rawResponse: data,
       };
