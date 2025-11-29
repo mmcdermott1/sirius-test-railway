@@ -58,7 +58,7 @@ class PaymentSimpleAllocationPlugin extends ChargePlugin {
       : "Payment allocation";
 
     return {
-      chargePluginKey: `${configId}:${paymentContext.paymentId}:cleared`,
+      chargePluginKey: `${configId}:${paymentContext.paymentId}`,
       amount: allocatedAmount.toFixed(2),
       description,
       transactionDate,
@@ -120,7 +120,7 @@ class PaymentSimpleAllocationPlugin extends ChargePlugin {
         };
       }
 
-      const chargePluginKey = `${config.id}:${paymentContext.paymentId}:cleared`;
+      const chargePluginKey = `${config.id}:${paymentContext.paymentId}`;
       
       const expectedEntry = this.computeExpectedEntry(paymentContext, config.id);
       
