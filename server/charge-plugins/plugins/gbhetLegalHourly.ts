@@ -154,6 +154,36 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
 
       const expectedEntry = await this.computeExpectedEntry(hoursContext, config, settings);
 
+      // Clean up stale entries: find any entries for this hoursId + configId that are for a DIFFERENT month
+      // This handles the case where an hours entry's date was changed
+      const existingEntriesForHours = await storage.ledger.entries.getByReferenceAndConfig(
+        hoursContext.hoursId,
+        config.id
+      );
+      
+      for (const staleEntry of existingEntriesForHours) {
+        // Check if this entry is for a different month than the current hours entry
+        const entryData = staleEntry.data as { year?: number; month?: number } | null;
+        const entryYear = entryData?.year;
+        const entryMonth = entryData?.month;
+        
+        if (entryYear !== hoursContext.year || entryMonth !== hoursContext.month) {
+          // This entry is for a different month - delete it
+          await storage.ledger.entries.delete(staleEntry.id);
+          
+          logger.info("Deleted stale ledger entry - hours moved to different month", {
+            service: "charge-plugin-gbhet-legal-hourly",
+            hoursId: hoursContext.hoursId,
+            deletedEntryId: staleEntry.id,
+            previousAmount: staleEntry.amount,
+            oldYear: entryYear,
+            oldMonth: entryMonth,
+            newYear: hoursContext.year,
+            newMonth: hoursContext.month,
+          });
+        }
+      }
+
       const existingEntry = await storage.ledger.entries.getByChargePluginKey(
         this.metadata.id,
         chargePluginKey
@@ -206,6 +236,7 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
         const transaction: LedgerTransaction = {
           chargePlugin: this.metadata.id,
           chargePluginKey: expectedEntry.chargePluginKey,
+          chargePluginConfigId: config.id,
           accountId: settings.accountId,
           entityType: "employer",
           entityId: hoursContext.employerId,
