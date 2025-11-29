@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { comm, commSms, commSmsOptin, commEmail, type Comm, type InsertComm, type CommSms, type InsertCommSms, type CommSmsOptin, type InsertCommSmsOptin, type CommEmail, type InsertCommEmail } from "@shared/schema";
+import { comm, commSms, commSmsOptin, commEmail, commEmailOptin, type Comm, type InsertComm, type CommSms, type InsertCommSms, type CommSmsOptin, type InsertCommSmsOptin, type CommEmail, type InsertCommEmail, type CommEmailOptin, type InsertCommEmailOptin } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { phoneValidationService } from "../services/phone-validation";
 
@@ -406,6 +406,112 @@ export function createCommEmailStorage(): CommEmailStorage {
 
     async deleteCommEmail(id: string): Promise<boolean> {
       const result = await db.delete(commEmail).where(eq(commEmail.id, id)).returning();
+      return result.length > 0;
+    },
+  };
+}
+
+export interface CommEmailOptinStorage {
+  getEmailOptinByEmail(email: string): Promise<CommEmailOptin | undefined>;
+  getEmailOptinByPublicToken(token: string): Promise<CommEmailOptin | undefined>;
+  getEmailOptin(id: string): Promise<CommEmailOptin | undefined>;
+  getAllEmailOptins(): Promise<CommEmailOptin[]>;
+  createEmailOptin(data: InsertCommEmailOptin): Promise<CommEmailOptin>;
+  updateEmailOptin(id: string, data: Partial<InsertCommEmailOptin>): Promise<CommEmailOptin | undefined>;
+  updateEmailOptinByEmail(email: string, data: Partial<InsertCommEmailOptin>): Promise<CommEmailOptin | undefined>;
+  updateEmailOptinByPublicToken(token: string, data: Partial<InsertCommEmailOptin>): Promise<CommEmailOptin | undefined>;
+  getOrCreatePublicToken(email: string): Promise<string>;
+  deleteEmailOptin(id: string): Promise<boolean>;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function createCommEmailOptinStorage(): CommEmailOptinStorage {
+  return {
+    async getEmailOptinByEmail(email: string): Promise<CommEmailOptin | undefined> {
+      const normalized = normalizeEmail(email);
+      const [result] = await db.select().from(commEmailOptin).where(eq(commEmailOptin.email, normalized));
+      return result || undefined;
+    },
+
+    async getEmailOptinByPublicToken(token: string): Promise<CommEmailOptin | undefined> {
+      const [result] = await db.select().from(commEmailOptin).where(eq(commEmailOptin.publicToken, token));
+      return result || undefined;
+    },
+
+    async getEmailOptin(id: string): Promise<CommEmailOptin | undefined> {
+      const [result] = await db.select().from(commEmailOptin).where(eq(commEmailOptin.id, id));
+      return result || undefined;
+    },
+
+    async getAllEmailOptins(): Promise<CommEmailOptin[]> {
+      return await db.select().from(commEmailOptin);
+    },
+
+    async createEmailOptin(data: InsertCommEmailOptin): Promise<CommEmailOptin> {
+      const normalized = normalizeEmail(data.email);
+      const [result] = await db.insert(commEmailOptin).values({
+        ...data,
+        email: normalized,
+      }).returning();
+      return result;
+    },
+
+    async updateEmailOptin(id: string, data: Partial<InsertCommEmailOptin>): Promise<CommEmailOptin | undefined> {
+      let updateData = { ...data };
+      if (data.email !== undefined) {
+        updateData.email = normalizeEmail(data.email);
+      }
+      const [result] = await db.update(commEmailOptin).set(updateData).where(eq(commEmailOptin.id, id)).returning();
+      return result || undefined;
+    },
+
+    async updateEmailOptinByEmail(email: string, data: Partial<InsertCommEmailOptin>): Promise<CommEmailOptin | undefined> {
+      const normalized = normalizeEmail(email);
+      let updateData = { ...data };
+      if (data.email !== undefined) {
+        updateData.email = normalizeEmail(data.email);
+      }
+      const [result] = await db.update(commEmailOptin).set(updateData).where(eq(commEmailOptin.email, normalized)).returning();
+      return result || undefined;
+    },
+
+    async updateEmailOptinByPublicToken(token: string, data: Partial<InsertCommEmailOptin>): Promise<CommEmailOptin | undefined> {
+      let updateData = { ...data };
+      if (data.email !== undefined) {
+        updateData.email = normalizeEmail(data.email);
+      }
+      const [result] = await db.update(commEmailOptin).set(updateData).where(eq(commEmailOptin.publicToken, token)).returning();
+      return result || undefined;
+    },
+
+    async getOrCreatePublicToken(email: string): Promise<string> {
+      const normalized = normalizeEmail(email);
+      const [existing] = await db.select().from(commEmailOptin).where(eq(commEmailOptin.email, normalized));
+      
+      if (existing) {
+        if (existing.publicToken) {
+          return existing.publicToken;
+        }
+        const newToken = crypto.randomUUID();
+        await db.update(commEmailOptin).set({ publicToken: newToken }).where(eq(commEmailOptin.id, existing.id));
+        return newToken;
+      }
+      
+      const newToken = crypto.randomUUID();
+      await db.insert(commEmailOptin).values({
+        email: normalized,
+        optin: false,
+        allowlist: false,
+        publicToken: newToken,
+      });
+      return newToken;
+    },
+
+    async deleteEmailOptin(id: string): Promise<boolean> {
+      const result = await db.delete(commEmailOptin).where(eq(commEmailOptin.id, id)).returning();
       return result.length > 0;
     },
   };

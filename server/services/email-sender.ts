@@ -1,6 +1,6 @@
 import { serviceRegistry } from './service-registry';
 import { getSystemMode } from './system-mode';
-import { createCommStorage, createCommEmailStorage } from '../storage/comm';
+import { createCommStorage, createCommEmailStorage, createCommEmailOptinStorage } from '../storage/comm';
 import type { EmailTransport, EmailRecipient } from './providers/email';
 import type { Comm, CommEmail } from '@shared/schema';
 import { logger } from '../logger';
@@ -24,12 +24,13 @@ export interface SendEmailResult {
   comm?: Comm;
   commEmail?: CommEmail;
   error?: string;
-  errorCode?: 'EMAIL_NOT_SUPPORTED' | 'VALIDATION_ERROR' | 'PROVIDER_ERROR' | 'UNKNOWN_ERROR';
+  errorCode?: 'EMAIL_NOT_SUPPORTED' | 'VALIDATION_ERROR' | 'NOT_OPTED_IN' | 'NOT_ALLOWLISTED' | 'PROVIDER_ERROR' | 'UNKNOWN_ERROR';
   messageId?: string;
 }
 
 const commStorage = createCommStorage();
 const commEmailStorage = createCommEmailStorage();
+const emailOptinStorage = createCommEmailOptinStorage();
 
 export async function sendEmail(request: SendEmailRequest): Promise<SendEmailResult> {
   const { contactId, toEmail, toName, subject, bodyText, bodyHtml, fromEmail, fromName, replyTo, userId } = request;
@@ -89,7 +90,61 @@ export async function sendEmail(request: SendEmailRequest): Promise<SendEmailRes
       data: {},
     });
 
+    const optinRecord = await emailOptinStorage.getEmailOptinByEmail(normalizedEmail);
+
+    if (!optinRecord || !optinRecord.optin) {
+      await commStorage.updateComm(comm.id, {
+        status: 'failed',
+        data: {
+          ...comm.data as object,
+          errorCode: 'NOT_OPTED_IN',
+          errorMessage: 'Email address has not opted in to receive emails',
+        },
+      });
+
+      logger.warn('Email not sent - not opted in', {
+        service: 'email-sender',
+        commId: comm.id,
+        to: normalizedEmail,
+      });
+
+      return {
+        success: false,
+        comm: { ...comm, status: 'failed' },
+        commEmail,
+        error: 'Email address has not opted in to receive emails',
+        errorCode: 'NOT_OPTED_IN',
+      };
+    }
+
     const systemMode = await getSystemMode();
+
+    if (systemMode !== 'live' && !optinRecord.allowlist) {
+      await commStorage.updateComm(comm.id, {
+        status: 'failed',
+        data: {
+          ...comm.data as object,
+          errorCode: 'NOT_ALLOWLISTED',
+          errorMessage: `Email address is not allowlisted. System mode is "${systemMode}" - only allowlisted emails can receive messages in non-live modes.`,
+          systemMode,
+        },
+      });
+
+      logger.warn('Email not sent - not allowlisted', {
+        service: 'email-sender',
+        commId: comm.id,
+        to: normalizedEmail,
+        systemMode,
+      });
+
+      return {
+        success: false,
+        comm: { ...comm, status: 'failed' },
+        commEmail,
+        error: `Email address is not allowlisted. System mode is "${systemMode}" - only allowlisted emails can receive messages in non-live modes.`,
+        errorCode: 'NOT_ALLOWLISTED',
+      };
+    }
     
     logger.info('Sending email', {
       service: 'email-sender',
