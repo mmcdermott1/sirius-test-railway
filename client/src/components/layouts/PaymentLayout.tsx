@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LedgerPayment, LedgerPaymentType } from "@shared/schema";
-import { CreditCard } from "lucide-react";
+import { ArrowLeft, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPaymentTitle } from "@/lib/payment-utils";
@@ -136,6 +136,14 @@ export function PaymentLayout({ children, activeTab }: PaymentLayoutProps) {
                   {paymentTitle}
                 </h1>
               </div>
+              {payment.ledgerEaId && (
+                <Link href={`/ledger/ea/${payment.ledgerEaId}/payments`}>
+                  <Button variant="ghost" size="sm" data-testid="link-ea-payments">
+                    <ArrowLeft size={16} className="mr-2" />
+                    EA Payments
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </header>
