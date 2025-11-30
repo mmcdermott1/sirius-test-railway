@@ -4,6 +4,7 @@ import { createCommStorage, createCommPostalStorage, createCommPostalOptinStorag
 import type { PostalTransport, PostalAddress, SendLetterParams } from './providers/postal';
 import type { Comm, CommPostal } from '@shared/schema';
 import { logger } from '../logger';
+import { buildStatusCallbackUrl } from './comm-status/url-builder';
 
 export interface SendPostalRequest {
   contactId: string;
@@ -184,6 +185,8 @@ export async function sendPostal(request: SendPostalRequest): Promise<SendPostal
     });
 
     try {
+      const statusCallbackUrl = buildStatusCallbackUrl(comm.id);
+      
       const sendParams: SendLetterParams = {
         to: normalizedAddress,
         from: returnAddress,
@@ -199,6 +202,7 @@ export async function sendPostal(request: SendPostalRequest): Promise<SendPostal
         metadata: {
           commId: comm.id,
           contactId,
+          ...(statusCallbackUrl && { callback_url: statusCallbackUrl }),
         },
       };
 

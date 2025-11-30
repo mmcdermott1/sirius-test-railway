@@ -1,20 +1,24 @@
 import type { Request, Response } from 'express';
 import { TwilioStatusHandler } from './twilio';
 import { SendGridStatusHandler } from './sendgrid';
+import { LobStatusHandler } from './lob';
 import type { CommStatusHandler, CommStatusUpdate } from './index';
-import { createCommStorage, createCommSmsStorage, createCommEmailStorage } from '../../storage/comm';
+import { createCommStorage, createCommSmsStorage, createCommEmailStorage, createCommPostalStorage } from '../../storage/comm';
 import { storageLogger } from '../../logger';
 
 const commStorage = createCommStorage();
 const commSmsStorage = createCommSmsStorage();
 const commEmailStorage = createCommEmailStorage();
+const commPostalStorage = createCommPostalStorage();
 
 const twilioHandler = new TwilioStatusHandler();
 const sendgridHandler = new SendGridStatusHandler();
+const lobHandler = new LobStatusHandler();
 
 const handlersByMediumProvider: Record<string, CommStatusHandler> = {
   'sms:twilio': twilioHandler,
   'email:sendgrid': sendgridHandler,
+  'postal:lob': lobHandler,
 };
 
 function getHandler(medium: string, providerId: string): CommStatusHandler | undefined {
@@ -31,12 +35,22 @@ function inferProviderFromComm(comm: { medium: string; data: unknown }): string 
     }
   }
   
+  if (data?.letterId && typeof data.letterId === 'string') {
+    if (data.letterId.startsWith('ltr_')) {
+      return 'lob';
+    }
+  }
+  
   if (comm.medium === 'sms') {
     return 'twilio';
   }
   
   if (comm.medium === 'email') {
     return 'sendgrid';
+  }
+  
+  if (comm.medium === 'postal') {
+    return 'lob';
   }
   
   return 'unknown';
@@ -127,6 +141,26 @@ export async function handleStatusCallback(
           ...(providerMessageId && { messageId: providerMessageId }),
           ...(statusUpdate.errorCode && { errorCode: statusUpdate.errorCode }),
           ...(statusUpdate.errorMessage && { errorMessage: statusUpdate.errorMessage }),
+        },
+      });
+    }
+
+    if (comm.postalDetails) {
+      const postalData = comm.postalDetails.data as Record<string, unknown> || {};
+      const rawPayload = statusUpdate.rawPayload || {};
+      
+      await commPostalStorage.updateCommPostal(comm.postalDetails.id, {
+        data: {
+          ...postalData,
+          providerStatus: statusUpdate.providerStatus,
+          lastWebhookAt: statusUpdate.timestamp.toISOString(),
+          ...(providerMessageId && { letterId: providerMessageId }),
+          ...(statusUpdate.errorCode && { errorCode: statusUpdate.errorCode }),
+          ...(statusUpdate.errorMessage && { errorMessage: statusUpdate.errorMessage }),
+          ...(rawPayload.tracking_events && { trackingEvents: rawPayload.tracking_events }),
+          ...(rawPayload.expected_delivery_date && { expectedDeliveryDate: rawPayload.expected_delivery_date }),
+          ...(rawPayload.carrier && { carrier: rawPayload.carrier }),
+          ...(rawPayload.tracking_number && { trackingNumber: rawPayload.tracking_number }),
         },
       });
     }

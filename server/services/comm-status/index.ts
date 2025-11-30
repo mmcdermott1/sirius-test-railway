@@ -23,6 +23,7 @@ export interface CommStatusHandler {
 
 export { TwilioStatusHandler } from './twilio';
 export { SendGridStatusHandler } from './sendgrid';
+export { LobStatusHandler } from './lob';
 
 const handlers: Map<string, CommStatusHandler> = new Map();
 
