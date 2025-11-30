@@ -35,6 +35,7 @@ export class LobStatusHandler implements CommStatusHandler {
 
     const statusMap: Record<string, CommStatusUpdate['status']> = {
       'letter.created': 'queued',
+      'letter.rendered': 'queued',
       'letter.rendered_pdf': 'queued',
       'letter.rendered_thumbnails': 'queued',
       'letter.deleted': 'failed',
@@ -73,20 +74,7 @@ export class LobStatusHandler implements CommStatusHandler {
       errorCode: undefined,
       errorMessage,
       timestamp: date_modified ? new Date(date_modified) : new Date(),
-      rawPayload: {
-        id,
-        event_type,
-        date_created,
-        date_modified,
-        letterId,
-        tracking_events,
-        expected_delivery_date,
-        carrier,
-        tracking_number,
-        mail_type,
-        send_date,
-        latestTrackingEvent,
-      },
+      rawPayload: body,
     };
   }
 

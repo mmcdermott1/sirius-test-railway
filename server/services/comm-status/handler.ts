@@ -147,21 +147,26 @@ export async function handleStatusCallback(
 
     if (comm.postalDetails) {
       const postalData = comm.postalDetails.data as Record<string, unknown> || {};
-      const rawPayload = statusUpdate.rawPayload || {};
+      const rawPayload = (statusUpdate.rawPayload || {}) as Record<string, unknown>;
+      const eventBody = (rawPayload.body || {}) as Record<string, unknown>;
+      
+      const updatedPostalData: Record<string, unknown> = {
+        ...postalData,
+        providerStatus: statusUpdate.providerStatus,
+        lastWebhookAt: statusUpdate.timestamp.toISOString(),
+        lastWebhookPayload: rawPayload,
+      };
+      
+      if (providerMessageId) updatedPostalData.letterId = providerMessageId;
+      if (statusUpdate.errorCode) updatedPostalData.errorCode = statusUpdate.errorCode;
+      if (statusUpdate.errorMessage) updatedPostalData.errorMessage = statusUpdate.errorMessage;
+      if (eventBody.tracking_events) updatedPostalData.trackingEvents = eventBody.tracking_events;
+      if (eventBody.expected_delivery_date) updatedPostalData.expectedDeliveryDate = eventBody.expected_delivery_date;
+      if (eventBody.carrier) updatedPostalData.carrier = eventBody.carrier;
+      if (eventBody.tracking_number) updatedPostalData.trackingNumber = eventBody.tracking_number;
       
       await commPostalStorage.updateCommPostal(comm.postalDetails.id, {
-        data: {
-          ...postalData,
-          providerStatus: statusUpdate.providerStatus,
-          lastWebhookAt: statusUpdate.timestamp.toISOString(),
-          ...(providerMessageId && { letterId: providerMessageId }),
-          ...(statusUpdate.errorCode && { errorCode: statusUpdate.errorCode }),
-          ...(statusUpdate.errorMessage && { errorMessage: statusUpdate.errorMessage }),
-          ...(rawPayload.tracking_events && { trackingEvents: rawPayload.tracking_events }),
-          ...(rawPayload.expected_delivery_date && { expectedDeliveryDate: rawPayload.expected_delivery_date }),
-          ...(rawPayload.carrier && { carrier: rawPayload.carrier }),
-          ...(rawPayload.tracking_number && { trackingNumber: rawPayload.tracking_number }),
-        },
+        data: updatedPostalData,
       });
     }
 
@@ -180,6 +185,7 @@ export async function handleStatusCallback(
         providerMessageId,
         ...(statusUpdate.errorCode && { errorCode: statusUpdate.errorCode }),
         ...(statusUpdate.errorMessage && { errorMessage: statusUpdate.errorMessage }),
+        rawPayload: statusUpdate.rawPayload,
       },
     });
 
