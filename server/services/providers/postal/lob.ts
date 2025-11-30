@@ -7,6 +7,7 @@ import type {
   LetterSendResult,
   LetterTrackingEvent,
   PostalProviderSettings,
+  PostalTemplate,
 } from './index';
 import { buildCanonicalAddress } from './index';
 import { db } from '../../../db';
@@ -560,6 +561,43 @@ export class LobPostalProvider implements PostalTransport {
       await db.update(variables)
         .set({ value: { ...currentConfig, providers } })
         .where(eq(variables.name, configKey));
+    }
+  }
+
+  async listTemplates(): Promise<PostalTemplate[]> {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
+      console.warn('LOB_API_KEY not configured - cannot list templates');
+      return [];
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/templates?limit=100`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Lob API error listing templates:', response.status, errorData);
+        return [];
+      }
+
+      const data = await response.json();
+      const templates = data.data || [];
+
+      return templates.map((template: any) => ({
+        id: template.id,
+        description: template.description || 'Untitled Template',
+        dateCreated: new Date(template.date_created),
+        dateModified: new Date(template.date_modified),
+        metadata: template.metadata,
+      }));
+    } catch (error) {
+      console.error('Error listing Lob templates:', error);
+      return [];
     }
   }
 }

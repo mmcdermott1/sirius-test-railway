@@ -98,6 +98,14 @@ export interface LetterTrackingEvent {
   details?: string;
 }
 
+export interface PostalTemplate {
+  id: string;
+  description: string;
+  dateCreated: Date;
+  dateModified: Date;
+  metadata?: Record<string, string>;
+}
+
 export interface PostalTransport extends ServiceProvider {
   readonly category: 'postal';
   
@@ -116,6 +124,8 @@ export interface PostalTransport extends ServiceProvider {
   
   getDefaultReturnAddress(): Promise<PostalAddress | undefined>;
   setDefaultReturnAddress?(address: PostalAddress): Promise<void>;
+  
+  listTemplates?(): Promise<PostalTemplate[]>;
 }
 
 export interface PostalProviderSettings {
