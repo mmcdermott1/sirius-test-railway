@@ -672,4 +672,31 @@ export function registerCommRoutes(
       res.status(500).json({ message: "Failed to fetch postal opt-ins" });
     }
   });
+
+  app.get("/api/postal/templates", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      let postalProvider: PostalTransport;
+      try {
+        postalProvider = await serviceRegistry.resolve<PostalTransport>('postal');
+      } catch (error) {
+        return res.status(503).json({ 
+          message: "Postal service is not configured",
+          errorCode: "SERVICE_UNAVAILABLE"
+        });
+      }
+
+      if (!postalProvider.listTemplates) {
+        return res.status(501).json({ 
+          message: "Template listing is not supported by the configured postal provider",
+          templates: []
+        });
+      }
+
+      const templates = await postalProvider.listTemplates();
+      res.json({ templates });
+    } catch (error) {
+      console.error("Failed to fetch postal templates:", error);
+      res.status(500).json({ message: "Failed to fetch postal templates" });
+    }
+  });
 }

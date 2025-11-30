@@ -107,6 +107,18 @@ interface SystemModeResponse {
   mode: "dev" | "test" | "live";
 }
 
+interface PostalTemplate {
+  id: string;
+  description: string;
+  dateCreated: string;
+  dateModified: string;
+  metadata?: Record<string, string>;
+}
+
+interface PostalTemplatesResponse {
+  templates: PostalTemplate[];
+}
+
 interface VerifyAddressResult {
   valid: boolean;
   deliverable: boolean;
@@ -145,6 +157,11 @@ export function CommPostal({ contactId, addresses, contactName, onSendSuccess }:
 
   const { data: systemMode } = useQuery<SystemModeResponse>({
     queryKey: ["/api/system-mode"],
+  });
+
+  const { data: templatesData, isLoading: isLoadingTemplates } = useQuery<PostalTemplatesResponse>({
+    queryKey: ["/api/postal/templates"],
+    staleTime: 5 * 60 * 1000,
   });
 
   const verifyAddressMutation = useMutation({
@@ -702,25 +719,58 @@ export function CommPostal({ contactId, addresses, contactName, onSendSuccess }:
 
                 {contentMode === "template" && (
                   <div className="space-y-2">
-                    <Label htmlFor="template-id">Template ID</Label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="template-id"
-                          type="text"
-                          placeholder="tmpl_xxxxx (Lob template ID)"
-                          value={templateId}
-                          onChange={(e) => setTemplateId(e.target.value)}
-                          className="pl-10"
-                          disabled={!selectedAddress}
-                          data-testid="input-postal-template"
-                        />
+                    <Label htmlFor="template-select">Template</Label>
+                    {isLoadingTemplates ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading templates...
                       </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Enter a Lob template ID for the letter content
-                    </p>
+                    ) : templatesData?.templates && templatesData.templates.length > 0 ? (
+                      <>
+                        <Select 
+                          value={templateId} 
+                          onValueChange={setTemplateId}
+                          disabled={!selectedAddress}
+                        >
+                          <SelectTrigger id="template-select" data-testid="select-postal-template">
+                            <SelectValue placeholder="Select a template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {templatesData.templates.map((template) => (
+                              <SelectItem 
+                                key={template.id} 
+                                value={template.id}
+                                data-testid={`select-template-${template.id}`}
+                              >
+                                {template.description} ({template.id})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Select a Lob template for the letter content
+                        </p>
+                      </>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="template-id"
+                            type="text"
+                            placeholder="tmpl_xxxxx (Lob template ID)"
+                            value={templateId}
+                            onChange={(e) => setTemplateId(e.target.value)}
+                            className="pl-10"
+                            disabled={!selectedAddress}
+                            data-testid="input-postal-template"
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          No templates found. Enter a Lob template ID manually.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
