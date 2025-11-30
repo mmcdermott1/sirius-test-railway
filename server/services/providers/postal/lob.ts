@@ -567,11 +567,12 @@ export class LobPostalProvider implements PostalTransport {
   async listTemplates(): Promise<PostalTemplate[]> {
     const apiKey = await this.getApiKey();
     if (!apiKey) {
-      console.warn('LOB_API_KEY not configured - cannot list templates');
+      console.warn('[Lob] LOB_API_KEY not configured - cannot list templates');
       return [];
     }
 
     try {
+      console.log('[Lob] Fetching templates from:', `${this.baseUrl}/templates?limit=100`);
       const response = await fetch(`${this.baseUrl}/templates?limit=100`, {
         method: 'GET',
         headers: {
@@ -581,12 +582,18 @@ export class LobPostalProvider implements PostalTransport {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Lob API error listing templates:', response.status, errorData);
+        console.error('[Lob] API error listing templates:', response.status, errorData);
         return [];
       }
 
       const data = await response.json();
       const templates = data.data || [];
+      
+      console.log('[Lob] Templates response:', {
+        count: templates.length,
+        total: data.total_count,
+        templates: templates.map((t: any) => ({ id: t.id, description: t.description }))
+      });
 
       return templates.map((template: any) => ({
         id: template.id,
@@ -596,7 +603,7 @@ export class LobPostalProvider implements PostalTransport {
         metadata: template.metadata,
       }));
     } catch (error) {
-      console.error('Error listing Lob templates:', error);
+      console.error('[Lob] Error listing templates:', error);
       return [];
     }
   }
