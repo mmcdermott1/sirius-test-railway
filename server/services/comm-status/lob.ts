@@ -57,9 +57,10 @@ export class LobStatusHandler implements CommStatusHandler {
       'letter.certified.issue': 'failed',
     };
 
-    const normalizedStatus = statusMap[event_type?.name || event_type] || 'unknown';
+    const eventTypeId = event_type?.id || event_type?.name || (typeof event_type === 'string' ? event_type : undefined);
+    const normalizedStatus = statusMap[eventTypeId] || 'unknown';
 
-    const eventTypeName = event_type?.name || event_type;
+    const eventTypeName = eventTypeId;
     let errorMessage: string | undefined;
     if (eventTypeName === 'letter.deleted' || 
         eventTypeName === 'letter.returned_to_sender' || 
@@ -70,7 +71,7 @@ export class LobStatusHandler implements CommStatusHandler {
 
     return {
       status: normalizedStatus,
-      providerStatus: event_type?.name || event_type || 'unknown',
+      providerStatus: eventTypeId || 'unknown',
       errorCode: undefined,
       errorMessage,
       timestamp: date_modified ? new Date(date_modified) : new Date(),

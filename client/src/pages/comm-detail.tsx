@@ -53,6 +53,28 @@ interface CommEmailDetails {
   data: Record<string, unknown> | null;
 }
 
+interface CommPostalDetails {
+  id: string;
+  commId: string;
+  toName: string | null;
+  toAddressLine1: string | null;
+  toAddressLine2: string | null;
+  toCity: string | null;
+  toState: string | null;
+  toZip: string | null;
+  toCountry: string | null;
+  fromName: string | null;
+  fromAddressLine1: string | null;
+  fromAddressLine2: string | null;
+  fromCity: string | null;
+  fromState: string | null;
+  fromZip: string | null;
+  fromCountry: string | null;
+  description: string | null;
+  mailType: string | null;
+  data: Record<string, unknown> | null;
+}
+
 interface CommWithDetails {
   id: string;
   medium: string;
@@ -63,6 +85,7 @@ interface CommWithDetails {
   data: Record<string, unknown> | null;
   smsDetails?: CommSmsDetails | null;
   emailDetails?: CommEmailDetails | null;
+  postalDetails?: CommPostalDetails | null;
 }
 
 interface WinstonLog {
@@ -274,7 +297,18 @@ export default function CommDetail() {
                   ? formatPhoneNumberForDisplay(comm.smsDetails.to)
                   : comm.medium === 'email' && comm.emailDetails?.to
                     ? comm.emailDetails.to
-                    : "-"}
+                    : comm.medium === 'postal' && comm.postalDetails
+                      ? (
+                        <div className="space-y-0.5">
+                          {comm.postalDetails.toName && <div>{comm.postalDetails.toName}</div>}
+                          {comm.postalDetails.toAddressLine1 && <div>{comm.postalDetails.toAddressLine1}</div>}
+                          {comm.postalDetails.toAddressLine2 && <div>{comm.postalDetails.toAddressLine2}</div>}
+                          <div>
+                            {[comm.postalDetails.toCity, comm.postalDetails.toState, comm.postalDetails.toZip].filter(Boolean).join(', ')}
+                          </div>
+                        </div>
+                      )
+                      : "-"}
               </div>
             </div>
           </div>
@@ -335,6 +369,56 @@ export default function CommDetail() {
                 data-testid="text-comm-email-data"
               >
                 {JSON.stringify(comm.emailDetails.data, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {comm.postalDetails && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {comm.postalDetails.description && (
+                  <div>
+                    <Label className="text-muted-foreground">Description</Label>
+                    <div className="mt-1 text-sm" data-testid="text-postal-description">
+                      {comm.postalDetails.description}
+                    </div>
+                  </div>
+                )}
+                {comm.postalDetails.mailType && (
+                  <div>
+                    <Label className="text-muted-foreground">Mail Type</Label>
+                    <div className="mt-1 text-sm" data-testid="text-postal-mail-type">
+                      {comm.postalDetails.mailType === 'usps_first_class' ? 'USPS First Class' : 
+                       comm.postalDetails.mailType === 'usps_standard' ? 'USPS Standard' : 
+                       comm.postalDetails.mailType}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {comm.postalDetails.fromName && (
+                <div>
+                  <Label className="text-muted-foreground">From</Label>
+                  <div className="font-mono text-sm mt-1 space-y-0.5" data-testid="text-postal-from">
+                    <div>{comm.postalDetails.fromName}</div>
+                    {comm.postalDetails.fromAddressLine1 && <div>{comm.postalDetails.fromAddressLine1}</div>}
+                    {comm.postalDetails.fromAddressLine2 && <div>{comm.postalDetails.fromAddressLine2}</div>}
+                    <div>
+                      {[comm.postalDetails.fromCity, comm.postalDetails.fromState, comm.postalDetails.fromZip].filter(Boolean).join(', ')}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {comm.postalDetails?.data && Object.keys(comm.postalDetails.data).length > 0 && (
+            <div>
+              <Label className="text-muted-foreground">Postal Data</Label>
+              <pre 
+                className="mt-2 p-4 bg-muted rounded-md text-xs overflow-x-auto"
+                data-testid="text-comm-postal-data"
+              >
+                {JSON.stringify(comm.postalDetails.data, null, 2)}
               </pre>
             </div>
           )}
