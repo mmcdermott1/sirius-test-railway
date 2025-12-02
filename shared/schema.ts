@@ -151,6 +151,7 @@ export const optionsGender = pgTable("options_gender", {
   code: varchar("code").notNull().unique(),
   nota: boolean("nota").default(false).notNull(),
   sequence: integer("sequence").notNull().default(0),
+  data: jsonb("data"),
 });
 
 export const optionsWorkerIdType = pgTable("options_worker_id_type", {
@@ -158,6 +159,7 @@ export const optionsWorkerIdType = pgTable("options_worker_id_type", {
   name: text("name").notNull(),
   sequence: integer("sequence").notNull().default(0),
   validator: text("validator"),
+  data: jsonb("data"),
 });
 
 export const optionsTrustBenefitType = pgTable("options_trust_benefit_type", {
@@ -165,6 +167,7 @@ export const optionsTrustBenefitType = pgTable("options_trust_benefit_type", {
   name: text("name").notNull(),
   icon: text("icon"),
   sequence: integer("sequence").notNull().default(0),
+  data: jsonb("data"),
 });
 
 export const optionsLedgerPaymentType = pgTable("options_ledger_payment_type", {
@@ -172,12 +175,14 @@ export const optionsLedgerPaymentType = pgTable("options_ledger_payment_type", {
   name: text("name").notNull(),
   description: text("description"),
   sequence: integer("sequence").notNull().default(0),
+  data: jsonb("data"),
 });
 
 export const optionsEmployerContactType = pgTable("options_employer_contact_type", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  data: jsonb("data"),
 });
 
 export const optionsWorkerWs = pgTable("options_worker_ws", {
@@ -185,6 +190,7 @@ export const optionsWorkerWs = pgTable("options_worker_ws", {
   name: text("name").notNull(),
   description: text("description"),
   sequence: integer("sequence").notNull().default(0),
+  data: jsonb("data"),
 });
 
 export const optionsEmploymentStatus = pgTable("options_employment_status", {
@@ -194,12 +200,14 @@ export const optionsEmploymentStatus = pgTable("options_employment_status", {
   employed: boolean("employed").default(false).notNull(),
   description: text("description"),
   sequence: integer("sequence").notNull().default(0),
+  data: jsonb("data"),
 });
 
 export const optionsTrustProviderType = pgTable("options_trust_provider_type", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  data: jsonb("data"),
 });
 
 export const workerIds = pgTable("worker_ids", {
