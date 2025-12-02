@@ -153,7 +153,7 @@ export function registerOptionsRoutes(
   // POST /api/employer-contact-types - Create a new employer contact type (requires admin permission)
   app.post("/api/employer-contact-types", requireAccess(policies.admin), async (req, res) => {
     try {
-      const { name, description } = req.body;
+      const { name, description, data } = req.body;
       
       if (!name || typeof name !== 'string' || !name.trim()) {
         return res.status(400).json({ message: "Name is required" });
@@ -162,6 +162,7 @@ export function registerOptionsRoutes(
       const contactType = await storage.options.employerContactTypes.create({
         name: name.trim(),
         description: description && typeof description === 'string' ? description.trim() : null,
+        data: data && typeof data === 'object' ? data : null,
       });
       
       res.status(201).json(contactType);
@@ -174,7 +175,7 @@ export function registerOptionsRoutes(
   app.put("/api/employer-contact-types/:id", requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description } = req.body;
+      const { name, description, data } = req.body;
       
       const updates: any = {};
       
@@ -193,6 +194,10 @@ export function registerOptionsRoutes(
         } else {
           return res.status(400).json({ message: "Description must be a string or null" });
         }
+      }
+      
+      if (data !== undefined) {
+        updates.data = data && typeof data === 'object' ? data : null;
       }
       
       const contactType = await storage.options.employerContactTypes.update(id, updates);
