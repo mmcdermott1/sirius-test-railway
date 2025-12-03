@@ -380,7 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 'id', tb.id,
                 'name', tb.name,
                 'typeName', bt.name,
-                'typeIcon', bt.icon
+                'typeIcon', bt.data->>'icon'
               ))
               FROM trust_wmb wmb
               INNER JOIN trust_benefits tb ON wmb.benefit_id = tb.id
