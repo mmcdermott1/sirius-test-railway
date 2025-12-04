@@ -34,6 +34,16 @@ export interface WorkerHoursDeleteResult {
   notifications?: LedgerNotification[];
 }
 
+export interface WorkerEmployerSummary {
+  workerId: string;
+  employers: Array<{ id: string; name: string; isHome: boolean }>;
+}
+
+export interface WorkerCurrentBenefits {
+  workerId: string;
+  benefits: Array<{ id: string; name: string; typeName: string | null; typeIcon: string | null; employerName: string | null }>;
+}
+
 export interface WorkerWithDetails {
   id: string;
   sirius_id: number | null;
@@ -65,6 +75,8 @@ export interface WorkerWithDetails {
 export interface WorkerStorage {
   getAllWorkers(): Promise<Worker[]>;
   getWorkersWithDetails(): Promise<WorkerWithDetails[]>;
+  getWorkersEmployersSummary(): Promise<WorkerEmployerSummary[]>;
+  getWorkersCurrentBenefits(month?: number, year?: number): Promise<WorkerCurrentBenefits[]>;
   getWorker(id: string): Promise<Worker | undefined>;
   getWorkerBySSN(ssn: string): Promise<Worker | undefined>;
   createWorker(name: string): Promise<Worker>;
@@ -194,6 +206,73 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
       `);
       
       return result.rows as unknown as WorkerWithDetails[];
+    },
+
+    async getWorkersEmployersSummary(): Promise<WorkerEmployerSummary[]> {
+      const result = await db.execute(sql`
+        SELECT 
+          w.id as worker_id,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', e.id,
+                'name', e.name,
+                'isHome', COALESCE(wh.home, false)
+              )
+            ) FILTER (WHERE e.id IS NOT NULL),
+            '[]'::json
+          ) as employers
+        FROM workers w
+        LEFT JOIN worker_hours wh ON w.id = wh.worker_id
+        LEFT JOIN employers e ON wh.employer_id = e.id
+        GROUP BY w.id
+      `);
+      
+      return result.rows.map((row: any) => ({
+        workerId: row.worker_id,
+        employers: row.employers || []
+      }));
+    },
+
+    async getWorkersCurrentBenefits(month?: number, year?: number): Promise<WorkerCurrentBenefits[]> {
+      const now = new Date();
+      const currentMonth = month ?? (now.getMonth() + 1);
+      const currentYear = year ?? now.getFullYear();
+
+      const result = await db.execute(sql`
+        SELECT 
+          w.id as worker_id,
+          COALESCE(
+            (
+              SELECT json_agg(benefit_data)
+              FROM (
+                SELECT DISTINCT ON (tb.id, e.id)
+                  jsonb_build_object(
+                    'id', tb.id,
+                    'name', tb.name,
+                    'typeName', tbt.name,
+                    'typeIcon', tbt.data->>'icon',
+                    'employerName', e.name
+                  ) as benefit_data
+                FROM trust_wmb wmb
+                INNER JOIN trust_benefits tb ON wmb.benefit_id = tb.id
+                LEFT JOIN options_trust_benefit_type tbt ON tb.benefit_type = tbt.id
+                LEFT JOIN employers e ON wmb.employer_id = e.id
+                WHERE wmb.worker_id = w.id
+                  AND wmb.month = ${currentMonth}
+                  AND wmb.year = ${currentYear}
+                ORDER BY tb.id, e.id
+              ) benefit_rows
+            ),
+            '[]'::json
+          ) as benefits
+        FROM workers w
+      `);
+      
+      return result.rows.map((row: any) => ({
+        workerId: row.worker_id,
+        benefits: Array.isArray(row.benefits) ? row.benefits : []
+      }));
     },
 
     async getWorker(id: string): Promise<Worker | undefined> {

@@ -349,32 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/workers/employers/summary - Get employer summary for all workers (requires workers.view permission)
   app.get("/api/workers/employers/summary", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
-      // Query to get unique employers for each worker from worker_hours
-      const result = await db.execute(sql`
-        SELECT 
-          w.id as worker_id,
-          COALESCE(
-            json_agg(
-              DISTINCT jsonb_build_object(
-                'id', e.id,
-                'name', e.name,
-                'isHome', COALESCE(wh.home, false)
-              )
-            ) FILTER (WHERE e.id IS NOT NULL),
-            '[]'::json
-          ) as employers
-        FROM workers w
-        LEFT JOIN worker_hours wh ON w.id = wh.worker_id
-        LEFT JOIN employers e ON wh.employer_id = e.id
-        GROUP BY w.id
-      `);
-      
-      // Transform the result into a more usable format
-      const workerEmployers = result.rows.map((row: any) => ({
-        workerId: row.worker_id,
-        employers: row.employers || []
-      }));
-      
+      const workerEmployers = await storage.workers.getWorkersEmployersSummary();
       res.json(workerEmployers);
     } catch (error) {
       console.error("Failed to fetch worker employers:", error);
@@ -385,48 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/workers/benefits/current - Get current month benefits for all workers (requires workers.view permission)
   app.get("/api/workers/benefits/current", requireAuth, requirePermission("workers.view"), async (req, res) => {
     try {
-      // Get current month and year
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
-
-      // Query to get current benefits for each worker
-      const result = await db.execute(sql`
-        SELECT 
-          w.id as worker_id,
-          COALESCE(
-            (
-              SELECT json_agg(benefit_data)
-              FROM (
-                SELECT DISTINCT ON (tb.id, e.id)
-                  jsonb_build_object(
-                    'id', tb.id,
-                    'name', tb.name,
-                    'typeName', tbt.name,
-                    'typeIcon', tbt.data->>'icon',
-                    'employerName', e.name
-                  ) as benefit_data
-                FROM trust_wmb wmb
-                INNER JOIN trust_benefits tb ON wmb.benefit_id = tb.id
-                LEFT JOIN options_trust_benefit_type tbt ON tb.benefit_type = tbt.id
-                LEFT JOIN employers e ON wmb.employer_id = e.id
-                WHERE wmb.worker_id = w.id
-                  AND wmb.month = ${currentMonth}
-                  AND wmb.year = ${currentYear}
-                ORDER BY tb.id, e.id
-              ) benefit_rows
-            ),
-            '[]'::json
-          ) as benefits
-        FROM workers w
-      `);
-      
-      // Transform the result into a more usable format
-      const workerBenefits = result.rows.map((row: any) => ({
-        workerId: row.worker_id,
-        benefits: Array.isArray(row.benefits) ? row.benefits : []
-      }));
-      
+      const workerBenefits = await storage.workers.getWorkersCurrentBenefits();
       res.json(workerBenefits);
     } catch (error) {
       console.error("Failed to fetch worker current benefits:", error);
@@ -617,26 +551,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Query to get all workers for this employer from worker_hours (one row per worker)
-      const result = await db.execute(sql`
-        SELECT DISTINCT ON (w.id)
-          w.id as "workerId",
-          w.sirius_id as "workerSiriusId",
-          c.display_name as "contactName",
-          wh.id as "employmentHistoryId",
-          NULL as "employmentStatusId",
-          NULL as "employmentStatusName",
-          NULL as position,
-          NULL as date,
-          wh.home
-        FROM workers w
-        INNER JOIN worker_hours wh ON w.id = wh.worker_id
-        INNER JOIN contacts c ON w.contact_id = c.id
-        WHERE wh.employer_id = ${employerId}
-        ORDER BY w.id, c.family, c.given
-      `);
-      
-      res.json(result.rows);
+      const workers = await storage.employers.getEmployerWorkers(employerId);
+      res.json(workers);
     } catch (error) {
       console.error("Failed to fetch employer workers:", error);
       res.status(500).json({ message: "Failed to fetch employer workers" });
