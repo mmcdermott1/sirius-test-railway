@@ -20,6 +20,16 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
 -   **Data Storage**: PostgreSQL (Neon Database) managed with Drizzle ORM for type-safe operations and migrations. Shared Zod schemas ensure consistency.
 -   **Object Storage**: Replit Object Storage (Google Cloud Storage backend) for persistent file storage with public/private access and signed URL generation.
 
+## Database Access Architecture
+**CRITICAL**: All database queries MUST occur in the storage layer (`server/storage/`) only. This enforces strict separation of concerns:
+
+-   **Storage Layer** (`server/storage/*.ts`): The ONLY place where direct database access (`db.select()`, `db.insert()`, `db.update()`, `db.delete()`, `db.transaction()`) is allowed.
+-   **Route Handlers** (`server/routes.ts`, `server/modules/*.ts`): MUST use storage functions via `storage.*` - never import or use `db` directly.
+-   **Pattern**: Routes call storage functions; storage functions query the database.
+-   **Logs Storage** (`server/storage/logs.ts`): Centralized log queries with `getLogs()`, `getLogFilters()`, `getLogById()`, `getLogsByHostEntityIds()` supporting filters, pagination, and OR conditions for entityId/hostEntityId.
+-   **Wizard Storage** (`server/storage/wizards.ts`): Includes `createMonthlyWizard()` and `createCorrectionsWizard()` with transaction-based race condition prevention.
+-   **Exception**: Services in `server/services/` may use storage functions but should not use `db` directly unless absolutely necessary.
+
 ## Feature Specifications
 -   **Worker Management**: Full CRUD operations for workers with sequential `sirius_id`.
 -   **Configurable Settings**: Manages organizational settings such as worker ID types, work statuses, and employer contact types.

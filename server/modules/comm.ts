@@ -1,9 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { db } from "../db";
-import { winstonLogs } from "@shared/schema";
-import { eq, and, gte, lte, desc, or } from "drizzle-orm";
-import { createCommStorage, createCommSmsOptinStorage, createCommEmailOptinStorage, createCommPostalOptinStorage } from "../storage";
+import { createCommStorage, createCommSmsOptinStorage, createCommEmailOptinStorage, createCommPostalOptinStorage, storage } from "../storage";
 import { sendSms } from "../services/sms-sender";
 import { sendEmail } from "../services/email-sender";
 import { sendPostal } from "../services/postal-sender";
@@ -295,31 +292,14 @@ export function registerCommRoutes(
         return res.status(404).json({ message: "Communication record not found" });
       }
 
-      const conditions = [
-        or(
-          eq(winstonLogs.entityId, id),
-          eq(winstonLogs.hostEntityId, id)
-        )
-      ];
-      
-      if (module && typeof module === 'string') {
-        conditions.push(eq(winstonLogs.module, module));
-      }
-      if (operation && typeof operation === 'string') {
-        conditions.push(eq(winstonLogs.operation, operation));
-      }
-      if (startDate && typeof startDate === 'string') {
-        conditions.push(gte(winstonLogs.timestamp, new Date(startDate)));
-      }
-      if (endDate && typeof endDate === 'string') {
-        conditions.push(lte(winstonLogs.timestamp, new Date(endDate)));
-      }
-
-      const logs = await db
-        .select()
-        .from(winstonLogs)
-        .where(and(...conditions))
-        .orderBy(desc(winstonLogs.timestamp));
+      const logs = await storage.logs.getLogsByHostEntityIds({
+        hostEntityIds: [id],
+        entityIds: [id],
+        module: typeof module === 'string' ? module : undefined,
+        operation: typeof operation === 'string' ? operation : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      });
 
       res.json(logs);
     } catch (error) {

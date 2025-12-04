@@ -1,9 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
-import { insertWorkerSchema, type InsertEmployer, winstonLogs, type WorkerId, type ContactPostal, type PhoneNumber, workerHours } from "@shared/schema";
-import { eq, and, inArray, gte, lte, desc, sql } from "drizzle-orm";
+import { insertWorkerSchema, type InsertEmployer, type WorkerId, type ContactPostal, type PhoneNumber } from "@shared/schema";
 import { z } from "zod";
 import { registerUserRoutes } from "./modules/users";
 import { registerVariableRoutes } from "./modules/variables";
@@ -1130,7 +1128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       
       // Get the hours entry to build the correct reference format
-      const [hoursEntry] = await db.select().from(workerHours).where(eq(workerHours.id, id));
+      const hoursEntry = await storage.workers.getWorkerHoursById(id);
       
       if (!hoursEntry) {
         return res.json([]);
@@ -1274,28 +1272,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hostEntityIds.push(worker.contactId);
       }
 
-      // Build all conditions including the host entity ID filter
-      const conditions = [inArray(winstonLogs.hostEntityId, hostEntityIds)];
-      
-      if (module && typeof module === 'string') {
-        conditions.push(eq(winstonLogs.module, module));
-      }
-      if (operation && typeof operation === 'string') {
-        conditions.push(eq(winstonLogs.operation, operation));
-      }
-      if (startDate && typeof startDate === 'string') {
-        conditions.push(gte(winstonLogs.timestamp, new Date(startDate)));
-      }
-      if (endDate && typeof endDate === 'string') {
-        conditions.push(lte(winstonLogs.timestamp, new Date(endDate)));
-      }
-
-      // Execute query with all conditions and order by timestamp descending (newest first)
-      const logs = await db
-        .select()
-        .from(winstonLogs)
-        .where(and(...conditions))
-        .orderBy(desc(winstonLogs.timestamp));
+      const logs = await storage.logs.getLogsByHostEntityIds({
+        hostEntityIds,
+        module: typeof module === 'string' ? module : undefined,
+        operation: typeof operation === 'string' ? operation : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      });
 
       res.json(logs);
     } catch (error) {
@@ -1332,28 +1315,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const contactIds = employerContacts.map(ec => ec.contactId);
       hostEntityIds.push(...contactIds);
 
-      // Build all conditions including the host entity ID filter
-      const conditions = [inArray(winstonLogs.hostEntityId, hostEntityIds)];
-      
-      if (module && typeof module === 'string') {
-        conditions.push(eq(winstonLogs.module, module));
-      }
-      if (operation && typeof operation === 'string') {
-        conditions.push(eq(winstonLogs.operation, operation));
-      }
-      if (startDate && typeof startDate === 'string') {
-        conditions.push(gte(winstonLogs.timestamp, new Date(startDate)));
-      }
-      if (endDate && typeof endDate === 'string') {
-        conditions.push(lte(winstonLogs.timestamp, new Date(endDate)));
-      }
-
-      // Execute query with all conditions and order by timestamp descending (newest first)
-      const logs = await db
-        .select()
-        .from(winstonLogs)
-        .where(and(...conditions))
-        .orderBy(desc(winstonLogs.timestamp));
+      const logs = await storage.logs.getLogsByHostEntityIds({
+        hostEntityIds,
+        module: typeof module === 'string' ? module : undefined,
+        operation: typeof operation === 'string' ? operation : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      });
 
       res.json(logs);
     } catch (error) {

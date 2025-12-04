@@ -1,15 +1,13 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { storage } from "../storage";
-import { insertWizardSchema, wizardDataSchema, type WizardData, wizards, wizardEmployerMonthly } from "@shared/schema";
+import { insertWizardSchema, wizardDataSchema, type WizardData } from "@shared/schema";
 import { requireAccess, buildContext, evaluatePolicy } from "../accessControl";
 import { policies } from "../policies";
 import { wizardRegistry } from "../wizards/index.js";
 import { FeedWizard } from "../wizards/feed.js";
 import { objectStorageService } from "../services/objectStorage.js";
 import { hashHeaderRow } from "../utils/hash.js";
-import { db } from "../db";
-import { eq, and, or } from "drizzle-orm";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -321,79 +319,46 @@ export function registerWizardRoutes(
         }
       }
       
-      const wizard = await db.transaction(async (tx) => {
-        // Re-validate constraints inside transaction to prevent race conditions
-        if (isMonthlyWizard && validatedData.entityId) {
-          const wizardData = validatedData.data as any;
-          const launchArgs = wizardData?.launchArguments || {};
-          const year = Number(launchArgs.year);
-          const month = Number(launchArgs.month);
-          
-          if (validatedData.type === 'gbhet_legal_workers_monthly') {
-            // Re-check for duplicate monthly wizard inside transaction
-            const existingWizards = await tx
-              .select()
-              .from(wizardEmployerMonthly)
-              .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
-              .where(
-                and(
-                  eq(wizardEmployerMonthly.employerId, validatedData.entityId),
-                  eq(wizardEmployerMonthly.year, year),
-                  eq(wizardEmployerMonthly.month, month),
-                  eq(wizards.type, 'gbhet_legal_workers_monthly')
-                )
-              );
-            
-            if (existingWizards.length > 0) {
-              throw new HttpError(400, `A legal workers monthly wizard already exists for this employer in ${month}/${year}`);
-            }
-          } else if (validatedData.type === 'gbhet_legal_workers_corrections') {
-            // Re-check for completed monthly wizard prerequisite inside transaction
-            const [completedMonthly] = await tx
-              .select()
-              .from(wizardEmployerMonthly)
-              .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
-              .where(
-                and(
-                  eq(wizardEmployerMonthly.employerId, validatedData.entityId),
-                  eq(wizardEmployerMonthly.year, year),
-                  eq(wizardEmployerMonthly.month, month),
-                  eq(wizards.type, 'gbhet_legal_workers_monthly'),
-                  or(eq(wizards.status, 'completed'), eq(wizards.status, 'complete'))
-                )
-              );
-            
-            if (!completedMonthly) {
-              throw new HttpError(400, `Cannot create legal workers corrections wizard: no completed legal workers monthly wizard found for ${month}/${year}`);
-            }
-          }
-        }
+      let wizard;
+      
+      if (isMonthlyWizard && validatedData.entityId) {
+        const wizardData = validatedData.data as any;
+        const launchArgs = wizardData?.launchArguments || {};
+        const year = Number(launchArgs.year);
+        const month = Number(launchArgs.month);
         
-        // Create the wizard
-        const [createdWizard] = await tx
-          .insert(wizards)
-          .values(validatedData)
-          .returning();
-        
-        // If this is a monthly employer wizard, also create the wizard_employer_monthly record
-        if (isMonthlyWizard && validatedData.entityId) {
-          const wizardData = validatedData.data as any;
-          const launchArgs = wizardData?.launchArguments || {};
-          
-          // Parse year and month (already validated above)
-          const year = Number(launchArgs.year);
-          const month = Number(launchArgs.month);
-          
-          await tx.insert(wizardEmployerMonthly).values({
-            wizardId: createdWizard.id,
+        if (validatedData.type === 'gbhet_legal_workers_monthly') {
+          const result = await storage.wizards.createMonthlyWizard({
+            wizard: validatedData,
             employerId: validatedData.entityId,
             year,
             month,
           });
+          
+          if (!result.success) {
+            return res.status(400).json({ message: result.error });
+          }
+          wizard = result.wizard;
+        } else if (validatedData.type === 'gbhet_legal_workers_corrections') {
+          const result = await storage.wizards.createCorrectionsWizard({
+            wizard: validatedData,
+            employerId: validatedData.entityId,
+            year,
+            month,
+          });
+          
+          if (!result.success) {
+            return res.status(400).json({ message: result.error });
+          }
+          wizard = result.wizard;
+        } else {
+          // For other monthly wizard types, use the simple create
+          wizard = await storage.wizards.create(validatedData);
         }
-        
-        return createdWizard;
-      });
+      } else {
+        // For non-monthly wizards, use the simple create
+        wizard = await storage.wizards.create(validatedData);
+      }
       
       res.status(201).json(wizard);
     } catch (error) {

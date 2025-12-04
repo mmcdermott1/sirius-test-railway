@@ -1,9 +1,7 @@
 import type { Express } from "express";
-import { storage } from "../storage/database";
-import { db } from "../db";
-import { insertTrustProviderSchema, type InsertTrustProvider, winstonLogs } from "@shared/schema";
+import { storage } from "../storage";
+import { insertTrustProviderSchema, type InsertTrustProvider } from "@shared/schema";
 import { policies } from "../policies";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 export function registerTrustProvidersRoutes(
   app: Express,
@@ -115,28 +113,13 @@ export function registerTrustProvidersRoutes(
         return res.status(404).json({ message: "Trust provider not found" });
       }
 
-      // Build query conditions
-      const conditions = [eq(winstonLogs.hostEntityId, id)];
-      
-      if (module && typeof module === 'string') {
-        conditions.push(eq(winstonLogs.module, module));
-      }
-      if (operation && typeof operation === 'string') {
-        conditions.push(eq(winstonLogs.operation, operation));
-      }
-      if (startDate && typeof startDate === 'string') {
-        conditions.push(gte(winstonLogs.timestamp, new Date(startDate)));
-      }
-      if (endDate && typeof endDate === 'string') {
-        conditions.push(lte(winstonLogs.timestamp, new Date(endDate)));
-      }
-
-      // Execute query with all conditions and order by timestamp descending (newest first)
-      const logs = await db
-        .select()
-        .from(winstonLogs)
-        .where(and(...conditions))
-        .orderBy(desc(winstonLogs.timestamp));
+      const logs = await storage.logs.getLogsByHostEntityIds({
+        hostEntityIds: [id],
+        module: typeof module === 'string' ? module : undefined,
+        operation: typeof operation === 'string' ? operation : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      });
 
       res.json(logs);
     } catch (error: any) {

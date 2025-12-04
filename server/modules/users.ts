@@ -4,13 +4,10 @@ import {
   createUserSchema,
   insertRoleSchema,
   assignRoleSchema,
-  assignPermissionSchema,
-  winstonLogs
+  assignPermissionSchema
 } from "@shared/schema";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
-import { db } from "../db";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
 
 // Type for middleware functions that we'll accept from the main routes
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -260,28 +257,14 @@ export function registerUserRoutes(
       // This will capture all logs for:
       // - User record changes (hostEntityId = userId)
       // - Role assignments for this user (hostEntityId = userId)
-      const conditions = [eq(winstonLogs.hostEntityId, userId)];
-      
-      if (module && typeof module === 'string') {
-        conditions.push(eq(winstonLogs.module, module));
-      }
-      if (operation && typeof operation === 'string') {
-        conditions.push(eq(winstonLogs.operation, operation));
-      }
-      if (startDate && typeof startDate === 'string') {
-        conditions.push(gte(winstonLogs.timestamp, new Date(startDate)));
-      }
-      if (endDate && typeof endDate === 'string') {
-        conditions.push(lte(winstonLogs.timestamp, new Date(endDate)));
-      }
-
-      // Execute query with all conditions and order by timestamp descending (newest first)
-      const logs = await db
-        .select()
-        .from(winstonLogs)
-        .where(and(...conditions))
-        .orderBy(desc(winstonLogs.timestamp))
-        .limit(500);
+      const logs = await storage.logs.getLogsByHostEntityIds({
+        hostEntityIds: [userId],
+        module: typeof module === 'string' ? module : undefined,
+        operation: typeof operation === 'string' ? operation : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+        limit: 500,
+      });
 
       res.json(logs);
     } catch (error) {

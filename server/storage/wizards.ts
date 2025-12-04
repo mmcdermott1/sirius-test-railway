@@ -1,11 +1,26 @@
 import { db } from "../db";
-import { wizards, wizardReportData, type Wizard, type InsertWizard, type WizardReportData, type InsertWizardReportData } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { wizards, wizardReportData, wizardEmployerMonthly, type Wizard, type InsertWizard, type WizardReportData, type InsertWizardReportData } from "@shared/schema";
+import { eq, and, desc, or } from "drizzle-orm";
+
+export interface MonthlyWizardCreateParams {
+  wizard: InsertWizard;
+  employerId: string;
+  year: number;
+  month: number;
+}
+
+export interface MonthlyWizardCreateResult {
+  success: boolean;
+  wizard?: Wizard;
+  error?: string;
+}
 
 export interface WizardStorage {
   list(filters?: { type?: string; status?: string; entityId?: string }): Promise<Wizard[]>;
   getById(id: string): Promise<Wizard | undefined>;
   create(wizard: InsertWizard): Promise<Wizard>;
+  createMonthlyWizard(params: MonthlyWizardCreateParams): Promise<MonthlyWizardCreateResult>;
+  createCorrectionsWizard(params: MonthlyWizardCreateParams): Promise<MonthlyWizardCreateResult>;
   update(id: string, updates: Partial<Omit<InsertWizard, 'id'>>): Promise<Wizard | undefined>;
   delete(id: string): Promise<boolean>;
   saveReportData(wizardId: string, pk: string, data: any): Promise<WizardReportData>;
@@ -54,6 +69,105 @@ export function createWizardStorage(): WizardStorage {
         .values(insertWizard)
         .returning();
       return wizard;
+    },
+
+    async createMonthlyWizard(params: MonthlyWizardCreateParams): Promise<MonthlyWizardCreateResult> {
+      const { wizard: wizardData, employerId, year, month } = params;
+      
+      try {
+        const createdWizard = await db.transaction(async (tx) => {
+          // Check for duplicate monthly wizard inside transaction to prevent race conditions
+          const existingWizards = await tx
+            .select()
+            .from(wizardEmployerMonthly)
+            .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
+            .where(
+              and(
+                eq(wizardEmployerMonthly.employerId, employerId),
+                eq(wizardEmployerMonthly.year, year),
+                eq(wizardEmployerMonthly.month, month),
+                eq(wizards.type, 'gbhet_legal_workers_monthly')
+              )
+            );
+          
+          if (existingWizards.length > 0) {
+            throw new Error(`DUPLICATE: A legal workers monthly wizard already exists for this employer in ${month}/${year}`);
+          }
+          
+          // Create the wizard
+          const [wizard] = await tx
+            .insert(wizards)
+            .values(wizardData)
+            .returning();
+          
+          // Create the wizard_employer_monthly record
+          await tx.insert(wizardEmployerMonthly).values({
+            wizardId: wizard.id,
+            employerId,
+            year,
+            month,
+          });
+          
+          return wizard;
+        });
+        
+        return { success: true, wizard: createdWizard };
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith('DUPLICATE:')) {
+          return { success: false, error: error.message.replace('DUPLICATE: ', '') };
+        }
+        throw error;
+      }
+    },
+
+    async createCorrectionsWizard(params: MonthlyWizardCreateParams): Promise<MonthlyWizardCreateResult> {
+      const { wizard: wizardData, employerId, year, month } = params;
+      
+      try {
+        const createdWizard = await db.transaction(async (tx) => {
+          // Check for completed monthly wizard prerequisite inside transaction
+          const [completedMonthly] = await tx
+            .select()
+            .from(wizardEmployerMonthly)
+            .innerJoin(wizards, eq(wizardEmployerMonthly.wizardId, wizards.id))
+            .where(
+              and(
+                eq(wizardEmployerMonthly.employerId, employerId),
+                eq(wizardEmployerMonthly.year, year),
+                eq(wizardEmployerMonthly.month, month),
+                eq(wizards.type, 'gbhet_legal_workers_monthly'),
+                or(eq(wizards.status, 'completed'), eq(wizards.status, 'complete'))
+              )
+            );
+          
+          if (!completedMonthly) {
+            throw new Error(`PREREQUISITE: Cannot create legal workers corrections wizard: no completed legal workers monthly wizard found for ${month}/${year}`);
+          }
+          
+          // Create the wizard
+          const [wizard] = await tx
+            .insert(wizards)
+            .values(wizardData)
+            .returning();
+          
+          // Create the wizard_employer_monthly record
+          await tx.insert(wizardEmployerMonthly).values({
+            wizardId: wizard.id,
+            employerId,
+            year,
+            month,
+          });
+          
+          return wizard;
+        });
+        
+        return { success: true, wizard: createdWizard };
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith('PREREQUISITE:')) {
+          return { success: false, error: error.message.replace('PREREQUISITE: ', '') };
+        }
+        throw error;
+      }
     },
 
     async update(id: string, updates: Partial<Omit<InsertWizard, 'id'>>): Promise<Wizard | undefined> {
