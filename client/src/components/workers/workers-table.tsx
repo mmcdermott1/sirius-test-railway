@@ -744,11 +744,6 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                             <div className="flex items-start gap-2">
                               <MapPin size={16} className="text-muted-foreground mt-0.5" />
                               <div className="flex-1">
-                                {worker.address.friendlyName && (
-                                  <p className="text-sm font-medium text-foreground mb-1">
-                                    {worker.address.friendlyName}
-                                  </p>
-                                )}
                                 <p className="text-sm text-foreground">
                                   {worker.address.street}
                                 </p>
