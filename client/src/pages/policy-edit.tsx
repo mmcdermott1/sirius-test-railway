@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { PolicyLayout, usePolicyLayout } from "@/components/layouts/PolicyLayout";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -19,7 +18,6 @@ function PolicyEditContent() {
 
   const [editSiriusId, setEditSiriusId] = useState(policy.siriusId);
   const [editName, setEditName] = useState(policy.name || "");
-  const [editData, setEditData] = useState(policy.data ? JSON.stringify(policy.data, null, 2) : "");
 
   const updateMutation = useMutation({
     mutationFn: async (data: { siriusId?: string; name?: string; data?: any }) => {
@@ -54,24 +52,9 @@ function PolicyEditContent() {
       return;
     }
 
-    let parsedData: any = undefined;
-    if (editData.trim()) {
-      try {
-        parsedData = JSON.parse(editData);
-      } catch (e) {
-        toast({
-          title: "Validation Error",
-          description: "Data must be valid JSON.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
     updateMutation.mutate({
       siriusId: editSiriusId.trim(),
       name: editName.trim() || undefined,
-      data: parsedData,
     });
   };
 
@@ -108,21 +91,6 @@ function PolicyEditContent() {
                 onChange={(e) => setEditName(e.target.value)}
                 className="w-full"
                 data-testid="input-edit-name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-data" className="text-sm font-medium text-foreground">
-                Data (JSON)
-              </Label>
-              <Textarea
-                id="edit-data"
-                placeholder='{"key": "value"}'
-                value={editData}
-                onChange={(e) => setEditData(e.target.value)}
-                rows={8}
-                className="font-mono text-sm"
-                data-testid="input-edit-data"
               />
             </div>
           </div>

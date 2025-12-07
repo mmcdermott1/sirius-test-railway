@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +34,6 @@ export default function PoliciesConfigPage() {
   
   const [formSiriusId, setFormSiriusId] = useState("");
   const [formName, setFormName] = useState("");
-  const [formData, setFormData] = useState("");
 
   const { data: policies = [], isLoading } = useQuery<Policy[]>({
     queryKey: ["/api/policies"],
@@ -87,7 +85,6 @@ export default function PoliciesConfigPage() {
   const resetForm = () => {
     setFormSiriusId("");
     setFormName("");
-    setFormData("");
   };
 
   const handleCreate = () => {
@@ -100,24 +97,9 @@ export default function PoliciesConfigPage() {
       return;
     }
 
-    let parsedData: any = undefined;
-    if (formData.trim()) {
-      try {
-        parsedData = JSON.parse(formData);
-      } catch (e) {
-        toast({
-          title: "Validation Error",
-          description: "Data must be valid JSON.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
     createMutation.mutate({
       siriusId: formSiriusId.trim(),
       name: formName.trim() || undefined,
-      data: parsedData,
     });
   };
 
@@ -182,7 +164,6 @@ export default function PoliciesConfigPage() {
                   <TableRow>
                     <TableHead>Sirius ID</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Has Data</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -194,9 +175,6 @@ export default function PoliciesConfigPage() {
                       </TableCell>
                       <TableCell data-testid={`text-policy-name-${policy.id}`}>
                         {policy.name || "-"}
-                      </TableCell>
-                      <TableCell data-testid={`text-policy-has-data-${policy.id}`}>
-                        {policy.data ? "Yes" : "No"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -251,17 +229,6 @@ export default function PoliciesConfigPage() {
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 data-testid="input-policy-name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="data">Data (JSON)</Label>
-              <Textarea
-                id="data"
-                placeholder='{"key": "value"}'
-                value={formData}
-                onChange={(e) => setFormData(e.target.value)}
-                rows={4}
-                data-testid="input-policy-data"
               />
             </div>
           </div>
