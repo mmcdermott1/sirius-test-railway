@@ -45,6 +45,7 @@ export const configSections: NavSection[] = [
     items: [
       { path: "/config/system-mode", label: "System Mode", icon: Server, testId: "nav-config-system-mode", policy: "admin" },
       { path: "/config/policies", label: "System Policies", icon: FileText, testId: "nav-config-policies", permission: "admin" },
+      { path: "/config/default-policy", label: "Default Policy", icon: FileText, testId: "nav-config-default-policy", permission: "admin" },
       { path: "/config/twilio", label: "SMS Providers", icon: MessageSquare, testId: "nav-config-sms", policy: "admin" },
       { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", policy: "admin" },
       { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", policy: "admin" },

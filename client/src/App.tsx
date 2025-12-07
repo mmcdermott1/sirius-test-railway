@@ -122,6 +122,7 @@ import EmployerContactTypesPage from "@/pages/config/employer-contact-types";
 import ProviderContactTypesPage from "@/pages/config/provider-contact-types";
 import MasqueradePage from "@/pages/config/masquerade";
 import SystemModePage from "@/pages/config/system-mode";
+import DefaultPolicyPage from "@/pages/config/default-policy";
 import TwilioConfigPage from "@/pages/config/twilio";
 import EmailConfigPage from "@/pages/config/email";
 import PostalConfigPage from "@/pages/config/postal";
@@ -1103,6 +1104,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PoliciesConfigPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/default-policy">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <DefaultPolicyPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
