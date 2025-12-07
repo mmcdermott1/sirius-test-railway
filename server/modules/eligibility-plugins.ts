@@ -17,6 +17,7 @@ const evaluateEligibilitySchema = z.object({
   scanType: z.enum(["start", "continue"]),
   asOfMonth: z.number().int().min(1).max(12).optional(),
   asOfYear: z.number().int().min(2000).max(2100).optional(),
+  stopAfterIneligible: z.boolean().optional(),
 });
 
 export function registerEligibilityPluginRoutes(
@@ -94,6 +95,7 @@ export function registerEligibilityPluginRoutes(
           workerId: input.workerId,
           asOfMonth: input.asOfMonth,
           asOfYear: input.asOfYear,
+          stopAfterIneligible: input.stopAfterIneligible,
         }
       );
 

@@ -15,6 +15,7 @@ export interface EligibilityEvaluationInput {
   worker?: Worker;
   asOfMonth?: number;
   asOfYear?: number;
+  stopAfterIneligible?: boolean;
 }
 
 export interface BenefitEligibilityResult {
@@ -83,7 +84,7 @@ export async function evaluateEligibilityRules(
       const result = await plugin.evaluate(context, rule.config as any);
       results.push(result);
       
-      if (!result.eligible) {
+      if (!result.eligible && input.stopAfterIneligible !== false) {
         break;
       }
     } catch (error) {
@@ -95,7 +96,9 @@ export async function evaluateEligibilityRules(
         eligible: false, 
         reason: `Plugin error: ${error instanceof Error ? error.message : 'Unknown error'}` 
       });
-      break;
+      if (input.stopAfterIneligible !== false) {
+        break;
+      }
     }
   }
   
@@ -150,7 +153,9 @@ export async function evaluateBenefitEligibility(
       
       if (!result.eligible) {
         overallEligible = false;
-        break;
+        if (input.stopAfterIneligible !== false) {
+          break;
+        }
       }
     } catch (error) {
       pluginResults.push({
@@ -159,7 +164,9 @@ export async function evaluateBenefitEligibility(
         reason: `Plugin error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
       overallEligible = false;
-      break;
+      if (input.stopAfterIneligible !== false) {
+        break;
+      }
     }
   }
   

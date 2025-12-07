@@ -90,6 +90,7 @@ function WorkerBenefitsEligibilityContent() {
         scanType: selectedScanType,
         asOfMonth: parseInt(selectedMonth),
         asOfYear: parseInt(selectedYear),
+        stopAfterIneligible: false,
       });
       return response;
     },
