@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { insertCronJobSchema } from "@shared/schema";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
-import { cronScheduler } from "../cron";
+import { cronScheduler, cronJobRegistry } from "../cron";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -45,9 +45,16 @@ export function registerCronJobRoutes(
 
       const latestRun = await storage.cronJobRuns.getLatestByJobName(name);
       
+      // Get handler metadata for settings
+      const handler = cronJobRegistry.get(name);
+      const settingsFields = handler?.getSettingsFields?.() ?? null;
+      const defaultSettings = handler?.getDefaultSettings?.() ?? {};
+      
       res.json({
         ...job,
-        latestRun
+        latestRun,
+        settingsFields,
+        defaultSettings
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch cron job" });
