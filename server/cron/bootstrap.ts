@@ -24,6 +24,12 @@ const DEFAULT_CRON_JOBS: DefaultCronJob[] = [
     schedule: '0 3 * * *', // Daily at 3 AM
     isEnabled: true,
   },
+  {
+    name: 'process-wmb-batch',
+    description: 'Processes pending WMB scan jobs from the queue in batches',
+    schedule: '*/5 * * * *', // Every 5 minutes
+    isEnabled: false, // Disabled by default - enable when needed
+  },
 ];
 
 export async function bootstrapCronJobs(): Promise<void> {

@@ -19,6 +19,8 @@ export interface CronJobSettingsField {
   label: string;
   type: "number" | "string" | "boolean";
   description?: string;
+  min?: number; // For number type
+  max?: number; // For number type
 }
 
 export interface CronJobHandler {

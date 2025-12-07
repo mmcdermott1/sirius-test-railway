@@ -4,3 +4,4 @@ export { cronScheduler } from './scheduler';
 export { bootstrapCronJobs } from './bootstrap';
 export { deleteExpiredReportsHandler } from './jobs/deleteExpiredReports';
 export { deleteOldCronLogsHandler } from './jobs/deleteOldCronLogs';
+export { processWmbBatchHandler } from './jobs/processWmbBatch';

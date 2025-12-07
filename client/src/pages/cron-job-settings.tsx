@@ -375,8 +375,15 @@ function CronJobSettingsContent() {
                         <Input
                           id={`setting-${field.key}`}
                           type="number"
+                          min={field.min}
+                          max={field.max}
                           value={String(localSettings[field.key] ?? "")}
-                          onChange={(e) => handleSettingChange(field.key, parseInt(e.target.value) || 0)}
+                          onChange={(e) => {
+                            let val = parseInt(e.target.value) || 0;
+                            if (field.min !== undefined) val = Math.max(field.min, val);
+                            if (field.max !== undefined) val = Math.min(field.max, val);
+                            handleSettingChange(field.key, val);
+                          }}
                           data-testid={`input-setting-${field.key}`}
                         />
                       )}
