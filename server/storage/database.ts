@@ -19,6 +19,7 @@ import { type CronJobStorage, createCronJobStorage, type CronJobRunStorage, crea
 import { type ChargePluginConfigStorage, createChargePluginConfigStorage } from "./charge-plugins";
 import { type LogsStorage, createLogsStorage } from "./logs";
 import { type WorkerWshStorage, createWorkerWshStorage, workerWshLoggingConfig } from "./worker-wsh";
+import { type WorkerHoursStorage, createWorkerHoursStorage, workerHoursLoggingConfig } from "./worker-hours";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -47,6 +48,7 @@ export interface IStorage {
   chargePluginConfigs: ChargePluginConfigStorage;
   logs: LogsStorage;
   workerWsh: WorkerWshStorage;
+  workerHours: WorkerHoursStorage;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -72,6 +74,7 @@ export class DatabaseStorage implements IStorage {
   chargePluginConfigs: ChargePluginConfigStorage;
   logs: LogsStorage;
   workerWsh: WorkerWshStorage;
+  workerHours: WorkerHoursStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -115,6 +118,10 @@ export class DatabaseStorage implements IStorage {
     this.workerWsh = withStorageLogging(
       createWorkerWshStorage(this.workers.updateWorkerStatus.bind(this.workers)),
       workerWshLoggingConfig
+    );
+    this.workerHours = withStorageLogging(
+      createWorkerHoursStorage(),
+      workerHoursLoggingConfig
     );
   }
 }

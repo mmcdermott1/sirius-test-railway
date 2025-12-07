@@ -30,6 +30,7 @@ import { registerLedgerPaymentRoutes } from "./modules/ledger/payments";
 import { registerAccessPolicyRoutes } from "./modules/access-policies";
 import { registerLogRoutes } from "./modules/logs";
 import { registerWorkerWshRoutes } from "./modules/worker-wsh";
+import { registerWorkerHoursRoutes } from "./modules/worker-hours";
 import { registerQuickstartRoutes } from "./modules/quickstart";
 import { registerCronJobRoutes } from "./modules/cron_jobs";
 import { registerChargePluginRoutes } from "./modules/charge-plugins";
@@ -232,6 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register log management routes
   registerLogRoutes(app, requireAuth, requirePermission, requireAccess, policies);
   registerWorkerWshRoutes(app, requireAuth, requirePermission, requireAccess, policies, storage.workerWsh);
+  registerWorkerHoursRoutes(app, requireAuth, requirePermission, requireAccess, policies, storage.workerHours, storage.ledger);
   registerQuickstartRoutes(app);
 
   // Register cron job management routes
@@ -816,189 +818,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete worker benefit:", error);
       res.status(500).json({ message: "Failed to delete worker benefit" });
-    }
-  });
-
-  // Worker Hours routes
-
-  // GET /api/workers/:workerId/hours - Get hours for a worker with optional view parameter (requires worker policy: staff or worker with matching email)
-  app.get("/api/workers/:workerId/hours", requireAuth, requireAccess(policies.worker), async (req, res) => {
-    try {
-      const { workerId } = req.params;
-      const view = (req.query.view as string) || 'daily';
-      
-      let hours;
-      switch (view) {
-        case 'current':
-          hours = await storage.workers.getWorkerHoursCurrent(workerId);
-          break;
-        case 'history':
-          hours = await storage.workers.getWorkerHoursHistory(workerId);
-          break;
-        case 'monthly':
-          hours = await storage.workers.getWorkerHoursMonthly(workerId);
-          break;
-        case 'daily':
-        default:
-          hours = await storage.workers.getWorkerHours(workerId);
-          break;
-      }
-      
-      res.json(hours);
-    } catch (error) {
-      console.error("Failed to fetch worker hours:", error);
-      res.status(500).json({ message: "Failed to fetch worker hours" });
-    }
-  });
-
-  // POST /api/workers/:workerId/hours - Create a new hours entry for a worker (requires workers.manage permission)
-  app.post("/api/workers/:workerId/hours", requireAuth, requirePermission("workers.manage"), async (req, res) => {
-    try {
-      const { workerId } = req.params;
-      const { month, year, day, employerId, employmentStatusId, hours, home } = req.body;
-
-      if (!month || !year || !day || !employerId || !employmentStatusId) {
-        return res.status(400).json({ message: "Month, year, day, employer ID, and employment status ID are required" });
-      }
-
-      const result = await storage.workers.createWorkerHours({
-        workerId,
-        month,
-        year,
-        day,
-        employerId,
-        employmentStatusId,
-        hours: hours ?? null,
-        home: home ?? false,
-      });
-
-      res.status(201).json({
-        ...result.data,
-        ledgerNotifications: result.notifications || [],
-      });
-    } catch (error: any) {
-      console.error("Failed to create worker hours:", error);
-      if (error.message?.includes("duplicate key") || error.code === "23505") {
-        return res.status(409).json({ message: "Hours entry already exists for this worker, employer, and date" });
-      }
-      res.status(500).json({ message: "Failed to create worker hours" });
-    }
-  });
-
-  // GET /api/worker-hours/:id - Get a single worker hours entry (requires workers.view permission)
-  app.get("/api/worker-hours/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const hoursEntry = await storage.workers.getWorkerHoursById(id);
-
-      if (!hoursEntry) {
-        return res.status(404).json({ message: "Hours entry not found" });
-      }
-
-      res.json(hoursEntry);
-    } catch (error) {
-      console.error("Failed to fetch hours entry:", error);
-      res.status(500).json({ message: "Failed to fetch hours entry" });
-    }
-  });
-
-  // PATCH /api/worker-hours/:id - Update a worker hours entry (requires workers.manage permission)
-  app.patch("/api/worker-hours/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { year, month, day, employerId, employmentStatusId, hours, home } = req.body;
-
-      const result = await storage.workers.updateWorkerHours(id, {
-        year,
-        month,
-        day,
-        employerId,
-        employmentStatusId,
-        hours,
-        home,
-      });
-
-      if (!result) {
-        return res.status(404).json({ message: "Worker hours entry not found" });
-      }
-
-      res.json({
-        ...result.data,
-        ledgerNotifications: result.notifications || [],
-      });
-    } catch (error: any) {
-      console.error("Failed to update worker hours:", error);
-      if (error.message?.includes("duplicate key") || error.code === "23505") {
-        return res.status(409).json({ message: "Hours entry already exists for this worker, employer, and date" });
-      }
-      res.status(500).json({ message: "Failed to update worker hours" });
-    }
-  });
-
-  // DELETE /api/worker-hours/:id - Delete a worker hours entry (requires workers.manage permission)
-  app.delete("/api/worker-hours/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const result = await storage.workers.deleteWorkerHours(id);
-
-      if (!result.success) {
-        return res.status(404).json({ message: "Worker hours entry not found" });
-      }
-
-      // Return notifications if any, otherwise 204 No Content
-      if (result.notifications && result.notifications.length > 0) {
-        res.json({ ledgerNotifications: result.notifications });
-      } else {
-        res.status(204).send();
-      }
-    } catch (error) {
-      console.error("Failed to delete worker hours:", error);
-      res.status(500).json({ message: "Failed to delete worker hours" });
-    }
-  });
-
-  // GET /api/worker-hours/:id/transactions - Get ledger entries for an hours entry
-  app.get("/api/worker-hours/:id/transactions", requireAuth, requirePermission("workers.manage"), async (req, res) => {
-    try {
-      const { id } = req.params;
-      
-      // Get the hours entry to build the correct reference format
-      const hoursEntry = await storage.workers.getWorkerHoursById(id);
-      
-      if (!hoursEntry) {
-        return res.json([]);
-      }
-      
-      // Query for both new format (hoursId) and legacy format (composite key)
-      // New format: referenceId = hoursId (UUID)
-      const newFormatTransactions = await storage.ledger.entries.getTransactions({
-        referenceType: "hour",
-        referenceId: id,
-      });
-      
-      // Legacy format: workerId:employerId:year:month
-      const compositeReferenceId = `${hoursEntry.workerId}:${hoursEntry.employerId}:${hoursEntry.year}:${hoursEntry.month}`;
-      const legacyTransactions = await storage.ledger.entries.getTransactions({
-        referenceType: "hour",
-        referenceId: compositeReferenceId,
-      });
-      
-      // Also check for "hours" referenceType (used by hourFixed plugin)
-      const hoursTypeTransactions = await storage.ledger.entries.getTransactions({
-        referenceType: "hours",
-        referenceId: id,
-      });
-      
-      // Combine all results, avoiding duplicates by id
-      const allTransactions = [...newFormatTransactions, ...legacyTransactions, ...hoursTypeTransactions];
-      const uniqueTransactions = allTransactions.filter((tx, index, self) => 
-        index === self.findIndex(t => t.id === tx.id)
-      );
-      
-      res.json(uniqueTransactions);
-    } catch (error) {
-      console.error("Failed to fetch hours transactions:", error);
-      res.status(500).json({ message: "Failed to fetch hours transactions" });
     }
   });
 

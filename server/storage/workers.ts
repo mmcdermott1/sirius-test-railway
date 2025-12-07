@@ -3,33 +3,18 @@ import {
   workers,
   contacts,
   trustWmb,
-  workerHours,
   trustBenefits,
   employers,
-  optionsEmploymentStatus,
   optionsWorkerWs,
   type Worker,
   type InsertWorker,
   type TrustWmb,
-  type WorkerHours,
   type TrustBenefit,
   type Employer,
 } from "@shared/schema";
-import { eq, sql, and, desc } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 import type { ContactsStorage } from "./contacts";
-import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
-import { storageLogger as logger } from "../logger";
-import type { LedgerNotification } from "../charge-plugins/types";
-
-export interface WorkerHoursResult {
-  data: WorkerHours;
-  notifications?: LedgerNotification[];
-}
-
-export interface WorkerHoursDeleteResult {
-  success: boolean;
-  notifications?: LedgerNotification[];
-}
+import { type StorageLoggingConfig } from "./middleware/logging";
 
 export interface WorkerEmployerSummary {
   workerId: string;
@@ -97,17 +82,6 @@ export interface WorkerStorage {
   getWorkerBenefits(workerId: string): Promise<any[]>;
   createWorkerBenefit(data: { workerId: string; month: number; year: number; employerId: string; benefitId: string }): Promise<TrustWmb>;
   deleteWorkerBenefit(id: string): Promise<boolean>;
-  // Worker hours methods
-  getWorkerHoursById(id: string): Promise<any | undefined>;
-  getWorkerHours(workerId: string): Promise<any[]>;
-  getWorkerHoursCurrent(workerId: string): Promise<any[]>;
-  getWorkerHoursHistory(workerId: string): Promise<any[]>;
-  getWorkerHoursMonthly(workerId: string): Promise<any[]>;
-  getMonthlyHoursTotal(workerId: string, employerId: string, year: number, month: number, employmentStatusIds?: string[]): Promise<number>;
-  createWorkerHours(data: { workerId: string; month: number; year: number; day: number; employerId: string; employmentStatusId: string; hours: number | null; home?: boolean }): Promise<WorkerHoursResult>;
-  updateWorkerHours(id: string, data: { year?: number; month?: number; day?: number; employerId?: string; employmentStatusId?: string; hours?: number | null; home?: boolean }): Promise<WorkerHoursResult | undefined>;
-  deleteWorkerHours(id: string): Promise<WorkerHoursDeleteResult>;
-  upsertWorkerHours(data: { workerId: string; month: number; year: number; employerId: string; employmentStatusId: string; hours: number | null; home?: boolean }): Promise<WorkerHoursResult>;
 }
 
 export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerStorage {
@@ -504,447 +478,6 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
         .returning();
       return result.length > 0;
     },
-
-    // Worker hours methods
-    async getWorkerHoursById(id: string): Promise<any | undefined> {
-      const [result] = await db
-        .select({
-          id: workerHours.id,
-          month: workerHours.month,
-          year: workerHours.year,
-          day: workerHours.day,
-          workerId: workerHours.workerId,
-          employerId: workerHours.employerId,
-          employmentStatusId: workerHours.employmentStatusId,
-          hours: workerHours.hours,
-          home: workerHours.home,
-          employer: employers,
-          employmentStatus: optionsEmploymentStatus,
-        })
-        .from(workerHours)
-        .leftJoin(employers, eq(workerHours.employerId, employers.id))
-        .leftJoin(optionsEmploymentStatus, eq(workerHours.employmentStatusId, optionsEmploymentStatus.id))
-        .where(eq(workerHours.id, id));
-
-      return result || undefined;
-    },
-
-    async getWorkerHours(workerId: string): Promise<any[]> {
-      const results = await db
-        .select({
-          id: workerHours.id,
-          month: workerHours.month,
-          year: workerHours.year,
-          day: workerHours.day,
-          workerId: workerHours.workerId,
-          employerId: workerHours.employerId,
-          employmentStatusId: workerHours.employmentStatusId,
-          hours: workerHours.hours,
-          home: workerHours.home,
-          employer: employers,
-          employmentStatus: optionsEmploymentStatus,
-        })
-        .from(workerHours)
-        .leftJoin(employers, eq(workerHours.employerId, employers.id))
-        .leftJoin(optionsEmploymentStatus, eq(workerHours.employmentStatusId, optionsEmploymentStatus.id))
-        .where(eq(workerHours.workerId, workerId))
-        .orderBy(desc(workerHours.year), desc(workerHours.month));
-
-      return results;
-    },
-
-    async getWorkerHoursCurrent(workerId: string): Promise<any[]> {
-      const results = await db.execute(sql`
-        SELECT DISTINCT ON (wh.employer_id)
-          wh.id,
-          wh.month,
-          wh.year,
-          wh.day,
-          wh.worker_id,
-          wh.employer_id,
-          wh.employment_status_id,
-          wh.home,
-          e.id AS "employer.id",
-          e.sirius_id AS "employer.siriusId",
-          e.name AS "employer.name",
-          e.is_active AS "employer.isActive",
-          e.stripe_customer_id AS "employer.stripeCustomerId",
-          es.id AS "employmentStatus.id",
-          es.name AS "employmentStatus.name",
-          es.code AS "employmentStatus.code",
-          es.employed AS "employmentStatus.employed",
-          es.description AS "employmentStatus.description"
-        FROM worker_hours wh
-        LEFT JOIN employers e ON wh.employer_id = e.id
-        LEFT JOIN options_employment_status es ON wh.employment_status_id = es.id
-        WHERE wh.worker_id = ${workerId}
-        ORDER BY wh.employer_id, wh.year DESC, wh.month DESC, wh.day DESC
-      `);
-
-      return results.rows.map((row: any) => ({
-        id: row.id,
-        month: row.month,
-        year: row.year,
-        day: row.day,
-        workerId: row.worker_id,
-        employerId: row.employer_id,
-        employmentStatusId: row.employment_status_id,
-        home: row.home,
-        employer: {
-          id: row['employer.id'],
-          siriusId: row['employer.siriusId'],
-          name: row['employer.name'],
-          isActive: row['employer.isActive'],
-          stripeCustomerId: row['employer.stripeCustomerId'],
-        },
-        employmentStatus: {
-          id: row['employmentStatus.id'],
-          name: row['employmentStatus.name'],
-          code: row['employmentStatus.code'],
-          employed: row['employmentStatus.employed'],
-          description: row['employmentStatus.description'],
-        },
-      }));
-    },
-
-    async getWorkerHoursHistory(workerId: string): Promise<any[]> {
-      const results = await db.execute(sql`
-        WITH status_changes AS (
-          SELECT
-            wh.id,
-            wh.month,
-            wh.year,
-            wh.day,
-            wh.worker_id,
-            wh.employer_id,
-            wh.employment_status_id,
-            wh.home,
-            LAG(wh.employment_status_id) OVER (
-              PARTITION BY wh.employer_id 
-              ORDER BY wh.year, wh.month, wh.day
-            ) AS prev_status_id
-          FROM worker_hours wh
-          WHERE wh.worker_id = ${workerId}
-        )
-        SELECT
-          sc.id,
-          sc.month,
-          sc.year,
-          sc.day,
-          sc.worker_id,
-          sc.employer_id,
-          sc.employment_status_id,
-          sc.home,
-          e.id AS "employer.id",
-          e.sirius_id AS "employer.siriusId",
-          e.name AS "employer.name",
-          e.is_active AS "employer.isActive",
-          e.stripe_customer_id AS "employer.stripeCustomerId",
-          es.id AS "employmentStatus.id",
-          es.name AS "employmentStatus.name",
-          es.code AS "employmentStatus.code",
-          es.employed AS "employmentStatus.employed",
-          es.description AS "employmentStatus.description"
-        FROM status_changes sc
-        LEFT JOIN employers e ON sc.employer_id = e.id
-        LEFT JOIN options_employment_status es ON sc.employment_status_id = es.id
-        WHERE sc.prev_status_id IS NULL OR sc.prev_status_id != sc.employment_status_id
-        ORDER BY sc.year DESC, sc.month DESC, sc.day DESC, sc.employer_id
-      `);
-
-      return results.rows.map((row: any) => ({
-        id: row.id,
-        month: row.month,
-        year: row.year,
-        day: row.day,
-        workerId: row.worker_id,
-        employerId: row.employer_id,
-        employmentStatusId: row.employment_status_id,
-        home: row.home,
-        employer: {
-          id: row['employer.id'],
-          siriusId: row['employer.siriusId'],
-          name: row['employer.name'],
-          isActive: row['employer.isActive'],
-          stripeCustomerId: row['employer.stripeCustomerId'],
-        },
-        employmentStatus: {
-          id: row['employmentStatus.id'],
-          name: row['employmentStatus.name'],
-          code: row['employmentStatus.code'],
-          employed: row['employmentStatus.employed'],
-          description: row['employmentStatus.description'],
-        },
-      }));
-    },
-
-    async getWorkerHoursMonthly(workerId: string): Promise<any[]> {
-      const results = await db.execute(sql`
-        SELECT
-          wh.employer_id,
-          wh.year,
-          wh.month,
-          SUM(wh.hours) AS total_hours,
-          wh.employment_status_id,
-          BOOL_AND(wh.home) AS all_home,
-          BOOL_OR(wh.home) AS some_home,
-          e.id AS "employer.id",
-          e.sirius_id AS "employer.siriusId",
-          e.name AS "employer.name",
-          e.is_active AS "employer.isActive",
-          e.stripe_customer_id AS "employer.stripeCustomerId",
-          es.id AS "employmentStatus.id",
-          es.name AS "employmentStatus.name",
-          es.code AS "employmentStatus.code",
-          es.employed AS "employmentStatus.employed",
-          es.description AS "employmentStatus.description"
-        FROM worker_hours wh
-        LEFT JOIN employers e ON wh.employer_id = e.id
-        LEFT JOIN options_employment_status es ON wh.employment_status_id = es.id
-        WHERE wh.worker_id = ${workerId}
-        GROUP BY wh.employer_id, wh.year, wh.month, wh.employment_status_id,
-                 e.id, e.sirius_id, e.name, e.is_active, e.stripe_customer_id,
-                 es.id, es.name, es.code, es.employed, es.description
-        ORDER BY wh.year DESC, wh.month DESC, wh.employer_id
-      `);
-
-      return results.rows.map((row: any) => {
-        let homeStatus: 'all' | 'some' | 'none';
-        if (row.all_home) {
-          homeStatus = 'all';
-        } else if (row.some_home) {
-          homeStatus = 'some';
-        } else {
-          homeStatus = 'none';
-        }
-
-        return {
-          employerId: row.employer_id,
-          year: row.year,
-          month: row.month,
-          totalHours: row.total_hours,
-          employmentStatusId: row.employment_status_id,
-          homeStatus,
-          employer: {
-            id: row['employer.id'],
-            siriusId: row['employer.siriusId'],
-            name: row['employer.name'],
-            isActive: row['employer.isActive'],
-            stripeCustomerId: row['employer.stripeCustomerId'],
-          },
-          employmentStatus: {
-            id: row['employmentStatus.id'],
-            name: row['employmentStatus.name'],
-            code: row['employmentStatus.code'],
-            employed: row['employmentStatus.employed'],
-            description: row['employmentStatus.description'],
-          },
-        };
-      });
-    },
-
-    async getMonthlyHoursTotal(workerId: string, employerId: string, year: number, month: number, employmentStatusIds?: string[]): Promise<number> {
-      let query = db
-        .select({ totalHours: sql<number>`COALESCE(SUM(${workerHours.hours}), 0)` })
-        .from(workerHours)
-        .where(and(
-          eq(workerHours.workerId, workerId),
-          eq(workerHours.employerId, employerId),
-          eq(workerHours.year, year),
-          eq(workerHours.month, month)
-        ));
-
-      if (employmentStatusIds && employmentStatusIds.length > 0) {
-        const { inArray } = await import("drizzle-orm");
-        query = db
-          .select({ totalHours: sql<number>`COALESCE(SUM(${workerHours.hours}), 0)` })
-          .from(workerHours)
-          .where(and(
-            eq(workerHours.workerId, workerId),
-            eq(workerHours.employerId, employerId),
-            eq(workerHours.year, year),
-            eq(workerHours.month, month),
-            inArray(workerHours.employmentStatusId, employmentStatusIds)
-          ));
-      }
-
-      const [result] = await query;
-      return Number(result?.totalHours || 0);
-    },
-
-    async createWorkerHours(data: { workerId: string; month: number; year: number; day: number; employerId: string; employmentStatusId: string; hours: number | null; home?: boolean }): Promise<WorkerHoursResult> {
-      const [savedHours] = await db
-        .insert(workerHours)
-        .values(data)
-        .returning();
-
-      let notifications: LedgerNotification[] = [];
-
-      // Execute charge plugins after hours are created (always trigger for monthly reconciliation)
-      if (savedHours) {
-        try {
-          const { executeChargePlugins, TriggerType } = await import("../charge-plugins");
-          
-          const context = {
-            trigger: TriggerType.HOURS_SAVED as typeof TriggerType.HOURS_SAVED,
-            hoursId: savedHours.id,
-            workerId: savedHours.workerId,
-            employerId: savedHours.employerId,
-            year: savedHours.year,
-            month: savedHours.month,
-            day: savedHours.day,
-            hours: savedHours.hours || 0,
-            employmentStatusId: savedHours.employmentStatusId,
-            home: savedHours.home,
-          };
-
-          const result = await executeChargePlugins(context);
-          notifications = result.notifications;
-        } catch (error) {
-          logger.error("Failed to execute charge plugins for hours create", {
-            service: "workers-storage",
-            hoursId: savedHours.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-
-      return { data: savedHours, notifications };
-    },
-
-    async updateWorkerHours(id: string, data: { year?: number; month?: number; day?: number; employerId?: string; employmentStatusId?: string; hours?: number | null; home?: boolean }): Promise<WorkerHoursResult | undefined> {
-      const [updated] = await db
-        .update(workerHours)
-        .set(data)
-        .where(eq(workerHours.id, id))
-        .returning();
-      
-      if (!updated) {
-        return undefined;
-      }
-
-      let notifications: LedgerNotification[] = [];
-
-      // Execute charge plugins after hours are updated (always trigger for monthly reconciliation)
-      try {
-        const { executeChargePlugins, TriggerType } = await import("../charge-plugins");
-        
-        const context = {
-          trigger: TriggerType.HOURS_SAVED as typeof TriggerType.HOURS_SAVED,
-          hoursId: updated.id,
-          workerId: updated.workerId,
-          employerId: updated.employerId,
-          year: updated.year,
-          month: updated.month,
-          day: updated.day,
-          hours: updated.hours || 0,
-          employmentStatusId: updated.employmentStatusId,
-          home: updated.home,
-        };
-
-        const result = await executeChargePlugins(context);
-        notifications = result.notifications;
-      } catch (error) {
-        logger.error("Failed to execute charge plugins for hours update", {
-          service: "workers-storage",
-          hoursId: updated.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      return { data: updated, notifications };
-    },
-
-    async deleteWorkerHours(id: string): Promise<WorkerHoursDeleteResult> {
-      const result = await db
-        .delete(workerHours)
-        .where(eq(workerHours.id, id))
-        .returning();
-      
-      const deleted = result[0];
-      let notifications: LedgerNotification[] = [];
-
-      if (deleted) {
-        // Execute charge plugins after hours are deleted (for monthly reconciliation)
-        try {
-          const { executeChargePlugins, TriggerType } = await import("../charge-plugins");
-          
-          const context = {
-            trigger: TriggerType.HOURS_SAVED as typeof TriggerType.HOURS_SAVED,
-            hoursId: deleted.id,
-            workerId: deleted.workerId,
-            employerId: deleted.employerId,
-            year: deleted.year,
-            month: deleted.month,
-            day: deleted.day,
-            hours: 0, // Treat deleted as 0 hours for recalculation
-            employmentStatusId: deleted.employmentStatusId,
-            home: deleted.home,
-          };
-
-          const pluginResult = await executeChargePlugins(context);
-          notifications = pluginResult.notifications;
-        } catch (error) {
-          logger.error("Failed to execute charge plugins for hours delete", {
-            service: "workers-storage",
-            hoursId: deleted.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-      
-      return { success: result.length > 0, notifications };
-    },
-
-    async upsertWorkerHours(data: { workerId: string; month: number; year: number; employerId: string; employmentStatusId: string; hours: number | null; home?: boolean }): Promise<WorkerHoursResult> {
-      const [savedHours] = await db
-        .insert(workerHours)
-        .values({
-          ...data,
-          day: 1, // Always use day 1 as specified
-        })
-        .onConflictDoUpdate({
-          target: [workerHours.workerId, workerHours.employerId, workerHours.year, workerHours.month, workerHours.day],
-          set: {
-            employmentStatusId: data.employmentStatusId,
-            hours: data.hours,
-          },
-        })
-        .returning();
-
-      let notifications: LedgerNotification[] = [];
-
-      // Execute charge plugins after hours are saved (always trigger for monthly reconciliation)
-      if (savedHours) {
-        try {
-          const { executeChargePlugins, TriggerType } = await import("../charge-plugins");
-          
-          const context = {
-            trigger: TriggerType.HOURS_SAVED as typeof TriggerType.HOURS_SAVED,
-            hoursId: savedHours.id,
-            workerId: savedHours.workerId,
-            employerId: savedHours.employerId,
-            year: savedHours.year,
-            month: savedHours.month,
-            day: savedHours.day,
-            hours: savedHours.hours || 0,
-            employmentStatusId: savedHours.employmentStatusId,
-            home: savedHours.home,
-          };
-
-          const result = await executeChargePlugins(context);
-          notifications = result.notifications;
-        } catch (error) {
-          logger.error("Failed to execute charge plugins for hours save", {
-            service: "workers-storage",
-            hoursId: savedHours.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-
-      return { data: savedHours, notifications };
-    },
   };
 
   return storage;
@@ -959,9 +492,6 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
  * Contact-related update methods (updateWorkerContactName, updateWorkerContactEmail, etc.) 
  * are not logged at the worker level to avoid redundant entries - they are logged via the 
  * contact storage module.
- * 
- * Worker hours CRUD operations are logged here with the worker as the host entity to maintain
- * a complete audit trail of worker-related data changes.
  */
 export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
   module: 'workers',
@@ -969,9 +499,8 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
     createWorker: {
       enabled: true,
       getEntityId: (args, result) => result?.id || 'new worker',
-      getHostEntityId: (args, result) => result?.id, // Worker ID is the host
+      getHostEntityId: (args, result) => result?.id,
       after: async (args, result, storage) => {
-        // Fetch the associated contact for enriched logging
         const [contact] = await db.select().from(contacts).where(eq(contacts.id, result.contactId));
         return {
           worker: result,
@@ -988,15 +517,14 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
     },
     deleteWorker: {
       enabled: true,
-      getEntityId: (args) => args[0], // Worker ID
-      getHostEntityId: (args, result, beforeState) => beforeState?.worker?.id || args[0], // Worker ID is the host
+      getEntityId: (args) => args[0],
+      getHostEntityId: (args, result, beforeState) => beforeState?.worker?.id || args[0],
       before: async (args, storage) => {
         const worker = await storage.getWorker(args[0]);
         if (!worker) {
           return null;
         }
         
-        // Fetch the associated contact for enriched logging
         const [contact] = await db.select().from(contacts).where(eq(contacts.id, worker.contactId));
         return {
           worker: worker,
@@ -1021,8 +549,8 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
     },
     updateWorkerStatus: {
       enabled: true,
-      getEntityId: (args) => args[0], // Worker ID
-      getHostEntityId: (args) => args[0], // Worker ID is the host
+      getEntityId: (args) => args[0],
+      getHostEntityId: (args) => args[0],
       getDescription: async (args, result, beforeState, afterState) => {
         const oldStatus = beforeState?.workStatus?.name || 'None';
         const newStatus = afterState?.workStatus?.name || 'None';
@@ -1073,177 +601,7 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
           }
         };
       }
-    },
-    createWorkerHours: {
-      enabled: true,
-      getEntityId: (args, result) => result?.id || 'new hours entry',
-      getHostEntityId: (args) => args[0]?.workerId, // Worker ID is the host
-      after: async (args, result, storage) => {
-        // Fetch related employer and employment status for enriched logging
-        const [employer] = await db.select().from(employers).where(eq(employers.id, result.employerId));
-        const [employmentStatus] = await db.select().from(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, result.employmentStatusId));
-        return {
-          hours: result,
-          employer: employer,
-          employmentStatus: employmentStatus,
-          metadata: {
-            workerId: result.workerId,
-            year: result.year,
-            month: result.month,
-            hours: result.hours,
-            note: `Hours entry created for ${result.year}/${result.month}`
-          }
-        };
-      }
-    },
-    updateWorkerHours: {
-      enabled: true,
-      getEntityId: (args) => args[0], // Hours entry ID
-      getHostEntityId: async (args, result, beforeState) => {
-        // Get worker ID from the hours entry
-        if (beforeState?.hours?.workerId) {
-          return beforeState.hours.workerId;
-        }
-        const [hoursEntry] = await db.select().from(workerHours).where(eq(workerHours.id, args[0]));
-        return hoursEntry?.workerId;
-      },
-      before: async (args, storage) => {
-        const [hoursEntry] = await db.select().from(workerHours).where(eq(workerHours.id, args[0]));
-        if (!hoursEntry) {
-          return null;
-        }
-        
-        const [employer] = await db.select().from(employers).where(eq(employers.id, hoursEntry.employerId));
-        const [employmentStatus] = await db.select().from(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, hoursEntry.employmentStatusId));
-        return {
-          hours: hoursEntry,
-          employer: employer,
-          employmentStatus: employmentStatus,
-          metadata: {
-            workerId: hoursEntry.workerId,
-            year: hoursEntry.year,
-            month: hoursEntry.month
-          }
-        };
-      },
-      after: async (args, result, storage) => {
-        if (!result) return null;
-        
-        const [employer] = await db.select().from(employers).where(eq(employers.id, result.employerId));
-        const [employmentStatus] = await db.select().from(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, result.employmentStatusId));
-        return {
-          hours: result,
-          employer: employer,
-          employmentStatus: employmentStatus,
-          metadata: {
-            workerId: result.workerId,
-            year: result.year,
-            month: result.month,
-            hours: result.hours
-          }
-        };
-      }
-    },
-    deleteWorkerHours: {
-      enabled: true,
-      getEntityId: (args) => args[0], // Hours entry ID
-      getHostEntityId: async (args, result, beforeState) => {
-        // Get worker ID from the hours entry
-        if (beforeState?.hours?.workerId) {
-          return beforeState.hours.workerId;
-        }
-        const [hoursEntry] = await db.select().from(workerHours).where(eq(workerHours.id, args[0]));
-        return hoursEntry?.workerId;
-      },
-      before: async (args, storage) => {
-        const [hoursEntry] = await db.select().from(workerHours).where(eq(workerHours.id, args[0]));
-        if (!hoursEntry) {
-          return null;
-        }
-        
-        const [employer] = await db.select().from(employers).where(eq(employers.id, hoursEntry.employerId));
-        const [employmentStatus] = await db.select().from(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, hoursEntry.employmentStatusId));
-        return {
-          hours: hoursEntry,
-          employer: employer,
-          employmentStatus: employmentStatus,
-          metadata: {
-            workerId: hoursEntry.workerId,
-            year: hoursEntry.year,
-            month: hoursEntry.month,
-            hours: hoursEntry.hours,
-            note: `Hours entry deleted for ${hoursEntry.year}/${hoursEntry.month}`
-          }
-        };
-      }
-    },
-    upsertWorkerHours: {
-      enabled: true,
-      getEntityId: (args, result) => result?.id || 'hours entry',
-      getHostEntityId: (args) => args[0]?.workerId, // Worker ID is the host
-      getDescription: async (args, result, beforeState, afterState, storage) => {
-        const operation = beforeState && beforeState.hours ? 'update' : 'create';
-        const workerId = args[0]?.workerId || result?.workerId;
-        const year = args[0]?.year || result?.year;
-        const month = args[0]?.month || result?.month;
-        return `Worker hours ${operation}d for worker ${workerId} (${year}/${month})`;
-      },
-      before: async (args, storage) => {
-        // Check if an existing entry exists
-        const [existingEntry] = await db
-          .select()
-          .from(workerHours)
-          .where(
-            and(
-              eq(workerHours.workerId, args[0].workerId),
-              eq(workerHours.employerId, args[0].employerId),
-              eq(workerHours.year, args[0].year),
-              eq(workerHours.month, args[0].month),
-              eq(workerHours.day, 1)
-            )
-          );
-        
-        if (!existingEntry) {
-          return null;
-        }
-        
-        const [employer] = await db.select().from(employers).where(eq(employers.id, existingEntry.employerId));
-        const [employmentStatus] = await db.select().from(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, existingEntry.employmentStatusId));
-        return {
-          hours: existingEntry,
-          employer: employer,
-          employmentStatus: employmentStatus,
-          metadata: {
-            workerId: existingEntry.workerId,
-            year: existingEntry.year,
-            month: existingEntry.month,
-            hours: existingEntry.hours,
-            operation: 'update'
-          }
-        };
-      },
-      after: async (args, result, storage, beforeState) => {
-        if (!result) return null;
-        
-        const [employer] = await db.select().from(employers).where(eq(employers.id, result.employerId));
-        const [employmentStatus] = await db.select().from(optionsEmploymentStatus).where(eq(optionsEmploymentStatus.id, result.employmentStatusId));
-        
-        // Determine if this was a create or update based on beforeState
-        const operation = beforeState && beforeState.hours ? 'update' : 'create';
-        
-        return {
-          hours: result,
-          employer: employer,
-          employmentStatus: employmentStatus,
-          metadata: {
-            workerId: result.workerId,
-            year: result.year,
-            month: result.month,
-            hours: result.hours,
-            operation
-          }
-        };
-      }
     }
   }
 };
+
