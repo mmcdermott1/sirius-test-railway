@@ -51,8 +51,11 @@ export async function processNextQueueJob(
         actions: result.actions.map(a => ({
           benefitId: a.benefitId,
           benefitName: a.benefitName,
+          scanType: a.scanType,
+          eligible: a.eligible,
           action: a.action,
           executed: a.executed,
+          pluginResults: a.pluginResults,
         })),
       }
     );

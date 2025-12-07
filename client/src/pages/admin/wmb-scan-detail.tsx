@@ -1,10 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -25,7 +33,10 @@ import {
   User,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Eye,
+  ShieldCheck,
+  ShieldX
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -62,6 +73,22 @@ interface QueueEntry {
 interface ScanDetailResponse {
   status: MonthStatus;
   queueEntries: QueueEntry[];
+}
+
+interface PluginResult {
+  pluginKey: string;
+  eligible: boolean;
+  reason?: string;
+}
+
+interface BenefitAction {
+  benefitId: string;
+  benefitName: string;
+  scanType: "start" | "continue";
+  eligible: boolean;
+  action: "create" | "delete" | "none";
+  executed: boolean;
+  pluginResults?: PluginResult[];
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -103,8 +130,143 @@ function getResultCounts(resultSummary: any) {
   return { started, continued, terminated };
 }
 
+function BenefitDetailsModal({ 
+  entry, 
+  open, 
+  onClose 
+}: { 
+  entry: QueueEntry | null; 
+  open: boolean; 
+  onClose: () => void;
+}) {
+  if (!entry) return null;
+
+  const actions = (entry.resultSummary?.actions || []) as BenefitAction[];
+  const started = actions.filter(a => a.scanType === "start" && a.eligible);
+  const continued = actions.filter(a => a.scanType === "continue" && a.eligible && a.action !== "delete");
+  const terminated = actions.filter(a => a.scanType === "continue" && a.action === "delete");
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            {entry.workerDisplayName || "Unknown Worker"}
+          </DialogTitle>
+          <DialogDescription>
+            Sirius ID: {entry.workerSiriusId || "-"} | Policy: {entry.resultSummary?.policyName || "Unknown"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {started.length > 0 && (
+            <div>
+              <h4 className="font-medium flex items-center gap-2 mb-2 text-green-600 dark:text-green-400">
+                <TrendingUp className="h-4 w-4" />
+                Benefits Started ({started.length})
+              </h4>
+              <div className="space-y-2">
+                {started.map((action, i) => (
+                  <div key={i} className="p-3 bg-green-50 dark:bg-green-950/20 rounded-md border border-green-200 dark:border-green-900">
+                    <div className="font-medium">{action.benefitName}</div>
+                    {action.pluginResults && action.pluginResults.length > 0 && (
+                      <div className="mt-2 text-sm space-y-1">
+                        {action.pluginResults.map((pr, j) => (
+                          <div key={j} className="flex items-center gap-2">
+                            {pr.eligible ? (
+                              <ShieldCheck className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <ShieldX className="h-3 w-3 text-red-600" />
+                            )}
+                            <span className="font-mono text-xs">{pr.pluginKey}</span>
+                            {pr.reason && <span className="text-muted-foreground">- {pr.reason}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {continued.length > 0 && (
+            <div>
+              <h4 className="font-medium flex items-center gap-2 mb-2">
+                <Minus className="h-4 w-4" />
+                Benefits Continued ({continued.length})
+              </h4>
+              <div className="space-y-2">
+                {continued.map((action, i) => (
+                  <div key={i} className="p-3 bg-muted/50 rounded-md border">
+                    <div className="font-medium">{action.benefitName}</div>
+                    {action.pluginResults && action.pluginResults.length > 0 && (
+                      <div className="mt-2 text-sm space-y-1">
+                        {action.pluginResults.map((pr, j) => (
+                          <div key={j} className="flex items-center gap-2">
+                            {pr.eligible ? (
+                              <ShieldCheck className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <ShieldX className="h-3 w-3 text-red-600" />
+                            )}
+                            <span className="font-mono text-xs">{pr.pluginKey}</span>
+                            {pr.reason && <span className="text-muted-foreground">- {pr.reason}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {terminated.length > 0 && (
+            <div>
+              <h4 className="font-medium flex items-center gap-2 mb-2 text-red-600 dark:text-red-400">
+                <TrendingDown className="h-4 w-4" />
+                Benefits Terminated ({terminated.length})
+              </h4>
+              <div className="space-y-2">
+                {terminated.map((action, i) => {
+                  const failedPlugins = action.pluginResults?.filter(pr => !pr.eligible) || [];
+                  return (
+                    <div key={i} className="p-3 bg-red-50 dark:bg-red-950/20 rounded-md border border-red-200 dark:border-red-900">
+                      <div className="font-medium">{action.benefitName}</div>
+                      {failedPlugins.length > 0 && (
+                        <div className="mt-2 text-sm space-y-1">
+                          <div className="text-muted-foreground text-xs mb-1">Failed eligibility checks:</div>
+                          {failedPlugins.map((pr, j) => (
+                            <div key={j} className="flex items-center gap-2">
+                              <ShieldX className="h-3 w-3 text-red-600" />
+                              <span className="font-mono text-xs">{pr.pluginKey}</span>
+                              {pr.reason && <span className="text-muted-foreground">- {pr.reason}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {started.length === 0 && continued.length === 0 && terminated.length === 0 && (
+            <div className="text-center text-muted-foreground py-4">
+              No benefit changes recorded for this worker
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function WmbScanDetail() {
   const { id } = useParams<{ id: string }>();
+  const [selectedEntry, setSelectedEntry] = useState<QueueEntry | null>(null);
 
   const { data, isLoading, error } = useQuery<ScanDetailResponse>({
     queryKey: ["/api/wmb-scan/detail", id],
@@ -320,12 +482,13 @@ export default function WmbScanDetail() {
                   <TableHead className="w-20 text-center">Continued</TableHead>
                   <TableHead className="w-20 text-center">Terminated</TableHead>
                   <TableHead className="w-48">Completed</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {queueEntries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No workers in this scan
                     </TableCell>
                   </TableRow>
@@ -373,6 +536,18 @@ export default function WmbScanDetail() {
                         <TableCell className="text-sm text-muted-foreground">
                           {entry.completedAt ? format(new Date(entry.completedAt), "MMM d, h:mm a") : "-"}
                         </TableCell>
+                        <TableCell>
+                          {entry.status === "success" && entry.resultSummary?.actions && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => setSelectedEntry(entry)}
+                              data-testid={`button-view-details-${entry.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -382,6 +557,12 @@ export default function WmbScanDetail() {
           </div>
         </CardContent>
       </Card>
+
+      <BenefitDetailsModal 
+        entry={selectedEntry} 
+        open={selectedEntry !== null} 
+        onClose={() => setSelectedEntry(null)} 
+      />
     </div>
   );
 }
