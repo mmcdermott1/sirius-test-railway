@@ -20,6 +20,7 @@ import { type ChargePluginConfigStorage, createChargePluginConfigStorage } from 
 import { type LogsStorage, createLogsStorage } from "./logs";
 import { type WorkerWshStorage, createWorkerWshStorage, workerWshLoggingConfig } from "./worker-wsh";
 import { type WorkerHoursStorage, createWorkerHoursStorage, workerHoursLoggingConfig } from "./worker-hours";
+import { type PolicyStorage, createPolicyStorage, policyLoggingConfig } from "./policies";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -49,6 +50,7 @@ export interface IStorage {
   logs: LogsStorage;
   workerWsh: WorkerWshStorage;
   workerHours: WorkerHoursStorage;
+  policies: PolicyStorage;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -75,6 +77,7 @@ export class DatabaseStorage implements IStorage {
   logs: LogsStorage;
   workerWsh: WorkerWshStorage;
   workerHours: WorkerHoursStorage;
+  policies: PolicyStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -122,6 +125,10 @@ export class DatabaseStorage implements IStorage {
     this.workerHours = withStorageLogging(
       createWorkerHoursStorage(),
       workerHoursLoggingConfig
+    );
+    this.policies = withStorageLogging(
+      createPolicyStorage(),
+      policyLoggingConfig
     );
   }
 }

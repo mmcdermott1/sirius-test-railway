@@ -86,6 +86,13 @@ export const employers = pgTable("employers", {
   stripeCustomerId: text("stripe_customer_id"),
 });
 
+export const policies = pgTable("policies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  siriusId: varchar("sirius_id").notNull().unique(),
+  name: text("name"),
+  data: jsonb("data"),
+});
+
 export const employerContacts = pgTable("employer_contacts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
@@ -445,6 +452,10 @@ export const insertEmployerSchema = createInsertSchema(employers).omit({
   id: true,
 });
 
+export const insertPolicySchema = createInsertSchema(policies).omit({
+  id: true,
+});
+
 export const insertEmployerContactSchema = createInsertSchema(employerContacts).omit({
   id: true,
 });
@@ -644,6 +655,9 @@ export type Worker = typeof workers.$inferSelect;
 
 export type InsertEmployer = z.infer<typeof insertEmployerSchema>;
 export type Employer = typeof employers.$inferSelect;
+
+export type InsertPolicy = z.infer<typeof insertPolicySchema>;
+export type Policy = typeof policies.$inferSelect;
 
 export type InsertEmployerContact = z.infer<typeof insertEmployerContactSchema>;
 export type EmployerContact = typeof employerContacts.$inferSelect;
