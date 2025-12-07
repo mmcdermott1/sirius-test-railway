@@ -27,6 +27,7 @@ import WorkerGender from "@/pages/worker-gender";
 import WorkerWorkStatus from "@/pages/worker-work-status";
 import WorkerBenefitsHistory from "@/pages/worker-benefits-history";
 import WorkerBenefitsEligibility from "@/pages/worker-benefits-eligibility";
+import WorkerBenefitsScan from "@/pages/worker-benefits-scan";
 import WorkerCurrentEmployment from "@/pages/worker-current-employment";
 import WorkerEmploymentHistory from "@/pages/worker-employment-history";
 import WorkerHoursMonthly from "@/pages/worker-hours-monthly";
@@ -336,6 +337,14 @@ function Router() {
         <ProtectedRoute permission="workers.view">
           <AuthenticatedLayout>
             <WorkerBenefitsEligibility />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/benefits/scan">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerBenefitsScan />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

@@ -26,7 +26,7 @@ export function useWorkerLayout() {
 }
 
 interface WorkerLayoutProps {
-  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "benefits" | "benefits-history" | "benefits-eligibility" | "logs" | "delete";
+  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "logs" | "delete";
   children: ReactNode;
 }
 
@@ -188,6 +188,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const benefitsSubTabs = [
     { id: "benefits-history", label: "History", href: `/workers/${worker.id}/benefits/history` },
     { id: "benefits-eligibility", label: "Eligibility", href: `/workers/${worker.id}/benefits/eligibility` },
+    { id: "benefits-scan", label: "Scan", href: `/workers/${worker.id}/benefits/scan` },
   ];
 
   // Determine if we're in a sub-tab
@@ -195,7 +196,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const isContactSubTab = ["email", "addresses", "phone-numbers"].includes(activeTab);
   const isCommSubTab = ["comm-history", "send-sms", "send-email", "send-postal"].includes(activeTab);
   const isEmploymentSubTab = ["current", "history", "monthly", "daily"].includes(activeTab);
-  const isBenefitsSubTab = ["benefits-history", "benefits-eligibility"].includes(activeTab);
+  const isBenefitsSubTab = ["benefits-history", "benefits-eligibility", "benefits-scan"].includes(activeTab);
   const showIdentitySubTabs = isIdentitySubTab;
   const showContactSubTabs = isContactSubTab;
   const showCommSubTabs = isCommSubTab;
