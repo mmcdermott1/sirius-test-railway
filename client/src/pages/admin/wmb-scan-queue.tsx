@@ -84,6 +84,7 @@ export default function WmbScanQueue() {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(String(currentDate.getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(currentDate.getFullYear()));
+  const [batchSize, setBatchSize] = useState("10");
 
   const { data: statuses = [], isLoading: isLoadingStatuses, refetch: refetchStatuses } = useQuery<MonthStatus[]>({
     queryKey: ["/api/wmb-scan/status"],
@@ -146,7 +147,7 @@ export default function WmbScanQueue() {
   };
 
   const handleProcessBatch = () => {
-    processBatchMutation.mutate(10);
+    processBatchMutation.mutate(parseInt(batchSize));
   };
 
   const handleRefresh = () => {
@@ -255,7 +256,22 @@ export default function WmbScanQueue() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="batch-size-select">Batch Size</Label>
+                  <Select value={batchSize} onValueChange={setBatchSize}>
+                    <SelectTrigger id="batch-size-select" className="w-24" data-testid="select-batch-size">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button 
                   onClick={handleProcessBatch}
                   disabled={processBatchMutation.isPending || totalPending === 0}
@@ -266,7 +282,7 @@ export default function WmbScanQueue() {
                   ) : (
                     <Play className="h-4 w-4 mr-2" />
                   )}
-                  Process Batch (10)
+                  Process Batch
                 </Button>
               </div>
               {totalPending > 0 && (
