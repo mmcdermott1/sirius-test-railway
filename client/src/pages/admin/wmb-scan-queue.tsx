@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,7 +31,8 @@ import {
   CheckCircle2,
   Loader2,
   ListOrdered,
-  Square
+  Square,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -458,6 +460,7 @@ export default function WmbScanQueue() {
                   <TableHead className="text-right text-red-600 dark:text-red-400">Terminated</TableHead>
                   <TableHead>Queued At</TableHead>
                   <TableHead>Completed At</TableHead>
+                  <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -480,6 +483,13 @@ export default function WmbScanQueue() {
                     </TableCell>
                     <TableCell>
                       {status.completedAt ? format(new Date(status.completedAt), "MMM d, yyyy HH:mm") : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Link href={`/admin/wmb-scan/${status.id}`}>
+                        <Button variant="ghost" size="icon" data-testid={`button-view-${status.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}

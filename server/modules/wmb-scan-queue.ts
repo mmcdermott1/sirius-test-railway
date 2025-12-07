@@ -84,6 +84,96 @@ export function registerWmbScanQueueRoutes(
     }
   );
 
+  app.get(
+    "/api/wmb-scan/detail/:id",
+    requireAuth,
+    requireAccess(policies.admin),
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const status = await storage.wmbScanQueue.getStatusById(id);
+        if (!status) {
+          return res.status(404).json({ message: "Scan status not found" });
+        }
+        
+        const queueEntries = await storage.wmbScanQueue.getQueueEntriesWithWorkerInfo(id);
+        res.json({ status, queueEntries });
+      } catch (error: any) {
+        console.error("Error fetching WMB scan detail:", error);
+        res.status(500).json({ message: error.message || "Failed to fetch scan detail" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/wmb-scan/detail/:id/export",
+    requireAuth,
+    requireAccess(policies.admin),
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const status = await storage.wmbScanQueue.getStatusById(id);
+        if (!status) {
+          return res.status(404).json({ message: "Scan status not found" });
+        }
+        
+        const queueEntries = await storage.wmbScanQueue.getQueueEntriesWithWorkerInfo(id);
+        
+        // Build CSV
+        const headers = [
+          "Sirius ID",
+          "Worker Name",
+          "Status",
+          "Trigger Source",
+          "Attempts",
+          "Completed At",
+          "Benefits Started",
+          "Benefits Continued",
+          "Benefits Terminated",
+          "Error",
+        ];
+        
+        const rows = queueEntries.map(entry => {
+          const summary = entry.resultSummary as any;
+          let started = 0, continued = 0, terminated = 0;
+          
+          if (summary?.actions && Array.isArray(summary.actions)) {
+            for (const action of summary.actions) {
+              if (action.scanType === "start" && action.eligible) started++;
+              else if (action.scanType === "continue") {
+                if (action.action === "delete") terminated++;
+                else if (action.eligible) continued++;
+              }
+            }
+          }
+          
+          return [
+            entry.workerSiriusId || "",
+            entry.workerDisplayName || "",
+            entry.status,
+            entry.triggerSource,
+            entry.attempts,
+            entry.completedAt ? new Date(entry.completedAt).toISOString() : "",
+            started,
+            continued,
+            terminated,
+            entry.lastError || "",
+          ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(",");
+        });
+        
+        const csv = [headers.join(","), ...rows].join("\n");
+        const filename = `wmb-scan-${status.year}-${String(status.month).padStart(2, "0")}.csv`;
+        
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.send(csv);
+      } catch (error: any) {
+        console.error("Error exporting WMB scan results:", error);
+        res.status(500).json({ message: error.message || "Failed to export scan results" });
+      }
+    }
+  );
+
   app.post(
     "/api/wmb-scan/enqueue-month",
     requireAuth,

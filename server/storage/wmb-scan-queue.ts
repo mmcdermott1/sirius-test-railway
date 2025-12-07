@@ -3,20 +3,28 @@ import {
   trustWmbScanStatus,
   trustWmbScanQueue,
   workers,
+  contacts,
   type TrustWmbScanStatus,
   type TrustWmbScanQueue,
 } from "@shared/schema";
 import { eq, and, sql, gte, inArray, or, desc, asc } from "drizzle-orm";
 
+export interface QueueEntryWithWorker extends TrustWmbScanQueue {
+  workerSiriusId: number | null;
+  workerDisplayName: string | null;
+}
+
 export interface WmbScanQueueStorage {
   // Status methods
   getMonthStatus(month: number, year: number): Promise<TrustWmbScanStatus | undefined>;
+  getStatusById(id: string): Promise<TrustWmbScanStatus | undefined>;
   getAllMonthStatuses(): Promise<TrustWmbScanStatus[]>;
   createMonthStatus(month: number, year: number): Promise<TrustWmbScanStatus>;
   updateMonthStatus(id: string, data: Partial<TrustWmbScanStatus>): Promise<TrustWmbScanStatus | undefined>;
   
   // Queue methods
   getQueuedWorkers(statusId: string): Promise<TrustWmbScanQueue[]>;
+  getQueueEntriesWithWorkerInfo(statusId: string): Promise<QueueEntryWithWorker[]>;
   getWorkerQueueEntry(workerId: string, month: number, year: number): Promise<TrustWmbScanQueue | undefined>;
   
   // Bulk operations
@@ -41,6 +49,14 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
         .select()
         .from(trustWmbScanStatus)
         .where(and(eq(trustWmbScanStatus.month, month), eq(trustWmbScanStatus.year, year)));
+      return status || undefined;
+    },
+
+    async getStatusById(id: string): Promise<TrustWmbScanStatus | undefined> {
+      const [status] = await db
+        .select()
+        .from(trustWmbScanStatus)
+        .where(eq(trustWmbScanStatus.id, id));
       return status || undefined;
     },
 
@@ -74,6 +90,33 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
         .from(trustWmbScanQueue)
         .where(eq(trustWmbScanQueue.statusId, statusId))
         .orderBy(asc(trustWmbScanQueue.status), asc(trustWmbScanQueue.id));
+    },
+
+    async getQueueEntriesWithWorkerInfo(statusId: string): Promise<QueueEntryWithWorker[]> {
+      const results = await db
+        .select({
+          id: trustWmbScanQueue.id,
+          statusId: trustWmbScanQueue.statusId,
+          workerId: trustWmbScanQueue.workerId,
+          month: trustWmbScanQueue.month,
+          year: trustWmbScanQueue.year,
+          status: trustWmbScanQueue.status,
+          triggerSource: trustWmbScanQueue.triggerSource,
+          resultSummary: trustWmbScanQueue.resultSummary,
+          scheduledFor: trustWmbScanQueue.scheduledFor,
+          pickedAt: trustWmbScanQueue.pickedAt,
+          completedAt: trustWmbScanQueue.completedAt,
+          attempts: trustWmbScanQueue.attempts,
+          lastError: trustWmbScanQueue.lastError,
+          workerSiriusId: workers.siriusId,
+          workerDisplayName: contacts.displayName,
+        })
+        .from(trustWmbScanQueue)
+        .leftJoin(workers, eq(trustWmbScanQueue.workerId, workers.id))
+        .leftJoin(contacts, eq(workers.contactId, contacts.id))
+        .where(eq(trustWmbScanQueue.statusId, statusId))
+        .orderBy(asc(workers.siriusId), asc(trustWmbScanQueue.id));
+      return results;
     },
 
     async getWorkerQueueEntry(workerId: string, month: number, year: number): Promise<TrustWmbScanQueue | undefined> {

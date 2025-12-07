@@ -102,6 +102,7 @@ import UserLogs from "@/pages/admin/user-logs";
 import AdminRolesPage from "@/pages/admin/roles";
 import AdminPermissionsPage from "@/pages/admin/permissions";
 import WmbScanQueue from "@/pages/admin/wmb-scan-queue";
+import WmbScanDetail from "@/pages/admin/wmb-scan-detail";
 import AdminQuickstarts from "@/pages/admin-quickstarts";
 import CronJobs from "@/pages/cron-jobs";
 import CronJobView from "@/pages/cron-job-view";
@@ -1421,6 +1422,14 @@ function Router() {
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <WmbScanQueue />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/wmb-scan/:id">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WmbScanDetail />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
