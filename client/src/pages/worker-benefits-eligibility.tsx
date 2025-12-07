@@ -333,8 +333,7 @@ function WorkerBenefitsEligibilityContent() {
             ) : (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  {eligibilityResult.results.length} rule(s) were evaluated. 
-                  {!eligibilityResult.eligible && " Evaluation stopped at first failing rule."}
+                  {eligibilityResult.results.length} rule(s) were evaluated.
                 </p>
                 {eligibilityResult.results.map((result, index) => (
                   <div
