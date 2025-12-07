@@ -113,6 +113,9 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
               totalQueued: 0,
               processedSuccess: 0,
               processedFailed: 0,
+              benefitsStarted: 0,
+              benefitsContinued: 0,
+              benefitsTerminated: 0,
               startedAt: null,
               completedAt: null,
             })
@@ -299,12 +302,32 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
 
         if (!job) return;
 
-        // Update status counters
+        // Parse benefit outcomes from resultSummary
+        let benefitsStarted = 0;
+        let benefitsContinued = 0;
+        let benefitsTerminated = 0;
+        
+        if (resultSummary?.actions && Array.isArray(resultSummary.actions)) {
+          for (const action of resultSummary.actions) {
+            if (action.scanType === "start" && action.eligible) {
+              benefitsStarted++;
+            } else if (action.scanType === "continue" && action.eligible) {
+              benefitsContinued++;
+            } else if (action.scanType === "continue" && action.action === "delete") {
+              benefitsTerminated++;
+            }
+          }
+        }
+
+        // Update status counters including benefit counts
         const updateField = success ? "processedSuccess" : "processedFailed";
         await tx
           .update(trustWmbScanStatus)
           .set({
             [updateField]: sql`${trustWmbScanStatus[updateField]} + 1`,
+            benefitsStarted: sql`${trustWmbScanStatus.benefitsStarted} + ${benefitsStarted}`,
+            benefitsContinued: sql`${trustWmbScanStatus.benefitsContinued} + ${benefitsContinued}`,
+            benefitsTerminated: sql`${trustWmbScanStatus.benefitsTerminated} + ${benefitsTerminated}`,
           })
           .where(eq(trustWmbScanStatus.id, job.statusId));
 
