@@ -7,7 +7,6 @@ import {
   trustBenefits,
   employers,
   optionsEmploymentStatus,
-  workerWsh,
   optionsWorkerWs,
   type Worker,
   type InsertWorker,
@@ -15,8 +14,6 @@ import {
   type WorkerHours,
   type TrustBenefit,
   type Employer,
-  type WorkerWsh,
-  type InsertWorkerWsh,
 } from "@shared/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 import type { ContactsStorage } from "./contacts";
@@ -111,11 +108,6 @@ export interface WorkerStorage {
   updateWorkerHours(id: string, data: { year?: number; month?: number; day?: number; employerId?: string; employmentStatusId?: string; hours?: number | null; home?: boolean }): Promise<WorkerHoursResult | undefined>;
   deleteWorkerHours(id: string): Promise<WorkerHoursDeleteResult>;
   upsertWorkerHours(data: { workerId: string; month: number; year: number; employerId: string; employmentStatusId: string; hours: number | null; home?: boolean }): Promise<WorkerHoursResult>;
-  // Worker work status history methods
-  getWorkerWsh(workerId: string): Promise<any[]>;
-  createWorkerWsh(data: { workerId: string; date: string; wsId: string; data?: any }): Promise<WorkerWsh>;
-  updateWorkerWsh(id: string, data: { date?: string; wsId?: string; data?: any }): Promise<WorkerWsh | undefined>;
-  deleteWorkerWsh(id: string): Promise<boolean>;
 }
 
 export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerStorage {
@@ -953,84 +945,7 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
 
       return { data: savedHours, notifications };
     },
-
-    // Worker work status history methods
-    async getWorkerWsh(workerId: string): Promise<any[]> {
-      const results = await db
-        .select({
-          id: workerWsh.id,
-          date: workerWsh.date,
-          workerId: workerWsh.workerId,
-          wsId: workerWsh.wsId,
-          data: workerWsh.data,
-          ws: optionsWorkerWs,
-        })
-        .from(workerWsh)
-        .leftJoin(optionsWorkerWs, eq(workerWsh.wsId, optionsWorkerWs.id))
-        .where(eq(workerWsh.workerId, workerId))
-        .orderBy(desc(workerWsh.date));
-
-      return results;
-    },
-
-    async createWorkerWsh(data: { workerId: string; date: string; wsId: string; data?: any }): Promise<WorkerWsh> {
-      const [wsh] = await db
-        .insert(workerWsh)
-        .values(data)
-        .returning();
-      
-      // Sync worker's current work status to the most recent history entry
-      await syncWorkerCurrentWorkStatus(data.workerId);
-      
-      return wsh;
-    },
-
-    async updateWorkerWsh(id: string, data: { date?: string; wsId?: string; data?: any }): Promise<WorkerWsh | undefined> {
-      const [updated] = await db
-        .update(workerWsh)
-        .set(data)
-        .where(eq(workerWsh.id, id))
-        .returning();
-      
-      // Sync worker's current work status to the most recent history entry
-      if (updated) {
-        await syncWorkerCurrentWorkStatus(updated.workerId);
-      }
-      
-      return updated || undefined;
-    },
-
-    async deleteWorkerWsh(id: string): Promise<boolean> {
-      const result = await db
-        .delete(workerWsh)
-        .where(eq(workerWsh.id, id))
-        .returning();
-      
-      // Sync worker's current work status to the most recent history entry
-      if (result.length > 0 && result[0].workerId) {
-        await syncWorkerCurrentWorkStatus(result[0].workerId);
-      }
-      
-      return result.length > 0;
-    },
   };
-
-  // Helper method to sync worker's current denorm_ws_id with most recent work status history entry
-  // This is defined after storage object so it can call storage.updateWorkerStatus()
-  async function syncWorkerCurrentWorkStatus(workerId: string): Promise<void> {
-    // Get the most recent work status history entry for this worker
-    // Order by date DESC, then by createdAt DESC NULLS LAST, then by id DESC as a final fallback
-    // This ensures deterministic ordering even with legacy data or edge cases
-    const [mostRecent] = await db
-      .select()
-      .from(workerWsh)
-      .where(eq(workerWsh.workerId, workerId))
-      .orderBy(desc(workerWsh.date), sql`${workerWsh.createdAt} DESC NULLS LAST`, desc(workerWsh.id))
-      .limit(1);
-
-    // Update worker's denorm_ws_id through storage layer to ensure logging
-    await storage.updateWorkerStatus(workerId, mostRecent?.wsId || null);
-  }
 
   return storage;
 }
@@ -1326,133 +1241,6 @@ export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
             month: result.month,
             hours: result.hours,
             operation
-          }
-        };
-      }
-    },
-    createWorkerWsh: {
-      enabled: true,
-      getEntityId: (args, result) => result?.id || 'new work status history',
-      getHostEntityId: (args) => args[0]?.workerId, // Worker ID is the host
-      getDescription: async (args, result, beforeState, afterState) => {
-        const workStatusName = afterState?.workStatus?.name || 'Unknown';
-        const date = result?.date || args[0]?.date || 'Unknown';
-        // Format date from YYYY-MM-DD to M/D/YYYY (avoid timezone issues)
-        let formattedDate = date;
-        if (date !== 'Unknown' && typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = date.split('-');
-          formattedDate = `${parseInt(month)}/${parseInt(day)}/${year}`;
-        }
-        return `Created Work Status Entry [${workStatusName} ${formattedDate}]`;
-      },
-      after: async (args, result, storage) => {
-        // Fetch the work status option for a friendly name
-        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, result.wsId));
-        return {
-          wsh: result,
-          workStatus: workStatus,
-          metadata: {
-            workerId: result.workerId,
-            date: result.date,
-            workStatusName: workStatus?.name || 'Unknown',
-            note: `Work status history entry created: ${workStatus?.name || 'Unknown'} on ${result.date}`
-          }
-        };
-      }
-    },
-    updateWorkerWsh: {
-      enabled: true,
-      getEntityId: (args) => args[0], // WSH entry ID
-      getHostEntityId: async (args, result, beforeState) => {
-        // Get worker ID from the WSH entry
-        if (beforeState?.wsh?.workerId) {
-          return beforeState.wsh.workerId;
-        }
-        const [wshEntry] = await db.select().from(workerWsh).where(eq(workerWsh.id, args[0]));
-        return wshEntry?.workerId;
-      },
-      getDescription: async (args, result, beforeState, afterState) => {
-        const oldStatusName = beforeState?.workStatus?.name || 'Unknown';
-        const newStatusName = afterState?.workStatus?.name || 'Unknown';
-        const date = result?.date || beforeState?.wsh?.date || 'Unknown';
-        // Format date from YYYY-MM-DD to M/D/YYYY (avoid timezone issues)
-        let formattedDate = date;
-        if (date !== 'Unknown' && typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = date.split('-');
-          formattedDate = `${parseInt(month)}/${parseInt(day)}/${year}`;
-        }
-        return `Updated Work Status Entry [${oldStatusName} → ${newStatusName} ${formattedDate}]`;
-      },
-      before: async (args, storage) => {
-        const [wshEntry] = await db.select().from(workerWsh).where(eq(workerWsh.id, args[0]));
-        if (!wshEntry) {
-          return null;
-        }
-        
-        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, wshEntry.wsId));
-        return {
-          wsh: wshEntry,
-          workStatus: workStatus,
-          metadata: {
-            workerId: wshEntry.workerId,
-            date: wshEntry.date,
-            workStatusName: workStatus?.name || 'Unknown'
-          }
-        };
-      },
-      after: async (args, result, storage) => {
-        if (!result) return null;
-        
-        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, result.wsId));
-        return {
-          wsh: result,
-          workStatus: workStatus,
-          metadata: {
-            workerId: result.workerId,
-            date: result.date,
-            workStatusName: workStatus?.name || 'Unknown',
-            note: `Work status history entry updated to: ${workStatus?.name || 'Unknown'} on ${result.date}`
-          }
-        };
-      }
-    },
-    deleteWorkerWsh: {
-      enabled: true,
-      getEntityId: (args) => args[0], // WSH entry ID
-      getHostEntityId: async (args, result, beforeState) => {
-        // Get worker ID from the WSH entry
-        if (beforeState?.wsh?.workerId) {
-          return beforeState.wsh.workerId;
-        }
-        const [wshEntry] = await db.select().from(workerWsh).where(eq(workerWsh.id, args[0]));
-        return wshEntry?.workerId;
-      },
-      getDescription: async (args, result, beforeState, afterState) => {
-        const workStatusName = beforeState?.workStatus?.name || 'Unknown';
-        const date = beforeState?.wsh?.date || 'Unknown';
-        // Format date from YYYY-MM-DD to M/D/YYYY (avoid timezone issues)
-        let formattedDate = date;
-        if (date !== 'Unknown' && typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = date.split('-');
-          formattedDate = `${parseInt(month)}/${parseInt(day)}/${year}`;
-        }
-        return `Deleted Work Status Entry [${workStatusName} ${formattedDate}]`;
-      },
-      before: async (args, storage) => {
-        const [wshEntry] = await db.select().from(workerWsh).where(eq(workerWsh.id, args[0]));
-        if (!wshEntry) {
-          return null;
-        }
-        
-        const [workStatus] = await db.select().from(optionsWorkerWs).where(eq(optionsWorkerWs.id, wshEntry.wsId));
-        return {
-          wsh: wshEntry,
-          workStatus: workStatus,
-          metadata: {
-            workerId: wshEntry.workerId,
-            date: wshEntry.date,
-            workStatusName: workStatus?.name || 'Unknown',
-            note: `Work status history entry deleted: ${workStatus?.name || 'Unknown'} on ${wshEntry.date}`
           }
         };
       }

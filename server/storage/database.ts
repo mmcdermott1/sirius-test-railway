@@ -18,6 +18,7 @@ import { type FileStorage, createFileStorage, fileLoggingConfig } from "./files"
 import { type CronJobStorage, createCronJobStorage, type CronJobRunStorage, createCronJobRunStorage } from "./cron_jobs";
 import { type ChargePluginConfigStorage, createChargePluginConfigStorage } from "./charge-plugins";
 import { type LogsStorage, createLogsStorage } from "./logs";
+import { type WorkerWshStorage, createWorkerWshStorage, workerWshLoggingConfig } from "./worker-wsh";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -45,6 +46,7 @@ export interface IStorage {
   cronJobRuns: CronJobRunStorage;
   chargePluginConfigs: ChargePluginConfigStorage;
   logs: LogsStorage;
+  workerWsh: WorkerWshStorage;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -69,6 +71,7 @@ export class DatabaseStorage implements IStorage {
   cronJobRuns: CronJobRunStorage;
   chargePluginConfigs: ChargePluginConfigStorage;
   logs: LogsStorage;
+  workerWsh: WorkerWshStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -109,6 +112,10 @@ export class DatabaseStorage implements IStorage {
     this.cronJobRuns = createCronJobRunStorage();
     this.chargePluginConfigs = createChargePluginConfigStorage();
     this.logs = createLogsStorage();
+    this.workerWsh = withStorageLogging(
+      createWorkerWshStorage(this.workers.updateWorkerStatus.bind(this.workers)),
+      workerWshLoggingConfig
+    );
   }
 }
 
