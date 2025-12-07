@@ -6,6 +6,7 @@ import {
   baseEligibilityConfigSchema,
 } from "../types";
 import { registerEligibilityPlugin } from "../registry";
+import { storage } from "../../storage/database";
 import { z } from "zod";
 
 const workStatusConfigSchema = baseEligibilityConfigSchema.extend({
@@ -27,6 +28,7 @@ class WorkStatusPlugin extends EligibilityPlugin<WorkStatusConfig> {
     config: WorkStatusConfig
   ): Promise<EligibilityResult> {
     const worker = await context.getWorker();
+    const monthName = new Date(context.asOfYear, context.asOfMonth - 1, 1).toLocaleString('default', { month: 'long' });
     
     if (!worker.denormWsId) {
       return { 
@@ -35,15 +37,28 @@ class WorkStatusPlugin extends EligibilityPlugin<WorkStatusConfig> {
       };
     }
 
+    const currentStatus = await storage.options.workerWs.get(worker.denormWsId);
+    const currentStatusName = currentStatus?.name || "Unknown";
     const isAllowed = config.allowedStatusIds.includes(worker.denormWsId);
     
     if (isAllowed) {
-      return { eligible: true };
+      return { 
+        eligible: true,
+        reason: `Worker has status "${currentStatusName}" as of ${monthName} ${context.asOfYear}`
+      };
     }
+
+    const allowedStatuses = await Promise.all(
+      config.allowedStatusIds.map(id => storage.options.workerWs.get(id))
+    );
+    const allowedNames = allowedStatuses
+      .filter((s): s is NonNullable<typeof s> => s !== undefined && s !== null)
+      .map(s => s.name)
+      .join(", ");
 
     return { 
       eligible: false, 
-      reason: `Worker's current work status is not in the allowed list` 
+      reason: `Worker has status "${currentStatusName}" but allowed statuses are: ${allowedNames}` 
     };
   }
 }
