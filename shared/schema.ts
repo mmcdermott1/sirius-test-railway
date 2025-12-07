@@ -1019,6 +1019,7 @@ export const cronJobs = pgTable("cron_jobs", {
   description: text("description"),
   schedule: text("schedule").notNull(), // cron expression
   isEnabled: boolean("is_enabled").default(false).notNull(),
+  settings: jsonb("settings"), // Job-specific settings (schema defined by handler)
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });
