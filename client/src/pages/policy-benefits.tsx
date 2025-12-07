@@ -254,10 +254,6 @@ function BenefitEligibilityConfig({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-4">
-            {benefit.description && (
-              <p className="text-sm text-muted-foreground">{benefit.description}</p>
-            )}
-
             {rules.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">
                 No eligibility rules configured. All workers are eligible by default.
@@ -492,19 +488,12 @@ function PolicyBenefitsContent() {
                       }
                       data-testid={`checkbox-benefit-${benefit.id}`}
                     />
-                    <div className="flex-1">
-                      <label
-                        htmlFor={`benefit-${benefit.id}`}
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        {benefit.name}
-                      </label>
-                      {benefit.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {benefit.description}
-                        </p>
-                      )}
-                    </div>
+                    <label
+                      htmlFor={`benefit-${benefit.id}`}
+                      className="text-sm font-medium cursor-pointer flex-1"
+                    >
+                      {benefit.name}
+                    </label>
                   </div>
                 ))}
               </div>
