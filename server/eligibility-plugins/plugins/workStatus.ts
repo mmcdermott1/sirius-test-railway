@@ -27,24 +27,34 @@ class WorkStatusPlugin extends EligibilityPlugin<WorkStatusConfig> {
     context: EligibilityContext,
     config: WorkStatusConfig
   ): Promise<EligibilityResult> {
-    const worker = await context.getWorker();
     const monthName = new Date(context.asOfYear, context.asOfMonth - 1, 1).toLocaleString('default', { month: 'long' });
     
-    if (!worker.denormWsId) {
+    const statusHistory = await storage.workerWsh.getWorkerWsh(context.workerId);
+    
+    const asOfDate = new Date(context.asOfYear, context.asOfMonth - 1, 1);
+    asOfDate.setMonth(asOfDate.getMonth() + 1);
+    asOfDate.setDate(0);
+    const asOfDateStr = asOfDate.toISOString().split('T')[0];
+    
+    const effectiveEntry = statusHistory.find(entry => {
+      return entry.date <= asOfDateStr;
+    });
+    
+    if (!effectiveEntry) {
       return { 
         eligible: false, 
-        reason: "Worker has no work status assigned" 
+        reason: `Worker had no work status assigned as of ${monthName} ${context.asOfYear}` 
       };
     }
 
-    const currentStatus = await storage.options.workerWs.get(worker.denormWsId);
-    const currentStatusName = currentStatus?.name || "Unknown";
-    const isAllowed = config.allowedStatusIds.includes(worker.denormWsId);
+    const statusId = effectiveEntry.wsId;
+    const statusName = effectiveEntry.wsName || "Unknown";
+    const isAllowed = config.allowedStatusIds.includes(statusId);
     
     if (isAllowed) {
       return { 
         eligible: true,
-        reason: `Worker has status "${currentStatusName}" as of ${monthName} ${context.asOfYear}`
+        reason: `Worker had status "${statusName}" as of ${monthName} ${context.asOfYear}`
       };
     }
 
@@ -58,7 +68,7 @@ class WorkStatusPlugin extends EligibilityPlugin<WorkStatusConfig> {
 
     return { 
       eligible: false, 
-      reason: `Worker has status "${currentStatusName}" but allowed statuses are: ${allowedNames}` 
+      reason: `Worker had status "${statusName}" as of ${monthName} ${context.asOfYear}, but allowed statuses are: ${allowedNames}` 
     };
   }
 }
