@@ -81,21 +81,9 @@ function WorkerBenefitsEligibilityContent() {
   const policyBenefits = allBenefits.filter((b) => policyBenefitIds.includes(b.id));
   const eligibilityRules = policyData.eligibilityRules || {};
 
-  if (selectedPolicyId) {
-    console.log("Eligibility Debug:", {
-      selectedPolicyId,
-      selectedPolicyName: selectedPolicy?.name,
-      rawData: selectedPolicy?.data,
-      policyBenefitIds,
-      allBenefitsCount: allBenefits.length,
-      allBenefitIds: allBenefits.map(b => b.id),
-      matchCount: policyBenefits.length,
-    });
-  }
-
   const evaluateMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/eligibility-plugins/evaluate", {
+      const response = await apiRequest("POST", "/api/eligibility/evaluate", {
         workerId: worker.id,
         benefitId: selectedBenefitId,
         policyId: selectedPolicyId,
