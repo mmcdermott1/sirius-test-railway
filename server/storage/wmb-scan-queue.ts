@@ -303,6 +303,7 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
         if (!job) return;
 
         // Parse benefit outcomes from resultSummary
+        // Priority: check for termination (delete action) before continuation (eligible)
         let benefitsStarted = 0;
         let benefitsContinued = 0;
         let benefitsTerminated = 0;
@@ -311,10 +312,13 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
           for (const action of resultSummary.actions) {
             if (action.scanType === "start" && action.eligible) {
               benefitsStarted++;
-            } else if (action.scanType === "continue" && action.eligible) {
-              benefitsContinued++;
-            } else if (action.scanType === "continue" && action.action === "delete") {
-              benefitsTerminated++;
+            } else if (action.scanType === "continue") {
+              // Check termination first - a "delete" action means they lost eligibility
+              if (action.action === "delete") {
+                benefitsTerminated++;
+              } else if (action.eligible) {
+                benefitsContinued++;
+              }
             }
           }
         }

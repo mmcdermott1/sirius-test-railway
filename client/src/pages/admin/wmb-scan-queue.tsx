@@ -43,6 +43,9 @@ interface MonthStatus {
   totalQueued: number;
   processedSuccess: number;
   processedFailed: number;
+  benefitsStarted: number;
+  benefitsContinued: number;
+  benefitsTerminated: number;
   queuedAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -348,6 +351,9 @@ export default function WmbScanQueue() {
                   <TableHead className="text-right">Queued</TableHead>
                   <TableHead className="text-right">Success</TableHead>
                   <TableHead className="text-right">Failed</TableHead>
+                  <TableHead className="text-right text-green-600 dark:text-green-400">Started</TableHead>
+                  <TableHead className="text-right text-blue-600 dark:text-blue-400">Continued</TableHead>
+                  <TableHead className="text-right text-red-600 dark:text-red-400">Terminated</TableHead>
                   <TableHead>Queued At</TableHead>
                   <TableHead>Completed At</TableHead>
                 </TableRow>
@@ -362,8 +368,11 @@ export default function WmbScanQueue() {
                       <StatusBadge status={status.status} />
                     </TableCell>
                     <TableCell className="text-right">{status.totalQueued}</TableCell>
-                    <TableCell className="text-right text-green-600">{status.processedSuccess}</TableCell>
-                    <TableCell className="text-right text-red-600">{status.processedFailed}</TableCell>
+                    <TableCell className="text-right text-green-600 dark:text-green-400">{status.processedSuccess}</TableCell>
+                    <TableCell className="text-right text-red-600 dark:text-red-400">{status.processedFailed}</TableCell>
+                    <TableCell className="text-right text-green-600 dark:text-green-400" data-testid={`text-benefits-started-${status.id}`}>{status.benefitsStarted}</TableCell>
+                    <TableCell className="text-right text-blue-600 dark:text-blue-400" data-testid={`text-benefits-continued-${status.id}`}>{status.benefitsContinued}</TableCell>
+                    <TableCell className="text-right text-red-600 dark:text-red-400" data-testid={`text-benefits-terminated-${status.id}`}>{status.benefitsTerminated}</TableCell>
                     <TableCell>
                       {status.queuedAt ? format(new Date(status.queuedAt), "MMM d, yyyy HH:mm") : "-"}
                     </TableCell>
