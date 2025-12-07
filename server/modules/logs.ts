@@ -1,8 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { z } from "zod";
-import { requireAccess } from '../accessControl';
-import * as policies from '../policies';
 
 const logsQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional().default("1"),
@@ -12,7 +10,14 @@ const logsQuerySchema = z.object({
   search: z.string().optional(),
 });
 
-export function registerLogRoutes(app: Express) {
+export function registerLogRoutes(
+  app: Express,
+  requireAuth: any,
+  requirePermission: any,
+  requireAccess: any,
+  policies: any
+) {
+  // GET /api/logs - Get all logs with pagination and filtering (requires admin policy)
   app.get("/api/logs", requireAccess(policies.admin), async (req, res) => {
     try {
       const params = logsQuerySchema.parse(req.query);
@@ -34,7 +39,7 @@ export function registerLogRoutes(app: Express) {
     }
   });
 
-  // Get unique modules and operations for filter dropdowns
+  // GET /api/logs/filters - Get unique modules and operations for filter dropdowns (requires admin policy)
   app.get("/api/logs/filters", requireAccess(policies.admin), async (req, res) => {
     try {
       const filters = await storage.logs.getLogFilters();
@@ -48,7 +53,7 @@ export function registerLogRoutes(app: Express) {
     }
   });
 
-  // Get a single log by ID
+  // GET /api/logs/:id - Get a single log by ID (requires admin policy)
   app.get("/api/logs/:id", requireAccess(policies.admin), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -69,6 +74,89 @@ export function registerLogRoutes(app: Express) {
         error: "Failed to fetch log",
         details: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // GET /api/workers/:workerId/logs - Get all logs related to a worker (requires staff permission)
+  app.get("/api/workers/:workerId/logs", requireAuth, requireAccess(policies.staff), async (req, res) => {
+    try {
+      const { workerId } = req.params;
+      const { module, operation, startDate, endDate } = req.query;
+
+      // Get the worker to ensure it exists and get the contactId
+      const worker = await storage.workers.getWorker(workerId);
+      if (!worker) {
+        return res.status(404).json({ message: "Worker not found" });
+      }
+
+      // Query by host entity IDs: worker ID and contact ID
+      // This will capture all logs for:
+      // - Worker (hostEntityId = workerId)
+      // - Worker IDs (hostEntityId = workerId)
+      // - Worker employment history (hostEntityId = workerId)
+      // - Contact (hostEntityId = contactId)
+      // - Addresses (hostEntityId = contactId)
+      // - Phone numbers (hostEntityId = contactId)
+      const hostEntityIds: string[] = [workerId];
+      if (worker.contactId) {
+        hostEntityIds.push(worker.contactId);
+      }
+
+      const logs = await storage.logs.getLogsByHostEntityIds({
+        hostEntityIds,
+        module: typeof module === 'string' ? module : undefined,
+        operation: typeof operation === 'string' ? operation : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      });
+
+      res.json(logs);
+    } catch (error) {
+      console.error("Failed to fetch worker logs:", error);
+      res.status(500).json({ message: "Failed to fetch worker logs" });
+    }
+  });
+
+  // GET /api/employers/:employerId/logs - Get all logs related to an employer (requires staff permission)
+  app.get("/api/employers/:employerId/logs", requireAuth, requireAccess(policies.staff), async (req, res) => {
+    try {
+      const { employerId } = req.params;
+      const { module, operation, startDate, endDate } = req.query;
+
+      // Get the employer to ensure it exists
+      const employer = await storage.employers.getEmployer(employerId);
+      if (!employer) {
+        return res.status(404).json({ message: "Employer not found" });
+      }
+
+      // Query by host entity IDs: employer ID and all contact IDs from employer contacts
+      // This will capture all logs for:
+      // - Employer (hostEntityId = employerId)
+      // - Employer contacts (hostEntityId = employerId)
+      // - Contacts (hostEntityId = contactId for each employer contact)
+      // - Addresses (hostEntityId = contactId)
+      // - Phone numbers (hostEntityId = contactId)
+      const hostEntityIds: string[] = [employerId];
+
+      // Get all employer contacts for this employer
+      const employerContacts = await storage.employerContacts.listByEmployer(employerId);
+      
+      // Add all contact IDs from employer contacts
+      const contactIds = employerContacts.map(ec => ec.contactId);
+      hostEntityIds.push(...contactIds);
+
+      const logs = await storage.logs.getLogsByHostEntityIds({
+        hostEntityIds,
+        module: typeof module === 'string' ? module : undefined,
+        operation: typeof operation === 'string' ? operation : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      });
+
+      res.json(logs);
+    } catch (error) {
+      console.error("Failed to fetch employer logs:", error);
+      res.status(500).json({ message: "Failed to fetch employer logs" });
     }
   });
 }

@@ -229,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerLedgerPaymentRoutes(app);
 
   // Register log management routes
-  registerLogRoutes(app);
+  registerLogRoutes(app, requireAuth, requirePermission, requireAccess, policies);
   registerQuickstartRoutes(app);
 
   // Register cron job management routes
@@ -1077,89 +1077,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete worker work status history:", error);
       res.status(500).json({ message: "Failed to delete worker work status history" });
-    }
-  });
-
-  // GET /api/workers/:workerId/logs - Get all logs related to a worker (requires staff permission)
-  app.get("/api/workers/:workerId/logs", requireAuth, requireAccess(policies.staff), async (req, res) => {
-    try {
-      const { workerId } = req.params;
-      const { module, operation, startDate, endDate } = req.query;
-
-      // Get the worker to ensure it exists and get the contactId
-      const worker = await storage.workers.getWorker(workerId);
-      if (!worker) {
-        return res.status(404).json({ message: "Worker not found" });
-      }
-
-      // Query by host entity IDs: worker ID and contact ID
-      // This will capture all logs for:
-      // - Worker (hostEntityId = workerId)
-      // - Worker IDs (hostEntityId = workerId)
-      // - Worker employment history (hostEntityId = workerId)
-      // - Contact (hostEntityId = contactId)
-      // - Addresses (hostEntityId = contactId)
-      // - Phone numbers (hostEntityId = contactId)
-      const hostEntityIds: string[] = [workerId];
-      if (worker.contactId) {
-        hostEntityIds.push(worker.contactId);
-      }
-
-      const logs = await storage.logs.getLogsByHostEntityIds({
-        hostEntityIds,
-        module: typeof module === 'string' ? module : undefined,
-        operation: typeof operation === 'string' ? operation : undefined,
-        startDate: typeof startDate === 'string' ? startDate : undefined,
-        endDate: typeof endDate === 'string' ? endDate : undefined,
-      });
-
-      res.json(logs);
-    } catch (error) {
-      console.error("Failed to fetch worker logs:", error);
-      res.status(500).json({ message: "Failed to fetch worker logs" });
-    }
-  });
-
-  // GET /api/employers/:employerId/logs - Get all logs related to an employer (requires staff permission)
-  app.get("/api/employers/:employerId/logs", requireAuth, requireAccess(policies.staff), async (req, res) => {
-    try {
-      const { employerId } = req.params;
-      const { module, operation, startDate, endDate } = req.query;
-
-      // Get the employer to ensure it exists
-      const employer = await storage.employers.getEmployer(employerId);
-      if (!employer) {
-        return res.status(404).json({ message: "Employer not found" });
-      }
-
-      // Query by host entity IDs: employer ID and all contact IDs from employer contacts
-      // This will capture all logs for:
-      // - Employer (hostEntityId = employerId)
-      // - Employer contacts (hostEntityId = employerId)
-      // - Contacts (hostEntityId = contactId for each employer contact)
-      // - Addresses (hostEntityId = contactId)
-      // - Phone numbers (hostEntityId = contactId)
-      const hostEntityIds: string[] = [employerId];
-
-      // Get all employer contacts for this employer
-      const employerContacts = await storage.employerContacts.listByEmployer(employerId);
-      
-      // Add all contact IDs from employer contacts
-      const contactIds = employerContacts.map(ec => ec.contactId);
-      hostEntityIds.push(...contactIds);
-
-      const logs = await storage.logs.getLogsByHostEntityIds({
-        hostEntityIds,
-        module: typeof module === 'string' ? module : undefined,
-        operation: typeof operation === 'string' ? operation : undefined,
-        startDate: typeof startDate === 'string' ? startDate : undefined,
-        endDate: typeof endDate === 'string' ? endDate : undefined,
-      });
-
-      res.json(logs);
-    } catch (error) {
-      console.error("Failed to fetch employer logs:", error);
-      res.status(500).json({ message: "Failed to fetch employer logs" });
     }
   });
 
