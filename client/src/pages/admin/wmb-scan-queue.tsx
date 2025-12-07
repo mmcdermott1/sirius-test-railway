@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  ListOrdered
+  ListOrdered,
+  Square
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -85,6 +86,9 @@ export default function WmbScanQueue() {
   const [selectedMonth, setSelectedMonth] = useState(String(currentDate.getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(currentDate.getFullYear()));
   const [batchSize, setBatchSize] = useState("10");
+  const [isRunning, setIsRunning] = useState(false);
+  const isRunningRef = useRef(false);
+  const processingRef = useRef(false);
 
   const { data: statuses = [], isLoading: isLoadingStatuses, refetch: refetchStatuses } = useQuery<MonthStatus[]>({
     queryKey: ["/api/wmb-scan/status"],
@@ -154,6 +158,58 @@ export default function WmbScanQueue() {
     refetchStatuses();
     refetchSummary();
   };
+
+  const handleStartContinuous = () => {
+    isRunningRef.current = true;
+    setIsRunning(true);
+  };
+
+  const handleStopContinuous = () => {
+    isRunningRef.current = false;
+    setIsRunning(false);
+  };
+
+  // Continuous processing effect
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const runBatch = async () => {
+      if (!isRunningRef.current || processingRef.current) return;
+      
+      // Check if there are pending items
+      const currentPending = summary.reduce((acc, s) => acc + s.pending + s.processing, 0);
+      if (currentPending === 0) {
+        handleStopContinuous();
+        toast({
+          title: "Processing Complete",
+          description: "All pending scans have been processed.",
+        });
+        return;
+      }
+
+      processingRef.current = true;
+      try {
+        await apiRequest("POST", "/api/wmb-scan/process-batch", { batchSize: parseInt(batchSize) });
+        await Promise.all([refetchStatuses(), refetchSummary()]);
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to process batch",
+          variant: "destructive",
+        });
+        handleStopContinuous();
+      } finally {
+        processingRef.current = false;
+      }
+    };
+
+    const intervalId = setInterval(runBatch, 2000);
+    runBatch(); // Run immediately on start
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isRunning, batchSize, summary, refetchStatuses, refetchSummary, toast]);
 
   if (isLoadingStatuses || isLoadingSummary) {
     return (
@@ -247,8 +303,15 @@ export default function WmbScanQueue() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Play className="h-5 w-5" />
+              {isRunning ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Play className="h-5 w-5" />
+              )}
               Process Queue
+              {isRunning && (
+                <Badge variant="default" className="ml-2">Running</Badge>
+              )}
             </CardTitle>
             <CardDescription>
               Process pending scans from the queue ({totalPending} pending)
@@ -259,7 +322,7 @@ export default function WmbScanQueue() {
               <div className="flex flex-wrap items-end gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="batch-size-select">Batch Size</Label>
-                  <Select value={batchSize} onValueChange={setBatchSize}>
+                  <Select value={batchSize} onValueChange={setBatchSize} disabled={isRunning}>
                     <SelectTrigger id="batch-size-select" className="w-24" data-testid="select-batch-size">
                       <SelectValue />
                     </SelectTrigger>
@@ -274,7 +337,7 @@ export default function WmbScanQueue() {
                 </div>
                 <Button 
                   onClick={handleProcessBatch}
-                  disabled={processBatchMutation.isPending || totalPending === 0}
+                  disabled={processBatchMutation.isPending || totalPending === 0 || isRunning}
                   data-testid="button-process-batch"
                 >
                   {processBatchMutation.isPending ? (
@@ -284,10 +347,33 @@ export default function WmbScanQueue() {
                   )}
                   Process Batch
                 </Button>
+                {isRunning ? (
+                  <Button 
+                    onClick={handleStopContinuous}
+                    variant="destructive"
+                    data-testid="button-stop-continuous"
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Stop
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleStartContinuous}
+                    variant="outline"
+                    disabled={totalPending === 0}
+                    data-testid="button-start-continuous"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Run Continuously
+                  </Button>
+                )}
               </div>
               {totalPending > 0 && (
                 <p className="text-sm text-muted-foreground">
-                  {totalPending} worker scans are pending across all months.
+                  {isRunning 
+                    ? `Processing... ${totalPending} worker scans remaining.`
+                    : `${totalPending} worker scans are pending across all months.`
+                  }
                 </p>
               )}
             </div>
