@@ -90,12 +90,11 @@ function WorkerBenefitsScanContent() {
 
   const scanMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/workers/${worker.id}/benefits/scan`, {
+      return await apiRequest("POST", `/api/workers/${worker.id}/benefits/scan`, {
         month: parseInt(selectedMonth),
         year: parseInt(selectedYear),
         mode: isLiveMode ? "live" : "test",
       });
-      return response.json();
     },
     onSuccess: (result: ScanResult) => {
       setScanResult(result);
