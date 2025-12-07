@@ -41,6 +41,7 @@ import { registerSiteSettingsRoutes } from "./modules/site-settings";
 import { registerSystemModeRoutes } from "./modules/system-mode";
 import { registerBootstrapRoutes } from "./modules/bootstrap";
 import { registerPoliciesRoutes } from "./modules/policies";
+import { registerEmployerPolicyHistoryRoutes } from "./modules/employer-policy-history";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -263,6 +264,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register policies configuration routes
   registerPoliciesRoutes(app, requireAuth, requireAccess, storage);
+
+  // Register employer policy history routes
+  registerEmployerPolicyHistoryRoutes(app, requireAuth, requireAccess, storage);
 
   // Worker routes (protected with authentication and permissions)
   

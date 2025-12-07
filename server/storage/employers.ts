@@ -21,6 +21,7 @@ export interface EmployerStorage {
   getEmployerWorkers(employerId: string): Promise<EmployerWorker[]>;
   createEmployer(employer: InsertEmployer): Promise<Employer>;
   updateEmployer(id: string, employer: Partial<InsertEmployer>): Promise<Employer | undefined>;
+  updateEmployerPolicy(employerId: string, denormPolicyId: string | null): Promise<Employer | undefined>;
   deleteEmployer(id: string): Promise<boolean>;
 }
 
@@ -88,6 +89,16 @@ export function createEmployerStorage(): EmployerStorage {
         }
         throw error;
       }
+    },
+
+    async updateEmployerPolicy(employerId: string, denormPolicyId: string | null): Promise<Employer | undefined> {
+      const [updatedEmployer] = await db
+        .update(employers)
+        .set({ denormPolicyId })
+        .where(eq(employers.id, employerId))
+        .returning();
+      
+      return updatedEmployer || undefined;
     },
 
     async deleteEmployer(id: string): Promise<boolean> {

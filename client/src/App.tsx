@@ -63,6 +63,7 @@ import EmployerContactSendSms from "@/pages/employer-contact-send-sms";
 import EmployerContactSendEmail from "@/pages/employer-contact-send-email";
 import EmployerContactSendPostal from "@/pages/employer-contact-send-postal";
 import EmployerLogs from "@/pages/employer-logs";
+import EmployerPolicyHistory from "@/pages/employer-policy-history";
 import WizardView from "@/pages/wizard-view";
 import StripeCustomerPage from "@/pages/employers/stripe-customer";
 import StripePaymentMethodsPage from "@/pages/employers/stripe-payment-methods";
@@ -687,6 +688,14 @@ function Router() {
         <ProtectedRoute policy="staff">
           <AuthenticatedLayout>
             <EmployerLogs />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/employers/:id/policy-history">
+        <ProtectedRoute policy="employerUser">
+          <AuthenticatedLayout>
+            <EmployerPolicyHistory />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

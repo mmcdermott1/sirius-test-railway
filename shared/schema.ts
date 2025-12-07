@@ -84,6 +84,7 @@ export const employers = pgTable("employers", {
   name: text("name").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   stripeCustomerId: text("stripe_customer_id"),
+  denormPolicyId: varchar("denorm_policy_id").references(() => policies.id, { onDelete: 'set null' }),
 });
 
 export const policies = pgTable("policies", {
@@ -91,6 +92,15 @@ export const policies = pgTable("policies", {
   siriusId: varchar("sirius_id").notNull().unique(),
   name: text("name"),
   data: jsonb("data"),
+});
+
+export const employerPolicyHistory = pgTable("employer_policy_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: date("date").notNull(),
+  employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
+  policyId: varchar("policy_id").notNull().references(() => policies.id, { onDelete: 'cascade' }),
+  data: jsonb("data"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
 export const employerContacts = pgTable("employer_contacts", {
@@ -580,6 +590,10 @@ export const insertWorkerWshSchema = createInsertSchema(workerWsh).omit({
   id: true,
 });
 
+export const insertEmployerPolicyHistorySchema = createInsertSchema(employerPolicyHistory).omit({
+  id: true,
+});
+
 export const insertTrustBenefitTypeSchema = createInsertSchema(optionsTrustBenefitType).omit({
   id: true,
 });
@@ -756,6 +770,9 @@ export type WorkerId = typeof workerIds.$inferSelect;
 
 export type InsertWorkerWsh = z.infer<typeof insertWorkerWshSchema>;
 export type WorkerWsh = typeof workerWsh.$inferSelect;
+
+export type InsertEmployerPolicyHistory = z.infer<typeof insertEmployerPolicyHistorySchema>;
+export type EmployerPolicyHistory = typeof employerPolicyHistory.$inferSelect;
 
 export type InsertTrustBenefitType = z.infer<typeof insertTrustBenefitTypeSchema>;
 export type TrustBenefitType = typeof optionsTrustBenefitType.$inferSelect;
