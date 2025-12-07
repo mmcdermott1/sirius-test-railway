@@ -39,7 +39,11 @@ export interface WmbScanQueueStorage {
   invalidateWorkerScans(workerId: string): Promise<number>;
   
   // Reporting
-  getPendingSummary(): Promise<{ month: number; year: number; pending: number; processing: number; success: number; failed: number }[]>;
+  getPendingSummary(): Promise<{ month: number; year: number; pending: number; processing: number; success: number; failed: number; canceled: number }[]>;
+  
+  // Cancel/Resume
+  cancelPendingForStatus(statusId: string): Promise<number>;
+  resumeCanceledForStatus(statusId: string): Promise<number>;
 }
 
 export function createWmbScanQueueStorage(): WmbScanQueueStorage {
@@ -455,7 +459,7 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
       return result.length;
     },
 
-    async getPendingSummary(): Promise<{ month: number; year: number; pending: number; processing: number; success: number; failed: number }[]> {
+    async getPendingSummary(): Promise<{ month: number; year: number; pending: number; processing: number; success: number; failed: number; canceled: number }[]> {
       const results = await db
         .select({
           month: trustWmbScanQueue.month,
@@ -464,6 +468,7 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
           processing: sql<number>`SUM(CASE WHEN ${trustWmbScanQueue.status} = 'processing' THEN 1 ELSE 0 END)`,
           success: sql<number>`SUM(CASE WHEN ${trustWmbScanQueue.status} = 'success' THEN 1 ELSE 0 END)`,
           failed: sql<number>`SUM(CASE WHEN ${trustWmbScanQueue.status} = 'failed' THEN 1 ELSE 0 END)`,
+          canceled: sql<number>`SUM(CASE WHEN ${trustWmbScanQueue.status} = 'canceled' THEN 1 ELSE 0 END)`,
         })
         .from(trustWmbScanQueue)
         .groupBy(trustWmbScanQueue.month, trustWmbScanQueue.year)
@@ -476,7 +481,54 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
         processing: Number(r.processing) || 0,
         success: Number(r.success) || 0,
         failed: Number(r.failed) || 0,
+        canceled: Number(r.canceled) || 0,
       }));
+    },
+
+    async cancelPendingForStatus(statusId: string): Promise<number> {
+      const result = await db
+        .update(trustWmbScanQueue)
+        .set({ status: "canceled" })
+        .where(
+          and(
+            eq(trustWmbScanQueue.statusId, statusId),
+            eq(trustWmbScanQueue.status, "pending")
+          )
+        )
+        .returning();
+      
+      // Update status to reflect cancellation
+      if (result.length > 0) {
+        await db
+          .update(trustWmbScanStatus)
+          .set({ status: "canceled" })
+          .where(eq(trustWmbScanStatus.id, statusId));
+      }
+      
+      return result.length;
+    },
+
+    async resumeCanceledForStatus(statusId: string): Promise<number> {
+      const result = await db
+        .update(trustWmbScanQueue)
+        .set({ status: "pending" })
+        .where(
+          and(
+            eq(trustWmbScanQueue.statusId, statusId),
+            eq(trustWmbScanQueue.status, "canceled")
+          )
+        )
+        .returning();
+      
+      // Update status to queued to resume processing
+      if (result.length > 0) {
+        await db
+          .update(trustWmbScanStatus)
+          .set({ status: "queued" })
+          .where(eq(trustWmbScanStatus.id, statusId));
+      }
+      
+      return result.length;
     },
   };
 

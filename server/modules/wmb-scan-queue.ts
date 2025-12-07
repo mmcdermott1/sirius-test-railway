@@ -278,4 +278,58 @@ export function registerWmbScanQueueRoutes(
       }
     }
   );
+
+  app.post(
+    "/api/wmb-scan/cancel/:statusId",
+    requireAuth,
+    requireAccess(policies.admin),
+    async (req, res) => {
+      try {
+        const { statusId } = req.params;
+        
+        // Verify status exists
+        const status = await storage.wmbScanQueue.getStatusById(statusId);
+        if (!status) {
+          return res.status(404).json({ message: "Scan status not found" });
+        }
+        
+        const count = await storage.wmbScanQueue.cancelPendingForStatus(statusId);
+        
+        res.json({
+          message: `Canceled ${count} pending scan entries`,
+          canceledCount: count,
+        });
+      } catch (error: any) {
+        console.error("Error canceling scan:", error);
+        res.status(500).json({ message: error.message || "Failed to cancel scan" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/wmb-scan/resume/:statusId",
+    requireAuth,
+    requireAccess(policies.admin),
+    async (req, res) => {
+      try {
+        const { statusId } = req.params;
+        
+        // Verify status exists
+        const status = await storage.wmbScanQueue.getStatusById(statusId);
+        if (!status) {
+          return res.status(404).json({ message: "Scan status not found" });
+        }
+        
+        const count = await storage.wmbScanQueue.resumeCanceledForStatus(statusId);
+        
+        res.json({
+          message: `Resumed ${count} canceled scan entries`,
+          resumedCount: count,
+        });
+      } catch (error: any) {
+        console.error("Error resuming scan:", error);
+        res.status(500).json({ message: error.message || "Failed to resume scan" });
+      }
+    }
+  );
 }

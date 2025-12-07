@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import {
   Table,
@@ -32,7 +33,9 @@ import {
   Loader2,
   ListOrdered,
   Square,
-  Eye
+  Eye,
+  XCircle,
+  RotateCcw
 } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -62,6 +65,7 @@ interface PendingSummary {
   processing: number;
   success: number;
   failed: number;
+  canceled: number;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -71,6 +75,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: { variant: "outline" as const, label: "Completed" },
     failed: { variant: "destructive" as const, label: "Failed" },
     stale: { variant: "secondary" as const, label: "Stale" },
+    canceled: { variant: "outline" as const, label: "Canceled" },
   };
   
   const c = config[status as keyof typeof config] || { variant: "outline" as const, label: status };
@@ -137,6 +142,48 @@ export default function WmbScanQueue() {
       toast({
         title: "Error",
         description: error.message || "Failed to process batch",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelScanMutation = useMutation({
+    mutationFn: async (statusId: string) => {
+      return apiRequest("POST", `/api/wmb-scan/cancel/${statusId}`);
+    },
+    onSuccess: (result: any) => {
+      toast({
+        title: "Scan Canceled",
+        description: result.message || "Pending scans have been canceled",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/wmb-scan/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wmb-scan/summary"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel scan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resumeScanMutation = useMutation({
+    mutationFn: async (statusId: string) => {
+      return apiRequest("POST", `/api/wmb-scan/resume/${statusId}`);
+    },
+    onSuccess: (result: any) => {
+      toast({
+        title: "Scan Resumed",
+        description: result.message || "Canceled scans have been resumed",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/wmb-scan/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wmb-scan/summary"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resume scan",
         variant: "destructive",
       });
     },
@@ -411,7 +458,7 @@ export default function WmbScanQueue() {
                   <TableHead className="text-right text-red-600 dark:text-red-400">Terminated</TableHead>
                   <TableHead>Queued At</TableHead>
                   <TableHead>Completed At</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-24"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -452,11 +499,50 @@ export default function WmbScanQueue() {
                         {status.completedAt ? format(new Date(status.completedAt), "MMM d, HH:mm") : "-"}
                       </TableCell>
                       <TableCell>
-                        <Link href={`/admin/wmb-scan/${status.id}`}>
-                          <Button variant="ghost" size="icon" data-testid={`button-view-${status.id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        <div className="flex items-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Link href={`/admin/wmb-scan/${status.id}`}>
+                                <Button variant="ghost" size="icon" data-testid={`button-view-${status.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            </TooltipTrigger>
+                            <TooltipContent>View details</TooltipContent>
+                          </Tooltip>
+                          {(status.status === "queued" || status.status === "running" || status.status === "stale") && pending > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => cancelScanMutation.mutate(status.id)}
+                                  disabled={cancelScanMutation.isPending}
+                                  data-testid={`button-cancel-${status.id}`}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Cancel pending scans</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {status.status === "canceled" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => resumeScanMutation.mutate(status.id)}
+                                  disabled={resumeScanMutation.isPending}
+                                  data-testid={`button-resume-${status.id}`}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Resume canceled scans</TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
