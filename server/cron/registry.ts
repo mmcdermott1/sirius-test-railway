@@ -1,4 +1,5 @@
 import { logger } from "../logger";
+import { z } from "zod";
 
 export interface CronJobContext {
   jobId: string;
@@ -6,15 +7,26 @@ export interface CronJobContext {
   triggeredBy?: string;
   isManual: boolean;
   mode: "live" | "test"; // "live" for production runs, "test" for dry-run (no DB changes)
+  settings: Record<string, unknown>; // Job-specific settings
 }
 
 export interface CronJobSummary {
   [key: string]: any; // Flexible summary data specific to each job
 }
 
+export interface CronJobSettingsField {
+  key: string;
+  label: string;
+  type: "number" | "string" | "boolean";
+  description?: string;
+}
+
 export interface CronJobHandler {
   execute: (context: CronJobContext) => Promise<CronJobSummary>;
   description?: string;
+  settingsSchema?: z.ZodSchema; // Zod schema for validating settings
+  getDefaultSettings?: () => Record<string, unknown>; // Default settings values
+  getSettingsFields?: () => CronJobSettingsField[]; // UI field definitions
 }
 
 export interface RegisteredCronJob {

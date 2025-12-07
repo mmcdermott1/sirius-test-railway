@@ -150,6 +150,12 @@ class CronScheduler {
       .returning();
 
     try {
+      // Get the handler to access default settings if needed
+      const handler = cronJobRegistry.get(cronJob.name);
+      const defaultSettings = handler?.getDefaultSettings?.() ?? {};
+      const jobSettings = (cronJob.settings as Record<string, unknown>) ?? {};
+      const mergedSettings = { ...defaultSettings, ...jobSettings };
+
       // Execute the job handler
       const summary = await cronJobRegistry.execute(cronJob.name, {
         jobId: cronJob.name,
@@ -157,6 +163,7 @@ class CronScheduler {
         triggeredBy,
         isManual,
         mode,
+        settings: mergedSettings,
       });
 
       // Calculate execution time
