@@ -45,11 +45,21 @@ function CronJobSettingsContent() {
   const [completedRun, setCompletedRun] = useState<CronJobRun | null>(null);
   const [schedule, setSchedule] = useState(job.schedule);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  
+  // Job-specific settings state
+  const mergedSettings = { ...job.defaultSettings, ...(job.settings || {}) };
+  const [localSettings, setLocalSettings] = useState<Record<string, unknown>>(mergedSettings);
 
   // Update local schedule when job changes
   useEffect(() => {
     setSchedule(job.schedule);
   }, [job.schedule]);
+
+  // Update local settings when job changes
+  useEffect(() => {
+    const merged = { ...job.defaultSettings, ...(job.settings || {}) };
+    setLocalSettings(merged);
+  }, [job.settings, job.defaultSettings]);
 
   const runMutation = useMutation({
     mutationFn: async () => {
@@ -156,6 +166,37 @@ function CronJobSettingsContent() {
       });
     },
   });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (settings: Record<string, unknown>) => {
+      return await apiRequest("PATCH", `/api/cron-jobs/${encodeURIComponent(name!)}`, { settings });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cron-jobs", name] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cron-jobs"] });
+      toast({
+        title: "Settings Updated",
+        description: "The job settings have been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Update Settings",
+        description: error.message || "Failed to update job settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSettingChange = (key: string, value: unknown) => {
+    setLocalSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveSettings = () => {
+    updateSettingsMutation.mutate(localSettings);
+  };
+
+  const hasSettingsChanges = JSON.stringify(localSettings) !== JSON.stringify(mergedSettings);
 
   const validateCronExpression = (expr: string): boolean => {
     // Basic validation - cron expressions have 5 or 6 parts separated by spaces
@@ -312,6 +353,79 @@ function CronJobSettingsContent() {
               </Alert>
             </div>
           </div>
+
+          {job.settingsFields && job.settingsFields.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <div>
+                  <Label className="font-medium">Job-Specific Settings</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Configure parameters for this job
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  {job.settingsFields.map((field) => (
+                    <div key={field.key} className="space-y-2">
+                      <Label htmlFor={`setting-${field.key}`}>{field.label}</Label>
+                      {field.description && (
+                        <p className="text-sm text-muted-foreground">{field.description}</p>
+                      )}
+                      {field.type === "number" && (
+                        <Input
+                          id={`setting-${field.key}`}
+                          type="number"
+                          value={String(localSettings[field.key] ?? "")}
+                          onChange={(e) => handleSettingChange(field.key, parseInt(e.target.value) || 0)}
+                          data-testid={`input-setting-${field.key}`}
+                        />
+                      )}
+                      {field.type === "string" && (
+                        <Input
+                          id={`setting-${field.key}`}
+                          type="text"
+                          value={String(localSettings[field.key] ?? "")}
+                          onChange={(e) => handleSettingChange(field.key, e.target.value)}
+                          data-testid={`input-setting-${field.key}`}
+                        />
+                      )}
+                      {field.type === "boolean" && (
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`setting-${field.key}`}
+                            checked={Boolean(localSettings[field.key])}
+                            onCheckedChange={(checked) => handleSettingChange(field.key, checked)}
+                            data-testid={`switch-setting-${field.key}`}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {localSettings[field.key] ? "Enabled" : "Disabled"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    onClick={handleSaveSettings}
+                    disabled={!hasSettingsChanges || updateSettingsMutation.isPending}
+                    data-testid="button-save-settings"
+                  >
+                    {updateSettingsMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Settings
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="pt-6 border-t">
             <p className="font-medium mb-2">Manual Execution</p>
             <p className="text-sm text-muted-foreground mb-4">
