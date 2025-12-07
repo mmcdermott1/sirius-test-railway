@@ -7,7 +7,6 @@ import {
   type TrustWmbScanQueue,
 } from "@shared/schema";
 import { eq, and, sql, gte, inArray, or, desc, asc } from "drizzle-orm";
-import type { StorageLoggingConfig } from "./middleware/logging";
 
 export interface WmbScanQueueStorage {
   // Status methods
@@ -441,24 +440,5 @@ export function createWmbScanQueueStorage(): WmbScanQueueStorage {
   return storage;
 }
 
-export const wmbScanQueueLoggingConfig: StorageLoggingConfig<WmbScanQueueStorage> = {
-  module: 'wmb-scan-queue',
-  methods: {
-    enqueueMonth: {
-      enabled: true,
-      getEntityId: (args, result) => result?.statusId || 'new',
-      getDescription: async (args) => `Queued WMB scan for ${args[0]}/${args[1]}`,
-    },
-    enqueueWorker: {
-      enabled: true,
-      getEntityId: (args, result) => result?.id || 'new',
-      getHostEntityId: (args) => args[0],
-      getDescription: async (args) => `Queued worker ${args[0]} for WMB scan ${args[1]}/${args[2]}`,
-    },
-    invalidateWorkerScans: {
-      enabled: true,
-      getEntityId: (args) => args[0],
-      getDescription: async (args, result) => `Invalidated ${result} WMB scan entries for worker`,
-    },
-  },
-};
+// No logging config - scan queue operations are high-volume internal state changes
+// Actual benefit changes are logged via the benefits-scan service

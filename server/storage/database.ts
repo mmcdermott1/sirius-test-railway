@@ -22,7 +22,7 @@ import { type WorkerWshStorage, createWorkerWshStorage, workerWshLoggingConfig }
 import { type WorkerHoursStorage, createWorkerHoursStorage, workerHoursLoggingConfig } from "./worker-hours";
 import { type PolicyStorage, createPolicyStorage, policyLoggingConfig } from "./policies";
 import { type EmployerPolicyHistoryStorage, createEmployerPolicyHistoryStorage, employerPolicyHistoryLoggingConfig } from "./employer-policy-history";
-import { type WmbScanQueueStorage, createWmbScanQueueStorage, wmbScanQueueLoggingConfig } from "./wmb-scan-queue";
+import { type WmbScanQueueStorage, createWmbScanQueueStorage } from "./wmb-scan-queue";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -125,10 +125,9 @@ export class DatabaseStorage implements IStorage {
     this.chargePluginConfigs = createChargePluginConfigStorage();
     this.logs = createLogsStorage();
     
-    this.wmbScanQueue = withStorageLogging(
-      createWmbScanQueueStorage(),
-      wmbScanQueueLoggingConfig
-    );
+    // No logging for wmb scan queue - high-volume internal state changes
+    // Actual benefit changes are logged via the benefits-scan service
+    this.wmbScanQueue = createWmbScanQueueStorage();
     
     this.workerWsh = withStorageLogging(
       createWorkerWshStorage(
