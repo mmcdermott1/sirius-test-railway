@@ -140,6 +140,12 @@ export function registerChargePluginRoutes(
         return res.status(404).json({ message: "Plugin configuration not found" });
       }
 
+      // Check if the plugin is enabled (its required component is active)
+      const pluginEnabled = await isChargePluginEnabled(existing.pluginId);
+      if (!pluginEnabled) {
+        return res.status(403).json({ message: "Cannot update this plugin configuration because its required component is disabled" });
+      }
+
       // Parse update data (partial is allowed)
       const updateSchema = insertChargePluginConfigSchema.partial();
       const updateData = updateSchema.parse(req.body);
