@@ -8,6 +8,7 @@ import type {
 import type { Worker } from "@shared/schema";
 import { storage } from "../storage/database";
 import { logger } from "../logger";
+import { getEnabledComponentIds } from "../modules/components";
 
 export interface EligibilityEvaluationInput {
   scanType: ScanType;
@@ -55,6 +56,8 @@ export async function evaluateEligibilityRules(
   
   const results: EligibilityResult[] = [];
   
+  const enabledComponents = await getEnabledComponentIds();
+  
   for (const rule of rules) {
     if (!rule.appliesTo.includes(input.scanType)) {
       continue;
@@ -69,6 +72,22 @@ export async function evaluateEligibilityRules(
         eligible: false, 
         reason: `Plugin not found: ${rule.pluginKey}` 
       });
+      continue;
+    }
+
+    const isPluginEnabled = eligibilityPluginRegistry.isPluginEnabled(rule.pluginKey, enabledComponents);
+    if (!isPluginEnabled) {
+      const componentId = plugin.metadata.requiresComponent || 'unknown';
+      logger.warn(`Eligibility plugin disabled: ${rule.pluginKey} (requires component: ${componentId})`, {
+        service: 'eligibility-executor',
+      });
+      results.push({ 
+        eligible: false, 
+        reason: `Plugin disabled: Required component "${componentId}" is not enabled` 
+      });
+      if (input.stopAfterIneligible !== false) {
+        break;
+      }
       continue;
     }
     
@@ -119,6 +138,8 @@ export async function evaluateBenefitEligibility(
   const pluginResults: BenefitEligibilityResult['results'] = [];
   let overallEligible = true;
   
+  const enabledComponents = await getEnabledComponentIds();
+  
   for (const rule of rules) {
     if (!rule.appliesTo.includes(input.scanType)) {
       continue;
@@ -133,6 +154,21 @@ export async function evaluateBenefitEligibility(
       });
       overallEligible = false;
       break;
+    }
+
+    const isPluginEnabled = eligibilityPluginRegistry.isPluginEnabled(rule.pluginKey, enabledComponents);
+    if (!isPluginEnabled) {
+      const componentId = plugin.metadata.requiresComponent || 'unknown';
+      pluginResults.push({
+        pluginKey: rule.pluginKey,
+        eligible: false,
+        reason: `Plugin disabled: Required component "${componentId}" is not enabled`,
+      });
+      overallEligible = false;
+      if (input.stopAfterIneligible !== false) {
+        break;
+      }
+      continue;
     }
     
     const context: EligibilityContext = {

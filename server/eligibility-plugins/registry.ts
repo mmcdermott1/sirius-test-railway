@@ -33,12 +33,28 @@ class EligibilityPluginRegistry {
     }));
   }
 
+  getAllFiltered(enabledComponents: string[]): RegisteredEligibilityPlugin[] {
+    return this.getAll().filter(p => {
+      const requiredComponent = p.metadata.requiresComponent;
+      if (!requiredComponent) return true;
+      return enabledComponents.includes(requiredComponent);
+    });
+  }
+
   getAllIds(): string[] {
     return Array.from(this.plugins.keys());
   }
 
   has(id: string): boolean {
     return this.plugins.has(id);
+  }
+
+  isPluginEnabled(id: string, enabledComponents: string[]): boolean {
+    const plugin = this.plugins.get(id);
+    if (!plugin) return false;
+    const requiredComponent = plugin.metadata.requiresComponent;
+    if (!requiredComponent) return true;
+    return enabledComponents.includes(requiredComponent);
   }
 }
 

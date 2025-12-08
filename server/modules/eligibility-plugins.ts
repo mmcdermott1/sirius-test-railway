@@ -5,10 +5,12 @@ import { policies } from "../policies";
 import { 
   getAllEligibilityPlugins, 
   getEligibilityPlugin,
+  eligibilityPluginRegistry,
 } from "../eligibility-plugins/registry";
 import { evaluateBenefitEligibility } from "../eligibility-plugins/executor";
 import type { EligibilityRule } from "../eligibility-plugins/types";
 import { z } from "zod";
+import { getEnabledComponentIds } from "./components";
 
 const evaluateEligibilitySchema = z.object({
   benefitId: z.string().uuid(),
@@ -28,7 +30,8 @@ export function registerEligibilityPluginRoutes(
   
   app.get("/api/eligibility-plugins", requireAuth, requireAccess(policies.admin), async (req, res) => {
     try {
-      const registeredPlugins = getAllEligibilityPlugins();
+      const enabledComponents = await getEnabledComponentIds();
+      const registeredPlugins = eligibilityPluginRegistry.getAllFiltered(enabledComponents);
       
       const plugins = registeredPlugins.map(p => ({
         id: p.metadata.id,
@@ -52,6 +55,16 @@ export function registerEligibilityPluginRoutes(
       
       if (!plugin) {
         return res.status(404).json({ message: "Eligibility plugin not found" });
+      }
+
+      const enabledComponents = await getEnabledComponentIds();
+      const isEnabled = eligibilityPluginRegistry.isPluginEnabled(id, enabledComponents);
+      
+      if (!isEnabled) {
+        return res.status(404).json({ 
+          message: "Eligibility plugin not available",
+          reason: "Required component is disabled"
+        });
       }
       
       res.json({

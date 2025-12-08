@@ -27,6 +27,7 @@ export interface EligibilityPluginMetadata {
   name: string;
   description: string;
   configSchema: z.ZodSchema;
+  requiresComponent?: string;
 }
 
 export interface EligibilityRule {
