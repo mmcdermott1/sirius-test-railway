@@ -1419,7 +1419,7 @@ function Router() {
       </Route>
 
       <Route path="/admin/wmb-scan-queue">
-        <ProtectedRoute permission="admin">
+        <ProtectedRoute permission="admin" component="trust.benefits.scan">
           <AuthenticatedLayout>
             <WmbScanQueue />
           </AuthenticatedLayout>
@@ -1427,7 +1427,7 @@ function Router() {
       </Route>
 
       <Route path="/admin/wmb-scan/:id">
-        <ProtectedRoute permission="admin">
+        <ProtectedRoute permission="admin" component="trust.benefits.scan">
           <AuthenticatedLayout>
             <WmbScanDetail />
           </AuthenticatedLayout>

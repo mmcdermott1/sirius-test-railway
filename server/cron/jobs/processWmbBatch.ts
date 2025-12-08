@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: ProcessWmbBatchSettings = {
 
 export const processWmbBatchHandler: CronJobHandler = {
   description: 'Processes pending WMB scan jobs from the queue in batches',
+  requiresComponent: 'trust.benefits.scan',
 
   settingsSchema,
 

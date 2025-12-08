@@ -7,7 +7,7 @@ import { getAllPlugins } from "@/plugins/registry";
 import { PluginConfig } from "@/plugins/types";
 
 export default function Dashboard() {
-  const { user, permissions } = useAuth();
+  const { user, permissions, components } = useAuth();
   
   const { data: userRoles = [], isLoading: rolesLoading } = useQuery<Role[]>({
     queryKey: [`/api/users/${user?.id}/roles`],
@@ -58,6 +58,7 @@ export default function Dashboard() {
                     userId={user?.id || ""}
                     userRoles={userRoles}
                     userPermissions={permissions}
+                    enabledComponents={components}
                   />
                 );
               })}

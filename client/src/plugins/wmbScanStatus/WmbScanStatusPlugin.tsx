@@ -51,15 +51,16 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={c.variant}>{c.label}</Badge>;
 }
 
-export function WmbScanStatusPlugin({ userPermissions }: DashboardPluginProps) {
+export function WmbScanStatusPlugin({ userPermissions, enabledComponents }: DashboardPluginProps) {
   const hasPermission = userPermissions.includes("admin");
+  const hasComponent = enabledComponents?.includes("trust.benefits.scan") ?? false;
 
   const { data: statuses = [], isLoading } = useQuery<MonthStatus[]>({
     queryKey: ["/api/wmb-scan/status"],
-    enabled: hasPermission,
+    enabled: hasPermission && hasComponent,
   });
 
-  if (!hasPermission) {
+  if (!hasPermission || !hasComponent) {
     return null;
   }
 

@@ -26,6 +26,7 @@ export interface CronJobSettingsField {
 export interface CronJobHandler {
   execute: (context: CronJobContext) => Promise<CronJobSummary>;
   description?: string;
+  requiresComponent?: string; // Component ID that must be enabled for this job to run
   settingsSchema?: z.ZodSchema; // Zod schema for validating settings
   getDefaultSettings?: () => Record<string, unknown>; // Default settings values
   getSettingsFields?: () => CronJobSettingsField[]; // UI field definitions

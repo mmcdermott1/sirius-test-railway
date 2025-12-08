@@ -205,7 +205,7 @@ export default function Header() {
                   </Button>
                 </Link>
 
-                {(hasComponent("trust.providers") || hasPermission("admin")) && (
+                {(hasComponent("trust.providers") || (hasPermission("admin") && hasComponent("trust.benefits.scan"))) && (
                   <>
                     <div className="text-sm font-medium text-muted-foreground px-4 py-2">Trust</div>
                     {hasComponent("trust.providers") && (
@@ -222,7 +222,7 @@ export default function Header() {
                     )}
                   </>
                 )}
-                {hasPermission("admin") && (
+                {hasPermission("admin") && hasComponent("trust.benefits.scan") && (
                   <Link href="/admin/wmb-scan-queue" onClick={() => setMobileMenuOpen(false)}>
                     <Button
                       variant={location === "/admin/wmb-scan-queue" ? "default" : "ghost"}
@@ -364,7 +364,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {(hasComponent("trust.providers") || hasPermission("admin")) && (
+            {(hasComponent("trust.providers") || (hasPermission("admin") && hasComponent("trust.benefits.scan"))) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -388,7 +388,7 @@ export default function Header() {
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  {hasPermission("admin") && (
+                  {hasPermission("admin") && hasComponent("trust.benefits.scan") && (
                     <DropdownMenuItem asChild>
                       <Link href="/admin/wmb-scan-queue" className="w-full">
                         <div className="flex items-center cursor-pointer" data-testid="menu-benefit-scan">

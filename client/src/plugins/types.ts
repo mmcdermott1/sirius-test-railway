@@ -7,6 +7,7 @@ export interface DashboardPluginProps {
   userId: string;
   userRoles: Role[];
   userPermissions: string[];
+  enabledComponents?: string[];
 }
 
 export interface PluginSettingsProps<T = any> {

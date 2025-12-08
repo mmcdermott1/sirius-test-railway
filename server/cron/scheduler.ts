@@ -4,6 +4,7 @@ import { cronJobs, cronJobRuns, type CronJob } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../logger";
 import { cronJobRegistry } from "./registry";
+import { getEnabledComponentIds } from "../modules/components";
 
 interface ScheduledJob {
   cronJob: CronJob;
@@ -152,6 +153,33 @@ class CronScheduler {
     try {
       // Get the handler to access default settings if needed
       const handler = cronJobRegistry.get(cronJob.name);
+      
+      // Check if job requires a component that is disabled
+      if (handler?.requiresComponent) {
+        const enabledComponents = await getEnabledComponentIds();
+        if (!enabledComponents.includes(handler.requiresComponent)) {
+          const skipMessage = `Skipped: required component '${handler.requiresComponent}' is disabled`;
+          logger.info(`Job skipped due to disabled component: ${cronJob.name}`, {
+            service: 'cron-scheduler',
+            jobName: cronJob.name,
+            runId,
+            requiredComponent: handler.requiresComponent,
+          });
+          
+          // Update run as skipped
+          await db
+            .update(cronJobRuns)
+            .set({
+              status: 'skipped',
+              completedAt: new Date(),
+              output: JSON.stringify({ message: skipMessage, requiredComponent: handler.requiresComponent }),
+            })
+            .where(eq(cronJobRuns.id, runId));
+          
+          return;
+        }
+      }
+      
       const defaultSettings = handler?.getDefaultSettings?.() ?? {};
       const jobSettings = (cronJob.settings as Record<string, unknown>) ?? {};
       const mergedSettings = { ...defaultSettings, ...jobSettings };
