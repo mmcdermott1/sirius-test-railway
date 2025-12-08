@@ -79,6 +79,7 @@ export interface ChargePluginMetadata {
   triggers: TriggerType[];
   defaultScope: "global" | "employer";
   settingsSchema?: any; // Zod schema for validating settings
+  requiredComponent?: string; // Component ID that must be enabled for this plugin to function
 }
 
 export interface LedgerEntryVerification {

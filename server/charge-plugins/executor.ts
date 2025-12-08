@@ -8,7 +8,7 @@ import {
   LedgerTransaction,
   LedgerNotification,
 } from "./types";
-import { getChargePluginsByTrigger } from "./registry";
+import { getEnabledChargePluginsByTrigger } from "./registry";
 import { storage } from "../storage/database";
 
 export interface PluginExecutionSummary {
@@ -39,8 +39,8 @@ export async function executeChargePlugins(
     trigger,
   });
 
-  // Get all plugins that handle this trigger
-  const applicablePlugins = getChargePluginsByTrigger(trigger);
+  // Get all enabled plugins that handle this trigger (filters by component status)
+  const applicablePlugins = await getEnabledChargePluginsByTrigger(trigger);
   
   if (applicablePlugins.length === 0) {
     logger.debug("No plugins registered for trigger", {

@@ -13,7 +13,6 @@ import { z } from "zod";
 import { logger } from "../../logger";
 import { getCurrentEffectiveRate } from "../../utils/rateHistory";
 import { storage } from "../../storage/database";
-import { isComponentEnabled } from "../../modules/components";
 import type { Ledger, ChargePluginConfig } from "@shared/schema";
 
 const rateHistoryEntrySchema = z.object({
@@ -488,20 +487,5 @@ class GbhetLegalHourlyPlugin extends ChargePlugin {
   }
 }
 
-async function registerIfComponentEnabled() {
-  const isEnabled = await isComponentEnabled("sitespecific.gbhet.legal");
-  if (isEnabled) {
-    registerChargePlugin(new GbhetLegalHourlyPlugin());
-  } else {
-    logger.debug("GBHET Legal Hourly plugin not registered - component sitespecific.gbhet.legal is not enabled", {
-      service: "charge-plugin-gbhet-legal-hourly",
-    });
-  }
-}
-
-registerIfComponentEnabled().catch(error => {
-  logger.error("Failed to check component status for GBHET Legal Hourly plugin", {
-    service: "charge-plugin-gbhet-legal-hourly",
-    error: error instanceof Error ? error.message : String(error),
-  });
-});
+// Register the plugin - component check is done at runtime by the registry/executor
+registerChargePlugin(new GbhetLegalHourlyPlugin());

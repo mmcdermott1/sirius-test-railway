@@ -1,6 +1,7 @@
 import { ChargePlugin } from "./base";
 import { logger } from "../logger";
 import type { TriggerType } from "./types";
+import { isComponentEnabled } from "../modules/components";
 
 export interface RegisteredChargePlugin {
   id: string;
@@ -20,6 +21,7 @@ class ChargePluginRegistry {
     logger.info(`Registered charge plugin: ${id}`, { 
       service: 'charge-plugin-registry',
       triggers: plugin.metadata.triggers,
+      requiredComponent: plugin.metadata.requiredComponent,
     });
   }
 
@@ -35,6 +37,23 @@ class ChargePluginRegistry {
     }));
   }
 
+  async getAllEnabled(): Promise<RegisteredChargePlugin[]> {
+    const all = this.getAll();
+    const enabledPlugins: RegisteredChargePlugin[] = [];
+    
+    for (const entry of all) {
+      if (entry.metadata.requiredComponent) {
+        const enabled = await isComponentEnabled(entry.metadata.requiredComponent);
+        if (!enabled) {
+          continue;
+        }
+      }
+      enabledPlugins.push(entry);
+    }
+    
+    return enabledPlugins;
+  }
+
   getAllIds(): string[] {
     return Array.from(this.plugins.keys());
   }
@@ -47,6 +66,39 @@ class ChargePluginRegistry {
     return Array.from(this.plugins.values()).filter(plugin => 
       plugin.canHandle(trigger)
     );
+  }
+
+  async getEnabledByTrigger(trigger: TriggerType): Promise<ChargePlugin[]> {
+    const plugins = this.getByTrigger(trigger);
+    const enabledPlugins: ChargePlugin[] = [];
+    
+    for (const plugin of plugins) {
+      if (plugin.metadata.requiredComponent) {
+        const enabled = await isComponentEnabled(plugin.metadata.requiredComponent);
+        if (!enabled) {
+          logger.debug("Skipping charge plugin - required component disabled", {
+            service: "charge-plugin-registry",
+            pluginId: plugin.metadata.id,
+            requiredComponent: plugin.metadata.requiredComponent,
+          });
+          continue;
+        }
+      }
+      enabledPlugins.push(plugin);
+    }
+    
+    return enabledPlugins;
+  }
+
+  async isPluginEnabled(id: string): Promise<boolean> {
+    const plugin = this.get(id);
+    if (!plugin) {
+      return false;
+    }
+    if (!plugin.metadata.requiredComponent) {
+      return true;
+    }
+    return isComponentEnabled(plugin.metadata.requiredComponent);
   }
 }
 
@@ -64,6 +116,18 @@ export function getAllChargePlugins(): RegisteredChargePlugin[] {
   return chargePluginRegistry.getAll();
 }
 
+export async function getAllEnabledChargePlugins(): Promise<RegisteredChargePlugin[]> {
+  return chargePluginRegistry.getAllEnabled();
+}
+
 export function getChargePluginsByTrigger(trigger: TriggerType): ChargePlugin[] {
   return chargePluginRegistry.getByTrigger(trigger);
+}
+
+export async function getEnabledChargePluginsByTrigger(trigger: TriggerType): Promise<ChargePlugin[]> {
+  return chargePluginRegistry.getEnabledByTrigger(trigger);
+}
+
+export async function isChargePluginEnabled(id: string): Promise<boolean> {
+  return chargePluginRegistry.isPluginEnabled(id);
 }
