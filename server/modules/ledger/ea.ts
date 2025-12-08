@@ -3,11 +3,12 @@ import { storage } from "../../storage";
 import { insertLedgerEaSchema } from "@shared/schema";
 import { policies } from "../../policies";
 import { requireAccess } from "../../accessControl";
+import { requireComponent } from "../components";
 import { generateInvoicePdf } from "../../utils/pdfGenerator";
 
 export function registerLedgerEaRoutes(app: Express) {
   // GET /api/ledger/ea - Get all ledger EA entries
-  app.get("/api/ledger/ea", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.get("/api/ledger/ea", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const entries = await storage.ledger.ea.getAll();
       res.json(entries);
@@ -17,7 +18,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // GET /api/ledger/ea/entity/:entityType/:entityId - Get ledger EA entries for an entity
-  app.get("/api/ledger/ea/entity/:entityType/:entityId", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.get("/api/ledger/ea/entity/:entityType/:entityId", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { entityType, entityId } = req.params;
       const entries = await storage.ledger.ea.getByEntity(entityType, entityId);
@@ -28,7 +29,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // GET /api/ledger/ea/:id - Get a specific ledger EA entry
-  app.get("/api/ledger/ea/:id", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.get("/api/ledger/ea/:id", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { id } = req.params;
       const entry = await storage.ledger.ea.get(id);
@@ -45,7 +46,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // POST /api/ledger/ea - Create a new ledger EA entry
-  app.post("/api/ledger/ea", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.post("/api/ledger/ea", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const validatedData = insertLedgerEaSchema.parse(req.body);
       const entry = await storage.ledger.ea.create(validatedData);
@@ -60,7 +61,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // PUT /api/ledger/ea/:id - Update a ledger EA entry
-  app.put("/api/ledger/ea/:id", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.put("/api/ledger/ea/:id", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = insertLedgerEaSchema.partial().parse(req.body);
@@ -83,7 +84,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // DELETE /api/ledger/ea/:id - Delete a ledger EA entry
-  app.delete("/api/ledger/ea/:id", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.delete("/api/ledger/ea/:id", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.ledger.ea.delete(id);
@@ -100,7 +101,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // GET /api/ledger/ea/:id/transactions - Get ledger entries for an EA
-  app.get("/api/ledger/ea/:id/transactions", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.get("/api/ledger/ea/:id/transactions", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -120,7 +121,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // GET /api/ledger/ea/:id/invoices - Get invoice list for an EA
-  app.get("/api/ledger/ea/:id/invoices", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.get("/api/ledger/ea/:id/invoices", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -140,7 +141,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // GET /api/ledger/ea/:id/invoices/:month/:year - Get invoice details
-  app.get("/api/ledger/ea/:id/invoices/:month/:year", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.get("/api/ledger/ea/:id/invoices/:month/:year", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { id, month, year } = req.params;
       
@@ -170,7 +171,7 @@ export function registerLedgerEaRoutes(app: Express) {
   });
 
   // GET /api/ledger/ea/:id/invoices/:month/:year/pdf - Download invoice as PDF
-  app.get("/api/ledger/ea/:id/invoices/:month/:year/pdf", requireAccess(policies.ledgerStaff), async (req, res) => {
+  app.get("/api/ledger/ea/:id/invoices/:month/:year/pdf", requireComponent("ledger"), requireAccess(policies.ledgerStaff), async (req, res) => {
     try {
       const { id, month, year } = req.params;
       
