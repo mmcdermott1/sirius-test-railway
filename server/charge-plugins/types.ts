@@ -3,6 +3,7 @@ import type { ChargePluginConfig } from "@shared/schema";
 export enum TriggerType {
   HOURS_SAVED = "hours_saved",
   PAYMENT_SAVED = "payment_saved",
+  WMB_SAVED = "wmb_saved",
   CRON = "cron",
 }
 
@@ -32,13 +33,24 @@ export interface PaymentSavedContext {
   memo: string | null;
 }
 
+export interface WmbSavedContext {
+  trigger: TriggerType.WMB_SAVED;
+  wmbId: string;
+  workerId: string;
+  employerId: string;
+  benefitId: string;
+  year: number;
+  month: number;
+  isDeleted?: boolean;
+}
+
 export interface CronContext {
   trigger: TriggerType.CRON;
   jobId: string;
   mode: "live" | "test";
 }
 
-export type PluginContext = HoursSavedContext | PaymentSavedContext | CronContext;
+export type PluginContext = HoursSavedContext | PaymentSavedContext | WmbSavedContext | CronContext;
 
 export interface LedgerTransaction {
   chargePlugin: string;

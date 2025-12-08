@@ -15,6 +15,7 @@ import {
 import { eq, sql, desc, and } from "drizzle-orm";
 import type { ContactsStorage } from "./contacts";
 import { type StorageLoggingConfig } from "./middleware/logging";
+import { logger } from "../logger";
 
 export interface WorkerEmployerSummary {
   workerId: string;
@@ -469,6 +470,31 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
         .insert(trustWmb)
         .values(data)
         .returning();
+
+      if (wmb) {
+        try {
+          const { executeChargePlugins, TriggerType } = await import("../charge-plugins");
+          
+          const context = {
+            trigger: TriggerType.WMB_SAVED as typeof TriggerType.WMB_SAVED,
+            wmbId: wmb.id,
+            workerId: wmb.workerId,
+            employerId: wmb.employerId,
+            benefitId: wmb.benefitId,
+            year: wmb.year,
+            month: wmb.month,
+          };
+
+          await executeChargePlugins(context);
+        } catch (error) {
+          logger.error("Failed to execute charge plugins for WMB create", {
+            service: "worker-storage",
+            wmbId: wmb.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
       return wmb;
     },
 
@@ -477,6 +503,34 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
         .delete(trustWmb)
         .where(eq(trustWmb.id, id))
         .returning();
+      
+      const deleted = result[0];
+      
+      if (deleted) {
+        try {
+          const { executeChargePlugins, TriggerType } = await import("../charge-plugins");
+          
+          const context = {
+            trigger: TriggerType.WMB_SAVED as typeof TriggerType.WMB_SAVED,
+            wmbId: deleted.id,
+            workerId: deleted.workerId,
+            employerId: deleted.employerId,
+            benefitId: deleted.benefitId,
+            year: deleted.year,
+            month: deleted.month,
+            isDeleted: true,
+          };
+
+          await executeChargePlugins(context);
+        } catch (error) {
+          logger.error("Failed to execute charge plugins for WMB delete", {
+            service: "worker-storage",
+            wmbId: deleted.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+      
       return result.length > 0;
     },
 

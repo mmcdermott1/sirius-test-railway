@@ -5,5 +5,6 @@ export * from "./executor";
 
 // Import and register all plugins
 // import "./plugins/hourFixed"; // Temporarily disabled - no charge plugins active
-import "./plugins/gbhetLegalHourly";
+// import "./plugins/gbhetLegalHourly"; // Replaced by gbhetLegalBenefit
+import "./plugins/gbhetLegalBenefit";
 import "./plugins/paymentSimpleAllocation";
