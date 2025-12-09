@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer, unique, serial, index, numeric } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer, unique, serial, index, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -469,6 +469,17 @@ export const cardcheckDefinitions = pgTable("cardcheck_definitions", {
   data: jsonb("data"),
 });
 
+export const cardcheckStatusEnum = pgEnum("cardcheck_status", ["pending", "signed", "revoked"]);
+
+export const cardchecks = pgTable("cardchecks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
+  cardcheckDefinitionId: varchar("cardcheck_definition_id").notNull().references(() => cardcheckDefinitions.id, { onDelete: 'restrict' }),
+  status: cardcheckStatusEnum("status").notNull().default("pending"),
+  signedDate: timestamp("signed_date"),
+  data: jsonb("data"),
+});
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -515,6 +526,10 @@ export const insertPolicySchema = createInsertSchema(policies).omit({
 });
 
 export const insertCardcheckDefinitionSchema = createInsertSchema(cardcheckDefinitions).omit({
+  id: true,
+});
+
+export const insertCardcheckSchema = createInsertSchema(cardchecks).omit({
   id: true,
 });
 
@@ -736,6 +751,9 @@ export type Policy = typeof policies.$inferSelect;
 
 export type InsertCardcheckDefinition = z.infer<typeof insertCardcheckDefinitionSchema>;
 export type CardcheckDefinition = typeof cardcheckDefinitions.$inferSelect;
+
+export type InsertCardcheck = z.infer<typeof insertCardcheckSchema>;
+export type Cardcheck = typeof cardchecks.$inferSelect;
 
 export type InsertEmployerContact = z.infer<typeof insertEmployerContactSchema>;
 export type EmployerContact = typeof employerContacts.$inferSelect;
