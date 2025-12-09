@@ -68,7 +68,12 @@ export function registerCardchecksRoutes(
         return res.status(400).json({ message: "Cannot modify a revoked cardcheck. Revoked cardchecks are permanently locked." });
       }
       
-      const parsed = insertCardcheckSchema.partial().safeParse(req.body);
+      const body = { ...req.body };
+      if (body.signedDate && typeof body.signedDate === "string") {
+        body.signedDate = new Date(body.signedDate);
+      }
+      
+      const parsed = insertCardcheckSchema.partial().safeParse(body);
       
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid cardcheck data", errors: parsed.error.errors });
