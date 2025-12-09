@@ -12,8 +12,8 @@ interface EsigViewProps {
 
 interface EsigData {
   type: "canvas" | "typed";
-  data: string;
-  typedName?: string;
+  value: string;
+  signedAt?: string;
 }
 
 export function EsigView({ esigId }: EsigViewProps) {
@@ -131,11 +131,11 @@ function SignatureDisplay({ esigData }: SignatureDisplayProps) {
     );
   }
 
-  if (esigData.type === "canvas" && esigData.data) {
+  if (esigData.type === "canvas" && esigData.value) {
     return (
       <div className="border rounded-md p-4 bg-white dark:bg-zinc-900" data-testid="display-signature-canvas">
         <img 
-          src={esigData.data} 
+          src={esigData.value} 
           alt="Signature" 
           className="max-h-32 object-contain"
         />
@@ -143,14 +143,14 @@ function SignatureDisplay({ esigData }: SignatureDisplayProps) {
     );
   }
 
-  if (esigData.type === "typed" && esigData.typedName) {
+  if (esigData.type === "typed" && esigData.value) {
     return (
       <div className="border rounded-md p-4 bg-white dark:bg-zinc-900" data-testid="display-signature-typed">
         <p 
           className="text-2xl italic text-foreground"
           style={{ fontFamily: "'Dancing Script', cursive, serif" }}
         >
-          {esigData.typedName}
+          {esigData.value}
         </p>
       </div>
     );
