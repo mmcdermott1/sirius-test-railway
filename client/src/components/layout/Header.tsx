@@ -19,6 +19,8 @@ import {
   Menu,
   Server,
   ScanLine,
+  ClipboardCheck,
+  List,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -161,16 +163,29 @@ export default function Header() {
                   </Button>
                 </Link>
 
+                <div className="text-sm font-medium text-muted-foreground px-4 py-2">Workers</div>
                 <Link href="/workers" onClick={() => setMobileMenuOpen(false)}>
                   <Button
                     variant={location === "/workers" ? "default" : "ghost"}
-                    className="w-full justify-start"
-                    data-testid="mobile-nav-workers"
+                    className="w-full justify-start pl-8"
+                    data-testid="mobile-nav-workers-list"
                   >
-                    <Users className="h-4 w-4 mr-2" />
-                    Workers
+                    <List className="h-4 w-4 mr-2" />
+                    List
                   </Button>
                 </Link>
+                {hasComponent("cardcheck") && (
+                  <Link href="/cardcheck/definitions" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location.startsWith("/cardcheck/") ? "default" : "ghost"}
+                      className="w-full justify-start pl-8"
+                      data-testid="mobile-nav-cardcheck-definitions"
+                    >
+                      <ClipboardCheck className="h-4 w-4 mr-2" />
+                      Cardchecks
+                    </Button>
+                  </Link>
+                )}
 
                 <Link href="/employers" onClick={() => setMobileMenuOpen(false)}>
                   <Button
@@ -313,16 +328,39 @@ export default function Header() {
               </Button>
             </Link>
 
-            <Link href="/workers">
-              <Button
-                variant={location === "/workers" ? "default" : "ghost"}
-                size="sm"
-                data-testid="nav-workers"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Workers
-              </Button>
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={location === "/workers" || location.startsWith("/cardcheck/") ? "default" : "ghost"}
+                  size="sm"
+                  data-testid="nav-workers"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Workers
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem asChild>
+                  <Link href="/workers" className="w-full">
+                    <div className="flex items-center cursor-pointer" data-testid="menu-workers-list">
+                      <List className="h-4 w-4 mr-2" />
+                      List
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+                {hasComponent("cardcheck") && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/cardcheck/definitions" className="w-full">
+                      <div className="flex items-center cursor-pointer" data-testid="menu-cardcheck-definitions">
+                        <ClipboardCheck className="h-4 w-4 mr-2" />
+                        Cardchecks
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
