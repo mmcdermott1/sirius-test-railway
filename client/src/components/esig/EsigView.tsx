@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, FileSignature, Calendar, Hash, Shield, FileText, Download } from "lucide-react";
+import { Loader2, FileSignature, Calendar, Hash, Shield, FileText, Download, User, Mail, Key } from "lucide-react";
 import { format } from "date-fns";
 
 interface EsigViewProps {
@@ -18,8 +18,19 @@ interface EsigData {
   signedAt?: string;
 }
 
+interface EsigSigner {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+interface EsigWithSigner extends Esig {
+  signer?: EsigSigner;
+}
+
 export function EsigView({ esigId }: EsigViewProps) {
-  const { data: esig, isLoading, error } = useQuery<Esig>({
+  const { data: esig, isLoading, error } = useQuery<EsigWithSigner>({
     queryKey: ["/api/esigs", esigId],
     enabled: !!esigId,
   });
@@ -74,6 +85,46 @@ export function EsigView({ esigId }: EsigViewProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {esig.signer && (
+            <>
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-muted-foreground">Signed By</label>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <User className="h-3 w-3" />
+                      Name
+                    </label>
+                    <p className="text-foreground" data-testid="text-signer-name">
+                      {esig.signer.firstName || esig.signer.lastName 
+                        ? `${esig.signer.firstName || ""} ${esig.signer.lastName || ""}`.trim()
+                        : "Unknown"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Mail className="h-3 w-3" />
+                      Email
+                    </label>
+                    <p className="text-foreground" data-testid="text-signer-email">
+                      {esig.signer.email}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Key className="h-3 w-3" />
+                      UUID
+                    </label>
+                    <p className="text-foreground font-mono text-xs break-all" data-testid="text-signer-uuid">
+                      {esig.signer.id}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1">
               <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">

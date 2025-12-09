@@ -1,8 +1,17 @@
 import { db } from "../db";
-import { esigs, cardchecks, files, type Esig, type InsertEsig, type Cardcheck } from "@shared/schema";
+import { esigs, cardchecks, files, users, type Esig, type InsertEsig, type Cardcheck } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { StorageLoggingConfig } from "./middleware/logging";
 import crypto from "crypto";
+
+export interface EsigWithSigner extends Esig {
+  signer?: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  };
+}
 
 export interface SignCardcheckParams {
   cardcheckId: string;
@@ -20,7 +29,7 @@ export interface SignCardcheckResult {
 }
 
 export interface EsigStorage {
-  getEsigById(id: string): Promise<Esig | undefined>;
+  getEsigById(id: string): Promise<EsigWithSigner | undefined>;
   createEsig(data: InsertEsig): Promise<Esig>;
   updateEsig(id: string, data: Partial<InsertEsig>): Promise<Esig | undefined>;
   signCardcheck(params: SignCardcheckParams): Promise<SignCardcheckResult>;
@@ -28,12 +37,33 @@ export interface EsigStorage {
 
 export function createEsigStorage(): EsigStorage {
   const storage: EsigStorage = {
-    async getEsigById(id: string): Promise<Esig | undefined> {
-      const [esig] = await db
-        .select()
+    async getEsigById(id: string): Promise<EsigWithSigner | undefined> {
+      const result = await db
+        .select({
+          esig: esigs,
+          user: {
+            id: users.id,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          },
+        })
         .from(esigs)
+        .leftJoin(users, eq(esigs.userId, users.id))
         .where(eq(esigs.id, id));
-      return esig || undefined;
+      
+      if (!result.length) return undefined;
+      
+      const { esig, user } = result[0];
+      return {
+        ...esig,
+        signer: user ? {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        } : undefined,
+      };
     },
 
     async createEsig(data: InsertEsig): Promise<Esig> {
