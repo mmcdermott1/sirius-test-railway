@@ -22,6 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SignatureModal } from "@/components/esig/SignatureModal";
+import { EsigView } from "@/components/esig/EsigView";
 
 export default function CardcheckViewPage() {
   const params = useParams<{ id: string }>();
@@ -265,19 +266,23 @@ export default function CardcheckViewPage() {
           </CardContent>
         </Card>
 
-        {definition?.body && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Content</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div 
-                className="prose prose-sm max-w-none dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: definition.body }}
-                data-testid="text-body"
-              />
-            </CardContent>
-          </Card>
+        {cardcheck.esigId ? (
+          <EsigView esigId={cardcheck.esigId} />
+        ) : (
+          definition?.body && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Document Content</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div 
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{ __html: definition.body }}
+                  data-testid="text-body"
+                />
+              </CardContent>
+            </Card>
+          )
         )}
 
         <Separator />
