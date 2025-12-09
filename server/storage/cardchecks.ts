@@ -42,6 +42,20 @@ export function createCardcheckStorage(): CardcheckStorage {
     },
 
     async createCardcheck(data: InsertCardcheck): Promise<Cardcheck> {
+      if (data.status === "signed") {
+        const existing = await db
+          .select()
+          .from(cardchecks)
+          .where(and(
+            eq(cardchecks.workerId, data.workerId),
+            eq(cardchecks.cardcheckDefinitionId, data.cardcheckDefinitionId),
+            eq(cardchecks.status, "signed")
+          ));
+        if (existing.length > 0) {
+          throw new Error("A signed cardcheck of this type already exists for this worker");
+        }
+      }
+      
       const [cardcheck] = await db
         .insert(cardchecks)
         .values(data)
@@ -50,6 +64,23 @@ export function createCardcheckStorage(): CardcheckStorage {
     },
 
     async updateCardcheck(id: string, data: Partial<InsertCardcheck>): Promise<Cardcheck | undefined> {
+      if (data.status === "signed") {
+        const current = await storage.getCardcheckById(id);
+        if (current && current.status !== "signed") {
+          const existing = await db
+            .select()
+            .from(cardchecks)
+            .where(and(
+              eq(cardchecks.workerId, current.workerId),
+              eq(cardchecks.cardcheckDefinitionId, current.cardcheckDefinitionId),
+              eq(cardchecks.status, "signed")
+            ));
+          if (existing.length > 0) {
+            throw new Error("A signed cardcheck of this type already exists for this worker");
+          }
+        }
+      }
+      
       const [updated] = await db
         .update(cardchecks)
         .set(data)
