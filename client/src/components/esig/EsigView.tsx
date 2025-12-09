@@ -1,11 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Esig, File as FileRecord } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, FileSignature, Calendar, Hash, Shield, FileText, Download, User, Mail, Key } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, FileSignature, Calendar, Hash, Shield, FileText, Download, User, Mail, Key, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
+
+async function computeSha256(text: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
 interface EsigViewProps {
   esigId: string;
@@ -35,6 +45,37 @@ export function EsigView({ esigId }: EsigViewProps) {
     enabled: !!esigId,
   });
 
+  const [hashVerification, setHashVerification] = useState<{
+    verified: boolean;
+    computedHash: string;
+  } | null>(null);
+  const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    async function verifyHash() {
+      if (!esig?.docRender || !esig?.docHash) {
+        setHashVerification(null);
+        return;
+      }
+
+      setVerifying(true);
+      try {
+        const computedHash = await computeSha256(esig.docRender);
+        setHashVerification({
+          verified: computedHash === esig.docHash,
+          computedHash,
+        });
+      } catch (err) {
+        console.error("Hash verification failed:", err);
+        setHashVerification(null);
+      } finally {
+        setVerifying(false);
+      }
+    }
+
+    verifyHash();
+  }, [esig?.docRender, esig?.docHash]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -57,6 +98,16 @@ export function EsigView({ esigId }: EsigViewProps) {
 
   return (
     <div className="space-y-6">
+      {hashVerification !== null && !hashVerification.verified && (
+        <Alert variant="destructive" data-testid="alert-hash-mismatch">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Document Integrity Warning</AlertTitle>
+          <AlertDescription>
+            The document hash does not match the stored hash. This document may have been modified after signing.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -141,10 +192,23 @@ export function EsigView({ esigId }: EsigViewProps) {
               <label className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <Hash className="h-4 w-4" />
                 Document Hash
+                {verifying && <Loader2 className="h-3 w-3 animate-spin" />}
+                {hashVerification !== null && (
+                  hashVerification.verified ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" data-testid="icon-hash-verified" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-destructive" data-testid="icon-hash-mismatch" />
+                  )
+                )}
               </label>
               <p className="text-foreground font-mono text-xs break-all" data-testid="text-esig-hash">
                 {esig.docHash || "No hash available"}
               </p>
+              {hashVerification !== null && !hashVerification.verified && (
+                <p className="text-xs text-destructive mt-1" data-testid="text-computed-hash">
+                  Computed: {hashVerification.computedHash}
+                </p>
+              )}
             </div>
           </div>
 
