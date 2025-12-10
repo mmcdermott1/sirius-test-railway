@@ -41,6 +41,18 @@ function WorkerCardchecksContent() {
     queryKey: ["/api/cardcheck/definitions"],
   });
 
+  // Get definition IDs that already have a signed cardcheck
+  const signedDefinitionIds = new Set(
+    cardchecks
+      .filter(c => c.status === "signed")
+      .map(c => c.cardcheckDefinitionId)
+  );
+
+  // Filter definitions to only show those without a signed cardcheck
+  const availableDefinitions = definitions.filter(
+    def => !signedDefinitionIds.has(def.id)
+  );
+
   const createMutation = useMutation({
     mutationFn: async (data: { cardcheckDefinitionId: string }) => {
       return apiRequest("POST", `/api/workers/${worker.id}/cardchecks`, data);
@@ -115,18 +127,24 @@ function WorkerCardchecksContent() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Cardcheck Definition</Label>
-                <Select value={selectedDefinitionId} onValueChange={setSelectedDefinitionId}>
-                  <SelectTrigger data-testid="select-definition">
-                    <SelectValue placeholder="Select a definition..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {definitions.map((def) => (
-                      <SelectItem key={def.id} value={def.id}>
-                        [{def.siriusId}] {def.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {availableDefinitions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">
+                    All cardcheck types have already been signed for this worker.
+                  </p>
+                ) : (
+                  <Select value={selectedDefinitionId} onValueChange={setSelectedDefinitionId}>
+                    <SelectTrigger data-testid="select-definition">
+                      <SelectValue placeholder="Select a definition..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableDefinitions.map((def) => (
+                        <SelectItem key={def.id} value={def.id}>
+                          [{def.siriusId}] {def.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -135,7 +153,7 @@ function WorkerCardchecksContent() {
               </Button>
               <Button 
                 onClick={handleCreate} 
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || availableDefinitions.length === 0}
                 data-testid="button-confirm-create"
               >
                 {createMutation.isPending ? "Creating..." : "Create"}
