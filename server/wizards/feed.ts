@@ -6,6 +6,30 @@ import { stringify as stringifyCSV } from 'csv-stringify/sync';
 import * as XLSX from 'xlsx';
 import { objectStorageService } from '../services/objectStorage.js';
 
+/**
+ * Filter out completely empty columns from parsed rows
+ * A column is considered empty if all cells in that column are null, undefined, or empty string
+ */
+function filterEmptyColumns(rows: any[][]): any[][] {
+  if (rows.length === 0) return rows;
+  
+  const maxCols = Math.max(...rows.map(row => row.length));
+  const nonEmptyColIndices: number[] = [];
+  
+  for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+    const hasData = rows.some(row => {
+      const cell = row[colIdx];
+      return cell !== null && cell !== undefined && cell !== '';
+    });
+    if (hasData) {
+      nonEmptyColIndices.push(colIdx);
+    }
+  }
+  
+  // Filter rows to only include non-empty columns
+  return rows.map(row => nonEmptyColIndices.map(colIdx => row[colIdx] ?? ''));
+}
+
 export interface FeedConfig {
   outputFormat?: 'csv' | 'json' | 'excel';
   includeHeaders?: boolean;
@@ -252,6 +276,9 @@ export abstract class FeedWizard extends BaseWizard {
       throw new Error('Unsupported file type');
     }
 
+    // Filter out completely empty columns (must match preview endpoint logic)
+    rawRows = filterEmptyColumns(rawRows);
+
     // Skip header row if present
     const dataRows = hasHeaders ? rawRows.slice(1) : rawRows;
 
@@ -456,6 +483,9 @@ export abstract class FeedWizard extends BaseWizard {
     } else {
       throw new Error('Unsupported file type');
     }
+
+    // Filter out completely empty columns (must match preview endpoint logic)
+    rawRows = filterEmptyColumns(rawRows);
 
     // Skip header row if present
     const dataRows = hasHeaders ? rawRows.slice(1) : rawRows;
