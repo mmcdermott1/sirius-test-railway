@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Cardcheck, CardcheckDefinition } from "@shared/schema";
@@ -52,6 +52,26 @@ function WorkerCardchecksContent() {
   const availableDefinitions = definitions.filter(
     def => !signedDefinitionIds.has(def.id)
   );
+
+  // Sort cardchecks: pending first, then signed, then revoked
+  // Within each status, most recent first (by signedDate or id as fallback)
+  const sortedCardchecks = useMemo(() => {
+    const statusOrder: Record<string, number> = { pending: 0, signed: 1, revoked: 2 };
+    
+    return [...cardchecks].sort((a, b) => {
+      // First sort by status
+      const statusDiff = (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+      if (statusDiff !== 0) return statusDiff;
+      
+      // Within same status, sort by date (most recent first)
+      const dateA = a.signedDate ? new Date(a.signedDate).getTime() : 0;
+      const dateB = b.signedDate ? new Date(b.signedDate).getTime() : 0;
+      if (dateA !== dateB) return dateB - dateA;
+      
+      // Fallback to id for consistent ordering
+      return b.id.localeCompare(a.id);
+    });
+  }, [cardchecks]);
 
   const createMutation = useMutation({
     mutationFn: async (data: { cardcheckDefinitionId: string }) => {
@@ -169,7 +189,7 @@ function WorkerCardchecksContent() {
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
-        ) : cardchecks.length === 0 ? (
+        ) : sortedCardchecks.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No cardchecks found for this worker.</p>
@@ -186,7 +206,7 @@ function WorkerCardchecksContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cardchecks.map((cardcheck) => (
+              {sortedCardchecks.map((cardcheck) => (
                 <TableRow key={cardcheck.id} data-testid={`row-cardcheck-${cardcheck.id}`}>
                   <TableCell className="font-medium">
                     {getDefinitionName(cardcheck)}
