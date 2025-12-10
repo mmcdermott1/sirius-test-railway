@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { esigs, cardchecks, files, users, type Esig, type InsertEsig, type Cardcheck } from "@shared/schema";
+import { esigs, cardchecks, cardcheckDefinitions, files, users, workers, contacts, type Esig, type InsertEsig, type Cardcheck } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { StorageLoggingConfig } from "./middleware/logging";
 import crypto from "crypto";
@@ -149,6 +149,38 @@ export function createEsigStorage(): EsigStorage {
   return storage;
 }
 
+async function getWorkerName(workerId: string): Promise<string> {
+  const [worker] = await db
+    .select({ contactId: workers.contactId, siriusId: workers.siriusId })
+    .from(workers)
+    .where(eq(workers.id, workerId));
+  if (!worker) return 'Unknown Worker';
+  
+  const [contact] = await db
+    .select({ given: contacts.given, family: contacts.family, displayName: contacts.displayName })
+    .from(contacts)
+    .where(eq(contacts.id, worker.contactId));
+  
+  const name = contact ? `${contact.given || ''} ${contact.family || ''}`.trim() : '';
+  return name || contact?.displayName || `Worker #${worker.siriusId}`;
+}
+
+async function getDefinitionName(definitionId: string): Promise<string> {
+  const [definition] = await db
+    .select({ name: cardcheckDefinitions.name, siriusId: cardcheckDefinitions.siriusId })
+    .from(cardcheckDefinitions)
+    .where(eq(cardcheckDefinitions.id, definitionId));
+  return definition ? `[${definition.siriusId}] ${definition.name}` : 'Unknown Definition';
+}
+
+async function getCardcheckInfo(cardcheckId: string): Promise<{ workerId: string; definitionId: string } | null> {
+  const [cardcheck] = await db
+    .select({ workerId: cardchecks.workerId, cardcheckDefinitionId: cardchecks.cardcheckDefinitionId })
+    .from(cardchecks)
+    .where(eq(cardchecks.id, cardcheckId));
+  return cardcheck ? { workerId: cardcheck.workerId, definitionId: cardcheck.cardcheckDefinitionId } : null;
+}
+
 export const esigLoggingConfig: StorageLoggingConfig<EsigStorage> = {
   module: 'esigs',
   methods: {
@@ -199,6 +231,39 @@ export const esigLoggingConfig: StorageLoggingConfig<EsigStorage> = {
             docType: result?.docType,
             status: result?.status,
             previousStatus: beforeState?.esig?.status,
+          }
+        };
+      }
+    },
+    signCardcheck: {
+      enabled: true,
+      getEntityId: (args, result) => result?.cardcheck?.id || args[0]?.cardcheckId,
+      getHostEntityId: async (args, result) => {
+        if (result?.cardcheck?.workerId) {
+          return result.cardcheck.workerId;
+        }
+        const info = await getCardcheckInfo(args[0]?.cardcheckId);
+        return info?.workerId;
+      },
+      getDescription: async (args, result) => {
+        const cardcheckId = result?.cardcheck?.id || args[0]?.cardcheckId;
+        const info = await getCardcheckInfo(cardcheckId);
+        if (!info) return 'Signed Cardcheck';
+        const workerName = await getWorkerName(info.workerId);
+        const definitionName = await getDefinitionName(info.definitionId);
+        return `Signed Cardcheck for ${workerName} - ${definitionName}`;
+      },
+      after: async (args, result) => {
+        return {
+          cardcheck: result?.cardcheck,
+          esig: result?.esig,
+          metadata: {
+            cardcheckId: result?.cardcheck?.id,
+            esigId: result?.esig?.id,
+            workerId: result?.cardcheck?.workerId,
+            cardcheckDefinitionId: result?.cardcheck?.cardcheckDefinitionId,
+            status: result?.cardcheck?.status,
+            rate: result?.cardcheck?.rate,
           }
         };
       }
