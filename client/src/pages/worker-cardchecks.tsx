@@ -224,11 +224,15 @@ function WorkerCardchecksContent() {
                         ? format(new Date(cardcheck.signedDate), "MMM d, yyyy") 
                         : "-"}
                     </div>
-                    {cardcheck.rate !== null && cardcheck.rate !== undefined && (
-                      <div className="text-sm text-muted-foreground">
-                        {(cardcheck.definition?.data as any)?.rateField?.title || "Rate"}: ${Number(cardcheck.rate).toFixed(2)}
-                      </div>
-                    )}
+                    {cardcheck.rate !== null && cardcheck.rate !== undefined && (() => {
+                      const def = definitions.find(d => d.id === cardcheck.cardcheckDefinitionId);
+                      const rateTitle = (def?.data as any)?.rateField?.title || "Rate";
+                      return (
+                        <div className="text-sm text-muted-foreground">
+                          {rateTitle}: ${Number(cardcheck.rate).toFixed(2)}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-right">
                     <Link href={`/cardchecks/${cardcheck.id}`}>
