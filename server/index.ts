@@ -23,7 +23,7 @@ import "./eligibility-plugins";
 import "./services/providers";
 
 // Import and register flood events
-import { registerFloodEvents } from "./flood";
+import { registerFloodEvents, loadFloodConfigFromVariables } from "./flood";
 
 // Helper function to redact sensitive data from responses before logging
 function redactSensitiveData(data: any): any {
@@ -138,6 +138,10 @@ app.use((req, res, next) => {
   // Register flood events
   registerFloodEvents();
   logger.info("Flood events registered", { source: "startup" });
+
+  // Load custom flood configurations from variables
+  await loadFloodConfigFromVariables();
+  logger.info("Flood configs loaded from variables", { source: "startup" });
 
   // Bootstrap default cron jobs
   await bootstrapCronJobs();

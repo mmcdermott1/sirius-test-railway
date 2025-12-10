@@ -26,6 +26,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "wouter";
 import type { Flood } from "@shared/schema";
 
 export default function FloodEventsPage() {
@@ -105,18 +107,18 @@ export default function FloodEventsPage() {
   return (
     <div className="container mx-auto py-6 px-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Droplets className="h-5 w-5" />
-              Flood Events
-            </CardTitle>
-            <CardDescription>
-              View and manage rate limiting flood events. These track API usage to prevent abuse.
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
+        <CardHeader className="flex flex-col gap-4">
+          <div className="flex flex-row items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Droplets className="h-5 w-5" />
+                Flood Control
+              </CardTitle>
+              <CardDescription>
+                View and manage rate limiting flood events. These track API usage to prevent abuse.
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={eventFilter} onValueChange={setEventFilter}>
                 <SelectTrigger className="w-[180px]" data-testid="select-event-filter">
@@ -131,50 +133,62 @@ export default function FloodEventsPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              disabled={isLoading}
-              data-testid="button-refresh-flood-events"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={!events || events.length === 0 || clearMutation.isPending}
-                  data-testid="button-clear-flood-events"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear {eventFilter !== "all" ? `"${eventFilter}"` : "All"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Clear Flood Events?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {eventFilter !== "all"
-                      ? `This will delete all "${eventFilter}" flood events. Users will be able to perform those actions again immediately.`
-                      : "This will delete all flood events. All rate limits will be reset."}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel data-testid="button-cancel-clear">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => clearMutation.mutate(eventFilter)}
-                    data-testid="button-confirm-clear"
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                data-testid="button-refresh-flood-events"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={!events || events.length === 0 || clearMutation.isPending}
+                    data-testid="button-clear-flood-events"
                   >
-                    Clear Events
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear {eventFilter !== "all" ? `"${eventFilter}"` : "All"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear Flood Events?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {eventFilter !== "all"
+                        ? `This will delete all "${eventFilter}" flood events. Users will be able to perform those actions again immediately.`
+                        : "This will delete all flood events. All rate limits will be reset."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-clear">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => clearMutation.mutate(eventFilter)}
+                      data-testid="button-confirm-clear"
+                    >
+                      Clear Events
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
+          <Tabs value="events" className="w-full">
+            <TabsList>
+              <TabsTrigger value="events" data-testid="tab-flood-events">
+                Events
+              </TabsTrigger>
+              <TabsTrigger value="config" asChild>
+                <Link href="/config/users/flood-events/config" data-testid="tab-flood-config">
+                  Configuration
+                </Link>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
           {isLoading || typesLoading ? (
