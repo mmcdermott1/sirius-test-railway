@@ -23,6 +23,7 @@ import {
   List,
   Key,
   Clock,
+  Droplets,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -329,6 +330,16 @@ export default function Header() {
                         Sessions
                       </Button>
                     </Link>
+                    <Link href="/config/users/flood-events" onClick={() => setMobileMenuOpen(false)}>
+                      <Button
+                        variant={location === "/config/users/flood-events" ? "default" : "ghost"}
+                        className="w-full justify-start pl-8"
+                        data-testid="mobile-nav-users-flood-events"
+                      >
+                        <Droplets className="h-4 w-4 mr-2" />
+                        Flood Events
+                      </Button>
+                    </Link>
                   </>
                 )}
 
@@ -616,6 +627,14 @@ export default function Header() {
                       <div className="flex items-center cursor-pointer" data-testid="menu-users-sessions">
                         <Clock className="h-4 w-4 mr-2" />
                         Sessions
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/config/users/flood-events" className="w-full">
+                      <div className="flex items-center cursor-pointer" data-testid="menu-users-flood-events">
+                        <Droplets className="h-4 w-4 mr-2" />
+                        Flood Events
                       </div>
                     </Link>
                   </DropdownMenuItem>
