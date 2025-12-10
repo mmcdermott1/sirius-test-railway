@@ -23,6 +23,7 @@ export default function CardcheckDefinitionEditPage() {
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formBody, setFormBody] = useState("");
+  const [formCheckboxes, setFormCheckboxes] = useState<string[]>(["", "", ""]);
 
   const { data: definition, isLoading, error } = useQuery<CardcheckDefinition>({
     queryKey: ["/api/cardcheck/definition", id],
@@ -35,6 +36,12 @@ export default function CardcheckDefinitionEditPage() {
       setFormName(definition.name);
       setFormDescription(definition.description || "");
       setFormBody(definition.body || "");
+      const existingCheckboxes = (definition.data as any)?.checkboxes || [];
+      setFormCheckboxes([
+        existingCheckboxes[0] || "",
+        existingCheckboxes[1] || "",
+        existingCheckboxes[2] || "",
+      ]);
     }
   }, [definition]);
 
@@ -79,11 +86,18 @@ export default function CardcheckDefinitionEditPage() {
       return;
     }
 
+    const nonEmptyCheckboxes = formCheckboxes.filter(cb => cb.trim() !== "");
+    const existingData = (definition?.data as any) || {};
+    
     updateMutation.mutate({
       siriusId: formSiriusId.trim(),
       name: formName.trim(),
       description: formDescription.trim() || null,
       body: formBody.trim() || null,
+      data: {
+        ...existingData,
+        checkboxes: nonEmptyCheckboxes.length > 0 ? nonEmptyCheckboxes : undefined,
+      },
     });
   };
 
@@ -180,6 +194,33 @@ export default function CardcheckDefinitionEditPage() {
                 placeholder="Enter body content..."
                 data-testid="input-body"
               />
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label>Required Checkboxes (Optional)</Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Add up to 3 checkbox statements that must be accepted before signing.
+                </p>
+              </div>
+              {[0, 1, 2].map((index) => (
+                <div key={index} className="space-y-2">
+                  <Label htmlFor={`checkbox-${index}`} className="text-sm text-muted-foreground">
+                    Checkbox {index + 1}
+                  </Label>
+                  <Input
+                    id={`checkbox-${index}`}
+                    value={formCheckboxes[index]}
+                    onChange={(e) => {
+                      const newCheckboxes = [...formCheckboxes];
+                      newCheckboxes[index] = e.target.value;
+                      setFormCheckboxes(newCheckboxes);
+                    }}
+                    placeholder={`e.g., I confirm that the information provided is accurate`}
+                    data-testid={`input-checkbox-${index + 1}`}
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="pt-4 border-t border-border">

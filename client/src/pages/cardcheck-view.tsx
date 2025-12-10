@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
-import { Loader2, ArrowLeft, User, FileText, Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Loader2, ArrowLeft, User, FileText, Calendar, CheckCircle, XCircle, Clock, Square, CheckSquare } from "lucide-react";
 import { Cardcheck, CardcheckDefinition, Worker, Contact } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SignatureModal } from "@/components/esig/SignatureModal";
 import { EsigView } from "@/components/esig/EsigView";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function CardcheckViewPage() {
   const params = useParams<{ id: string }>();
@@ -30,6 +31,7 @@ export default function CardcheckViewPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [signModalOpen, setSignModalOpen] = useState(false);
+  const [checkedBoxes, setCheckedBoxes] = useState<Record<number, boolean>>({});
 
   const { data: cardcheck, isLoading, error } = useQuery<Cardcheck>({
     queryKey: ["/api/cardcheck", id],
@@ -54,6 +56,35 @@ export default function CardcheckViewPage() {
   const handleSignSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/cardcheck", id] });
     queryClient.invalidateQueries({ queryKey: ["/api/workers", cardcheck?.workerId, "cardchecks"] });
+  };
+
+  const requiredCheckboxes: string[] = useMemo(() => {
+    return (definition?.data as any)?.checkboxes || [];
+  }, [definition]);
+
+  const allCheckboxesChecked = useMemo(() => {
+    if (requiredCheckboxes.length === 0) return true;
+    return requiredCheckboxes.every((_, index) => checkedBoxes[index] === true);
+  }, [requiredCheckboxes, checkedBoxes]);
+
+  const escapeHtml = (text: string): string => {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
+  const buildDocRender = (): string => {
+    let docRender = definition?.body || "";
+    
+    if (requiredCheckboxes.length > 0) {
+      const checkboxHtml = requiredCheckboxes
+        .map((text) => `<div style="margin: 8px 0; display: flex; align-items: flex-start; gap: 8px;"><span style="color: green; font-weight: bold;">&#10003;</span> <span>${escapeHtml(text)}</span></div>`)
+        .join("");
+      
+      docRender += `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ddd;"><p style="font-weight: 600; margin-bottom: 8px;">Acknowledged Statements:</p>${checkboxHtml}</div>`;
+    }
+    
+    return docRender;
   };
 
   const revokeMutation = useMutation({
@@ -274,20 +305,56 @@ export default function CardcheckViewPage() {
         {cardcheck.esigId ? (
           <EsigView esigId={cardcheck.esigId} />
         ) : (
-          definition?.body && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Document Content</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div 
-                  className="prose prose-sm max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: definition.body }}
-                  data-testid="text-body"
-                />
-              </CardContent>
-            </Card>
-          )
+          <>
+            {definition?.body && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Document Content</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div 
+                    className="prose prose-sm max-w-none dark:prose-invert"
+                    dangerouslySetInnerHTML={{ __html: definition.body }}
+                    data-testid="text-body"
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {cardcheck.status === "pending" && requiredCheckboxes.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Required Acknowledgements</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Please review and accept the following statements before signing:
+                  </p>
+                  {requiredCheckboxes.map((text, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <Checkbox
+                        id={`checkbox-${index}`}
+                        checked={checkedBoxes[index] || false}
+                        onCheckedChange={(checked) => {
+                          setCheckedBoxes(prev => ({
+                            ...prev,
+                            [index]: checked === true
+                          }));
+                        }}
+                        data-testid={`checkbox-acknowledgement-${index + 1}`}
+                      />
+                      <label 
+                        htmlFor={`checkbox-${index}`}
+                        className="text-sm leading-relaxed cursor-pointer"
+                      >
+                        {text}
+                      </label>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
 
         <Separator />
@@ -296,11 +363,17 @@ export default function CardcheckViewPage() {
           {cardcheck.status === "pending" && (
             <Button 
               onClick={() => setSignModalOpen(true)}
+              disabled={!allCheckboxesChecked}
               data-testid="button-sign"
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Sign Cardcheck
             </Button>
+          )}
+          {cardcheck.status === "pending" && !allCheckboxesChecked && requiredCheckboxes.length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              Please accept all required acknowledgements before signing
+            </span>
           )}
           
           {cardcheck.status === "signed" && (
@@ -364,7 +437,7 @@ export default function CardcheckViewPage() {
           onOpenChange={setSignModalOpen}
           docType="cardcheck"
           docTitle={definition.name}
-          docRender={definition.body || ""}
+          docRender={buildDocRender()}
           entityId={id}
           onSuccess={handleSignSuccess}
         />
