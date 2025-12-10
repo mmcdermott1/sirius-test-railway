@@ -9,6 +9,7 @@ export interface FloodEventDefinition {
   threshold: number;
   windowSeconds: number;
   getIdentifier: (context: FloodContext) => string;
+  resolveIdentifierName?: (identifier: string) => Promise<string | null>;
 }
 
 export interface FloodCheckResult {

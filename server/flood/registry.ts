@@ -66,6 +66,47 @@ class FloodEventRegistry {
   getDefaults(name: string): FloodEventDefaults | undefined {
     return this.defaults.get(name);
   }
+
+  async resolveIdentifierName(eventName: string, identifier: string): Promise<string | null> {
+    const event = this.events.get(eventName);
+    if (!event?.resolveIdentifierName) return null;
+    return event.resolveIdentifierName(identifier);
+  }
+
+  async resolveIdentifierNames(
+    events: Array<{ event: string; identifier: string }>
+  ): Promise<Map<string, string>> {
+    const results = new Map<string, string>();
+    const byEventType = new Map<string, Set<string>>();
+
+    for (const { event, identifier } of events) {
+      if (!byEventType.has(event)) {
+        byEventType.set(event, new Set());
+      }
+      byEventType.get(event)!.add(identifier);
+    }
+
+    for (const [eventName, identifiers] of Array.from(byEventType.entries())) {
+      const eventDef = this.events.get(eventName);
+      if (!eventDef?.resolveIdentifierName) continue;
+
+      for (const identifier of Array.from(identifiers)) {
+        const key = `${eventName}:${identifier}`;
+        if (!results.has(key)) {
+          try {
+            const name = await eventDef.resolveIdentifierName(identifier);
+            if (name) {
+              results.set(key, name);
+            }
+          } catch {
+            // Ignore resolution errors
+          }
+        }
+      }
+    }
+
+    return results;
+  }
 }
 
 export const floodEventRegistry = new FloodEventRegistry();

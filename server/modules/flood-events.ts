@@ -16,7 +16,17 @@ export function registerFloodEventRoutes(
     try {
       const eventType = req.query.event as string | undefined;
       const events = await storage.flood.listFloodEvents(eventType);
-      res.json(events);
+      
+      const nameMap = await floodEventRegistry.resolveIdentifierNames(
+        events.map(e => ({ event: e.event, identifier: e.identifier }))
+      );
+      
+      const eventsWithNames = events.map(e => ({
+        ...e,
+        identifierName: nameMap.get(`${e.event}:${e.identifier}`) || null,
+      }));
+      
+      res.json(eventsWithNames);
     } catch (error) {
       console.error("Error fetching flood events:", error);
       res.status(500).json({ message: "Failed to fetch flood events" });

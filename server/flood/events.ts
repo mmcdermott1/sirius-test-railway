@@ -13,6 +13,19 @@ export const bookmarkFloodEvent: FloodEventDefinition = {
     }
     return context.userId;
   },
+  resolveIdentifierName: async (identifier: string): Promise<string | null> => {
+    try {
+      const user = await storage.users.getUser(identifier);
+      if (user) {
+        return user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`.trim()
+          : user.email || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
 };
 
 export function registerFloodEvents(): void {

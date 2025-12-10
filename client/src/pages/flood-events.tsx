@@ -30,6 +30,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
 import type { Flood } from "@shared/schema";
 
+interface FloodEventWithName extends Flood {
+  identifierName?: string | null;
+}
+
 export default function FloodEventsPage() {
   const { toast } = useToast();
   const [eventFilter, setEventFilter] = useState<string>("all");
@@ -38,7 +42,7 @@ export default function FloodEventsPage() {
     queryKey: ["/api/flood-events/types"],
   });
 
-  const { data: events, isLoading, refetch } = useQuery<Flood[]>({
+  const { data: events, isLoading, refetch } = useQuery<FloodEventWithName[]>({
     queryKey: ["/api/flood-events", eventFilter],
     queryFn: async () => {
       const url = eventFilter && eventFilter !== "all" 
@@ -216,8 +220,19 @@ export default function FloodEventsPage() {
                     <TableCell>
                       <Badge variant="secondary">{event.event}</Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {truncateId(event.identifier)}
+                    <TableCell>
+                      {event.identifierName ? (
+                        <div className="flex flex-col">
+                          <span className="text-sm">{event.identifierName}</span>
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {truncateId(event.identifier)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-mono text-sm">
+                          {truncateId(event.identifier)}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
