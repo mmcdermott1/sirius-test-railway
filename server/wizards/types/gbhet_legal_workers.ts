@@ -280,6 +280,14 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
   }
 
   /**
+   * Check if a status name indicates "Deceased" (handles variations like "Deceased - Worker")
+   */
+  private isDeceasedStatus(name: string): boolean {
+    const normalized = normalizeForComparison(name);
+    return normalized.includes('deceased');
+  }
+
+  /**
    * Sync work status from employment status
    * Rules:
    * - If current work status is "Deceased", never change it
@@ -306,8 +314,8 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
       currentWorkStatusName = currentWs?.name || null;
     }
 
-    // Rule: Never change if current status is "Deceased"
-    if (currentWorkStatusName && normalizeForComparison(currentWorkStatusName) === 'deceased') {
+    // Rule: Never change if current status is "Deceased" (using robust pattern matching)
+    if (currentWorkStatusName && this.isDeceasedStatus(currentWorkStatusName)) {
       return;
     }
 
@@ -324,7 +332,7 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
       return;
     }
 
-    const isDeceased = normalizedEsName === 'deceased';
+    const isDeceased = this.isDeceasedStatus(employmentStatusOption.name);
     const isEmployed = employmentStatusOption.employed;
 
     // Rule: If employment status is "Deceased", set it
