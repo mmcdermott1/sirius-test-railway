@@ -370,13 +370,56 @@ export abstract class FeedWizard extends BaseWizard {
 
   /**
    * Parse various date formats and convert to YYYY-MM-DD
+   * Handles: string dates (M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD, etc.), 
+   * Excel serial numbers (days since 1900-01-01), and Date objects
    */
-  private parseDate(dateStr: string): string | null {
-    if (!dateStr || dateStr.trim() === '') {
+  private parseDate(dateValue: unknown): string | null {
+    if (dateValue === null || dateValue === undefined) {
       return null;
     }
 
-    const trimmed = dateStr.trim();
+    // Handle Date objects directly (XLSX may return these)
+    if (dateValue instanceof Date) {
+      if (isNaN(dateValue.getTime())) {
+        throw new Error(`Invalid date value`);
+      }
+      const year = dateValue.getFullYear();
+      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+      const day = String(dateValue.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Handle Excel serial date numbers
+    // Excel dates are stored as days since 1900-01-01 (with a leap year bug for Feb 29, 1900)
+    if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d+(\.\d+)?$/.test(dateValue.trim()))) {
+      const serial = typeof dateValue === 'number' ? dateValue : parseFloat(dateValue);
+      
+      // Reasonable range for Excel dates (1900-01-01 to ~2100)
+      if (serial >= 1 && serial <= 73050) {
+        // Excel epoch: January 1, 1900 = serial 1
+        // But Excel incorrectly treats 1900 as a leap year, so dates after Feb 28, 1900 need adjustment
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Dec 30, 1899 (serial 0)
+        const adjustedSerial = serial > 60 ? serial - 1 : serial; // Adjust for Excel's leap year bug
+        const parsed = new Date(excelEpoch.getTime() + adjustedSerial * 24 * 60 * 60 * 1000);
+        
+        if (!isNaN(parsed.getTime())) {
+          const year = parsed.getUTCFullYear();
+          const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(parsed.getUTCDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      }
+    }
+
+    // Handle string date formats
+    if (typeof dateValue !== 'string') {
+      throw new Error(`Invalid date format: ${dateValue}. Expected string, number, or Date.`);
+    }
+
+    const trimmed = dateValue.trim();
+    if (trimmed === '') {
+      return null;
+    }
     
     // Already in YYYY-MM-DD format
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
@@ -408,7 +451,7 @@ export abstract class FeedWizard extends BaseWizard {
     }
 
     if (!parsed || isNaN(parsed.getTime())) {
-      throw new Error(`Invalid date format: ${dateStr}. Supported formats: M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD`);
+      throw new Error(`Invalid date format: ${dateValue}. Supported formats: M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD, or Excel serial number`);
     }
 
     // Convert to YYYY-MM-DD
