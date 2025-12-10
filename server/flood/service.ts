@@ -31,6 +31,8 @@ export async function checkFlood(eventName: string, context: FloodContext): Prom
   
   const count = await storage.flood.countEventsInWindow(eventName, identifier, windowStart);
 
+  // Block when count >= threshold (the current request would be the threshold+1th event)
+  // With threshold=1000, events 1-999 are allowed, event 1000 is blocked
   return {
     allowed: count < event.threshold,
     count,
