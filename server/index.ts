@@ -8,7 +8,7 @@ import { setupAuth } from "./replitAuth";
 import { initAccessControl } from "./accessControl";
 import { storage } from "./storage";
 import { captureRequestContext } from "./middleware/request-context";
-import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler } from "./cron";
+import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler, deleteExpiredFloodEventsHandler } from "./cron";
 
 // Import charge plugins module to trigger registration
 // Note: Individual plugins are registered in ./charge-plugins/index.ts
@@ -133,6 +133,7 @@ app.use((req, res, next) => {
   registerCronJob('delete-expired-reports', deleteExpiredReportsHandler);
   registerCronJob('delete-old-cron-logs', deleteOldCronLogsHandler);
   registerCronJob('process-wmb-batch', processWmbBatchHandler);
+  registerCronJob('delete-expired-flood-events', deleteExpiredFloodEventsHandler);
   logger.info("Cron job handlers registered", { source: "startup" });
 
   // Register flood events
