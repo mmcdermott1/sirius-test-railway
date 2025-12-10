@@ -755,8 +755,14 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
     const wizardData = wizard.data as any || {};
     const benefitConfig = wizardData.benefitConfig as Array<{ fieldId: string; benefitId: string }> || [];
     
+    console.log('[WMB Debug] processWorkerBenefits called for worker:', workerId);
+    console.log('[WMB Debug] benefitConfig:', JSON.stringify(benefitConfig));
+    console.log('[WMB Debug] row keys:', Object.keys(row));
+    console.log('[WMB Debug] row data:', JSON.stringify(row));
+    
     // If no benefit configuration, skip
     if (benefitConfig.length === 0) {
+      console.log('[WMB Debug] No benefit configuration, skipping');
       return result;
     }
     
@@ -785,8 +791,12 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
       const { fieldId, benefitId } = config;
       const eligibilityValue = row[fieldId];
       
+      console.log('[WMB Debug] Checking field:', fieldId, 'value:', eligibilityValue, 'type:', typeof eligibilityValue);
+      console.log('[WMB Debug] isBenefitEligible result:', this.isBenefitEligible(eligibilityValue));
+      
       // Check if this worker is eligible for the benefit
       if (this.isBenefitEligible(eligibilityValue)) {
+        console.log('[WMB Debug] Worker is eligible, attempting to create WMB');
         try {
           // Check if WMB already exists
           const exists = await storage.workers.workerBenefitExists(workerId, benefitId, targetMonth, targetYear);
