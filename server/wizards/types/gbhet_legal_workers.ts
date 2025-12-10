@@ -186,6 +186,52 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
         required: false,
         description: 'Postal/ZIP code (optional)',
         displayOrder: 15
+      },
+      // Benefit eligibility fields - can be mapped to file columns to create WMB records
+      { 
+        id: 'benefit_1', 
+        name: 'Benefit Eligibility 1', 
+        type: 'benefit', 
+        required: false,
+        description: 'Benefit eligibility indicator (Yes/Y/1/X = eligible)',
+        displayOrder: 100,
+        isBenefitEligibility: true
+      },
+      { 
+        id: 'benefit_2', 
+        name: 'Benefit Eligibility 2', 
+        type: 'benefit', 
+        required: false,
+        description: 'Benefit eligibility indicator (Yes/Y/1/X = eligible)',
+        displayOrder: 101,
+        isBenefitEligibility: true
+      },
+      { 
+        id: 'benefit_3', 
+        name: 'Benefit Eligibility 3', 
+        type: 'benefit', 
+        required: false,
+        description: 'Benefit eligibility indicator (Yes/Y/1/X = eligible)',
+        displayOrder: 102,
+        isBenefitEligibility: true
+      },
+      { 
+        id: 'benefit_4', 
+        name: 'Benefit Eligibility 4', 
+        type: 'benefit', 
+        required: false,
+        description: 'Benefit eligibility indicator (Yes/Y/1/X = eligible)',
+        displayOrder: 103,
+        isBenefitEligibility: true
+      },
+      { 
+        id: 'benefit_5', 
+        name: 'Benefit Eligibility 5', 
+        type: 'benefit', 
+        required: false,
+        description: 'Benefit eligibility indicator (Yes/Y/1/X = eligible)',
+        displayOrder: 104,
+        isBenefitEligibility: true
       }
     ];
   }
@@ -194,6 +240,7 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
     return [
       { id: 'upload', name: 'Upload', description: 'Upload data file' },
       { id: 'map', name: 'Map', description: 'Map fields to schema' },
+      { id: 'benefits', name: 'Benefits', description: 'Configure benefit eligibility fields' },
       { id: 'validate', name: 'Validate', description: 'Validate data integrity' },
       { id: 'process', name: 'Process', description: 'Process and transform data' },
       { id: 'review', name: 'Review', description: 'Review results' }
@@ -650,6 +697,120 @@ export abstract class GbhetLegalWorkersWizard extends FeedWizard {
         });
       }
     }
+  }
+
+  /**
+   * Check if a value indicates benefit eligibility (truthy values)
+   * Truthy: Yes, Y, 1, X, True, or any non-empty non-zero value
+   * Falsy: No, N, 0, False, empty, null, undefined
+   */
+  protected isBenefitEligible(value: any): boolean {
+    if (value === null || value === undefined) {
+      return false;
+    }
+    
+    const strValue = String(value).toLowerCase().trim();
+    
+    // Explicit falsy values
+    if (strValue === '' || strValue === '0' || strValue === 'no' || strValue === 'n' || strValue === 'false') {
+      return false;
+    }
+    
+    // Explicit truthy values
+    if (strValue === '1' || strValue === 'yes' || strValue === 'y' || strValue === 'x' || strValue === 'true') {
+      return true;
+    }
+    
+    // Any other non-empty value is considered truthy
+    return strValue.length > 0;
+  }
+
+  /**
+   * Calculate the target month for WMB records (3 months after upload month)
+   * e.g., January 2025 upload -> April 2025 WMB
+   */
+  protected calculateBenefitMonth(uploadYear: number, uploadMonth: number): { year: number; month: number } {
+    let targetMonth = uploadMonth + 3;
+    let targetYear = uploadYear;
+    
+    if (targetMonth > 12) {
+      targetMonth -= 12;
+      targetYear += 1;
+    }
+    
+    return { year: targetYear, month: targetMonth };
+  }
+
+  /**
+   * Process benefit eligibility fields for a worker
+   * Creates WMB records for the target month (3 months after upload) if eligibility is truthy
+   */
+  protected async processWorkerBenefits(
+    workerId: string, 
+    row: Record<string, any>, 
+    wizard: any
+  ): Promise<{ created: number; skipped: number; errors: string[] }> {
+    const result = { created: 0, skipped: 0, errors: [] as string[] };
+    
+    const wizardData = wizard.data as any || {};
+    const benefitConfig = wizardData.benefitConfig as Array<{ fieldId: string; benefitId: string }> || [];
+    
+    // If no benefit configuration, skip
+    if (benefitConfig.length === 0) {
+      return result;
+    }
+    
+    // Get upload year/month from wizard launch arguments
+    const launchArguments = wizardData.launchArguments || {};
+    const uploadYear = typeof launchArguments.year === 'number' ? launchArguments.year : parseInt(String(launchArguments.year), 10);
+    const uploadMonth = typeof launchArguments.month === 'number' ? launchArguments.month : parseInt(String(launchArguments.month), 10);
+    
+    if (!isFinite(uploadYear) || !isFinite(uploadMonth)) {
+      result.errors.push('Year and month are required in wizard launch arguments for benefit processing');
+      return result;
+    }
+    
+    // Calculate target month (3 months after upload)
+    const { year: targetYear, month: targetMonth } = this.calculateBenefitMonth(uploadYear, uploadMonth);
+    
+    // Get employer ID from wizard entity
+    const employerId = wizard.entityId;
+    if (!employerId) {
+      result.errors.push('Wizard is not linked to an employer');
+      return result;
+    }
+    
+    // Process each configured benefit field
+    for (const config of benefitConfig) {
+      const { fieldId, benefitId } = config;
+      const eligibilityValue = row[fieldId];
+      
+      // Check if this worker is eligible for the benefit
+      if (this.isBenefitEligible(eligibilityValue)) {
+        try {
+          // Check if WMB already exists
+          const exists = await storage.workers.workerBenefitExists(workerId, benefitId, targetMonth, targetYear);
+          
+          if (exists) {
+            result.skipped++;
+          } else {
+            // Create WMB record via storage layer (includes logging and charge plugin execution)
+            await storage.workers.createWorkerBenefit({
+              workerId,
+              month: targetMonth,
+              year: targetYear,
+              employerId,
+              benefitId
+            });
+            result.created++;
+          }
+        } catch (error) {
+          result.errors.push(`Failed to create WMB for benefit ${benefitId}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
+    
+    return result;
   }
 
 }

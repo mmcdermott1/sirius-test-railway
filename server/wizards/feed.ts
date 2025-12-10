@@ -39,6 +39,12 @@ export interface FeedConfig {
   };
 }
 
+export interface BenefitFieldConfig {
+  fieldId: string; // The field ID from the column mapping (e.g., 'benefit_1')
+  benefitId: string; // The trust benefit ID to create WMB records for
+  benefitName?: string; // Display name of the benefit (for UI)
+}
+
 export interface FeedData {
   recordCount?: number;
   generatedAt?: Date;
@@ -50,6 +56,7 @@ export interface FeedData {
   mode?: 'create' | 'update'; // Whether this feed creates new records or updates existing ones
   validationResults?: ValidationResults;
   processResults?: ProcessResults;
+  benefitConfig?: BenefitFieldConfig[]; // Configuration for benefit eligibility fields
 }
 
 export interface ValidationError {
@@ -95,7 +102,7 @@ export interface ProcessResults {
 export interface FeedField {
   id: string;
   name: string;
-  type: 'string' | 'number' | 'date';
+  type: 'string' | 'number' | 'date' | 'benefit';
   required: boolean; // Required in all cases
   requiredForCreate?: boolean; // Required only when creating new records
   requiredForUpdate?: boolean; // Required only when updating existing records
@@ -105,6 +112,7 @@ export interface FeedField {
   maxLength?: number;
   pattern?: string;
   displayOrder?: number;
+  isBenefitEligibility?: boolean; // Whether this field indicates benefit eligibility
 }
 
 export abstract class FeedWizard extends BaseWizard {
@@ -610,6 +618,9 @@ export abstract class FeedWizard extends BaseWizard {
             let hoursError: string | undefined;
             let contactInfoProcessed = true;
             let contactInfoError: string | undefined;
+            let benefitsCreated = 0;
+            let benefitsSkipped = 0;
+            let benefitsErrors: string[] = [];
 
             // Process worker hours if this wizard type supports it (for gbhet_legal_workers wizards)
             if (typeof (this as any).processWorkerHours === 'function') {
@@ -631,10 +642,23 @@ export abstract class FeedWizard extends BaseWizard {
               }
             }
 
+            // Process worker benefits if this wizard type supports it (for gbhet_legal_workers wizards)
+            if (typeof (this as any).processWorkerBenefits === 'function') {
+              try {
+                const benefitResult = await (this as any).processWorkerBenefits(existingWorker.id, row, wizard);
+                benefitsCreated = benefitResult.created || 0;
+                benefitsSkipped = benefitResult.skipped || 0;
+                benefitsErrors = benefitResult.errors || [];
+              } catch (err: any) {
+                benefitsErrors.push(err.message || 'Benefits processing failed');
+              }
+            }
+
             updatedCount++;
             const processingIssues: string[] = [];
             if (!hoursProcessed) processingIssues.push(`hours: ${hoursError}`);
             if (!contactInfoProcessed) processingIssues.push(`contact info: ${contactInfoError}`);
+            if (benefitsErrors.length > 0) processingIssues.push(`benefits: ${benefitsErrors.join(', ')}`);
             
             rowResults.push({
               rowIndex,
@@ -700,6 +724,9 @@ export abstract class FeedWizard extends BaseWizard {
             let hoursError: string | undefined;
             let contactInfoProcessed = true;
             let contactInfoError: string | undefined;
+            let benefitsCreated = 0;
+            let benefitsSkipped = 0;
+            let benefitsErrors: string[] = [];
 
             // Process worker hours if this wizard type supports it (for gbhet_legal_workers wizards)
             if (typeof (this as any).processWorkerHours === 'function') {
@@ -721,6 +748,18 @@ export abstract class FeedWizard extends BaseWizard {
               }
             }
 
+            // Process worker benefits if this wizard type supports it (for gbhet_legal_workers wizards)
+            if (typeof (this as any).processWorkerBenefits === 'function') {
+              try {
+                const benefitResult = await (this as any).processWorkerBenefits(workerId, row, wizard);
+                benefitsCreated = benefitResult.created || 0;
+                benefitsSkipped = benefitResult.skipped || 0;
+                benefitsErrors = benefitResult.errors || [];
+              } catch (err: any) {
+                benefitsErrors.push(err.message || 'Benefits processing failed');
+              }
+            }
+
             // Increment appropriate counter and add row result
             if (isNewWorker) {
               createdCount++;
@@ -732,6 +771,7 @@ export abstract class FeedWizard extends BaseWizard {
             const processingIssues: string[] = [];
             if (!hoursProcessed) processingIssues.push(`hours: ${hoursError}`);
             if (!contactInfoProcessed) processingIssues.push(`contact info: ${contactInfoError}`);
+            if (benefitsErrors.length > 0) processingIssues.push(`benefits: ${benefitsErrors.join(', ')}`);
             
             rowResults.push({
               rowIndex,
