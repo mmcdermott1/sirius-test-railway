@@ -219,9 +219,16 @@ function WorkerCardchecksContent() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {cardcheck.signedDate 
-                      ? format(new Date(cardcheck.signedDate), "MMM d, yyyy") 
-                      : "-"}
+                    <div>
+                      {cardcheck.signedDate 
+                        ? format(new Date(cardcheck.signedDate), "MMM d, yyyy") 
+                        : "-"}
+                    </div>
+                    {cardcheck.rate !== null && cardcheck.rate !== undefined && (
+                      <div className="text-sm text-muted-foreground">
+                        {(cardcheck.definition?.data as any)?.rateField?.title || "Rate"}: ${Number(cardcheck.rate).toFixed(2)}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <Link href={`/cardchecks/${cardcheck.id}`}>
