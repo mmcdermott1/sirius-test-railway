@@ -888,18 +888,18 @@ export abstract class FeedWizard extends BaseWizard {
           const entries = await storage.ledger.entries.getByReference('wmb', wmbId);
           allLedgerEntries.push(...entries);
         }
-        if (allLedgerEntries.length > 0) {
-          const totalAmount = allLedgerEntries.reduce((sum: number, entry: { amount: string | null }) => {
-            return sum + parseFloat(entry.amount || '0');
-          }, 0);
-          chargesSummary = {
-            count: allLedgerEntries.length,
-            totalAmount: totalAmount.toFixed(2)
-          };
-        }
+        // Always set chargesSummary when benefits are created, even if no ledger entries
+        const totalAmount = allLedgerEntries.reduce((sum: number, entry: { amount: string | null }) => {
+          return sum + parseFloat(entry.amount || '0');
+        }, 0);
+        chargesSummary = {
+          count: allLedgerEntries.length,
+          totalAmount: totalAmount.toFixed(2)
+        };
       } catch (err) {
         console.error('Failed to query ledger entries for charges summary:', err);
-        // Continue without charges summary
+        // Set zero charges on error so UI doesn't break
+        chargesSummary = { count: 0, totalAmount: '0.00' };
       }
     }
 
