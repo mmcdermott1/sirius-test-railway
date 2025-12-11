@@ -29,6 +29,7 @@ interface ChargePluginConfig {
   settings: {
     accountId?: string;
     benefitId?: string;
+    billingOffsetMonths?: number;
     rateHistory?: Array<{
       effectiveDate: string;
       rate: number;
@@ -185,6 +186,7 @@ export default function GbhetLegalBenefitConfigList({ pluginId }: ChargePluginCo
                   <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                     <p><strong>Account:</strong> {getAccountName(globalConfig.settings.accountId)}</p>
                     <p><strong>Benefit:</strong> {getBenefitName(globalConfig.settings.benefitId)}</p>
+                    <p><strong>Billing Offset:</strong> {globalConfig.settings.billingOffsetMonths ?? -3} months</p>
                     <p><strong>Current Rate:</strong> {getCurrentRate(globalConfig.settings.rateHistory)}</p>
                   </div>
                 </div>

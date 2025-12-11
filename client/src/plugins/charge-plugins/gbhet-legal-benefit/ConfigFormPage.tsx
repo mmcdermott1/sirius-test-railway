@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -17,6 +18,7 @@ import { useEffect } from "react";
 const formSchema = z.object({
   accountId: z.string().min(1, "Account is required"),
   benefitId: z.string().min(1, "Benefit is required"),
+  billingOffsetMonths: z.number().int().default(-3),
   rateHistory: z.array(z.object({
     effectiveDate: z.string().min(1, "Effective date is required"),
     rate: z.number({ invalid_type_error: "Rate is required" }),
@@ -46,6 +48,7 @@ interface ChargePluginConfig {
   settings: {
     accountId?: string;
     benefitId?: string;
+    billingOffsetMonths?: number;
     rateHistory?: Array<{
       effectiveDate: string;
       rate: number;
@@ -84,6 +87,7 @@ export default function GbhetLegalBenefitConfigFormPage() {
     defaultValues: {
       accountId: "",
       benefitId: "",
+      billingOffsetMonths: -3,
       rateHistory: [{ effectiveDate: "", rate: 0 }],
     },
   });
@@ -97,6 +101,7 @@ export default function GbhetLegalBenefitConfigFormPage() {
       form.reset({
         accountId: existingConfig.settings.accountId || "",
         benefitId: existingConfig.settings.benefitId || "",
+        billingOffsetMonths: existingConfig.settings.billingOffsetMonths ?? -3,
         rateHistory,
       });
     }
@@ -111,6 +116,7 @@ export default function GbhetLegalBenefitConfigFormPage() {
         settings: {
           accountId: data.accountId,
           benefitId: data.benefitId,
+          billingOffsetMonths: data.billingOffsetMonths,
           rateHistory: data.rateHistory,
         },
       });
@@ -138,6 +144,7 @@ export default function GbhetLegalBenefitConfigFormPage() {
         settings: {
           accountId: data.accountId,
           benefitId: data.benefitId,
+          billingOffsetMonths: data.billingOffsetMonths,
           rateHistory: data.rateHistory,
         },
       });
@@ -253,6 +260,28 @@ export default function GbhetLegalBenefitConfigFormPage() {
                     </Select>
                     <FormDescription>
                       The trust benefit that triggers this charge when a worker has it for a given month
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="billingOffsetMonths"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Billing Offset (Months)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
+                        data-testid="input-billing-offset"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Number of months to offset from benefit month for billing. Use -3 to bill 3 months before the benefit is granted (e.g., bill in January for April benefits).
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
