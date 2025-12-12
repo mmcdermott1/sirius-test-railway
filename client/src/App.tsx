@@ -486,6 +486,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/reports/compliance">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <Reports activeCategory="Compliance" />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/reports/:reportType">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
