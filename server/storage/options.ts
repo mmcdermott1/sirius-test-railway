@@ -8,6 +8,7 @@ import {
   optionsTrustProviderType,
   optionsWorkerWs,
   optionsEmploymentStatus,
+  optionsEventType,
   type GenderOption, 
   type InsertGenderOption,
   type WorkerIdType, 
@@ -23,7 +24,9 @@ import {
   type WorkerWs,
   type InsertWorkerWs,
   type EmploymentStatus,
-  type InsertEmploymentStatus
+  type InsertEmploymentStatus,
+  type EventType,
+  type InsertEventType
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { type StorageLoggingConfig } from "./middleware/logging";
@@ -133,6 +136,44 @@ export interface EmploymentStatusStorage {
   updateSequence(id: string, sequence: number): Promise<EmploymentStatus | undefined>;
 }
 
+export interface EventTypeStorage {
+  getAll(): Promise<EventType[]>;
+  get(id: string): Promise<EventType | undefined>;
+  create(eventType: InsertEventType): Promise<EventType>;
+  update(id: string, eventType: Partial<InsertEventType>): Promise<EventType | undefined>;
+  delete(id: string): Promise<boolean>;
+}
+
+export const eventTypeLoggingConfig: StorageLoggingConfig<EventTypeStorage> = {
+  module: 'options.eventTypes',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args) => args[0]?.name || 'new event type',
+      after: async (args, result, storage) => {
+        return result;
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => {
+        return await storage.get(args[0]);
+      },
+      after: async (args, result, storage) => {
+        return result;
+      }
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => {
+        return await storage.get(args[0]);
+      }
+    }
+  }
+};
+
 export interface OptionsStorage {
   gender: GenderOptionStorage;
   workerIdTypes: WorkerIdTypeStorage;
@@ -142,6 +183,7 @@ export interface OptionsStorage {
   trustProviderTypes: TrustProviderTypeStorage;
   workerWs: WorkerWsStorage;
   employmentStatus: EmploymentStatusStorage;
+  eventTypes: EventTypeStorage;
 }
 
 export function createOptionsStorage(): OptionsStorage {
@@ -431,6 +473,39 @@ export function createOptionsStorage(): OptionsStorage {
 
       async updateSequence(id: string, sequence: number): Promise<EmploymentStatus | undefined> {
         return this.update(id, { sequence });
+      }
+    },
+
+    eventTypes: {
+      async getAll(): Promise<EventType[]> {
+        return db.select().from(optionsEventType);
+      },
+
+      async get(id: string): Promise<EventType | undefined> {
+        const [eventType] = await db.select().from(optionsEventType).where(eq(optionsEventType.id, id));
+        return eventType || undefined;
+      },
+
+      async create(insertEventType: InsertEventType): Promise<EventType> {
+        const [eventType] = await db
+          .insert(optionsEventType)
+          .values(insertEventType)
+          .returning();
+        return eventType;
+      },
+
+      async update(id: string, eventTypeUpdate: Partial<InsertEventType>): Promise<EventType | undefined> {
+        const [eventType] = await db
+          .update(optionsEventType)
+          .set(eventTypeUpdate)
+          .where(eq(optionsEventType.id, id))
+          .returning();
+        return eventType || undefined;
+      },
+
+      async delete(id: string): Promise<boolean> {
+        const result = await db.delete(optionsEventType).where(eq(optionsEventType.id, id)).returning();
+        return result.length > 0;
       }
     }
   };
