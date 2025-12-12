@@ -1,5 +1,10 @@
 import { WizardReport, ReportConfig, ReportColumn, ReportRecord } from '../report.js';
 
+interface GbhetLegalComplianceConfig extends ReportConfig {
+  workMonthFrom?: string;
+  workMonthTo?: string;
+}
+
 export class ReportGbhetLegalCompliance extends WizardReport {
   name = 'report_gbhet_legal_compliance';
   displayName = 'GBHET Legal Compliance Check';
@@ -58,7 +63,7 @@ export class ReportGbhetLegalCompliance extends WizardReport {
   }
 
   async fetchRecords(
-    config: ReportConfig,
+    config: GbhetLegalComplianceConfig,
     batchSize: number = 100,
     onProgress?: (progress: { processed: number; total: number }) => void
   ): Promise<ReportRecord[]> {
@@ -72,7 +77,24 @@ export class ReportGbhetLegalCompliance extends WizardReport {
       trustBenefits,
       chargePluginConfigs 
     } = await import('@shared/schema');
-    const { eq, sql, and, or, isNull, inArray } = await import('drizzle-orm');
+    const { eq, sql, and, gte, lte, inArray } = await import('drizzle-orm');
+
+    let fromYear: number | undefined;
+    let fromMonth: number | undefined;
+    let toYear: number | undefined;
+    let toMonth: number | undefined;
+
+    if (config.workMonthFrom) {
+      const [yearStr, monthStr] = config.workMonthFrom.split('-');
+      fromYear = parseInt(yearStr, 10);
+      fromMonth = parseInt(monthStr, 10);
+    }
+
+    if (config.workMonthTo) {
+      const [yearStr, monthStr] = config.workMonthTo.split('-');
+      toYear = parseInt(yearStr, 10);
+      toMonth = parseInt(monthStr, 10);
+    }
 
     const allPluginConfigs = await db
       .select()
@@ -124,7 +146,7 @@ export class ReportGbhetLegalCompliance extends WizardReport {
       benefitNameMap.set(b.id, b.name);
     }
 
-    const workerMonthlyHours = await db
+    const workerMonthlyHoursRaw = await db
       .select({
         workerId: workerHours.workerId,
         employerId: workerHours.employerId,
@@ -140,6 +162,22 @@ export class ReportGbhetLegalCompliance extends WizardReport {
         workerHours.month
       )
       .having(sql`SUM(${workerHours.hours}) >= 80`);
+
+    const workerMonthlyHours = workerMonthlyHoursRaw.filter(entry => {
+      const entryYearMonth = entry.year * 100 + entry.month;
+      
+      if (fromYear !== undefined && fromMonth !== undefined) {
+        const fromYearMonth = fromYear * 100 + fromMonth;
+        if (entryYearMonth < fromYearMonth) return false;
+      }
+      
+      if (toYear !== undefined && toMonth !== undefined) {
+        const toYearMonth = toYear * 100 + toMonth;
+        if (entryYearMonth > toYearMonth) return false;
+      }
+      
+      return true;
+    });
 
     if (workerMonthlyHours.length === 0) {
       if (onProgress) {

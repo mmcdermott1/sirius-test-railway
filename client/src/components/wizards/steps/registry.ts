@@ -8,6 +8,7 @@ import { InputsStep } from './report/InputsStep';
 import { RunStep } from './report/RunStep';
 import { ResultsStep } from './report/ResultsStep';
 import { LedgerIntegrityInputsStep } from './report/LedgerIntegrityInputsStep';
+import { GbhetLegalComplianceInputsStep } from './report/GbhetLegalComplianceInputsStep';
 
 export interface WizardStepComponent {
   (props: { wizardId: string; wizardType: string; data?: any; onDataChange?: (data: any) => void }): JSX.Element;
@@ -121,6 +122,11 @@ export const stepControllerRegistry: StepControllerRegistry = {
     'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
     'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
   },
+  'report_gbhet_legal_compliance': {
+    'inputs': { Component: GbhetLegalComplianceInputsStep, evaluateCompletion: alwaysComplete },
+    'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
+    'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
+  },
 };
 
 export const stepComponentRegistry: StepComponentRegistry = {
@@ -162,6 +168,11 @@ export const stepComponentRegistry: StepComponentRegistry = {
   },
   'report_ledger_integrity': {
     'inputs': LedgerIntegrityInputsStep,
+    'run': RunStep,
+    'results': ResultsStep,
+  },
+  'report_gbhet_legal_compliance': {
+    'inputs': GbhetLegalComplianceInputsStep,
     'run': RunStep,
     'results': ResultsStep,
   },
