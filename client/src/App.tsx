@@ -128,6 +128,7 @@ import EmploymentStatusesPage from "@/pages/config/employment-statuses";
 import TrustBenefitTypesPage from "@/pages/config/trust-benefit-types";
 import EmployerContactTypesPage from "@/pages/config/employer-contact-types";
 import ProviderContactTypesPage from "@/pages/config/provider-contact-types";
+import EventTypesPage from "@/pages/config/event-types";
 import MasqueradePage from "@/pages/config/masquerade";
 import SystemModePage from "@/pages/config/system-mode";
 import DefaultPolicyPage from "@/pages/config/default-policy";
@@ -1145,6 +1146,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <EmployerContactTypesPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/event-types">
+        <ProtectedRoute permission="admin" requiresComponent="event">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <EventTypesPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
