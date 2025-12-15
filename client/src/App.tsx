@@ -168,6 +168,9 @@ import CardcheckDefinitionViewPage from "@/pages/cardcheck-definition-view";
 import CardcheckDefinitionEditPage from "@/pages/cardcheck-definition-edit";
 import WorkerCardchecks from "@/pages/worker-cardchecks";
 import CardcheckViewPage from "@/pages/cardcheck-view";
+import EventsListPage from "@/pages/events";
+import EventViewPage from "@/pages/event-view";
+import EventEditPage from "@/pages/event-edit";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -758,6 +761,38 @@ function Router() {
         <ProtectedRoute policy="employersView">
           <AuthenticatedLayout>
             <Employers />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/events/new">
+        <ProtectedRoute permission="admin" component="event">
+          <AuthenticatedLayout>
+            <EventEditPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/events/:id/edit">
+        <ProtectedRoute permission="admin" component="event">
+          <AuthenticatedLayout>
+            <EventEditPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/events/:id">
+        <ProtectedRoute permission="admin" component="event">
+          <AuthenticatedLayout>
+            <EventViewPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/events">
+        <ProtectedRoute permission="admin" component="event">
+          <AuthenticatedLayout>
+            <EventsListPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

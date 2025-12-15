@@ -3,15 +3,16 @@ import { storage } from "../storage";
 import { insertEventSchema, insertEventOccurrenceSchema } from "@shared/schema";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
+import { requireComponent } from "./components";
 
 export function registerEventsRoutes(
   app: Express,
   requireAuth: any,
   requirePermission: any
 ) {
-  const eventAccess = policies.admin.requireComponent("event");
+  const eventComponent = requireComponent("event");
 
-  app.get("/api/events", requireAccess(eventAccess), async (req, res) => {
+  app.get("/api/events", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const events = await storage.events.getAll();
       res.json(events);
@@ -20,7 +21,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.get("/api/events/:id", requireAccess(eventAccess), async (req, res) => {
+  app.get("/api/events/:id", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       const event = await storage.events.get(id);
@@ -38,7 +39,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.post("/api/events", requireAccess(eventAccess), async (req, res) => {
+  app.post("/api/events", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const validation = insertEventSchema.safeParse(req.body);
       
@@ -56,7 +57,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.put("/api/events/:id", requireAccess(eventAccess), async (req, res) => {
+  app.put("/api/events/:id", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       const validation = insertEventSchema.partial().safeParse(req.body);
@@ -81,7 +82,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.delete("/api/events/:id", requireAccess(eventAccess), async (req, res) => {
+  app.delete("/api/events/:id", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       await storage.eventOccurrences.deleteByEventId(id);
@@ -98,7 +99,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.get("/api/events/:id/occurrences", requireAccess(eventAccess), async (req, res) => {
+  app.get("/api/events/:id/occurrences", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       const event = await storage.events.get(id);
@@ -115,7 +116,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.post("/api/events/:id/occurrences", requireAccess(eventAccess), async (req, res) => {
+  app.post("/api/events/:id/occurrences", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
       const event = await storage.events.get(id);
@@ -162,7 +163,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.put("/api/events/:eventId/occurrences/:occId", requireAccess(eventAccess), async (req, res) => {
+  app.put("/api/events/:eventId/occurrences/:occId", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { eventId, occId } = req.params;
       
@@ -194,7 +195,7 @@ export function registerEventsRoutes(
     }
   });
 
-  app.delete("/api/events/:eventId/occurrences/:occId", requireAccess(eventAccess), async (req, res) => {
+  app.delete("/api/events/:eventId/occurrences/:occId", eventComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { eventId, occId } = req.params;
       
