@@ -50,6 +50,7 @@ import { registerCardchecksRoutes } from "./modules/cardchecks";
 import { registerEsigsRoutes } from "./modules/esigs";
 import { registerSessionRoutes } from "./modules/sessions";
 import { registerFloodEventRoutes } from "./modules/flood-events";
+import { registerEventsRoutes } from "./modules/events";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -865,6 +866,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register generic variable management routes (MUST come after specific routes)
   registerVariableRoutes(app, requireAuth, requirePermission);
+
+  // Register events routes
+  registerEventsRoutes(app, requireAuth, requirePermission);
 
 
   const httpServer = createServer(app);
