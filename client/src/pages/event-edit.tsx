@@ -59,6 +59,16 @@ const eventFormSchema = insertEventSchema.extend({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
+const createEventFormSchema = insertEventSchema.extend({
+  title: z.string().min(1, "Title is required"),
+  eventTypeId: z.string().min(1, "Event type is required"),
+  startDate: z.string().min(1, "Start date is required"),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().optional(),
+});
+
+type CreateEventFormValues = z.infer<typeof createEventFormSchema>;
+
 const occurrenceFormSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   startTime: z.string().min(1, "Start time is required"),
@@ -506,23 +516,36 @@ function EventCreatePage() {
     queryKey: ["/api/event-types"],
   });
 
-  const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
+  const form = useForm<CreateEventFormValues>({
+    resolver: zodResolver(createEventFormSchema),
     defaultValues: {
       title: "",
       eventTypeId: undefined,
       description: "",
       data: undefined,
+      startDate: "",
+      startTime: "",
+      endTime: "",
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: EventFormValues) => {
+    mutationFn: async (data: CreateEventFormValues) => {
+      const startAt = new Date(`${data.startDate}T${data.startTime}`);
+      let endAt = null;
+      if (data.endTime) {
+        endAt = new Date(`${data.startDate}T${data.endTime}`);
+      }
       const payload = {
         title: data.title,
         eventTypeId: data.eventTypeId || undefined,
         description: data.description || undefined,
         data: data.data || undefined,
+        occurrence: {
+          startAt: startAt.toISOString(),
+          endAt: endAt ? endAt.toISOString() : null,
+          status: "active",
+        },
       };
       return apiRequest("POST", "/api/events", payload);
     },
@@ -543,7 +566,7 @@ function EventCreatePage() {
     },
   });
 
-  const onSubmit = (data: EventFormValues) => {
+  const onSubmit = (data: CreateEventFormValues) => {
     createMutation.mutate(data);
   };
 
@@ -630,6 +653,61 @@ function EventCreatePage() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        data-testid="input-start-date"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Time</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          data-testid="input-start-time"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End Time (optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="time"
+                          data-testid="input-end-time"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <Button
                 type="submit"
