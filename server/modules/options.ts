@@ -889,7 +889,7 @@ export function registerOptionsRoutes(
   // POST /api/event-types - Create a new event type (requires admin permission)
   app.post("/api/event-types", requireAccess(policies.admin), async (req, res) => {
     try {
-      const { name, description, data, siriusId } = req.body;
+      const { name, description, data, siriusId, category, config } = req.body;
       
       if (!name || typeof name !== 'string' || !name.trim()) {
         return res.status(400).json({ message: "Name is required" });
@@ -902,8 +902,10 @@ export function registerOptionsRoutes(
       const eventType = await storage.options.eventTypes.create({
         name: name.trim(),
         siriusId: siriusId.trim(),
-        description: description && typeof description === 'string' ? description.trim() : null,
-        data: data && typeof data === 'object' ? data : null,
+        description: description && typeof description === 'string' ? description.trim() : undefined,
+        data: data && typeof data === 'object' ? data : undefined,
+        category: category && typeof category === 'string' ? category.trim() : undefined,
+        config: config && typeof config === 'object' ? config : undefined,
       });
       
       res.status(201).json(eventType);
@@ -920,7 +922,7 @@ export function registerOptionsRoutes(
   app.put("/api/event-types/:id", requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, description, data, siriusId } = req.body;
+      const { name, description, data, siriusId, category, config } = req.body;
       
       const updates: any = {};
       
@@ -944,6 +946,14 @@ export function registerOptionsRoutes(
       
       if (data !== undefined) {
         updates.data = data && typeof data === 'object' ? data : null;
+      }
+      
+      if (category !== undefined) {
+        updates.category = category && typeof category === 'string' ? category.trim() : null;
+      }
+      
+      if (config !== undefined) {
+        updates.config = config && typeof config === 'object' ? config : null;
       }
       
       const eventType = await storage.options.eventTypes.update(id, updates);
