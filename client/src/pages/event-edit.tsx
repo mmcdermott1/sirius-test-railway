@@ -53,6 +53,7 @@ interface EventWithOccurrences extends Event {
 
 const eventFormSchema = insertEventSchema.extend({
   title: z.string().min(1, "Title is required"),
+  eventTypeId: z.string().min(1, "Event type is required"),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;

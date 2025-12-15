@@ -275,7 +275,7 @@ export const optionsEventType = pgTable("options_event_type", {
 
 export const events = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  eventTypeId: varchar("event_type_id").references(() => optionsEventType.id, { onDelete: 'set null' }),
+  eventTypeId: varchar("event_type_id").notNull().references(() => optionsEventType.id, { onDelete: 'restrict' }),
   title: text("title").notNull(),
   description: text("description"),
   data: jsonb("data"),
