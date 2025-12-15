@@ -9,8 +9,11 @@ import {
   getEventCategory, 
   getCategoryRoles, 
   getCategoryStatuses,
-  getCategoryConfigOptions 
+  getCategoryConfigOptions,
+  validateParticipantRole,
+  validateParticipantStatus
 } from "./event-categories";
+import { insertEventParticipantSchema } from "@shared/schema";
 
 export function registerEventsRoutes(
   app: Express,
@@ -351,6 +354,160 @@ export function registerEventsRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete occurrence" });
+    }
+  });
+
+  // ==================== PARTICIPANT ROUTES ====================
+
+  // Get all participants for an event
+  app.get("/api/events/:id/participants", eventComponent, requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const event = await storage.events.get(id);
+      if (!event) {
+        res.status(404).json({ message: "Event not found" });
+        return;
+      }
+      
+      const participants = await storage.eventParticipants.getByEventId(id);
+      res.json(participants);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch participants" });
+    }
+  });
+
+  // Register a participant for an event
+  app.post("/api/events/:id/register", eventComponent, requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const event = await storage.events.get(id);
+      if (!event) {
+        res.status(404).json({ message: "Event not found" });
+        return;
+      }
+      
+      // Get the event type to determine category
+      const eventType = await storage.options.eventTypes.get(event.eventTypeId);
+      if (!eventType) {
+        res.status(400).json({ message: "Event type not found" });
+        return;
+      }
+      
+      const categoryId = eventType.category;
+      const { contactId, role = "member", status = "attended" } = req.body;
+      
+      if (!contactId) {
+        res.status(400).json({ message: "contactId is required" });
+        return;
+      }
+      
+      // Validate role and status against category
+      if (!validateParticipantRole(categoryId, role)) {
+        res.status(400).json({ message: `Invalid role '${role}' for category '${categoryId}'` });
+        return;
+      }
+      
+      if (!validateParticipantStatus(categoryId, status)) {
+        res.status(400).json({ message: `Invalid status '${status}' for category '${categoryId}'` });
+        return;
+      }
+      
+      // Check if participant already exists
+      const existing = await storage.eventParticipants.getByEventAndContact(id, contactId);
+      if (existing) {
+        res.status(400).json({ message: "Contact is already registered for this event" });
+        return;
+      }
+      
+      const participantData = {
+        eventId: id,
+        contactId,
+        role,
+        status,
+      };
+      
+      const validation = insertEventParticipantSchema.safeParse(participantData);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid participant data",
+          errors: validation.error.errors 
+        });
+      }
+      
+      const participant = await storage.eventParticipants.create(validation.data);
+      res.status(201).json(participant);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to register participant" });
+    }
+  });
+
+  // Update a participant's status
+  app.patch("/api/events/:eventId/participants/:participantId", eventComponent, requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { eventId, participantId } = req.params;
+      
+      const event = await storage.events.get(eventId);
+      if (!event) {
+        res.status(404).json({ message: "Event not found" });
+        return;
+      }
+      
+      const existing = await storage.eventParticipants.get(participantId);
+      if (!existing || existing.eventId !== eventId) {
+        res.status(404).json({ message: "Participant not found" });
+        return;
+      }
+      
+      // Get category for validation
+      const eventType = await storage.options.eventTypes.get(event.eventTypeId);
+      const categoryId = eventType?.category || "public";
+      
+      const { role, status } = req.body;
+      
+      if (role && !validateParticipantRole(categoryId, role)) {
+        res.status(400).json({ message: `Invalid role '${role}' for category '${categoryId}'` });
+        return;
+      }
+      
+      if (status && !validateParticipantStatus(categoryId, status)) {
+        res.status(400).json({ message: `Invalid status '${status}' for category '${categoryId}'` });
+        return;
+      }
+      
+      const updateData: { role?: string; status?: string } = {};
+      if (role) updateData.role = role;
+      if (status) updateData.status = status;
+      
+      const participant = await storage.eventParticipants.update(participantId, updateData);
+      res.json(participant);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update participant" });
+    }
+  });
+
+  // Remove a participant from an event
+  app.delete("/api/events/:eventId/participants/:participantId", eventComponent, requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { eventId, participantId } = req.params;
+      
+      const event = await storage.events.get(eventId);
+      if (!event) {
+        res.status(404).json({ message: "Event not found" });
+        return;
+      }
+      
+      const existing = await storage.eventParticipants.get(participantId);
+      if (!existing || existing.eventId !== eventId) {
+        res.status(404).json({ message: "Participant not found" });
+        return;
+      }
+      
+      await storage.eventParticipants.delete(participantId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove participant" });
     }
   });
 }

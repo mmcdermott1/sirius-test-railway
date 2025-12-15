@@ -172,6 +172,8 @@ import EventsListPage from "@/pages/events";
 import EventViewPage from "@/pages/event-view";
 import EventEditPage from "@/pages/event-edit";
 import EventDeletePage from "@/pages/event-delete";
+import EventRegisterPage from "@/pages/event-register";
+import EventRosterPage from "@/pages/event-roster";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -786,6 +788,22 @@ function Router() {
         <ProtectedRoute permission="admin" component="event">
           <AuthenticatedLayout>
             <EventDeletePage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/events/:id/register">
+        <ProtectedRoute permission="admin" component="event">
+          <AuthenticatedLayout>
+            <EventRegisterPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/events/:id/roster">
+        <ProtectedRoute permission="admin" component="event">
+          <AuthenticatedLayout>
+            <EventRosterPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

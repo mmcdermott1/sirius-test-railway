@@ -2,10 +2,14 @@ import { db } from "../db";
 import { 
   events, 
   eventOccurrences,
+  eventParticipants,
+  contacts,
   type Event, 
   type InsertEvent,
   type EventOccurrence,
-  type InsertEventOccurrence
+  type InsertEventOccurrence,
+  type EventParticipant,
+  type InsertEventParticipant
 } from "@shared/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { type StorageLoggingConfig } from "./middleware/logging";
@@ -166,6 +170,106 @@ export function createEventOccurrenceStorage(): EventOccurrenceStorage {
     async deleteByEventId(eventId: string): Promise<number> {
       const result = await db.delete(eventOccurrences).where(eq(eventOccurrences.eventId, eventId)).returning();
       return result.length;
+    }
+  };
+}
+
+export interface EventParticipantWithContact extends EventParticipant {
+  contact: {
+    id: string;
+    given: string | null;
+    family: string | null;
+    displayName: string;
+  } | null;
+}
+
+export interface EventParticipantStorage {
+  getByEventId(eventId: string): Promise<EventParticipantWithContact[]>;
+  get(id: string): Promise<EventParticipant | undefined>;
+  getByEventAndContact(eventId: string, contactId: string): Promise<EventParticipant | undefined>;
+  create(participant: InsertEventParticipant): Promise<EventParticipant>;
+  update(id: string, participant: Partial<InsertEventParticipant>): Promise<EventParticipant | undefined>;
+  delete(id: string): Promise<boolean>;
+}
+
+export const eventParticipantLoggingConfig: StorageLoggingConfig<EventParticipantStorage> = {
+  module: 'eventParticipants',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args) => args[0]?.eventId || 'new participant',
+      getHostEntityId: (args) => args[0]?.eventId,
+      after: async (args, result) => result
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => await storage.get(args[0]),
+      after: async (args, result) => result
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      before: async (args, storage) => await storage.get(args[0])
+    }
+  }
+};
+
+export function createEventParticipantStorage(): EventParticipantStorage {
+  return {
+    async getByEventId(eventId: string): Promise<EventParticipantWithContact[]> {
+      const results = await db
+        .select({
+          id: eventParticipants.id,
+          eventId: eventParticipants.eventId,
+          contactId: eventParticipants.contactId,
+          role: eventParticipants.role,
+          status: eventParticipants.status,
+          data: eventParticipants.data,
+          contact: {
+            id: contacts.id,
+            given: contacts.given,
+            family: contacts.family,
+            displayName: contacts.displayName,
+          }
+        })
+        .from(eventParticipants)
+        .leftJoin(contacts, eq(eventParticipants.contactId, contacts.id))
+        .where(eq(eventParticipants.eventId, eventId));
+      return results;
+    },
+
+    async get(id: string): Promise<EventParticipant | undefined> {
+      const [participant] = await db.select().from(eventParticipants).where(eq(eventParticipants.id, id));
+      return participant || undefined;
+    },
+
+    async getByEventAndContact(eventId: string, contactId: string): Promise<EventParticipant | undefined> {
+      const [participant] = await db.select().from(eventParticipants)
+        .where(and(
+          eq(eventParticipants.eventId, eventId),
+          eq(eventParticipants.contactId, contactId)
+        ));
+      return participant || undefined;
+    },
+
+    async create(insertParticipant: InsertEventParticipant): Promise<EventParticipant> {
+      const [participant] = await db.insert(eventParticipants).values(insertParticipant).returning();
+      return participant;
+    },
+
+    async update(id: string, participantUpdate: Partial<InsertEventParticipant>): Promise<EventParticipant | undefined> {
+      const [participant] = await db
+        .update(eventParticipants)
+        .set(participantUpdate)
+        .where(eq(eventParticipants.id, id))
+        .returning();
+      return participant || undefined;
+    },
+
+    async delete(id: string): Promise<boolean> {
+      const result = await db.delete(eventParticipants).where(eq(eventParticipants.id, id)).returning();
+      return result.length > 0;
     }
   };
 }

@@ -18,6 +18,7 @@ interface EventWithOccurrences extends Event {
 interface EventLayoutContextValue {
   event: EventWithOccurrences;
   eventType: EventType | undefined;
+  category: string | undefined;
   isLoading: boolean;
   isError: boolean;
 }
@@ -34,7 +35,7 @@ export function useEventLayout() {
 
 interface EventLayoutProps {
   children: React.ReactNode;
-  activeTab: "view" | "edit" | "delete";
+  activeTab: "view" | "edit" | "delete" | "register" | "roster";
 }
 
 export default function EventLayout({ children, activeTab }: EventLayoutProps) {
@@ -139,6 +140,7 @@ export default function EventLayout({ children, activeTab }: EventLayoutProps) {
 
   const IconComponent = getEventTypeIcon(event.eventTypeId);
   const eventType = getEventType(event.eventTypeId);
+  const category = eventType?.category;
 
   // Success state - render layout with tabs
   const mainTabs = [
@@ -146,10 +148,19 @@ export default function EventLayout({ children, activeTab }: EventLayoutProps) {
     { id: "edit", label: "Edit", href: `/events/${event.id}/edit` },
     { id: "delete", label: "Delete", href: `/events/${event.id}/delete` },
   ];
+  
+  // Add category-specific tabs for membership events
+  if (category === "membership") {
+    mainTabs.push(
+      { id: "register", label: "Register", href: `/events/${event.id}/register` },
+      { id: "roster", label: "Roster", href: `/events/${event.id}/roster` }
+    );
+  }
 
   const contextValue: EventLayoutContextValue = {
     event,
     eventType,
+    category,
     isLoading: false,
     isError: false,
   };
