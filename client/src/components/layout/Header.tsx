@@ -254,6 +254,19 @@ export default function Header() {
                   </Link>
                 )}
 
+                {hasComponent("event") && (
+                  <Link href="/events" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location.startsWith("/events") ? "default" : "ghost"}
+                      className="w-full justify-start"
+                      data-testid="mobile-nav-events"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Events
+                    </Button>
+                  </Link>
+                )}
+
                 {ledgerStaffPolicy?.allowed && (
                   <Link href="/ledger/accounts" onClick={() => setMobileMenuOpen(false)}>
                     <Button
@@ -552,6 +565,19 @@ export default function Header() {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+            )}
+
+            {hasComponent("event") && (
+              <Link href="/events">
+                <Button
+                  variant={location.startsWith("/events") ? "default" : "ghost"}
+                  size="sm"
+                  data-testid="nav-events"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Events
+                </Button>
+              </Link>
             )}
 
             {ledgerStaffPolicy?.allowed && (
