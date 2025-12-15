@@ -171,6 +171,7 @@ import CardcheckViewPage from "@/pages/cardcheck-view";
 import EventsListPage from "@/pages/events";
 import EventViewPage from "@/pages/event-view";
 import EventEditPage from "@/pages/event-edit";
+import EventDeletePage from "@/pages/event-delete";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -777,6 +778,14 @@ function Router() {
         <ProtectedRoute permission="admin" component="event">
           <AuthenticatedLayout>
             <EventEditPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/events/:id/delete">
+        <ProtectedRoute permission="admin" component="event">
+          <AuthenticatedLayout>
+            <EventDeletePage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

@@ -1,12 +1,9 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
-  Loader2, Plus, Eye, Edit, Trash2, Calendar,
+  Loader2, Plus, Eye, Calendar,
   Users, MapPin, Video, Presentation, Mic, Ticket, Star, Heart, Clock,
   type LucideIcon
 } from "lucide-react";
@@ -18,57 +15,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import type { Event, EventType, EventOccurrence } from "@shared/schema";
+import type { Event, EventType } from "@shared/schema";
 
 const iconMap: Record<string, LucideIcon> = {
   Calendar, Users, MapPin, Video, Presentation, Mic, Ticket, Star, Heart, Clock,
 };
 
-interface EventWithOccurrences extends Event {
-  occurrences?: EventOccurrence[];
-}
-
 export default function EventsListPage() {
-  const { toast } = useToast();
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-
   const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["/api/events"],
   });
 
   const { data: eventTypes = [] } = useQuery<EventType[]>({
     queryKey: ["/api/event-types"],
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/events/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      setDeleteId(null);
-      toast({
-        title: "Success",
-        description: "Event deleted successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event.",
-        variant: "destructive",
-      });
-    },
   });
 
   const getEventTypeName = (eventTypeId: string | null) => {
@@ -154,7 +114,7 @@ export default function EventsListPage() {
                       <TableCell data-testid={`text-created-${event.id}`}>
                         {format(new Date(event.createdAt), "MMM d, yyyy")}
                       </TableCell>
-                      <TableCell className="text-right space-x-2">
+                      <TableCell className="text-right">
                         <Link href={`/events/${event.id}`}>
                           <Button
                             data-testid={`button-view-${event.id}`}
@@ -164,23 +124,6 @@ export default function EventsListPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/events/${event.id}/edit`}>
-                          <Button
-                            data-testid={`button-edit-${event.id}`}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button
-                          data-testid={`button-delete-${event.id}`}
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDeleteId(event.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -190,35 +133,6 @@ export default function EventsListPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent data-testid="dialog-delete">
-          <DialogHeader>
-            <DialogTitle>Delete Event</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this event? This will also delete all occurrences. This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              data-testid="button-confirm-delete"
-              variant="destructive"
-              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Delete
-            </Button>
-            <Button
-              data-testid="button-cancel-delete"
-              variant="outline"
-              onClick={() => setDeleteId(null)}
-            >
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

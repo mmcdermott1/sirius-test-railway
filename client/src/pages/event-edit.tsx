@@ -42,10 +42,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Plus, Trash2, Calendar } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { insertEventSchema } from "@shared/schema";
 import type { Event, EventType, EventOccurrence } from "@shared/schema";
+import EventLayout, { useEventLayout } from "@/components/layouts/EventLayout";
 
 interface EventWithOccurrences extends Event {
   occurrences: EventOccurrence[];
@@ -67,20 +68,12 @@ const occurrenceFormSchema = z.object({
 
 type OccurrenceFormValues = z.infer<typeof occurrenceFormSchema>;
 
-export default function EventEditPage() {
-  const params = useParams<{ id: string }>();
-  const eventId = params.id;
-  const isNew = !eventId;
-  const [, setLocation] = useLocation();
+function EventEditContent() {
+  const { event } = useEventLayout();
   const { toast } = useToast();
 
   const [deleteOccId, setDeleteOccId] = useState<string | null>(null);
   const [showAddOccurrence, setShowAddOccurrence] = useState(false);
-
-  const { data: event, isLoading: isEventLoading } = useQuery<EventWithOccurrences>({
-    queryKey: ["/api/events", eventId],
-    enabled: !!eventId,
-  });
 
   const { data: eventTypes = [] } = useQuery<EventType[]>({
     queryKey: ["/api/event-types"],
@@ -89,10 +82,10 @@ export default function EventEditPage() {
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
-      title: "",
-      eventTypeId: undefined,
-      description: "",
-      data: undefined,
+      title: event.title,
+      eventTypeId: event.eventTypeId || undefined,
+      description: event.description || "",
+      data: (event.data as Record<string, unknown>) || undefined,
     },
   });
 
@@ -106,33 +99,6 @@ export default function EventEditPage() {
     },
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: EventFormValues) => {
-      const payload = {
-        title: data.title,
-        eventTypeId: data.eventTypeId || undefined,
-        description: data.description || undefined,
-        data: data.data || undefined,
-      };
-      return apiRequest("POST", "/api/events", payload);
-    },
-    onSuccess: (newEvent: Event) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      toast({
-        title: "Success",
-        description: "Event created successfully.",
-      });
-      setLocation(`/events/${newEvent.id}/edit`);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create event.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const updateMutation = useMutation({
     mutationFn: async (data: EventFormValues) => {
       const payload = {
@@ -141,11 +107,11 @@ export default function EventEditPage() {
         description: data.description || undefined,
         data: data.data || undefined,
       };
-      return apiRequest("PUT", `/api/events/${eventId}`, payload);
+      return apiRequest("PUT", `/api/events/${event.id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id] });
       toast({
         title: "Success",
         description: "Event updated successfully.",
@@ -167,7 +133,7 @@ export default function EventEditPage() {
       if (data.endTime) {
         endAt = new Date(`${data.startDate}T${data.endTime}`);
       }
-      return apiRequest("POST", `/api/events/${eventId}/occurrences`, {
+      return apiRequest("POST", `/api/events/${event.id}/occurrences`, {
         startAt: startAt.toISOString(),
         endAt: endAt ? endAt.toISOString() : null,
         notes: data.notes || null,
@@ -175,7 +141,7 @@ export default function EventEditPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id] });
       occurrenceForm.reset();
       setShowAddOccurrence(false);
       toast({
@@ -194,10 +160,10 @@ export default function EventEditPage() {
 
   const deleteOccurrenceMutation = useMutation({
     mutationFn: async (occId: string) => {
-      return apiRequest("DELETE", `/api/events/${eventId}/occurrences/${occId}`);
+      return apiRequest("DELETE", `/api/events/${event.id}/occurrences/${occId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events", event.id] });
       setDeleteOccId(null);
       toast({
         title: "Success",
@@ -213,29 +179,8 @@ export default function EventEditPage() {
     },
   });
 
-  if (!isNew && isEventLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" data-testid="loading-spinner" />
-      </div>
-    );
-  }
-
-  if (!isNew && event && !form.formState.isDirty && form.getValues("title") !== event.title) {
-    form.reset({
-      title: event.title,
-      eventTypeId: event.eventTypeId || undefined,
-      description: event.description || "",
-      data: (event.data as Record<string, unknown>) || undefined,
-    });
-  }
-
   const onSubmit = (data: EventFormValues) => {
-    if (isNew) {
-      createMutation.mutate(data);
-    } else {
-      updateMutation.mutate(data);
-    }
+    updateMutation.mutate(data);
   };
 
   const onAddOccurrence = (data: OccurrenceFormValues) => {
@@ -255,29 +200,12 @@ export default function EventEditPage() {
     }
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
-
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center gap-4 flex-wrap">
-        <Link href="/events">
-          <Button variant="ghost" size="sm" data-testid="button-back">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Events
-          </Button>
-        </Link>
-      </div>
-
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle data-testid="title-page">
-            {isNew ? "Create Event" : "Edit Event"}
-          </CardTitle>
-          <CardDescription>
-            {isNew
-              ? "Create a new event and schedule occurrences"
-              : "Edit event details and manage occurrences"}
-          </CardDescription>
+          <CardTitle data-testid="title-page">Edit Event</CardTitle>
+          <CardDescription>Edit event details and manage occurrences</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -347,99 +275,88 @@ export default function EventEditPage() {
                 )}
               />
 
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  type="submit"
-                  disabled={isPending}
-                  data-testid="button-save"
-                >
-                  {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {isNew ? "Create Event" : "Save Changes"}
-                </Button>
-                {!isNew && (
-                  <Link href={`/events/${eventId}`}>
-                    <Button variant="outline" data-testid="button-view">
-                      View Event
-                    </Button>
-                  </Link>
-                )}
-              </div>
+              <Button
+                type="submit"
+                disabled={updateMutation.isPending}
+                data-testid="button-save"
+              >
+                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save Changes
+              </Button>
             </form>
           </Form>
         </CardContent>
       </Card>
 
-      {!isNew && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <CardTitle>Occurrences</CardTitle>
-                <CardDescription>
-                  {event?.occurrences?.length || 0} occurrence{(event?.occurrences?.length || 0) !== 1 ? "s" : ""} scheduled
-                </CardDescription>
-              </div>
-              <Button
-                onClick={() => setShowAddOccurrence(true)}
-                data-testid="button-add-occurrence"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Occurrence
-              </Button>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle>Occurrences</CardTitle>
+              <CardDescription>
+                {event.occurrences?.length || 0} occurrence{(event.occurrences?.length || 0) !== 1 ? "s" : ""} scheduled
+              </CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            {!event?.occurrences || event.occurrences.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8" data-testid="text-no-occurrences">
-                No occurrences scheduled yet. Click "Add Occurrence" to schedule one.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+            <Button
+              onClick={() => setShowAddOccurrence(true)}
+              data-testid="button-add-occurrence"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Occurrence
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!event.occurrences || event.occurrences.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8" data-testid="text-no-occurrences">
+              No occurrences scheduled yet. Click "Add Occurrence" to schedule one.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {event.occurrences.map((occ) => (
+                  <TableRow key={occ.id} data-testid={`row-occurrence-${occ.id}`}>
+                    <TableCell data-testid={`text-occ-date-${occ.id}`}>
+                      {format(new Date(occ.startAt), "EEEE, MMMM d, yyyy")}
+                    </TableCell>
+                    <TableCell data-testid={`text-occ-time-${occ.id}`}>
+                      {format(new Date(occ.startAt), "h:mm a")}
+                      {occ.endAt && (
+                        <> - {format(new Date(occ.endAt), "h:mm a")}</>
+                      )}
+                    </TableCell>
+                    <TableCell data-testid={`badge-occ-status-${occ.id}`}>
+                      {getStatusBadge(occ.status)}
+                    </TableCell>
+                    <TableCell data-testid={`text-occ-notes-${occ.id}`}>
+                      {occ.notes || <span className="text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteOccId(occ.id)}
+                        data-testid={`button-delete-occurrence-${occ.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {event.occurrences.map((occ) => (
-                    <TableRow key={occ.id} data-testid={`row-occurrence-${occ.id}`}>
-                      <TableCell data-testid={`text-occ-date-${occ.id}`}>
-                        {format(new Date(occ.startAt), "EEEE, MMMM d, yyyy")}
-                      </TableCell>
-                      <TableCell data-testid={`text-occ-time-${occ.id}`}>
-                        {format(new Date(occ.startAt), "h:mm a")}
-                        {occ.endAt && (
-                          <> - {format(new Date(occ.endAt), "h:mm a")}</>
-                        )}
-                      </TableCell>
-                      <TableCell data-testid={`badge-occ-status-${occ.id}`}>
-                        {getStatusBadge(occ.status)}
-                      </TableCell>
-                      <TableCell data-testid={`text-occ-notes-${occ.id}`}>
-                        {occ.notes || <span className="text-muted-foreground">-</span>}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDeleteOccId(occ.id)}
-                          data-testid={`button-delete-occurrence-${occ.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={showAddOccurrence} onOpenChange={setShowAddOccurrence}>
         <DialogContent data-testid="dialog-add-occurrence">
@@ -577,5 +494,170 @@ export default function EventEditPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Create new event page (without layout - no ID yet)
+function EventCreatePage() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const { data: eventTypes = [] } = useQuery<EventType[]>({
+    queryKey: ["/api/event-types"],
+  });
+
+  const form = useForm<EventFormValues>({
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: {
+      title: "",
+      eventTypeId: undefined,
+      description: "",
+      data: undefined,
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: EventFormValues) => {
+      const payload = {
+        title: data.title,
+        eventTypeId: data.eventTypeId || undefined,
+        description: data.description || undefined,
+        data: data.data || undefined,
+      };
+      return apiRequest("POST", "/api/events", payload);
+    },
+    onSuccess: (newEvent: Event) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      toast({
+        title: "Success",
+        description: "Event created successfully.",
+      });
+      setLocation(`/events/${newEvent.id}`);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create event.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: EventFormValues) => {
+    createMutation.mutate(data);
+  };
+
+  return (
+    <div className="container mx-auto py-8 space-y-6">
+      <div className="flex items-center gap-4 flex-wrap">
+        <Link href="/events">
+          <Button variant="ghost" size="sm" data-testid="button-back">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Events
+          </Button>
+        </Link>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle data-testid="title-page">Create Event</CardTitle>
+          <CardDescription>Create a new event</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input
+                        data-testid="input-title"
+                        placeholder="Event title"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="eventTypeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Event Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-event-type">
+                          <SelectValue placeholder="Select an event type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {eventTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        data-testid="input-description"
+                        placeholder="Event description (optional)"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                disabled={createMutation.isPending}
+                data-testid="button-save"
+              >
+                {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Create Event
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function EventEditPage() {
+  const params = useParams<{ id: string }>();
+  const isNew = !params.id;
+
+  if (isNew) {
+    return <EventCreatePage />;
+  }
+
+  return (
+    <EventLayout activeTab="edit">
+      <EventEditContent />
+    </EventLayout>
   );
 }
