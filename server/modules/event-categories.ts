@@ -90,6 +90,7 @@ const eventCategories: Record<string, EventCategoryDefinition> = {
     statuses: [
       { id: "registered", label: "Registered" },
       { id: "attended", label: "Attended" },
+      { id: "canceled", label: "Canceled" },
       { id: "absent", label: "Absent" },
     ],
     configOptions: [
