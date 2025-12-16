@@ -542,7 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/employers - Create a new employer (requires workers.manage permission)
   app.post("/api/employers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
-      const { name, isActive = true } = req.body;
+      const { name, isActive = true, typeId } = req.body;
       
       if (!name || typeof name !== 'string' || !name.trim()) {
         return res.status(400).json({ message: "Employer name is required" });
@@ -550,7 +550,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const employer = await storage.employers.createEmployer({ 
         name: name.trim(),
-        isActive: typeof isActive === 'boolean' ? isActive : true
+        isActive: typeof isActive === 'boolean' ? isActive : true,
+        typeId: typeId === null || typeId === "" ? null : (typeId || null)
       });
       
       res.status(201).json(employer);
@@ -563,7 +564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/employers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, isActive } = req.body;
+      const { name, isActive, typeId } = req.body;
       
       const updates: Partial<InsertEmployer> = {};
       
@@ -579,6 +580,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "isActive must be a boolean" });
         }
         updates.isActive = isActive;
+      }
+      
+      if (typeId !== undefined) {
+        updates.typeId = typeId === null || typeId === "" ? null : typeId;
       }
       
       if (Object.keys(updates).length === 0) {
