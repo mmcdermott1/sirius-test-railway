@@ -6,9 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Edit, Trash2, Save, X } from "lucide-react";
+import { 
+  Loader2, Plus, Edit, Trash2, Save, X,
+  Building, Building2, Factory, Store, Warehouse, Home, Landmark, Hospital,
+  type LucideIcon
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -33,13 +38,32 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { insertEmployerTypeSchema, type EmployerType, type InsertEmployerType } from "@shared/schema";
+
+const availableIcons: { name: string; Icon: LucideIcon }[] = [
+  { name: 'Building', Icon: Building },
+  { name: 'Building2', Icon: Building2 },
+  { name: 'Factory', Icon: Factory },
+  { name: 'Store', Icon: Store },
+  { name: 'Warehouse', Icon: Warehouse },
+  { name: 'Home', Icon: Home },
+  { name: 'Landmark', Icon: Landmark },
+  { name: 'Hospital', Icon: Hospital },
+];
 
 export default function EmployerTypesPage() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [formIcon, setFormIcon] = useState<string>("Building");
   
   const { data: employerTypes = [], isLoading } = useQuery<EmployerType[]>({
     queryKey: ["/api/employer-types"],
@@ -65,12 +89,16 @@ export default function EmployerTypesPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertEmployerType) => {
-      return apiRequest("POST", "/api/employer-types", data);
+      return apiRequest("POST", "/api/employer-types", {
+        ...data,
+        data: { icon: formIcon }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employer-types"] });
       setIsAddDialogOpen(false);
       addForm.reset();
+      setFormIcon("Building");
       toast({
         title: "Success",
         description: "Employer type created successfully.",
@@ -87,12 +115,16 @@ export default function EmployerTypesPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: { id: string; updates: InsertEmployerType }) => {
-      return apiRequest("PUT", `/api/employer-types/${data.id}`, data.updates);
+      return apiRequest("PUT", `/api/employer-types/${data.id}`, {
+        ...data.updates,
+        data: { icon: formIcon }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employer-types"] });
       setEditingId(null);
       editForm.reset();
+      setFormIcon("Building");
       toast({
         title: "Success",
         description: "Employer type updated successfully.",
@@ -130,6 +162,8 @@ export default function EmployerTypesPage() {
 
   const handleEdit = (type: EmployerType) => {
     setEditingId(type.id);
+    const data = type.data as { icon?: string } | null;
+    setFormIcon(data?.icon || "Building");
     editForm.reset({
       name: type.name,
       description: type.description || "",
@@ -140,6 +174,7 @@ export default function EmployerTypesPage() {
   const handleCancelEdit = () => {
     setEditingId(null);
     editForm.reset();
+    setFormIcon("Building");
   };
 
   const onAddSubmit = (data: InsertEmployerType) => {
@@ -171,7 +206,10 @@ export default function EmployerTypesPage() {
                 Manage employer types for categorizing employers
               </CardDescription>
             </div>
-            <Button data-testid="button-add" onClick={() => setIsAddDialogOpen(true)}>
+            <Button data-testid="button-add" onClick={() => {
+              setFormIcon("Building");
+              setIsAddDialogOpen(true);
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               Add Type
             </Button>
@@ -186,6 +224,7 @@ export default function EmployerTypesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[60px]">Icon</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="w-[100px]">Sequence</TableHead>
@@ -197,10 +236,28 @@ export default function EmployerTypesPage() {
                   <TableRow key={type.id} data-testid={`row-type-${type.id}`}>
                     {editingId === type.id ? (
                       <>
-                        <TableCell colSpan={4}>
+                        <TableCell colSpan={5}>
                           <Form {...editForm}>
                             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Icon</Label>
+                                  <Select value={formIcon} onValueChange={setFormIcon}>
+                                    <SelectTrigger data-testid={`select-edit-icon-${type.id}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {availableIcons.map(({ name, Icon }) => (
+                                        <SelectItem key={name} value={name}>
+                                          <div className="flex items-center gap-2">
+                                            <Icon size={16} />
+                                            <span>{name}</span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                                 <FormField
                                   control={editForm.control}
                                   name="name"
@@ -290,6 +347,14 @@ export default function EmployerTypesPage() {
                       </>
                     ) : (
                       <>
+                        <TableCell data-testid={`icon-${type.id}`}>
+                          {(() => {
+                            const data = type.data as { icon?: string } | null;
+                            const selectedIcon = availableIcons.find(i => i.name === data?.icon);
+                            const IconComponent = selectedIcon?.Icon || Building;
+                            return <IconComponent size={20} className="text-muted-foreground" />;
+                          })()}
+                        </TableCell>
                         <TableCell data-testid={`text-name-${type.id}`}>{type.name}</TableCell>
                         <TableCell data-testid={`text-description-${type.id}`}>
                           {type.description || <span className="text-muted-foreground">-</span>}
@@ -327,6 +392,7 @@ export default function EmployerTypesPage() {
         setIsAddDialogOpen(open);
         if (!open) {
           addForm.reset();
+          setFormIcon("Building");
         }
       }}>
         <DialogContent data-testid="dialog-add">
@@ -338,6 +404,24 @@ export default function EmployerTypesPage() {
           </DialogHeader>
           <Form {...addForm}>
             <form onSubmit={addForm.handleSubmit(onAddSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="add-icon">Icon</Label>
+                <Select value={formIcon} onValueChange={setFormIcon}>
+                  <SelectTrigger id="add-icon" data-testid="select-add-icon">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableIcons.map(({ name, Icon }) => (
+                      <SelectItem key={name} value={name}>
+                        <div className="flex items-center gap-2">
+                          <Icon size={16} />
+                          <span>{name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <FormField
                 control={addForm.control}
                 name="name"
