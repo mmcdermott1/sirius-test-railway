@@ -16,16 +16,13 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import EventLayout, { useEventLayout } from "@/components/layouts/EventLayout";
 import { UserPlus, Search } from "lucide-react";
 
-interface Worker {
+interface WorkerWithDetails {
   id: string;
-  siriusId: number;
-  contactId: string;
-  contact?: {
-    id: string;
-    displayName: string;
-    given?: string;
-    family?: string;
-  };
+  sirius_id: number | null;
+  contact_id: string;
+  contact_name: string | null;
+  given: string | null;
+  family: string | null;
 }
 
 function EventRegisterContent() {
@@ -34,8 +31,8 @@ function EventRegisterContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
-  const { data: workers = [], isLoading: workersLoading } = useQuery<Worker[]>({
-    queryKey: ["/api/workers"],
+  const { data: workers = [], isLoading: workersLoading } = useQuery<WorkerWithDetails[]>({
+    queryKey: ["/api/workers/with-details"],
   });
 
   const { data: categoryData } = useQuery({
@@ -67,8 +64,8 @@ function EventRegisterContent() {
 
   const filteredWorkers = workers.filter((worker) => {
     if (!searchTerm) return true;
-    const displayName = worker.contact?.displayName?.toLowerCase() || "";
-    const siriusId = worker.siriusId?.toString() || "";
+    const displayName = worker.contact_name?.toLowerCase() || "";
+    const siriusId = worker.sirius_id?.toString() || "";
     return displayName.includes(searchTerm.toLowerCase()) || siriusId.includes(searchTerm);
   });
 
@@ -139,10 +136,10 @@ function EventRegisterContent() {
                     filteredWorkers.slice(0, 50).map((worker) => (
                       <SelectItem
                         key={worker.id}
-                        value={worker.contactId}
+                        value={worker.contact_id}
                         data-testid={`select-worker-option-${worker.id}`}
                       >
-                        {worker.contact?.displayName || "Unknown"} (#{worker.siriusId})
+                        {worker.contact_name || "Unknown"} (#{worker.sirius_id})
                       </SelectItem>
                     ))
                   )}
