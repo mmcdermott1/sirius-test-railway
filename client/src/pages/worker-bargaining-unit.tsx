@@ -11,11 +11,13 @@ import { BargainingUnit } from "@shared/schema";
 import { Link } from "wouter";
 import { ExternalLink } from "lucide-react";
 
+const NONE_VALUE = "__none__";
+
 function WorkerBargainingUnitContent() {
   const { worker } = useWorkerLayout();
   const { toast } = useToast();
   const [selectedBargainingUnitId, setSelectedBargainingUnitId] = useState<string>(
-    worker.bargainingUnitId || ""
+    worker.bargainingUnitId || NONE_VALUE
   );
 
   const { data: bargainingUnits = [], isLoading: isLoadingUnits } = useQuery<BargainingUnit[]>({
@@ -47,11 +49,12 @@ function WorkerBargainingUnitContent() {
   });
 
   const handleSave = () => {
-    const newValue = selectedBargainingUnitId === "" ? null : selectedBargainingUnitId;
+    const newValue = selectedBargainingUnitId === NONE_VALUE ? null : selectedBargainingUnitId;
     updateMutation.mutate(newValue);
   };
 
-  const hasChanges = (selectedBargainingUnitId || null) !== (worker.bargainingUnitId || null);
+  const currentValue = worker.bargainingUnitId || NONE_VALUE;
+  const hasChanges = selectedBargainingUnitId !== currentValue;
 
   return (
     <Card>
@@ -91,7 +94,7 @@ function WorkerBargainingUnitContent() {
                 <SelectValue placeholder="Select a bargaining unit" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="" data-testid="option-no-bargaining-unit">
+                <SelectItem value={NONE_VALUE} data-testid="option-no-bargaining-unit">
                   (None)
                 </SelectItem>
                 {bargainingUnits.map((unit) => (
@@ -114,7 +117,7 @@ function WorkerBargainingUnitContent() {
             {hasChanges && (
               <Button
                 variant="outline"
-                onClick={() => setSelectedBargainingUnitId(worker.bargainingUnitId || "")}
+                onClick={() => setSelectedBargainingUnitId(worker.bargainingUnitId || NONE_VALUE)}
                 data-testid="button-cancel-bargaining-unit"
               >
                 Cancel
