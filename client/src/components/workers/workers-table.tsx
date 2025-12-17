@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle, Scale, Stethoscope, Smile, Eye as EyeIcon, Star, Download, GraduationCap, Heart, Laptop, ShoppingBag, Mail, Phone, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Worker, Contact, PhoneNumber, Employer, ContactPostal } from "@shared/schema";
+import { ComponentConfig } from "@shared/components";
 import { formatSSN } from "@shared/schema";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -119,16 +120,29 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const [selectedBenefitId, setSelectedBenefitId] = useState<string>("all");
   const [contactStatusFilter, setContactStatusFilter] = useState<string>("all");
 
+  // Fetch component configs to check if trust benefits is enabled
+  const { data: componentConfigs = [] } = useQuery<ComponentConfig[]>({
+    queryKey: ["/api/components"],
+  });
+  const trustBenefitsEnabled = componentConfigs.find(c => c.componentId === "trust.benefits")?.enabled ?? false;
+
+  // Reset benefit filter when trust.benefits is disabled
+  useEffect(() => {
+    if (!trustBenefitsEnabled && selectedBenefitId !== "all") {
+      setSelectedBenefitId("all");
+    }
+  }, [trustBenefitsEnabled, selectedBenefitId]);
+
   // Fetch worker-employer summary
   const { data: workerEmployers = [] } = useQuery<WorkerEmployerSummary[]>({
     queryKey: ["/api/workers/employers/summary"],
     enabled: workers.length > 0,
   });
 
-  // Fetch current month benefits for all workers
+  // Fetch current month benefits for all workers (only when trust.benefits is enabled)
   const { data: workerCurrentBenefits = [] } = useQuery<any[]>({
     queryKey: ["/api/workers/benefits/current"],
-    enabled: workers.length > 0,
+    enabled: workers.length > 0 && trustBenefitsEnabled,
   });
 
   // Fetch employers for filter dropdown
@@ -136,9 +150,10 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     queryKey: ["/api/employers"],
   });
 
-  // Fetch trust benefits for filter dropdown
+  // Fetch trust benefits for filter dropdown (only when trust.benefits is enabled)
   const { data: trustBenefits = [] } = useQuery<any[]>({
     queryKey: ["/api/trust-benefits"],
+    enabled: trustBenefitsEnabled,
   });
 
   // Create map for worker employers
@@ -252,8 +267,8 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
       );
     }
     
-    // Filter by specific benefit if selected (using benefit IDs)
-    if (selectedBenefitId !== "all") {
+    // Filter by specific benefit if selected (using benefit IDs) - only when trust.benefits is enabled
+    if (trustBenefitsEnabled && selectedBenefitId !== "all") {
       filtered = filtered.filter(worker => 
         worker.benefitIds?.includes(selectedBenefitId)
       );
@@ -306,7 +321,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     }
     
     return filtered;
-  }, [workersWithNames, searchQuery, selectedEmployerId, selectedBenefitId, contactStatusFilter]);
+  }, [workersWithNames, searchQuery, selectedEmployerId, selectedBenefitId, contactStatusFilter, trustBenefitsEnabled]);
 
   const sortedWorkers = [...filteredWorkers].sort((a, b) => {
     const familyA = a.family || '';
@@ -335,19 +350,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const handleExportCSV = () => {
     // Prepare data for CSV export
     const csvData = sortedWorkers.map(worker => {
-      // Get current benefits for this worker
-      const currentBenefits = currentBenefitsMap.get(worker.id) || [];
-      const benefitsString = currentBenefits
-        .filter((b: any) => b && b.name)
-        .map((b: any) => {
-          if (b.employerName) {
-            return `${b.name} (${b.employerName})`;
-          }
-          return b.name;
-        })
-        .join('; ');
-
-      return {
+      const baseData: Record<string, string> = {
         'First Name': worker.given || '',
         'Middle Name': worker.middle || '',
         'Last Name': worker.family || '',
@@ -359,27 +362,45 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
         'Country': worker.address?.country || '',
         'Email': worker.email || '',
         'Phone Number': worker.phoneNumber || '',
-        'Current Benefits': benefitsString,
       };
+
+      if (trustBenefitsEnabled) {
+        const currentBenefits = currentBenefitsMap.get(worker.id) || [];
+        const benefitsString = currentBenefits
+          .filter((b: any) => b && b.name)
+          .map((b: any) => {
+            if (b.employerName) {
+              return `${b.name} (${b.employerName})`;
+            }
+            return b.name;
+          })
+          .join('; ');
+        baseData['Current Benefits'] = benefitsString;
+      }
+
+      return baseData;
     });
+
+    // Define columns based on whether trust benefits is enabled
+    const columns = [
+      'First Name',
+      'Middle Name',
+      'Last Name',
+      'SSN',
+      'Street',
+      'City',
+      'State',
+      'Postal Code',
+      'Country',
+      'Email',
+      'Phone Number',
+      ...(trustBenefitsEnabled ? ['Current Benefits'] : [])
+    ];
 
     // Generate CSV string
     const csv = stringify(csvData, {
       header: true,
-      columns: [
-        'First Name',
-        'Middle Name',
-        'Last Name',
-        'SSN',
-        'Street',
-        'City',
-        'State',
-        'Postal Code',
-        'Country',
-        'Email',
-        'Phone Number',
-        'Current Benefits'
-      ]
+      columns
     });
 
     // Create download link
@@ -487,41 +508,43 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
               </Select>
             </div>
             
-            {/* Benefit Filter */}
-            <div className="w-64">
-              <Select
-                value={selectedBenefitId}
-                onValueChange={setSelectedBenefitId}
-              >
-                <SelectTrigger data-testid="select-benefit-filter">
-                  <div className="flex items-center gap-2">
-                    <Star size={16} className="text-muted-foreground" />
-                    <SelectValue placeholder="All Benefits" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Benefits</SelectItem>
-                  {trustBenefits
-                    .filter(benefit => benefit.isActive)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((benefit) => {
-                      const { Icon, color } = getIconByName(benefit.benefitTypeIcon);
-                      return (
-                        <SelectItem 
-                          key={benefit.id} 
-                          value={benefit.id}
-                          data-testid={`select-benefit-${benefit.id}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Icon size={14} className={color} />
-                            <span>{benefit.name}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Benefit Filter - only show when trust.benefits component is enabled */}
+            {trustBenefitsEnabled && (
+              <div className="w-64">
+                <Select
+                  value={selectedBenefitId}
+                  onValueChange={setSelectedBenefitId}
+                >
+                  <SelectTrigger data-testid="select-benefit-filter">
+                    <div className="flex items-center gap-2">
+                      <Star size={16} className="text-muted-foreground" />
+                      <SelectValue placeholder="All Benefits" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Benefits</SelectItem>
+                    {trustBenefits
+                      .filter(benefit => benefit.isActive)
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((benefit) => {
+                        const { Icon, color } = getIconByName(benefit.benefitTypeIcon);
+                        return (
+                          <SelectItem 
+                            key={benefit.id} 
+                            value={benefit.id}
+                            data-testid={`select-benefit-${benefit.id}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Icon size={14} className={color} />
+                              <span>{benefit.name}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             
             {/* Contact Status Filter */}
             <div className="w-56">
@@ -613,9 +636,11 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <span>Contact</span>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  <span>Benefits</span>
-                </th>
+                {trustBenefitsEnabled && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <span>Benefits</span>
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <span>Status</span>
                 </th>
@@ -763,31 +788,33 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <TooltipProvider>
-                      <div className="flex items-center gap-2" data-testid={`benefits-icons-${worker.id}`}>
-                        {worker.benefits && worker.benefits.length > 0 ? (
-                          worker.benefits.map((benefit, index) => {
-                            const { Icon, color } = getIconByName(benefit.typeIcon);
-                            return (
-                              <Tooltip key={index}>
-                                <TooltipTrigger asChild>
-                                  <div className="cursor-help">
-                                    <Icon size={16} className={color} />
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{benefit.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            );
-                          })
-                        ) : (
-                          <span className="text-sm text-muted-foreground italic">None</span>
-                        )}
-                      </div>
-                    </TooltipProvider>
-                  </td>
+                  {trustBenefitsEnabled && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <TooltipProvider>
+                        <div className="flex items-center gap-2" data-testid={`benefits-icons-${worker.id}`}>
+                          {worker.benefits && worker.benefits.length > 0 ? (
+                            worker.benefits.map((benefit, index) => {
+                              const { Icon, color } = getIconByName(benefit.typeIcon);
+                              return (
+                                <Tooltip key={index}>
+                                  <TooltipTrigger asChild>
+                                    <div className="cursor-help">
+                                      <Icon size={16} className={color} />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{benefit.name}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })
+                          ) : (
+                            <span className="text-sm text-muted-foreground italic">None</span>
+                          )}
+                        </div>
+                      </TooltipProvider>
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <HoverCard>
                       <HoverCardTrigger asChild>
