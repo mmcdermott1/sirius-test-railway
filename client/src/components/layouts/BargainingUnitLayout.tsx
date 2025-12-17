@@ -1,4 +1,4 @@
-import { useParams, Link, useLocation } from "wouter";
+import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,17 +30,9 @@ interface BargainingUnitLayoutProps {
 
 export default function BargainingUnitLayout({ children, activeTab }: BargainingUnitLayoutProps) {
   const { id } = useParams<{ id: string }>();
-  const [location] = useLocation();
 
   const { data: bargainingUnit, isLoading, error } = useQuery<BargainingUnit>({
     queryKey: ["/api/bargaining-units", id],
-    queryFn: async () => {
-      const response = await fetch(`/api/bargaining-units/${id}`);
-      if (!response.ok) {
-        throw new Error("Bargaining unit not found");
-      }
-      return response.json();
-    },
   });
 
   if (isLoading || !bargainingUnit) {
