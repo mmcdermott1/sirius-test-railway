@@ -177,6 +177,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   const { data: cardcheckDefinitions = [] } = useQuery<{ id: string; name: string; data?: { icon?: string } | null }[]>({
     queryKey: ["/api/cardcheck/definitions"],
     enabled: cardcheckEnabled,
+    staleTime: 0,
   });
 
   // Create map for worker cardcheck statuses
@@ -192,16 +193,35 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   }, [cardcheckStatusSummary]);
 
   // Get cardcheck definitions with icons for filter dropdowns
+  // Use status summary as primary source (synced with column display), 
+  // fall back to definitions for definitions without worker records yet
   const cardcheckDefinitionsWithIcons = useMemo(() => {
-    return cardcheckDefinitions
-      .filter(def => def.data?.icon)
-      .map(def => ({
-        id: def.id,
-        name: def.name,
-        icon: def.data!.icon!,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [cardcheckDefinitions]);
+    const defsMap = new Map<string, { id: string; name: string; icon: string }>();
+    
+    // First, add definitions from status summary (always in sync with column display)
+    for (const summary of cardcheckStatusSummary) {
+      if (summary.definitionIcon && !defsMap.has(summary.definitionId)) {
+        defsMap.set(summary.definitionId, {
+          id: summary.definitionId,
+          name: summary.definitionName,
+          icon: summary.definitionIcon,
+        });
+      }
+    }
+    
+    // Then add any additional definitions with icons from definitions query
+    for (const def of cardcheckDefinitions) {
+      if (def.data?.icon && !defsMap.has(def.id)) {
+        defsMap.set(def.id, {
+          id: def.id,
+          name: def.name,
+          icon: def.data.icon,
+        });
+      }
+    }
+    
+    return Array.from(defsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [cardcheckStatusSummary, cardcheckDefinitions]);
 
   // Create map for worker employers
   const employerMap = new Map(workerEmployers.map(we => [we.workerId, we.employers]));
