@@ -53,7 +53,7 @@ export function BTUWorkersInvalidCardcheckInputsStep({
 
   const saveConfigMutation = useMutation({
     mutationFn: async (newConfig: any) => {
-      return await apiRequest("PUT", `/api/wizards/${wizardId}`, {
+      return await apiRequest("PATCH", `/api/wizards/${wizardId}`, {
         data: {
           ...data,
           config: newConfig,
