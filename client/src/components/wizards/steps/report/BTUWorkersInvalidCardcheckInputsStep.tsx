@@ -42,6 +42,17 @@ export function BTUWorkersInvalidCardcheckInputsStep({
 
   const [cardcheckDefinitionId, setCardcheckDefinitionId] = useState<string>(filters.cardcheckDefinitionId || "");
   const [employerId, setEmployerId] = useState<string>(filters.employerId || "__none__");
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
+  // Sync local state when data prop changes (e.g., after refetch)
+  useEffect(() => {
+    if (filters.cardcheckDefinitionId && filters.cardcheckDefinitionId !== cardcheckDefinitionId) {
+      setCardcheckDefinitionId(filters.cardcheckDefinitionId);
+    }
+    if (filters.employerId && filters.employerId !== employerId) {
+      setEmployerId(filters.employerId);
+    }
+  }, [filters.cardcheckDefinitionId, filters.employerId]);
 
   const { data: cardcheckDefinitions = [], isLoading: definitionsLoading } = useQuery<CardcheckDefinition[]>({
     queryKey: ["/api/cardcheck/definitions"],
@@ -65,7 +76,10 @@ export function BTUWorkersInvalidCardcheckInputsStep({
     },
   });
 
+  // Only save when user has actually interacted with the form
   useEffect(() => {
+    if (!hasUserInteracted) return;
+
     const newConfig = {
       filters: {
         cardcheckDefinitionId: cardcheckDefinitionId || undefined,
@@ -78,7 +92,17 @@ export function BTUWorkersInvalidCardcheckInputsStep({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [cardcheckDefinitionId, employerId]);
+  }, [cardcheckDefinitionId, employerId, hasUserInteracted]);
+
+  const handleCardcheckChange = (value: string) => {
+    setHasUserInteracted(true);
+    setCardcheckDefinitionId(value);
+  };
+
+  const handleEmployerChange = (value: string) => {
+    setHasUserInteracted(true);
+    setEmployerId(value);
+  };
 
   if (definitionsLoading || employersLoading) {
     return (
@@ -130,7 +154,7 @@ export function BTUWorkersInvalidCardcheckInputsStep({
             </Label>
             <Select
               value={cardcheckDefinitionId}
-              onValueChange={setCardcheckDefinitionId}
+              onValueChange={handleCardcheckChange}
             >
               <SelectTrigger id="cardcheckDefinition" data-testid="select-cardcheck-definition">
                 <SelectValue placeholder="Select a cardcheck definition" />
@@ -154,7 +178,7 @@ export function BTUWorkersInvalidCardcheckInputsStep({
             </Label>
             <Select
               value={employerId}
-              onValueChange={setEmployerId}
+              onValueChange={handleEmployerChange}
             >
               <SelectTrigger id="employer" data-testid="select-employer">
                 <SelectValue placeholder="All employers" />
