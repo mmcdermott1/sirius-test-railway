@@ -470,6 +470,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/workers/:id - Partially update a worker (requires workers.manage permission)
+  app.patch("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { bargainingUnitId } = req.body;
+      
+      // Handle bargaining unit updates
+      if (bargainingUnitId !== undefined) {
+        // Validate bargainingUnitId - must be null/empty or a valid existing bargaining unit
+        const normalizedId = bargainingUnitId && typeof bargainingUnitId === 'string' && bargainingUnitId.trim() 
+          ? bargainingUnitId.trim() 
+          : null;
+        
+        // If setting a bargaining unit, verify it exists
+        if (normalizedId) {
+          const bargainingUnit = await storage.bargainingUnits.getBargainingUnitById(normalizedId);
+          if (!bargainingUnit) {
+            res.status(400).json({ message: "Invalid bargaining unit ID" });
+            return;
+          }
+        }
+        
+        const worker = await storage.workers.updateWorkerBargainingUnit(id, normalizedId);
+        
+        if (!worker) {
+          res.status(404).json({ message: "Worker not found" });
+          return;
+        }
+        
+        res.json(worker);
+        return;
+      }
+      
+      res.status(400).json({ message: "No valid update fields provided" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update worker" });
+    }
+  });
+
   // DELETE /api/workers/:id - Delete a worker (requires workers.manage permission)
   app.delete("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
