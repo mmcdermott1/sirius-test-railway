@@ -22,6 +22,8 @@ import {
   ClipboardCheck,
   List,
   Key,
+  Clock,
+  Droplets,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -188,6 +190,18 @@ export default function Header() {
                     </Button>
                   </Link>
                 )}
+                {hasComponent("bargainingunits") && (
+                  <Link href="/bargaining-units" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location.startsWith("/bargaining-units") ? "default" : "ghost"}
+                      className="w-full justify-start pl-8"
+                      data-testid="mobile-nav-bargaining-units"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Bargaining Units
+                    </Button>
+                  </Link>
+                )}
 
                 <Link href="/employers" onClick={() => setMobileMenuOpen(false)}>
                   <Button
@@ -252,6 +266,19 @@ export default function Header() {
                   </Link>
                 )}
 
+                {hasComponent("event") && (
+                  <Link href="/events" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location.startsWith("/events") ? "default" : "ghost"}
+                      className="w-full justify-start"
+                      data-testid="mobile-nav-events"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Events
+                    </Button>
+                  </Link>
+                )}
+
                 {ledgerStaffPolicy?.allowed && (
                   <Link href="/ledger/accounts" onClick={() => setMobileMenuOpen(false)}>
                     <Button
@@ -268,9 +295,9 @@ export default function Header() {
                 {hasPermission("admin") && (
                   <>
                     <div className="text-sm font-medium text-muted-foreground px-4 py-2">Users</div>
-                    <Link href="/config/users/list" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href="/admin/users/list" onClick={() => setMobileMenuOpen(false)}>
                       <Button
-                        variant={location === "/config/users/list" ? "default" : "ghost"}
+                        variant={location === "/admin/users/list" ? "default" : "ghost"}
                         className="w-full justify-start pl-8"
                         data-testid="mobile-nav-users-list"
                       >
@@ -278,9 +305,9 @@ export default function Header() {
                         Users
                       </Button>
                     </Link>
-                    <Link href="/config/users/roles" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href="/admin/users/roles" onClick={() => setMobileMenuOpen(false)}>
                       <Button
-                        variant={location === "/config/users/roles" ? "default" : "ghost"}
+                        variant={location === "/admin/users/roles" ? "default" : "ghost"}
                         className="w-full justify-start pl-8"
                         data-testid="mobile-nav-users-roles"
                       >
@@ -288,9 +315,9 @@ export default function Header() {
                         Roles
                       </Button>
                     </Link>
-                    <Link href="/config/users/permissions" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href="/admin/users/permissions" onClick={() => setMobileMenuOpen(false)}>
                       <Button
-                        variant={location === "/config/users/permissions" ? "default" : "ghost"}
+                        variant={location === "/admin/users/permissions" ? "default" : "ghost"}
                         className="w-full justify-start pl-8"
                         data-testid="mobile-nav-users-permissions"
                       >
@@ -298,9 +325,9 @@ export default function Header() {
                         Permissions
                       </Button>
                     </Link>
-                    <Link href="/config/users/policies" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href="/admin/users/policies" onClick={() => setMobileMenuOpen(false)}>
                       <Button
-                        variant={location === "/config/users/policies" ? "default" : "ghost"}
+                        variant={location === "/admin/users/policies" ? "default" : "ghost"}
                         className="w-full justify-start pl-8"
                         data-testid="mobile-nav-users-policies"
                       >
@@ -316,6 +343,26 @@ export default function Header() {
                       >
                         <UserCog className="h-4 w-4 mr-2" />
                         Masquerade
+                      </Button>
+                    </Link>
+                    <Link href="/admin/users/sessions" onClick={() => setMobileMenuOpen(false)}>
+                      <Button
+                        variant={location === "/admin/users/sessions" ? "default" : "ghost"}
+                        className="w-full justify-start pl-8"
+                        data-testid="mobile-nav-users-sessions"
+                      >
+                        <Clock className="h-4 w-4 mr-2" />
+                        Sessions
+                      </Button>
+                    </Link>
+                    <Link href="/admin/users/flood-events" onClick={() => setMobileMenuOpen(false)}>
+                      <Button
+                        variant={location === "/admin/users/flood-events" ? "default" : "ghost"}
+                        className="w-full justify-start pl-8"
+                        data-testid="mobile-nav-users-flood-events"
+                      >
+                        <Droplets className="h-4 w-4 mr-2" />
+                        Flood Events
                       </Button>
                     </Link>
                   </>
@@ -423,7 +470,7 @@ export default function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant={location === "/workers" || location.startsWith("/cardcheck") ? "default" : "ghost"}
+                  variant={location === "/workers" || location.startsWith("/cardcheck") || location.startsWith("/bargaining-units") ? "default" : "ghost"}
                   size="sm"
                   data-testid="nav-workers"
                 >
@@ -447,6 +494,16 @@ export default function Header() {
                       <div className="flex items-center cursor-pointer" data-testid="menu-cardcheck-definitions">
                         <ClipboardCheck className="h-4 w-4 mr-2" />
                         Cardchecks
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {hasComponent("bargainingunits") && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/bargaining-units" className="w-full">
+                      <div className="flex items-center cursor-pointer" data-testid="menu-bargaining-units">
+                        <Users className="h-4 w-4 mr-2" />
+                        Bargaining Units
                       </div>
                     </Link>
                   </DropdownMenuItem>
@@ -532,6 +589,19 @@ export default function Header() {
               </DropdownMenu>
             )}
 
+            {hasComponent("event") && (
+              <Link href="/events">
+                <Button
+                  variant={location.startsWith("/events") ? "default" : "ghost"}
+                  size="sm"
+                  data-testid="nav-events"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Events
+                </Button>
+              </Link>
+            )}
+
             {ledgerStaffPolicy?.allowed && (
               <Link href="/ledger/accounts">
                 <Button
@@ -549,7 +619,7 @@ export default function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant={location.startsWith("/config/users") || location === "/config/masquerade" ? "default" : "ghost"}
+                    variant={location.startsWith("/admin/users") || location === "/config/masquerade" ? "default" : "ghost"}
                     size="sm"
                     data-testid="nav-users"
                   >
@@ -560,7 +630,7 @@ export default function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   <DropdownMenuItem asChild>
-                    <Link href="/config/users/list" className="w-full">
+                    <Link href="/admin/users/list" className="w-full">
                       <div className="flex items-center cursor-pointer" data-testid="menu-users-list">
                         <Users className="h-4 w-4 mr-2" />
                         Users
@@ -568,7 +638,7 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/config/users/roles" className="w-full">
+                    <Link href="/admin/users/roles" className="w-full">
                       <div className="flex items-center cursor-pointer" data-testid="menu-users-roles">
                         <Shield className="h-4 w-4 mr-2" />
                         Roles
@@ -576,7 +646,7 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/config/users/permissions" className="w-full">
+                    <Link href="/admin/users/permissions" className="w-full">
                       <div className="flex items-center cursor-pointer" data-testid="menu-users-permissions">
                         <Key className="h-4 w-4 mr-2" />
                         Permissions
@@ -584,7 +654,7 @@ export default function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/config/users/policies" className="w-full">
+                    <Link href="/admin/users/policies" className="w-full">
                       <div className="flex items-center cursor-pointer" data-testid="menu-users-policies">
                         <FileText className="h-4 w-4 mr-2" />
                         Policies
@@ -597,6 +667,22 @@ export default function Header() {
                       <div className="flex items-center cursor-pointer" data-testid="menu-users-masquerade">
                         <UserCog className="h-4 w-4 mr-2" />
                         Masquerade
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/users/sessions" className="w-full">
+                      <div className="flex items-center cursor-pointer" data-testid="menu-users-sessions">
+                        <Clock className="h-4 w-4 mr-2" />
+                        Sessions
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/users/flood-events" className="w-full">
+                      <div className="flex items-center cursor-pointer" data-testid="menu-users-flood-events">
+                        <Droplets className="h-4 w-4 mr-2" />
+                        Flood Events
                       </div>
                     </Link>
                   </DropdownMenuItem>

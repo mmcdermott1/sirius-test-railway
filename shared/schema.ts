@@ -76,6 +76,7 @@ export const workers = pgTable("workers", {
   denormWsId: varchar("denorm_ws_id").references(() => optionsWorkerWs.id, { onDelete: 'set null' }),
   denormHomeEmployerId: varchar("denorm_home_employer_id").references(() => employers.id, { onDelete: 'set null' }),
   denormEmployerIds: varchar("denorm_employer_ids").array(),
+  bargainingUnitId: varchar("bargaining_unit_id").references(() => bargainingUnits.id, { onDelete: 'set null' }),
 });
 
 export const employers = pgTable("employers", {
@@ -83,6 +84,7 @@ export const employers = pgTable("employers", {
   siriusId: serial("sirius_id").notNull().unique(),
   name: text("name").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  typeId: varchar("type_id").references(() => optionsEmployerType.id, { onDelete: 'set null' }),
   stripeCustomerId: text("stripe_customer_id"),
   denormPolicyId: varchar("denorm_policy_id").references(() => policies.id, { onDelete: 'set null' }),
 });
@@ -91,6 +93,13 @@ export const policies = pgTable("policies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   siriusId: varchar("sirius_id").notNull().unique(),
   name: text("name"),
+  data: jsonb("data"),
+});
+
+export const bargainingUnits = pgTable("bargaining_units", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  siriusId: varchar("sirius_id").notNull().unique(),
+  name: text("name").notNull(),
   data: jsonb("data"),
 });
 
@@ -240,6 +249,14 @@ export const optionsEmployerContactType = pgTable("options_employer_contact_type
   data: jsonb("data"),
 });
 
+export const optionsEmployerType = pgTable("options_employer_type", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  sequence: integer("sequence").notNull().default(0),
+  data: jsonb("data"),
+});
+
 export const optionsWorkerWs = pgTable("options_worker_ws", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -263,6 +280,47 @@ export const optionsTrustProviderType = pgTable("options_trust_provider_type", {
   name: text("name").notNull(),
   description: text("description"),
   data: jsonb("data"),
+});
+
+export const optionsEventType = pgTable("options_event_type", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  siriusId: varchar("sirius_id").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: varchar("category").notNull().default("public"),
+  config: jsonb("config"),
+  data: jsonb("data"),
+});
+
+export const events = pgTable("events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventTypeId: varchar("event_type_id").notNull().references(() => optionsEventType.id, { onDelete: 'restrict' }),
+  title: text("title").notNull(),
+  description: text("description"),
+  config: jsonb("config"),
+  data: jsonb("data"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const eventOccurrences = pgTable("event_occurrences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: 'cascade' }),
+  startAt: timestamp("start_at").notNull(),
+  endAt: timestamp("end_at"),
+  status: varchar("status").notNull().default("active"),
+  notes: text("notes"),
+  data: jsonb("data"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const eventParticipants = pgTable("event_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: 'cascade' }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+  role: varchar("role").notNull(),
+  status: varchar("status"),
+  data: jsonb("data"),
+  registeredAt: timestamp("registered_at").defaultNow(),
 });
 
 export const workerIds = pgTable("worker_ids", {
@@ -496,6 +554,7 @@ export const cardchecks = pgTable("cardchecks", {
   rate: doublePrecision("rate"),
   data: jsonb("data"),
   esigId: varchar("esig_id").references(() => esigs.id, { onDelete: 'set null' }),
+  bargainingUnitId: varchar("bargaining_unit_id").references(() => bargainingUnits.id, { onDelete: 'set null' }),
 });
 
 // Zod schemas for validation
@@ -540,6 +599,10 @@ export const insertEmployerSchema = createInsertSchema(employers).omit({
 });
 
 export const insertPolicySchema = createInsertSchema(policies).omit({
+  id: true,
+});
+
+export const insertBargainingUnitSchema = createInsertSchema(bargainingUnits).omit({
   id: true,
 });
 
@@ -704,7 +767,15 @@ export const insertEmployerContactTypeSchema = createInsertSchema(optionsEmploye
   id: true,
 });
 
+export const insertEmployerTypeSchema = createInsertSchema(optionsEmployerType).omit({
+  id: true,
+});
+
 export const insertTrustProviderTypeSchema = createInsertSchema(optionsTrustProviderType).omit({
+  id: true,
+});
+
+export const insertEventTypeSchema = createInsertSchema(optionsEventType).omit({
   id: true,
 });
 
@@ -770,6 +841,9 @@ export type Employer = typeof employers.$inferSelect;
 
 export type InsertPolicy = z.infer<typeof insertPolicySchema>;
 export type Policy = typeof policies.$inferSelect;
+
+export type InsertBargainingUnit = z.infer<typeof insertBargainingUnitSchema>;
+export type BargainingUnit = typeof bargainingUnits.$inferSelect;
 
 export type InsertCardcheckDefinition = z.infer<typeof insertCardcheckDefinitionSchema>;
 export type CardcheckDefinition = typeof cardcheckDefinitions.$inferSelect;
@@ -896,8 +970,34 @@ export type LedgerPaymentType = typeof optionsLedgerPaymentType.$inferSelect;
 export type InsertEmployerContactType = z.infer<typeof insertEmployerContactTypeSchema>;
 export type EmployerContactType = typeof optionsEmployerContactType.$inferSelect;
 
+export type InsertEmployerType = z.infer<typeof insertEmployerTypeSchema>;
+export type EmployerType = typeof optionsEmployerType.$inferSelect;
+
 export type InsertTrustProviderType = z.infer<typeof insertTrustProviderTypeSchema>;
 export type TrustProviderType = typeof optionsTrustProviderType.$inferSelect;
+
+export type InsertEventType = z.infer<typeof insertEventTypeSchema>;
+export type EventType = typeof optionsEventType.$inferSelect;
+
+export const insertEventSchema = createInsertSchema(events).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type Event = typeof events.$inferSelect;
+
+export const insertEventOccurrenceSchema = createInsertSchema(eventOccurrences).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEventOccurrence = z.infer<typeof insertEventOccurrenceSchema>;
+export type EventOccurrence = typeof eventOccurrences.$inferSelect;
+
+export const insertEventParticipantSchema = createInsertSchema(eventParticipants).omit({
+  id: true,
+});
+export type InsertEventParticipant = z.infer<typeof insertEventParticipantSchema>;
+export type EventParticipant = typeof eventParticipants.$inferSelect;
 
 export type InsertWorkerWs = z.infer<typeof insertWorkerWsSchema>;
 export type WorkerWs = typeof optionsWorkerWs.$inferSelect;
@@ -1296,3 +1396,22 @@ export const insertCommPostalOptinSchema = createInsertSchema(commPostalOptin, {
 
 export type InsertCommPostalOptin = z.infer<typeof insertCommPostalOptinSchema>;
 export type CommPostalOptin = typeof commPostalOptin.$inferSelect;
+
+// Flood control table for rate limiting
+export const flood = pgTable("flood", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  event: varchar("event").notNull(),
+  identifier: varchar("identifier").notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+}, (table) => ({
+  eventIdentifierIdx: index("flood_event_identifier_idx").on(table.event, table.identifier),
+  expiresAtIdx: index("flood_expires_at_idx").on(table.expiresAt),
+}));
+
+export const insertFloodSchema = createInsertSchema(flood).omit({
+  id: true,
+});
+
+export type InsertFlood = z.infer<typeof insertFloodSchema>;
+export type Flood = typeof flood.$inferSelect;

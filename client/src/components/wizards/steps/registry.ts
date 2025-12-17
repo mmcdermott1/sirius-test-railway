@@ -9,6 +9,7 @@ import { RunStep } from './report/RunStep';
 import { ResultsStep } from './report/ResultsStep';
 import { LedgerIntegrityInputsStep } from './report/LedgerIntegrityInputsStep';
 import { GbhetLegalComplianceInputsStep } from './report/GbhetLegalComplianceInputsStep';
+import { BTUWorkersInvalidCardcheckInputsStep } from './report/BTUWorkersInvalidCardcheckInputsStep';
 
 export interface WizardStepComponent {
   (props: { wizardId: string; wizardType: string; data?: any; onDataChange?: (data: any) => void }): JSX.Element;
@@ -80,6 +81,11 @@ const evaluateRunComplete: StepCompletionEvaluator = ({ wizard }) => {
   return progress?.status === 'completed';
 };
 
+const evaluateBTUInputsComplete: StepCompletionEvaluator = ({ wizard }) => {
+  const cardcheckDefinitionId = wizard?.data?.config?.filters?.cardcheckDefinitionId;
+  return !!cardcheckDefinitionId;
+};
+
 export const stepControllerRegistry: StepControllerRegistry = {
   'gbhet_legal_workers_monthly': {
     'upload': { Component: UploadStep, evaluateCompletion: evaluateUploadComplete },
@@ -124,6 +130,11 @@ export const stepControllerRegistry: StepControllerRegistry = {
   },
   'report_gbhet_legal_compliance': {
     'inputs': { Component: GbhetLegalComplianceInputsStep, evaluateCompletion: alwaysComplete },
+    'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
+    'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
+  },
+  'report_btu_workers_invalid_cardcheck': {
+    'inputs': { Component: BTUWorkersInvalidCardcheckInputsStep, evaluateCompletion: evaluateBTUInputsComplete },
     'run': { Component: RunStep, evaluateCompletion: evaluateRunComplete },
     'results': { Component: ResultsStep, evaluateCompletion: alwaysComplete },
   },
@@ -173,6 +184,11 @@ export const stepComponentRegistry: StepComponentRegistry = {
   },
   'report_gbhet_legal_compliance': {
     'inputs': GbhetLegalComplianceInputsStep,
+    'run': RunStep,
+    'results': ResultsStep,
+  },
+  'report_btu_workers_invalid_cardcheck': {
+    'inputs': BTUWorkersInvalidCardcheckInputsStep,
     'run': RunStep,
     'results': ResultsStep,
   },

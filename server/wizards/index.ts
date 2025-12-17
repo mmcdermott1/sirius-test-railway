@@ -7,6 +7,7 @@ import { ReportWorkersDuplicateSSN } from './types/report_workers_duplicate_ssn.
 import { ReportEmployerUsers } from './types/report_employer_users.js';
 import { ReportLedgerIntegrity } from './types/report_ledger_integrity.js';
 import { ReportGbhetLegalCompliance } from './types/report_gbhet_legal_compliance.js';
+import { ReportBTUWorkersInvalidCardcheck } from './types/report_btu_workers_invalid_cardcheck.js';
 
 wizardRegistry.register(gbhetLegalWorkersMonthly);
 wizardRegistry.register(gbhetLegalWorkersCorrections);
@@ -16,6 +17,7 @@ wizardRegistry.register(new ReportWorkersDuplicateSSN());
 wizardRegistry.register(new ReportEmployerUsers());
 wizardRegistry.register(new ReportLedgerIntegrity());
 wizardRegistry.register(new ReportGbhetLegalCompliance());
+wizardRegistry.register(new ReportBTUWorkersInvalidCardcheck());
 
 export { wizardRegistry, getWizardType, getAllWizardTypes, registerWizardType } from './registry.js';
 export { BaseWizard, type WizardTypeDefinition, type WizardStep, type WizardStatus } from './base.js';

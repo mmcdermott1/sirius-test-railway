@@ -42,12 +42,16 @@ import { registerSiteSettingsRoutes } from "./modules/site-settings";
 import { registerSystemModeRoutes } from "./modules/system-mode";
 import { registerBootstrapRoutes } from "./modules/bootstrap";
 import { registerPoliciesRoutes } from "./modules/policies";
+import { registerBargainingUnitsRoutes } from "./modules/bargaining-units";
 import { registerEmployerPolicyHistoryRoutes } from "./modules/employer-policy-history";
 import { registerWorkerBenefitsScanRoutes } from "./modules/worker-benefits-scan";
 import { registerWmbScanQueueRoutes } from "./modules/wmb-scan-queue";
 import { registerCardcheckDefinitionsRoutes } from "./modules/cardcheck-definitions";
 import { registerCardchecksRoutes } from "./modules/cardchecks";
 import { registerEsigsRoutes } from "./modules/esigs";
+import { registerSessionRoutes } from "./modules/sessions";
+import { registerFloodEventRoutes } from "./modules/flood-events";
+import { registerEventsRoutes } from "./modules/events";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -174,6 +178,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register masquerade routes
   registerMasqueradeRoutes(app, requireAuth, requirePermission);
   
+  // Register session management routes
+  registerSessionRoutes(app, requireAuth, storage);
+  
+  // Register flood events routes
+  registerFloodEventRoutes(app, requireAuth, storage);
+  
   // Register user management routes
   registerUserRoutes(app, requireAuth, requirePermission);
   
@@ -275,6 +285,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register policies configuration routes
   registerPoliciesRoutes(app, requireAuth, requireAccess, storage);
+
+  // Register bargaining units configuration routes
+  registerBargainingUnitsRoutes(app, requireAuth, requireAccess, storage);
 
   // Register employer policy history routes
   registerEmployerPolicyHistoryRoutes(app, requireAuth, requireAccess, storage);
@@ -457,6 +470,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/workers/:id - Partially update a worker (requires workers.manage permission)
+  app.patch("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { bargainingUnitId } = req.body;
+      
+      // Handle bargaining unit updates
+      if (bargainingUnitId !== undefined) {
+        // Validate bargainingUnitId - must be null/empty or a valid existing bargaining unit
+        const normalizedId = bargainingUnitId && typeof bargainingUnitId === 'string' && bargainingUnitId.trim() 
+          ? bargainingUnitId.trim() 
+          : null;
+        
+        // If setting a bargaining unit, verify it exists
+        if (normalizedId) {
+          const bargainingUnit = await storage.bargainingUnits.getBargainingUnitById(normalizedId);
+          if (!bargainingUnit) {
+            res.status(400).json({ message: "Invalid bargaining unit ID" });
+            return;
+          }
+        }
+        
+        const worker = await storage.workers.updateWorkerBargainingUnit(id, normalizedId);
+        
+        if (!worker) {
+          res.status(404).json({ message: "Worker not found" });
+          return;
+        }
+        
+        res.json(worker);
+        return;
+      }
+      
+      res.status(400).json({ message: "No valid update fields provided" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update worker" });
+    }
+  });
+
   // DELETE /api/workers/:id - Delete a worker (requires workers.manage permission)
   app.delete("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
@@ -533,7 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/employers - Create a new employer (requires workers.manage permission)
   app.post("/api/employers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
-      const { name, isActive = true } = req.body;
+      const { name, isActive = true, typeId } = req.body;
       
       if (!name || typeof name !== 'string' || !name.trim()) {
         return res.status(400).json({ message: "Employer name is required" });
@@ -541,7 +593,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const employer = await storage.employers.createEmployer({ 
         name: name.trim(),
-        isActive: typeof isActive === 'boolean' ? isActive : true
+        isActive: typeof isActive === 'boolean' ? isActive : true,
+        typeId: typeId === null || typeId === "" ? null : (typeId || null)
       });
       
       res.status(201).json(employer);
@@ -554,7 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/employers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
     try {
       const { id } = req.params;
-      const { name, isActive } = req.body;
+      const { name, isActive, typeId } = req.body;
       
       const updates: Partial<InsertEmployer> = {};
       
@@ -570,6 +623,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "isActive must be a boolean" });
         }
         updates.isActive = isActive;
+      }
+      
+      if (typeId !== undefined) {
+        updates.typeId = typeId === null || typeId === "" ? null : typeId;
       }
       
       if (Object.keys(updates).length === 0) {
@@ -857,6 +914,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register generic variable management routes (MUST come after specific routes)
   registerVariableRoutes(app, requireAuth, requirePermission);
+
+  // Register events routes
+  registerEventsRoutes(app, requireAuth, requirePermission);
 
 
   const httpServer = createServer(app);

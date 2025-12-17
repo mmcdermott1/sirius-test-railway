@@ -438,6 +438,19 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
       return updatedWorker || undefined;
     },
 
+    async updateWorkerBargainingUnit(workerId: string, bargainingUnitId: string | null): Promise<Worker | undefined> {
+      // Normalize empty string to null
+      const normalizedId = bargainingUnitId && bargainingUnitId.trim() ? bargainingUnitId.trim() : null;
+      
+      const [updatedWorker] = await db
+        .update(workers)
+        .set({ bargainingUnitId: normalizedId })
+        .where(eq(workers.id, workerId))
+        .returning();
+      
+      return updatedWorker || undefined;
+    },
+
     async deleteWorker(id: string): Promise<boolean> {
       // Get the worker to find its contact
       const [worker] = await db.select().from(workers).where(eq(workers.id, id));

@@ -21,11 +21,15 @@ import { type LogsStorage, createLogsStorage } from "./logs";
 import { type WorkerWshStorage, createWorkerWshStorage, workerWshLoggingConfig } from "./worker-wsh";
 import { type WorkerHoursStorage, createWorkerHoursStorage, workerHoursLoggingConfig } from "./worker-hours";
 import { type PolicyStorage, createPolicyStorage, policyLoggingConfig } from "./policies";
+import { type BargainingUnitStorage, createBargainingUnitStorage, bargainingUnitLoggingConfig } from "./bargaining-units";
 import { type EmployerPolicyHistoryStorage, createEmployerPolicyHistoryStorage, employerPolicyHistoryLoggingConfig } from "./employer-policy-history";
 import { type WmbScanQueueStorage, createWmbScanQueueStorage } from "./wmb-scan-queue";
 import { type CardcheckDefinitionStorage, createCardcheckDefinitionStorage, cardcheckDefinitionLoggingConfig } from "./cardcheck-definitions";
 import { type CardcheckStorage, createCardcheckStorage, cardcheckLoggingConfig } from "./cardchecks";
 import { type EsigStorage, createEsigStorage, esigLoggingConfig } from "./esigs";
+import { type SessionStorage, createSessionStorage, sessionLoggingConfig } from "./sessions";
+import { type FloodStorage, createFloodStorage } from "./flood";
+import { type EventStorage, createEventStorage, eventLoggingConfig, type EventOccurrenceStorage, createEventOccurrenceStorage, eventOccurrenceLoggingConfig, type EventParticipantStorage, createEventParticipantStorage, eventParticipantLoggingConfig } from "./events";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -56,11 +60,17 @@ export interface IStorage {
   workerWsh: WorkerWshStorage;
   workerHours: WorkerHoursStorage;
   policies: PolicyStorage;
+  bargainingUnits: BargainingUnitStorage;
   employerPolicyHistory: EmployerPolicyHistoryStorage;
   wmbScanQueue: WmbScanQueueStorage;
   cardcheckDefinitions: CardcheckDefinitionStorage;
   cardchecks: CardcheckStorage;
   esigs: EsigStorage;
+  sessions: SessionStorage;
+  flood: FloodStorage;
+  events: EventStorage;
+  eventOccurrences: EventOccurrenceStorage;
+  eventParticipants: EventParticipantStorage;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -88,11 +98,17 @@ export class DatabaseStorage implements IStorage {
   workerWsh: WorkerWshStorage;
   workerHours: WorkerHoursStorage;
   policies: PolicyStorage;
+  bargainingUnits: BargainingUnitStorage;
   employerPolicyHistory: EmployerPolicyHistoryStorage;
   wmbScanQueue: WmbScanQueueStorage;
   cardcheckDefinitions: CardcheckDefinitionStorage;
   cardchecks: CardcheckStorage;
   esigs: EsigStorage;
+  sessions: SessionStorage;
+  flood: FloodStorage;
+  events: EventStorage;
+  eventOccurrences: EventOccurrenceStorage;
+  eventParticipants: EventParticipantStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -159,6 +175,10 @@ export class DatabaseStorage implements IStorage {
       createPolicyStorage(),
       policyLoggingConfig
     );
+    this.bargainingUnits = withStorageLogging(
+      createBargainingUnitStorage(),
+      bargainingUnitLoggingConfig
+    );
     this.employerPolicyHistory = withStorageLogging(
       createEmployerPolicyHistoryStorage(this.employers.updateEmployerPolicy.bind(this.employers)),
       employerPolicyHistoryLoggingConfig
@@ -175,6 +195,14 @@ export class DatabaseStorage implements IStorage {
       createEsigStorage(),
       esigLoggingConfig
     );
+    this.sessions = withStorageLogging(
+      createSessionStorage(),
+      sessionLoggingConfig
+    );
+    this.flood = createFloodStorage();
+    this.events = withStorageLogging(createEventStorage(), eventLoggingConfig);
+    this.eventOccurrences = withStorageLogging(createEventOccurrenceStorage(), eventOccurrenceLoggingConfig);
+    this.eventParticipants = withStorageLogging(createEventParticipantStorage(), eventParticipantLoggingConfig);
   }
 }
 
