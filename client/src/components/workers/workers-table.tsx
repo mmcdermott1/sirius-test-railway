@@ -545,21 +545,21 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
             </div>
           </div>
           
+          {/* Search Input - own row */}
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
+            <Input
+              type="text"
+              placeholder="Search by name, email, phone, or SSN..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-workers"
+            />
+          </div>
+          
           {/* Filters */}
-          <div className="flex gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
-              <Input
-                type="text"
-                placeholder="Search by name, email, phone, or SSN..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-workers"
-              />
-            </div>
-            
+          <div className="flex flex-wrap gap-3">
             {/* Employer Filter */}
             <div className="w-64">
               <Select
