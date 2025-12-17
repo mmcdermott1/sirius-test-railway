@@ -44,7 +44,7 @@ export function BTUWorkersInvalidCardcheckInputsStep({
   const [employerId, setEmployerId] = useState<string>(filters.employerId || "__none__");
 
   const { data: cardcheckDefinitions = [], isLoading: definitionsLoading } = useQuery<CardcheckDefinition[]>({
-    queryKey: ["/api/cardcheck-definitions"],
+    queryKey: ["/api/cardcheck/definitions"],
   });
 
   const { data: employers = [], isLoading: employersLoading } = useQuery<Employer[]>({
