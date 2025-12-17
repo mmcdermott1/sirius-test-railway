@@ -61,7 +61,7 @@ export function BTUWorkersInvalidCardcheckInputsStep({
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/wizards", wizardId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/wizards/${wizardId}`] });
     },
   });
 
