@@ -695,51 +695,48 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
             </div>
             
             {/* Card Check Status Filters - one per definition with icon */}
-            {cardcheckEnabled && cardcheckDefinitionsWithIcons.map((def) => {
-              const IconComponent = def.icon && iconMap[def.icon] ? iconMap[def.icon] : Star;
-              return (
-                <div key={def.id} className="w-48">
-                  <Select
-                    value={cardcheckFilters[def.id] || "all"}
-                    onValueChange={(value) => setCardcheckFilters(prev => ({ ...prev, [def.id]: value }))}
-                  >
-                    <SelectTrigger data-testid={`select-cardcheck-filter-${def.id}`}>
+            {cardcheckEnabled && cardcheckDefinitionsWithIcons.map((def) => (
+              <div key={def.id} className="w-48">
+                <Select
+                  value={cardcheckFilters[def.id] || "all"}
+                  onValueChange={(value) => setCardcheckFilters(prev => ({ ...prev, [def.id]: value }))}
+                >
+                  <SelectTrigger data-testid={`select-cardcheck-filter-${def.id}`}>
+                    <div className="flex items-center gap-2">
+                      {renderIcon(def.icon, "h-4 w-4 text-muted-foreground")}
+                      <SelectValue placeholder={`All ${def.name}`} />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All {def.name}</SelectItem>
+                    <SelectItem value="signed">
                       <div className="flex items-center gap-2">
-                        <IconComponent size={16} className="text-muted-foreground" />
-                        <SelectValue placeholder={`All ${def.name}`} />
+                        {renderIcon(def.icon, "h-3.5 w-3.5 text-green-600")}
+                        <span>Signed</span>
                       </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All {def.name}</SelectItem>
-                      <SelectItem value="signed">
-                        <div className="flex items-center gap-2">
-                          <IconComponent size={14} className="text-green-600" />
-                          <span>Signed</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="pending">
-                        <div className="flex items-center gap-2">
-                          <IconComponent size={14} className="text-yellow-500" />
-                          <span>Pending signature</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="none">
-                        <div className="flex items-center gap-2">
-                          <IconComponent size={14} className="text-yellow-500" />
-                          <span>None on file</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="revoked">
-                        <div className="flex items-center gap-2">
-                          <IconComponent size={14} className="text-red-600" />
-                          <span>Revoked</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              );
-            })}
+                    </SelectItem>
+                    <SelectItem value="pending">
+                      <div className="flex items-center gap-2">
+                        {renderIcon(def.icon, "h-3.5 w-3.5 text-yellow-500")}
+                        <span>Pending signature</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="none">
+                      <div className="flex items-center gap-2">
+                        {renderIcon(def.icon, "h-3.5 w-3.5 text-yellow-500")}
+                        <span>None on file</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="revoked">
+                      <div className="flex items-center gap-2">
+                        {renderIcon(def.icon, "h-3.5 w-3.5 text-red-600")}
+                        <span>Revoked</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
           </div>
         </div>
 
