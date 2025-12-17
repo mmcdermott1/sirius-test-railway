@@ -174,7 +174,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   });
 
   // Fetch cardcheck definitions for filters (only when cardcheck is enabled)
-  const { data: cardcheckDefinitions = [] } = useQuery<{ id: string; name: string; icon?: string | null }[]>({
+  const { data: cardcheckDefinitions = [] } = useQuery<{ id: string; name: string; data?: { icon?: string } | null }[]>({
     queryKey: ["/api/cardcheck/definitions"],
     enabled: cardcheckEnabled,
   });
@@ -194,11 +194,11 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
   // Get cardcheck definitions with icons for filter dropdowns
   const cardcheckDefinitionsWithIcons = useMemo(() => {
     return cardcheckDefinitions
-      .filter(def => def.icon)
+      .filter(def => def.data?.icon)
       .map(def => ({
         id: def.id,
         name: def.name,
-        icon: def.icon!,
+        icon: def.data!.icon!,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [cardcheckDefinitions]);
