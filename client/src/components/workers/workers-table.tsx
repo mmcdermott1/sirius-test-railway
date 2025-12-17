@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle, Scale, Stethoscope, Smile, Eye as EyeIcon, Star, Download, GraduationCap, Heart, Laptop, ShoppingBag, Mail, Phone, type LucideIcon } from "lucide-react";
+import { ArrowUpDown, User, Eye, Search, Home, Building2, MapPin, CheckCircle2, XCircle, Scale, Stethoscope, Smile, Eye as EyeIcon, Star, Download, GraduationCap, Heart, Laptop, ShoppingBag, Mail, Phone, FileText, type LucideIcon } from "lucide-react";
+import { renderIcon } from "@/components/ui/icon-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,6 +42,14 @@ interface WorkerBenefit {
   name: string;
   typeName: string;
   typeIcon?: string;
+}
+
+interface CardcheckStatusSummary {
+  workerId: string;
+  definitionId: string;
+  definitionName: string;
+  definitionIcon: string;
+  status: 'signed' | 'pending' | 'revoked' | 'none';
 }
 
 interface WorkerWithContact extends Worker {
@@ -125,6 +134,7 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     queryKey: ["/api/components/config"],
   });
   const trustBenefitsEnabled = componentConfigs.find(c => c.componentId === "trust.benefits")?.enabled ?? false;
+  const cardcheckEnabled = componentConfigs.find(c => c.componentId === "cardcheck")?.enabled ?? false;
 
   // Reset benefit filter when trust.benefits is disabled
   useEffect(() => {
@@ -155,6 +165,24 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
     queryKey: ["/api/trust-benefits"],
     enabled: trustBenefitsEnabled,
   });
+
+  // Fetch cardcheck status summary (only when cardcheck is enabled)
+  const { data: cardcheckStatusSummary = [] } = useQuery<CardcheckStatusSummary[]>({
+    queryKey: ["/api/cardchecks/status-summary"],
+    enabled: workers.length > 0 && cardcheckEnabled,
+  });
+
+  // Create map for worker cardcheck statuses
+  const cardcheckMap = useMemo(() => {
+    const map = new Map<string, CardcheckStatusSummary[]>();
+    for (const summary of cardcheckStatusSummary) {
+      if (!map.has(summary.workerId)) {
+        map.set(summary.workerId, []);
+      }
+      map.get(summary.workerId)!.push(summary);
+    }
+    return map;
+  }, [cardcheckStatusSummary]);
 
   // Create map for worker employers
   const employerMap = new Map(workerEmployers.map(we => [we.workerId, we.employers]));
@@ -641,6 +669,11 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                     <span>Benefits</span>
                   </th>
                 )}
+                {cardcheckEnabled && cardcheckStatusSummary.length > 0 && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <span>Card Checks</span>
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <span>Status</span>
                 </th>
@@ -811,6 +844,46 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                           ) : (
                             <span className="text-sm text-muted-foreground italic">None</span>
                           )}
+                        </div>
+                      </TooltipProvider>
+                    </td>
+                  )}
+                  {cardcheckEnabled && cardcheckStatusSummary.length > 0 && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <TooltipProvider>
+                        <div className="flex items-center gap-2" data-testid={`cardcheck-icons-${worker.id}`}>
+                          {(() => {
+                            const workerCardchecks = cardcheckMap.get(worker.id) || [];
+                            if (workerCardchecks.length === 0) {
+                              return <span className="text-sm text-muted-foreground italic">-</span>;
+                            }
+                            return workerCardchecks.map((cc) => {
+                              const statusColor = cc.status === 'signed' 
+                                ? 'text-green-600' 
+                                : cc.status === 'revoked' 
+                                  ? 'text-red-600' 
+                                  : 'text-yellow-500';
+                              const statusLabel = cc.status === 'signed' 
+                                ? 'Signed' 
+                                : cc.status === 'revoked' 
+                                  ? 'Revoked' 
+                                  : cc.status === 'pending'
+                                    ? 'Pending signature'
+                                    : 'None on file';
+                              return (
+                                <Tooltip key={cc.definitionId}>
+                                  <TooltipTrigger asChild>
+                                    <div className="cursor-help">
+                                      {renderIcon(cc.definitionIcon, `h-4 w-4 ${statusColor}`)}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{cc.definitionName}: {statusLabel}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            });
+                          })()}
                         </div>
                       </TooltipProvider>
                     </td>

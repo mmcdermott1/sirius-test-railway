@@ -120,4 +120,13 @@ export function registerCardchecksRoutes(
       res.status(500).json({ message: "Failed to delete cardcheck" });
     }
   });
+
+  app.get("/api/cardchecks/status-summary", requireAuth, cardcheckComponent, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const summary = await storage.cardchecks.getCardcheckStatusSummary();
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch cardcheck status summary" });
+    }
+  });
 }
