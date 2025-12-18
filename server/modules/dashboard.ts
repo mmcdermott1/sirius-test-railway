@@ -247,4 +247,71 @@ export function registerDashboardRoutes(
     }
   });
 
+  // GET /api/dashboard-plugins/my-steward - Get stewards for current user's home employer and bargaining unit
+  app.get("/api/dashboard-plugins/my-steward", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const replitUserId = user.claims.sub;
+      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      
+      if (!dbUser || !dbUser.email) {
+        res.json({ stewards: [], worker: null });
+        return;
+      }
+
+      // Find the worker linked to this user's email
+      const worker = await storage.workers.getWorkerByContactEmail(dbUser.email);
+      if (!worker) {
+        res.json({ stewards: [], worker: null });
+        return;
+      }
+
+      // Check if worker has home employer and bargaining unit
+      if (!worker.denormHomeEmployerId || !worker.bargainingUnitId) {
+        res.json({ stewards: [], worker: { id: worker.id } });
+        return;
+      }
+
+      // Get steward assignments for this employer + bargaining unit combination
+      const stewardAssignments = await storage.workerStewardAssignments.getStewardsByEmployerAndBargainingUnit(
+        worker.denormHomeEmployerId,
+        worker.bargainingUnitId
+      );
+
+      // Fetch phone numbers for each steward's contact
+      const stewardsWithPhones = await Promise.all(
+        stewardAssignments.map(async (steward) => {
+          // Get the steward's worker record to get their contactId
+          const stewardWorker = await storage.workers.getWorker(steward.workerId);
+          if (!stewardWorker) {
+            return steward;
+          }
+
+          // Get phone numbers for the contact
+          const phoneNumbers = await storage.contacts.phoneNumbers.getPhoneNumbersByContact(stewardWorker.contactId);
+          const primaryPhone = phoneNumbers.find(p => p.isPrimary)?.phoneNumber || phoneNumbers[0]?.phoneNumber || null;
+
+          return {
+            ...steward,
+            phone: primaryPhone,
+          };
+        })
+      );
+
+      // Get employer and bargaining unit names for display
+      const employer = await storage.employers.getEmployer(worker.denormHomeEmployerId);
+      const bargainingUnit = await storage.bargainingUnits.getBargainingUnitById(worker.bargainingUnitId);
+
+      res.json({
+        stewards: stewardsWithPhones,
+        worker: { id: worker.id },
+        employer: employer ? { id: employer.id, name: employer.name } : null,
+        bargainingUnit: bargainingUnit ? { id: bargainingUnit.id, name: bargainingUnit.name } : null,
+      });
+    } catch (error) {
+      console.error("Error fetching my steward data:", error);
+      res.status(500).json({ message: "Failed to fetch steward data" });
+    }
+  });
+
 }
