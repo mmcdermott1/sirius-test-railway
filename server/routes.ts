@@ -22,6 +22,7 @@ import { registerComponentRoutes, getEnabledComponentIds } from "./modules/compo
 import { registerEmployerUserSettingsRoutes } from "./modules/employer-user-settings";
 import { registerTrustProviderUserSettingsRoutes } from "./modules/trust-provider-user-settings";
 import { registerWorkerUserSettingsRoutes } from "./modules/worker-user-settings";
+import { registerWorkerUsersRoutes } from "./modules/worker-users";
 import { registerWizardRoutes } from "./modules/wizards";
 import { registerFileRoutes } from "./modules/files";
 import { registerLedgerStripeRoutes } from "./modules/ledger/stripe";
@@ -199,6 +200,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register worker user settings routes
   registerWorkerUserSettingsRoutes(app, requireAuth, requirePermission);
+  
+  // Register worker users routes (create/manage user accounts for workers)
+  registerWorkerUsersRoutes(app, requireAuth, requirePermission);
   
   // Register contact postal address management routes
   registerContactPostalRoutes(app, requireAuth, requirePermission);
