@@ -26,6 +26,17 @@ export function registerWorkerStewardAssignmentRoutes(
     }
   });
 
+  app.get("/api/employers/:employerId/stewards", requireAuth, requireAccess(policies.employerUser), async (req, res) => {
+    try {
+      const { employerId } = req.params;
+      const stewards = await storage.workerStewardAssignments.getAssignmentsByEmployerId(employerId);
+      res.json(stewards);
+    } catch (error: any) {
+      console.error("Error fetching stewards for employer:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch stewards" });
+    }
+  });
+
   app.post("/api/workers/:workerId/steward-assignments", requireAuth, requireAccess(policies.workersManage), async (req, res) => {
     try {
       const { workerId } = req.params;

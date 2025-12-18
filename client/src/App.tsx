@@ -68,6 +68,7 @@ import EmployerContactSendEmail from "@/pages/employer-contact-send-email";
 import EmployerContactSendPostal from "@/pages/employer-contact-send-postal";
 import EmployerLogs from "@/pages/employer-logs";
 import EmployerPolicyHistory from "@/pages/employer-policy-history";
+import EmployerStewards from "@/pages/employer-stewards";
 import WizardView from "@/pages/wizard-view";
 import StripeCustomerPage from "@/pages/employers/stripe-customer";
 import StripePaymentMethodsPage from "@/pages/employers/stripe-payment-methods";
@@ -790,6 +791,14 @@ function Router() {
         <ProtectedRoute policy="employerUser">
           <AuthenticatedLayout>
             <EmployerPolicyHistory />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/employers/:id/union/stewards">
+        <ProtectedRoute policy="employerUser" component="worker.steward">
+          <AuthenticatedLayout>
+            <EmployerStewards />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
