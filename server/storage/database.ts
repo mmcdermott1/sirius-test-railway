@@ -169,6 +169,7 @@ export class DatabaseStorage implements IStorage {
     this.workerHours = withStorageLogging(
       createWorkerHoursStorage(
         async (workerId: string) => {
+          await this.workers.syncWorkerEmployerDenorm(workerId);
           await this.wmbScanQueue.invalidateWorkerScans(workerId);
         }
       ),
