@@ -70,6 +70,13 @@ export const componentRegistry: ComponentDefinition[] = [
     category: "authentication"
   },
   {
+    id: "worker.steward",
+    name: "Shop Stewards",
+    description: "Ability to designate workers as shop stewards",
+    enabledByDefault: false,
+    category: "core"
+  },
+  {
     id: "trust.providers.login",
     name: "Trust Provider Login",
     description: "Ability for trust provider contacts to log in",
