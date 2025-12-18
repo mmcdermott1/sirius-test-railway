@@ -191,6 +191,15 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
 
     async getWorkersEmployersSummary(): Promise<WorkerEmployerSummary[]> {
       const result = await db.execute(sql`
+        WITH latest_hours AS (
+          SELECT DISTINCT ON (worker_id, employer_id)
+            worker_id,
+            employer_id,
+            employment_status_id,
+            home
+          FROM worker_hours
+          ORDER BY worker_id, employer_id, year DESC, month DESC, day DESC
+        )
         SELECT 
           w.id as worker_id,
           COALESCE(
@@ -198,14 +207,20 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
               DISTINCT jsonb_build_object(
                 'id', e.id,
                 'name', e.name,
-                'isHome', COALESCE(wh.home, false)
+                'isHome', COALESCE(lh.home, false),
+                'employmentStatusId', es.id,
+                'employmentStatusName', es.name,
+                'employmentStatusCode', es.code,
+                'employmentStatusEmployed', es.employed,
+                'employmentStatusColor', es.data->>'color'
               )
             ) FILTER (WHERE e.id IS NOT NULL),
             '[]'::json
           ) as employers
         FROM workers w
-        LEFT JOIN worker_hours wh ON w.id = wh.worker_id
-        LEFT JOIN employers e ON wh.employer_id = e.id
+        LEFT JOIN latest_hours lh ON w.id = lh.worker_id
+        LEFT JOIN employers e ON lh.employer_id = e.id
+        LEFT JOIN options_employment_status es ON lh.employment_status_id = es.id
         GROUP BY w.id
       `);
       

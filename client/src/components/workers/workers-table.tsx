@@ -71,6 +71,11 @@ interface EmployerInfo {
   id: string;
   name: string;
   isHome: boolean;
+  employmentStatusId?: string;
+  employmentStatusName?: string;
+  employmentStatusCode?: string;
+  employmentStatusEmployed?: boolean;
+  employmentStatusColor?: string;
 }
 
 interface WorkerEmployerSummary {
@@ -1019,17 +1024,32 @@ export function WorkersTable({ workers, isLoading }: WorkersTableProps) {
                           <div className="space-y-1">
                             <p className="text-xs text-muted-foreground uppercase">Employers</p>
                             {worker.employers && worker.employers.length > 0 ? (
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-1.5">
                                 {worker.employers.map((employer) => (
-                                  <Badge
-                                    key={employer.id}
-                                    variant={employer.isHome ? "default" : "secondary"}
-                                    className="text-xs whitespace-normal break-words max-w-full inline-flex items-start"
-                                    data-testid={`badge-employer-${employer.id}`}
+                                  <div 
+                                    key={employer.id} 
+                                    className="flex items-center gap-2"
+                                    data-testid={`employer-row-${employer.id}`}
                                   >
-                                    {employer.isHome && <Home size={10} className="mr-1 mt-0.5 flex-shrink-0" />}
-                                    <span className="break-words">{employer.name}</span>
-                                  </Badge>
+                                    <div
+                                      className="w-3 h-3 rounded-full flex-shrink-0 border border-border"
+                                      style={{ backgroundColor: employer.employmentStatusColor || "#6b7280" }}
+                                      title={employer.employmentStatusName || "No status"}
+                                    />
+                                    <Badge
+                                      variant={employer.isHome ? "default" : "secondary"}
+                                      className="text-xs whitespace-normal break-words max-w-full inline-flex items-start"
+                                      data-testid={`badge-employer-${employer.id}`}
+                                    >
+                                      {employer.isHome && <Home size={10} className="mr-1 mt-0.5 flex-shrink-0" />}
+                                      <span className="break-words">{employer.name}</span>
+                                    </Badge>
+                                    {employer.employmentStatusName && (
+                                      <span className="text-xs text-muted-foreground">
+                                        ({employer.employmentStatusCode || employer.employmentStatusName})
+                                      </span>
+                                    )}
+                                  </div>
                                 ))}
                               </div>
                             ) : (
