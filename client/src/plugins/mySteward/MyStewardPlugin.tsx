@@ -72,11 +72,43 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
     );
   }
 
+  if (!data.employer) {
+    return (
+      <Card data-testid="plugin-my-steward">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            My Steward
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground" data-testid="text-no-employer">
+            No home employer found.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data.bargainingUnit) {
+    return (
+      <Card data-testid="plugin-my-steward">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            My Steward
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground" data-testid="text-no-bargaining-unit">
+            No bargaining unit is assigned.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (data.stewards.length === 0) {
-    const emptyMessage = data.employer && data.bargainingUnit
-      ? `No steward is assigned to ${data.bargainingUnit.name} at ${data.employer.name}.`
-      : "No steward is currently assigned for your employer and bargaining unit.";
-    
     return (
       <Card data-testid="plugin-my-steward">
         <CardHeader>
@@ -87,7 +119,7 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground" data-testid="text-no-steward">
-            {emptyMessage}
+            No shop steward is found for {data.bargainingUnit.name} at {data.employer.name}.
           </p>
         </CardContent>
       </Card>
