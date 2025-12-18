@@ -5,7 +5,7 @@
 # For each file: displays filename, change summary, and diff
 #
 # Usage:
-#   ./list-structure-changes.sh              # Uses origin/main or auto-detects last merge
+#   ./list-structure-changes.sh              # Auto-detects last pushed commit
 #   ./list-structure-changes.sh <commit>     # Uses specified commit as base
 
 # Colors for output
@@ -21,26 +21,46 @@ if [ -n "$1" ]; then
     BASE_COMMIT="$1"
     echo -e "${CYAN}Using provided base commit: ${BASE_COMMIT}${NC}"
 else
-    # Try origin/main first
-    BASE_COMMIT="origin/main"
+    # Strategy 1: Try git merge-base to find common ancestor with origin/main
+    BASE_COMMIT=$(git merge-base origin/main HEAD 2>/dev/null)
     
-    # Check if origin/main has any differences
-    diff_check=$(git --no-pager diff --name-only "$BASE_COMMIT"..HEAD 2>/dev/null)
-    
-    if [ -z "$diff_check" ]; then
-        # Try to find the last merge commit from origin
-        MERGE_COMMIT=$(git --no-pager log --oneline --merges -1 --format="%H" 2>/dev/null)
-        
-        if [ -n "$MERGE_COMMIT" ]; then
-            BASE_COMMIT="$MERGE_COMMIT"
-            echo -e "${CYAN}Using last merge commit as base: ${BASE_COMMIT:0:7}${NC}"
+    if [ -n "$BASE_COMMIT" ]; then
+        # Check if there are actually differences
+        diff_check=$(git --no-pager diff --name-only "$BASE_COMMIT"..HEAD 2>/dev/null)
+        if [ -n "$diff_check" ]; then
+            echo -e "${CYAN}Using merge-base with origin/main: ${BASE_COMMIT:0:7}${NC}"
         else
-            # Fall back to finding commits with "Merge" in message
-            MERGE_COMMIT=$(git --no-pager log --oneline --grep="Merge" -1 --format="%H" 2>/dev/null)
-            if [ -n "$MERGE_COMMIT" ]; then
-                BASE_COMMIT="$MERGE_COMMIT"
-                echo -e "${CYAN}Using merge commit as base: ${BASE_COMMIT:0:7}${NC}"
-            fi
+            BASE_COMMIT=""
+        fi
+    fi
+    
+    # Strategy 2: Find the last "Merge branch 'main'" commit from GitHub
+    if [ -z "$BASE_COMMIT" ]; then
+        BASE_COMMIT=$(git --no-pager log --oneline --grep="Merge branch 'main'" -1 --format="%H" 2>/dev/null)
+        if [ -n "$BASE_COMMIT" ]; then
+            echo -e "${CYAN}Using last GitHub merge commit: ${BASE_COMMIT:0:7}${NC}"
+        fi
+    fi
+    
+    # Strategy 3: Find any merge commit
+    if [ -z "$BASE_COMMIT" ]; then
+        BASE_COMMIT=$(git --no-pager log --oneline --merges -1 --format="%H" 2>/dev/null)
+        if [ -n "$BASE_COMMIT" ]; then
+            echo -e "${CYAN}Using last merge commit: ${BASE_COMMIT:0:7}${NC}"
+        fi
+    fi
+    
+    # Strategy 4: Fall back to origin/main directly
+    if [ -z "$BASE_COMMIT" ]; then
+        BASE_COMMIT="origin/main"
+        diff_check=$(git --no-pager diff --name-only "$BASE_COMMIT"..HEAD 2>/dev/null)
+        if [ -n "$diff_check" ]; then
+            echo -e "${CYAN}Using origin/main as base${NC}"
+        else
+            echo -e "${YELLOW}Could not detect last pushed commit.${NC}"
+            echo -e "${CYAN}Tip: Specify a base commit manually:${NC}"
+            echo "  ./list-structure-changes.sh <commit-hash>"
+            exit 0
         fi
     fi
 fi
@@ -49,7 +69,7 @@ fi
 changed_files=$(git --no-pager diff --name-only "$BASE_COMMIT"..HEAD -- ':!client/*' ':!attached_assets/*' 2>/dev/null)
 
 if [ -z "$changed_files" ]; then
-    echo -e "${YELLOW}No files changed since ${BASE_COMMIT} (excluding client/* and attached_assets/*).${NC}"
+    echo -e "${YELLOW}No files changed since ${BASE_COMMIT:0:12} (excluding client/* and attached_assets/*).${NC}"
     echo ""
     echo -e "${CYAN}Tip: You can specify a base commit manually:${NC}"
     echo "  ./list-structure-changes.sh <commit-hash>"
