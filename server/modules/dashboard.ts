@@ -267,9 +267,22 @@ export function registerDashboardRoutes(
         return;
       }
 
+      // Get employer and bargaining unit names for display (if available)
+      const employer = worker.denormHomeEmployerId 
+        ? await storage.employers.getEmployer(worker.denormHomeEmployerId)
+        : null;
+      const bargainingUnit = worker.bargainingUnitId
+        ? await storage.bargainingUnits.getBargainingUnitById(worker.bargainingUnitId)
+        : null;
+
       // Check if worker has home employer and bargaining unit
       if (!worker.denormHomeEmployerId || !worker.bargainingUnitId) {
-        res.json({ stewards: [], worker: { id: worker.id } });
+        res.json({ 
+          stewards: [], 
+          worker: { id: worker.id },
+          employer: employer ? { id: employer.id, name: employer.name } : null,
+          bargainingUnit: bargainingUnit ? { id: bargainingUnit.id, name: bargainingUnit.name } : null,
+        });
         return;
       }
 
@@ -298,10 +311,6 @@ export function registerDashboardRoutes(
           };
         })
       );
-
-      // Get employer and bargaining unit names for display
-      const employer = await storage.employers.getEmployer(worker.denormHomeEmployerId);
-      const bargainingUnit = await storage.bargainingUnits.getBargainingUnitById(worker.bargainingUnitId);
 
       res.json({
         stewards: stewardsWithPhones,
