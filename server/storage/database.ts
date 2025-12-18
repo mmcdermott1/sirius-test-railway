@@ -30,6 +30,7 @@ import { type EsigStorage, createEsigStorage, esigLoggingConfig } from "./esigs"
 import { type SessionStorage, createSessionStorage, sessionLoggingConfig } from "./sessions";
 import { type FloodStorage, createFloodStorage } from "./flood";
 import { type EventStorage, createEventStorage, eventLoggingConfig, type EventOccurrenceStorage, createEventOccurrenceStorage, eventOccurrenceLoggingConfig, type EventParticipantStorage, createEventParticipantStorage, eventParticipantLoggingConfig } from "./events";
+import { type WorkerStewardAssignmentStorage, createWorkerStewardAssignmentStorage } from "./worker-steward-assignments";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -71,6 +72,7 @@ export interface IStorage {
   events: EventStorage;
   eventOccurrences: EventOccurrenceStorage;
   eventParticipants: EventParticipantStorage;
+  workerStewardAssignments: WorkerStewardAssignmentStorage;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -109,6 +111,7 @@ export class DatabaseStorage implements IStorage {
   events: EventStorage;
   eventOccurrences: EventOccurrenceStorage;
   eventParticipants: EventParticipantStorage;
+  workerStewardAssignments: WorkerStewardAssignmentStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -207,6 +210,7 @@ export class DatabaseStorage implements IStorage {
     this.events = withStorageLogging(createEventStorage(), eventLoggingConfig);
     this.eventOccurrences = withStorageLogging(createEventOccurrenceStorage(), eventOccurrenceLoggingConfig);
     this.eventParticipants = withStorageLogging(createEventParticipantStorage(), eventParticipantLoggingConfig);
+    this.workerStewardAssignments = createWorkerStewardAssignmentStorage();
   }
 }
 

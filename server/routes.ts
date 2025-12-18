@@ -52,6 +52,7 @@ import { registerEsigsRoutes } from "./modules/esigs";
 import { registerSessionRoutes } from "./modules/sessions";
 import { registerFloodEventRoutes } from "./modules/flood-events";
 import { registerEventsRoutes } from "./modules/events";
+import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -288,6 +289,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register bargaining units configuration routes
   registerBargainingUnitsRoutes(app, requireAuth, requireAccess, storage);
+
+  // Register worker steward assignments routes
+  registerWorkerStewardAssignmentRoutes(app, requireAuth, requireAccess, storage);
 
   // Register employer policy history routes
   registerEmployerPolicyHistoryRoutes(app, requireAuth, requireAccess, storage);
