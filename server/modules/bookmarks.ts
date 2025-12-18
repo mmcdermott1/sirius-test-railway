@@ -4,6 +4,7 @@ import { insertBookmarkSchema } from "@shared/schema";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
 import { enforceFloodLimit, FloodError } from "../flood";
+import { getEffectiveUser } from "./masquerade";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -18,7 +19,8 @@ export function registerBookmarkRoutes(
     try {
       const user = req.user as any;
       const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -42,7 +44,8 @@ export function registerBookmarkRoutes(
 
       const user = req.user as any;
       const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -60,7 +63,8 @@ export function registerBookmarkRoutes(
     try {
       const user = req.user as any;
       const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -105,7 +109,8 @@ export function registerBookmarkRoutes(
       const { id } = req.params;
       const user = req.user as any;
       const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -143,7 +148,8 @@ export function registerBookmarkRoutes(
 
       const user = req.user as any;
       const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });

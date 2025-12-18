@@ -166,7 +166,8 @@ export function registerDashboardRoutes(
       const { year, month, wizardType } = req.query;
       const user = req.user as any;
       const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
       
       if (!dbUser) {
         res.status(401).json({ message: "User not found" });
@@ -226,7 +227,8 @@ export function registerDashboardRoutes(
     try {
       const user = req.user as any;
       const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
       
       if (!dbUser) {
         res.status(401).json({ message: "User not found" });

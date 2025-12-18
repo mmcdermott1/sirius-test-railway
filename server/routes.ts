@@ -71,9 +71,11 @@ const requirePermission = (permissionKey: string) => {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    // Get database user ID from Replit user ID
+    // Get database user ID from Replit user ID, respecting masquerade
     const replitUserId = user.claims.sub;
-    const dbUser = await storage.users.getUserByReplitId(replitUserId);
+    const session = req.session as any;
+    const { getEffectiveUser } = await import("./modules/masquerade");
+    const { dbUser } = await getEffectiveUser(session, replitUserId);
     if (!dbUser) {
       return res.status(401).json({ message: "User not found" });
     }
