@@ -801,6 +801,7 @@ export const insertEmploymentStatusSchema = createInsertSchema(optionsEmployment
   employed: z.boolean().optional().default(false),
   description: z.string().trim().nullable().or(z.literal("")).transform(val => val === "" ? null : val).optional(),
   sequence: z.number().optional().default(0),
+  data: z.object({ color: z.string().optional() }).nullable().optional(),
 });
 
 export const updateEmploymentStatusSchema = z.object({
@@ -809,6 +810,7 @@ export const updateEmploymentStatusSchema = z.object({
   employed: z.boolean().optional(),
   description: z.string().trim().nullable().or(z.literal("")).transform(val => val === "" ? null : val).optional(),
   sequence: z.number().optional(),
+  data: z.object({ color: z.string().optional() }).nullable().optional(),
 }).strict();
 
 export const assignRoleSchema = z.object({
