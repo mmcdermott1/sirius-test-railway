@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { workerStewardAssignments, employers, bargainingUnits, workers, contacts, type WorkerStewardAssignment, type InsertWorkerStewardAssignment } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { type StorageLoggingConfig } from "./middleware/logging";
 
 export interface WorkerStewardAssignmentWithDetails extends WorkerStewardAssignment {
   employer?: { id: string; name: string };
@@ -422,3 +423,128 @@ export async function assembleEmployerStewardDetails(
 
   return results;
 }
+
+async function getAssignmentDetails(assignmentId: string) {
+  const [assignment] = await db
+    .select({
+      assignment: workerStewardAssignments,
+      employer: { id: employers.id, name: employers.name },
+      bargainingUnit: { id: bargainingUnits.id, name: bargainingUnits.name },
+      contact: { displayName: contacts.displayName },
+    })
+    .from(workerStewardAssignments)
+    .leftJoin(employers, eq(workerStewardAssignments.employerId, employers.id))
+    .leftJoin(bargainingUnits, eq(workerStewardAssignments.bargainingUnitId, bargainingUnits.id))
+    .leftJoin(workers, eq(workerStewardAssignments.workerId, workers.id))
+    .leftJoin(contacts, eq(workers.contactId, contacts.id))
+    .where(eq(workerStewardAssignments.id, assignmentId));
+  
+  return assignment || null;
+}
+
+export const workerStewardAssignmentLoggingConfig: StorageLoggingConfig<WorkerStewardAssignmentStorage> = {
+  module: 'worker-steward-assignments',
+  methods: {
+    createAssignment: {
+      enabled: true,
+      getEntityId: (args, result) => result?.id || 'new steward assignment',
+      getHostEntityId: (args) => args[0]?.workerId,
+      getDescription: async (args, result, beforeState, afterState) => {
+        const employerName = afterState?.employer?.name || 'Unknown Employer';
+        const bargainingUnitName = afterState?.bargainingUnit?.name || 'Unknown BU';
+        const stewardName = afterState?.contact?.displayName || 'Unknown Steward';
+        return `Added steward assignment: ${stewardName} for ${employerName} / ${bargainingUnitName}`;
+      },
+      after: async (args, result) => {
+        if (!result) return null;
+        const details = await getAssignmentDetails(result.id);
+        return {
+          assignment: result,
+          employer: details?.employer,
+          bargainingUnit: details?.bargainingUnit,
+          contact: details?.contact,
+          metadata: {
+            assignmentId: result.id,
+            workerId: result.workerId,
+            employerId: result.employerId,
+            bargainingUnitId: result.bargainingUnitId,
+          }
+        };
+      }
+    },
+    updateAssignment: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      getHostEntityId: async (args, result, beforeState) => {
+        return beforeState?.assignment?.workerId || result?.workerId;
+      },
+      getDescription: async (args, result, beforeState, afterState) => {
+        const employerName = afterState?.employer?.name || beforeState?.employer?.name || 'Unknown Employer';
+        const bargainingUnitName = afterState?.bargainingUnit?.name || beforeState?.bargainingUnit?.name || 'Unknown BU';
+        const stewardName = afterState?.contact?.displayName || beforeState?.contact?.displayName || 'Unknown Steward';
+        return `Updated steward assignment: ${stewardName} for ${employerName} / ${bargainingUnitName}`;
+      },
+      before: async (args) => {
+        const details = await getAssignmentDetails(args[0]);
+        if (!details) return null;
+        return {
+          assignment: details.assignment,
+          employer: details.employer,
+          bargainingUnit: details.bargainingUnit,
+          contact: details.contact,
+        };
+      },
+      after: async (args, result) => {
+        if (!result) return null;
+        const details = await getAssignmentDetails(result.id);
+        return {
+          assignment: result,
+          employer: details?.employer,
+          bargainingUnit: details?.bargainingUnit,
+          contact: details?.contact,
+          metadata: {
+            assignmentId: result.id,
+            workerId: result.workerId,
+            employerId: result.employerId,
+            bargainingUnitId: result.bargainingUnitId,
+          }
+        };
+      }
+    },
+    deleteAssignment: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      getHostEntityId: async (args, result, beforeState) => {
+        return beforeState?.assignment?.workerId;
+      },
+      getDescription: async (args, result, beforeState) => {
+        const employerName = beforeState?.employer?.name || 'Unknown Employer';
+        const bargainingUnitName = beforeState?.bargainingUnit?.name || 'Unknown BU';
+        const stewardName = beforeState?.contact?.displayName || 'Unknown Steward';
+        return `Removed steward assignment: ${stewardName} from ${employerName} / ${bargainingUnitName}`;
+      },
+      before: async (args) => {
+        const details = await getAssignmentDetails(args[0]);
+        if (!details) return null;
+        return {
+          assignment: details.assignment,
+          employer: details.employer,
+          bargainingUnit: details.bargainingUnit,
+          contact: details.contact,
+        };
+      },
+      after: async (args, result, storage, beforeState) => {
+        return {
+          deleted: result,
+          assignment: beforeState?.assignment,
+          metadata: {
+            assignmentId: args[0],
+            workerId: beforeState?.assignment?.workerId,
+            employerId: beforeState?.assignment?.employerId,
+            bargainingUnitId: beforeState?.assignment?.bargainingUnitId,
+          }
+        };
+      }
+    },
+  },
+};
