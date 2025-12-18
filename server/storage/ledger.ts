@@ -361,14 +361,58 @@ export function createLedgerEaStorage(): LedgerEaStorage {
     },
 
     async getOrCreate(entityType: string, entityId: string, accountId: string): Promise<SelectLedgerEa> {
-      const existing = await this.getByEntityAndAccount(entityType, entityId, accountId);
-      if (existing) {
-        return existing;
-      }
-      return await this.create({
-        entityType,
-        entityId,
-        accountId,
+      // Use a transaction with conflict handling to prevent race conditions
+      return await db.transaction(async (tx) => {
+        // First, try to find existing EA entry
+        const [existingEa] = await tx
+          .select()
+          .from(ledgerEa)
+          .where(
+            and(
+              eq(ledgerEa.accountId, accountId),
+              eq(ledgerEa.entityType, entityType),
+              eq(ledgerEa.entityId, entityId)
+            )
+          )
+          .limit(1);
+
+        if (existingEa) {
+          return existingEa;
+        }
+
+        // Try to create new EA entry with conflict handling
+        const insertResult = await tx
+          .insert(ledgerEa)
+          .values({
+            accountId,
+            entityType,
+            entityId,
+          })
+          .onConflictDoNothing()
+          .returning();
+
+        if (insertResult.length > 0) {
+          return insertResult[0];
+        }
+
+        // Conflict occurred, look up the existing entry
+        const [conflictedEa] = await tx
+          .select()
+          .from(ledgerEa)
+          .where(
+            and(
+              eq(ledgerEa.accountId, accountId),
+              eq(ledgerEa.entityType, entityType),
+              eq(ledgerEa.entityId, entityId)
+            )
+          )
+          .limit(1);
+
+        if (!conflictedEa) {
+          throw new Error("Failed to find or create EA entry after conflict");
+        }
+
+        return conflictedEa;
       });
     },
 
