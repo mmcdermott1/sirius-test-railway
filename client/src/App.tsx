@@ -1186,26 +1186,32 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/admin/users/employer-settings">
+      <Route path="/config/employers/user-settings">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
-            <EmployerUserSettingsPage />
+            <ConfigurationLayout>
+              <EmployerUserSettingsPage />
+            </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
 
-      <Route path="/admin/users/trust-provider-settings">
+      <Route path="/config/trust/providers/user-settings">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
-            <TrustProviderUserSettingsPage />
+            <ConfigurationLayout>
+              <TrustProviderUserSettingsPage />
+            </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
 
-      <Route path="/admin/users/worker-settings">
+      <Route path="/config/workers/user-settings">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
-            <WorkerUserSettingsPage />
+            <ConfigurationLayout>
+              <WorkerUserSettingsPage />
+            </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
