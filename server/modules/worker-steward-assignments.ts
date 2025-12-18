@@ -3,6 +3,7 @@ import { IStorage } from "../storage";
 import { policies } from "../policies";
 import { insertWorkerStewardAssignmentSchema } from "@shared/schema";
 import { z } from "zod";
+import { assembleEmployerStewardDetails } from "../storage/worker-steward-assignments";
 
 type RequireAccess = (policy: any) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
@@ -29,7 +30,7 @@ export function registerWorkerStewardAssignmentRoutes(
   app.get("/api/employers/:employerId/stewards", requireAuth, requireAccess(policies.employerUser), async (req, res) => {
     try {
       const { employerId } = req.params;
-      const stewards = await storage.workerStewardAssignments.getAssignmentsByEmployerId(employerId);
+      const stewards = await assembleEmployerStewardDetails(storage, employerId);
       res.json(stewards);
     } catch (error: any) {
       console.error("Error fetching stewards for employer:", error);
