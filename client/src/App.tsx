@@ -125,6 +125,7 @@ import PermissionsPage from "@/pages/config/users/permissions";
 import PoliciesPage from "@/pages/config/users/policies";
 import EmployerUserSettingsPage from "@/pages/config/users/employer-settings";
 import TrustProviderUserSettingsPage from "@/pages/config/users/trust-provider-settings";
+import WorkerUserSettingsPage from "@/pages/config/users/worker-settings";
 import SessionsPage from "@/pages/sessions";
 import FloodEventsPage from "@/pages/flood-events";
 import FloodEventsConfigPage from "@/pages/flood-events-config";
@@ -1188,6 +1189,14 @@ function Router() {
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <TrustProviderUserSettingsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/users/worker-settings">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WorkerUserSettingsPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
