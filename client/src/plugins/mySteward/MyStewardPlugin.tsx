@@ -64,8 +64,8 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            No linked worker record found for your account.
+          <p className="text-sm text-muted-foreground" data-testid="text-no-worker">
+            This user is not associated with a worker.
           </p>
         </CardContent>
       </Card>
