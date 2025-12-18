@@ -103,6 +103,14 @@ export const bargainingUnits = pgTable("bargaining_units", {
   data: jsonb("data"),
 });
 
+export const workerStewardAssignments = pgTable("worker_steward_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
+  employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
+  bargainingUnitId: varchar("bargaining_unit_id").notNull().references(() => bargainingUnits.id, { onDelete: 'cascade' }),
+  data: jsonb("data"),
+});
+
 export const employerPolicyHistory = pgTable("employer_policy_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   date: date("date").notNull(),
@@ -606,6 +614,10 @@ export const insertBargainingUnitSchema = createInsertSchema(bargainingUnits).om
   id: true,
 });
 
+export const insertWorkerStewardAssignmentSchema = createInsertSchema(workerStewardAssignments).omit({
+  id: true,
+});
+
 export const insertCardcheckDefinitionSchema = createInsertSchema(cardcheckDefinitions).omit({
   id: true,
 });
@@ -846,6 +858,9 @@ export type Policy = typeof policies.$inferSelect;
 
 export type InsertBargainingUnit = z.infer<typeof insertBargainingUnitSchema>;
 export type BargainingUnit = typeof bargainingUnits.$inferSelect;
+
+export type InsertWorkerStewardAssignment = z.infer<typeof insertWorkerStewardAssignmentSchema>;
+export type WorkerStewardAssignment = typeof workerStewardAssignments.$inferSelect;
 
 export type InsertCardcheckDefinition = z.infer<typeof insertCardcheckDefinitionSchema>;
 export type CardcheckDefinition = typeof cardcheckDefinitions.$inferSelect;
