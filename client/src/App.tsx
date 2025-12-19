@@ -171,7 +171,6 @@ import AccountPayments from "@/pages/config/ledger/account-payments";
 import AccountTransactions from "@/pages/config/ledger/account-transactions";
 import AccountParticipants from "@/pages/account-participants";
 import AccountSettings from "@/pages/config/ledger/account-settings";
-import EaTransactions from "@/pages/config/ledger/ea-transactions";
 import SiteInformation from "@/pages/site-information";
 import PolicyView from "@/pages/policy-view";
 import PolicyEdit from "@/pages/policy-edit";
@@ -1660,15 +1659,6 @@ function Router() {
         <ProtectedRoute policy="ledgerStaff" component="ledger">
           <AuthenticatedLayout>
             <LedgerAccountsPage />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      {/* Ledger EA detail pages */}
-      <Route path="/ledger/ea/:id/transactions">
-        <ProtectedRoute policy="ledgerStaff" component="ledger">
-          <AuthenticatedLayout>
-            <EaTransactions />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
