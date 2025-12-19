@@ -68,7 +68,8 @@ export function LedgerEaLayout({ activeTab, children }: LedgerEaLayoutProps) {
     enabled: !!ea?.accountId,
   });
 
-  const isLoading = eaLoading || accountLoading;
+  // Wait for account to load when ea has an accountId
+  const isLoading = eaLoading || accountLoading || (!!ea?.accountId && !account);
   const isError = !!eaError;
 
   // Error/Not found state
