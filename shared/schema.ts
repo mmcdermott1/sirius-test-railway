@@ -248,6 +248,7 @@ export const optionsLedgerPaymentType = pgTable("options_ledger_payment_type", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  currencyCode: varchar("currency_code", { length: 10 }).notNull().default("USD"),
   sequence: integer("sequence").notNull().default(0),
   data: jsonb("data"),
 });

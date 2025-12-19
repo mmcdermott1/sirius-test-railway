@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Edit, Trash2, Save, X, ArrowUp, ArrowDown } from "lucide-react";
+import { getAllCurrencies } from "@shared/currency";
 import {
   Table,
   TableBody,
@@ -29,8 +31,11 @@ interface LedgerPaymentType {
   id: string;
   name: string;
   description: string | null;
+  currencyCode: string;
   sequence: number;
 }
+
+const currencies = getAllCurrencies();
 
 export default function LedgerPaymentTypesPage() {
   const { toast } = useToast();
@@ -41,13 +46,14 @@ export default function LedgerPaymentTypesPage() {
   // Form state
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formCurrencyCode, setFormCurrencyCode] = useState("USD");
   
   const { data: paymentTypes = [], isLoading } = useQuery<LedgerPaymentType[]>({
     queryKey: ["/api/ledger-payment-types"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string | null }) => {
+    mutationFn: async (data: { name: string; description: string | null; currencyCode: string }) => {
       // Find the highest sequence number
       const maxSequence = paymentTypes.reduce((max, type) => Math.max(max, type.sequence), -1);
       return apiRequest("POST", "/api/ledger-payment-types", { 
@@ -74,10 +80,11 @@ export default function LedgerPaymentTypesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string; description: string | null }) => {
+    mutationFn: async (data: { id: string; name: string; description: string | null; currencyCode: string }) => {
       return apiRequest("PUT", `/api/ledger-payment-types/${data.id}`, {
         name: data.name,
         description: data.description,
+        currencyCode: data.currencyCode,
       });
     },
     onSuccess: () => {
@@ -133,12 +140,14 @@ export default function LedgerPaymentTypesPage() {
   const resetForm = () => {
     setFormName("");
     setFormDescription("");
+    setFormCurrencyCode("USD");
   };
 
   const handleEdit = (type: LedgerPaymentType) => {
     setEditingId(type.id);
     setFormName(type.name);
     setFormDescription(type.description || "");
+    setFormCurrencyCode(type.currencyCode || "USD");
   };
 
   const handleCancelEdit = () => {
@@ -159,6 +168,7 @@ export default function LedgerPaymentTypesPage() {
       id: editingId!,
       name: formName.trim(),
       description: formDescription.trim() || null,
+      currencyCode: formCurrencyCode,
     });
   };
 
@@ -174,6 +184,7 @@ export default function LedgerPaymentTypesPage() {
     createMutation.mutate({
       name: formName.trim(),
       description: formDescription.trim() || null,
+      currencyCode: formCurrencyCode,
     });
   };
 
@@ -233,6 +244,7 @@ export default function LedgerPaymentTypesPage() {
                 <TableRow>
                   <TableHead>Order</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Currency</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -272,6 +284,24 @@ export default function LedgerPaymentTypesPage() {
                         />
                       ) : (
                         type.name
+                      )}
+                    </TableCell>
+                    <TableCell data-testid={`text-currency-${type.id}`}>
+                      {editingId === type.id ? (
+                        <Select value={formCurrencyCode} onValueChange={setFormCurrencyCode}>
+                          <SelectTrigger data-testid={`select-edit-currency-${type.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {currencies.map((currency) => (
+                              <SelectItem key={currency.code} value={currency.code}>
+                                {currency.code} - {currency.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        type.currencyCode || "USD"
                       )}
                     </TableCell>
                     <TableCell data-testid={`text-description-${type.id}`}>
@@ -358,6 +388,21 @@ export default function LedgerPaymentTypesPage() {
                 placeholder="e.g., Cash, Check, Wire Transfer"
                 data-testid="input-add-name"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-currency">Currency</Label>
+              <Select value={formCurrencyCode} onValueChange={setFormCurrencyCode}>
+                <SelectTrigger data-testid="select-add-currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.code} - {currency.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="add-description">Description</Label>
