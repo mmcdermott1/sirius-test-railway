@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useEffect } from "react";
 import type { z } from "zod";
+import { useAuth } from "@/contexts/AuthContext";
 
 const paymentStatuses = ["draft", "canceled", "cleared", "error"] as const;
 
@@ -39,6 +40,14 @@ function PaymentEditContent() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const getTodayString = () => new Date().toISOString().split('T')[0];
+  const getEffectiveUserName = () => {
+    if (!user) return "";
+    const parts = [user.firstName, user.lastName].filter(Boolean);
+    return parts.join(" ") || user.email || "";
+  };
   
   const showLedgerNotifications = (notifications: LedgerNotification[] | undefined) => {
     if (!notifications || notifications.length === 0) return;
@@ -97,6 +106,21 @@ function PaymentEditContent() {
       setEffectiveDate(details.effectiveDate || "");
     }
   }, [payment]);
+
+  useEffect(() => {
+    if (payment && category === "adjustment") {
+      const details = payment.details as any || {};
+      if (!details.adjustmentUser && !adjustmentUser) {
+        setAdjustmentUser(getEffectiveUserName());
+      }
+      if (!details.dateEntered && !dateEntered) {
+        setDateEntered(getTodayString());
+      }
+      if (!details.effectiveDate && !effectiveDate) {
+        setEffectiveDate(getTodayString());
+      }
+    }
+  }, [payment, category, user]);
 
   const updatePaymentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof insertLedgerPaymentSchema>) => {

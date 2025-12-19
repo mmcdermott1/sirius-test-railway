@@ -15,8 +15,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertLedgerPaymentSchema, type LedgerPayment, type LedgerPaymentType } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, DollarSign, Download, ArrowUpDown, Filter, X } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import type { z } from "zod";
 import { stringify } from "csv-stringify/browser/esm/sync";
 import { formatAmount } from "@shared/currency";
@@ -36,6 +37,7 @@ interface LedgerNotification {
 function EAPaymentsContent() {
   const { id } = useParams<{ id: string }>();
   const { currencyCode } = useEALayout();
+  const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [merchant, setMerchant] = useState("");
   const [checkTransactionNumber, setCheckTransactionNumber] = useState("");
@@ -43,6 +45,13 @@ function EAPaymentsContent() {
   const [dateEntered, setDateEntered] = useState("");
   const [effectiveDate, setEffectiveDate] = useState("");
   const { toast } = useToast();
+  
+  const getTodayString = () => new Date().toISOString().split('T')[0];
+  const getEffectiveUserName = () => {
+    if (!user) return "";
+    const parts = [user.firstName, user.lastName].filter(Boolean);
+    return parts.join(" ") || user.email || "";
+  };
   
   const showLedgerNotifications = (notifications: LedgerNotification[] | undefined) => {
     if (!notifications || notifications.length === 0) return;
@@ -103,6 +112,20 @@ function EAPaymentsContent() {
   const watchedPaymentType = form.watch("paymentType");
   const selectedPaymentType = paymentTypes.find(pt => pt.id === watchedPaymentType);
   const category: PaymentCategory = (selectedPaymentType?.category as PaymentCategory) || "financial";
+
+  useEffect(() => {
+    if (dialogOpen && category === "adjustment") {
+      if (!adjustmentUser) {
+        setAdjustmentUser(getEffectiveUserName());
+      }
+      if (!dateEntered) {
+        setDateEntered(getTodayString());
+      }
+      if (!effectiveDate) {
+        setEffectiveDate(getTodayString());
+      }
+    }
+  }, [dialogOpen, category, user]);
 
   const createPaymentMutation = useMutation({
     mutationFn: async (data: z.infer<typeof insertLedgerPaymentSchema>) => {
