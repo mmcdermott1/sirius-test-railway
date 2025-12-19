@@ -84,35 +84,39 @@ function AccountSettingsContent() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Invoice Header
-            </label>
-            <p className="text-sm text-muted-foreground">
-              Content to display at the top of invoices for this account.
-            </p>
-            <SimpleHtmlEditor
-              value={invoiceHeader}
-              onChange={setInvoiceHeader}
-              placeholder="Enter invoice header content..."
-              data-testid="input-invoice-header"
-            />
-          </div>
+          {invoicesEnabled && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Invoice Header
+                </label>
+                <p className="text-sm text-muted-foreground">
+                  Content to display at the top of invoices for this account.
+                </p>
+                <SimpleHtmlEditor
+                  value={invoiceHeader}
+                  onChange={setInvoiceHeader}
+                  placeholder="Enter invoice header content..."
+                  data-testid="input-invoice-header"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Invoice Footer
-            </label>
-            <p className="text-sm text-muted-foreground">
-              Content to display at the bottom of invoices for this account.
-            </p>
-            <SimpleHtmlEditor
-              value={invoiceFooter}
-              onChange={setInvoiceFooter}
-              placeholder="Enter invoice footer content..."
-              data-testid="input-invoice-footer"
-            />
-          </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Invoice Footer
+                </label>
+                <p className="text-sm text-muted-foreground">
+                  Content to display at the bottom of invoices for this account.
+                </p>
+                <SimpleHtmlEditor
+                  value={invoiceFooter}
+                  onChange={setInvoiceFooter}
+                  placeholder="Enter invoice footer content..."
+                  data-testid="input-invoice-footer"
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex justify-end space-x-3">
             <Button
