@@ -377,7 +377,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      res.json(worker);
+      // Fetch contact to get name fields
+      const contact = await storage.contacts.getContact(worker.contactId);
+      
+      res.json({
+        ...worker,
+        firstName: contact?.given || null,
+        lastName: contact?.family || null,
+        displayName: contact?.displayName || null,
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch worker" });
     }
