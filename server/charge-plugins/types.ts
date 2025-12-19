@@ -31,6 +31,7 @@ export interface PaymentSavedContext {
   entityId: string;
   dateCleared: Date | null;
   memo: string | null;
+  paymentTypeId: string;
 }
 
 export interface WmbSavedContext {

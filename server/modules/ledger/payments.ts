@@ -30,6 +30,7 @@ async function triggerPaymentChargePlugins(payment: LedgerPayment): Promise<Ledg
       entityId: ea.entityId,
       dateCleared: payment.dateCleared,
       memo: payment.memo,
+      paymentTypeId: payment.paymentType,
     };
 
     const result = await executeChargePlugins(context);
