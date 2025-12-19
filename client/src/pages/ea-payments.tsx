@@ -508,7 +508,7 @@ function EAPaymentsContent() {
               <DropdownMenuTrigger asChild>
                 <Button data-testid="button-add-payment">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Payment
+                  Add
                   <ChevronDown className="h-4 w-4 ml-2" />
                 </Button>
               </DropdownMenuTrigger>
