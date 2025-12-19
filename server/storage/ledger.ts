@@ -34,6 +34,7 @@ export interface LedgerEaStorage {
   getByEntity(entityType: string, entityId: string): Promise<SelectLedgerEa[]>;
   getByEntityAndAccount(entityType: string, entityId: string, accountId: string): Promise<SelectLedgerEa | undefined>;
   getOrCreate(entityType: string, entityId: string, accountId: string): Promise<SelectLedgerEa>;
+  getBalance(id: string): Promise<string>;
   create(entry: InsertLedgerEa): Promise<SelectLedgerEa>;
   update(id: string, entry: Partial<InsertLedgerEa>): Promise<SelectLedgerEa | undefined>;
   delete(id: string): Promise<boolean>;
@@ -415,6 +416,16 @@ export function createLedgerEaStorage(): LedgerEaStorage {
 
         return conflictedEa;
       });
+    },
+
+    async getBalance(id: string): Promise<string> {
+      const result = await db
+        .select({ totalBalance: sum(ledger.amount) })
+        .from(ledger)
+        .where(eq(ledger.eaId, id));
+      
+      const balance = result[0]?.totalBalance;
+      return balance ? String(balance) : "0.00";
     },
 
     async create(insertEntry: InsertLedgerEa): Promise<SelectLedgerEa> {
