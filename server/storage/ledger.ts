@@ -16,6 +16,7 @@ import type {
 import { eq, and, desc, or, isNull, asc, sql as sqlRaw, sum, min, max, count, inArray } from "drizzle-orm";
 import { alias as pgAlias } from "drizzle-orm/pg-core";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
+import { formatAmount, getCurrency } from "@shared/currency";
 
 export interface StripePaymentMethodStorage {
   getAll(): Promise<LedgerStripePaymentMethod[]>;
@@ -637,6 +638,7 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
           workerSiriusId: workers.siriusId,
           workerContact: contacts,
           payment: ledgerPayments,
+          paymentType: optionsLedgerPaymentType,
           refEmployer: refEmployers,
           refTrustProvider: refTrustProviders,
           refWorkerSiriusId: refWorkers.siriusId,
@@ -679,6 +681,10 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
             eq(ledger.referenceType, 'payment'),
             eq(ledger.referenceId, ledgerPayments.id)
           )
+        )
+        .leftJoin(
+          optionsLedgerPaymentType,
+          eq(ledgerPayments.paymentType, optionsLedgerPaymentType.id)
         )
         .leftJoin(
           refEmployers,
@@ -746,11 +752,16 @@ export function createLedgerEntryStorage(): LedgerEntryStorage {
 
           let referenceName: string | null = null;
           if (row.entry.referenceType === 'payment' && row.payment) {
-            const amount = parseFloat(row.payment.amount).toFixed(2);
+            const paymentTypeName = row.paymentType?.name || 'Payment';
+            const currencyCode = row.paymentType?.currencyCode || 'USD';
+            const currency = getCurrency(currencyCode);
+            const currencyLabel = currency?.label || currencyCode;
+            const formattedAmount = formatAmount(parseFloat(row.payment.amount), currencyCode);
+            
             if (row.payment.memo) {
-              referenceName = `Payment: $${amount} - ${row.payment.memo}`;
+              referenceName = `${currencyLabel} Adjustment: ${formattedAmount} - ${row.payment.memo}`;
             } else {
-              referenceName = `Payment: $${amount}`;
+              referenceName = `${currencyLabel} Adjustment: ${formattedAmount}`;
             }
           } else if (row.entry.referenceType === 'employer' && row.refEmployer) {
             referenceName = `Employer: ${row.refEmployer.name}`;
