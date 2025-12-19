@@ -182,7 +182,7 @@ export function EALayout({ activeTab, children }: EALayoutProps) {
             }`}
             data-testid="tab-payments"
           >
-            Payments
+            Payments and Adjustments
           </Link>
           <Link
             href={`/ea/${id}/transactions`}
