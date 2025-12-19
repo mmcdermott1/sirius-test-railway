@@ -57,14 +57,8 @@ export function LedgerEaLayout({ activeTab, children }: LedgerEaLayoutProps) {
   });
 
   const { data: account, isLoading: accountLoading } = useQuery<LedgerAccount>({
-    queryKey: ["/api/ledger/accounts", ea?.accountId],
-    queryFn: async () => {
-      const response = await fetch(`/api/ledger/accounts/${ea!.accountId}`);
-      if (!response.ok) {
-        throw new Error("Account not found");
-      }
-      return response.json();
-    },
+    queryKey: [`/api/ledger/accounts/${ea?.accountId}`],
+    staleTime: 0, // Always fetch fresh data to ensure currency code is current
     enabled: !!ea?.accountId,
   });
 
