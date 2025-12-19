@@ -513,7 +513,9 @@ function EAPaymentsContent() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {paymentTypes.map((type) => (
+                {paymentTypes
+                  .filter((type) => type.currencyCode === currencyCode)
+                  .map((type) => (
                   <DropdownMenuItem
                     key={type.id}
                     onClick={() => openDialogWithPaymentType(type.id)}
