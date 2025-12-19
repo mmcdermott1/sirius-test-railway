@@ -64,7 +64,7 @@ export default function BtuStewardAttendanceConfigList({ pluginId }: ChargePlugi
   });
 
   const { data: eventTypes = [] } = useQuery<EventType[]>({
-    queryKey: ["/api/options/event-types"],
+    queryKey: ["/api/event-types"],
   });
 
   const toggleEnabledMutation = useMutation({

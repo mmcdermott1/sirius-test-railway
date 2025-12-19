@@ -79,7 +79,7 @@ export default function BtuStewardAttendanceConfigFormPage() {
   });
 
   const { data: eventTypes = [] } = useQuery<EventType[]>({
-    queryKey: ["/api/options/event-types"],
+    queryKey: ["/api/event-types"],
   });
 
   const form = useForm<FormData>({
