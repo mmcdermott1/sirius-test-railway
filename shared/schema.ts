@@ -496,6 +496,22 @@ export const files = pgTable("files", {
   metadata: jsonb("metadata"),
 });
 
+export const esigStatusEnum = pgEnum("esig_status", ["pending", "signed"]);
+export const esigTypeEnum = pgEnum("esig_type", ["online", "offline", "upload"]);
+
+export const esigs = pgTable("esigs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'restrict' }),
+  status: esigStatusEnum("status").notNull().default("pending"),
+  signedDate: timestamp("signed_date"),
+  type: esigTypeEnum("type").notNull(),
+  docFileId: varchar("doc_file_id").references(() => files.id, { onDelete: 'set null' }),
+  docRender: text("doc_render"),
+  docHash: text("doc_hash"),
+  esig: jsonb("esig"),
+  docType: text("doc_type"),
+});
+
 export const winstonLogs = pgTable("winston_logs", {
   id: serial("id").primaryKey(),
   level: varchar("level", { length: 20 }),
@@ -524,19 +540,13 @@ export type WinstonLog = typeof winstonLogs.$inferSelect;
 export {
   cardcheckDefinitions,
   cardcheckStatusEnum,
-  esigStatusEnum,
-  esigTypeEnum,
-  esigs,
   cardchecks,
   insertCardcheckDefinitionSchema,
   insertCardcheckSchema,
-  insertEsigSchema,
   type CardcheckDefinition,
   type InsertCardcheckDefinition,
   type Cardcheck,
   type InsertCardcheck,
-  type Esig,
-  type InsertEsig,
 } from "./schema/cardcheck/schema";
 
 export {
@@ -914,8 +924,15 @@ export const insertFileSchema = createInsertSchema(files).omit({
   uploadedAt: true,
 });
 
+export const insertEsigSchema = createInsertSchema(esigs).omit({
+  id: true,
+});
+
 export type InsertFile = z.infer<typeof insertFileSchema>;
 export type File = typeof files.$inferSelect;
+
+export type InsertEsig = z.infer<typeof insertEsigSchema>;
+export type Esig = typeof esigs.$inferSelect;
 
 export type InsertGenderOption = z.infer<typeof insertGenderOptionSchema>;
 export type GenderOption = typeof optionsGender.$inferSelect;
