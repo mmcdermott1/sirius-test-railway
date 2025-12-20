@@ -24,6 +24,7 @@ import {
   Key,
   Clock,
   Droplets,
+  FileWarning,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -211,6 +212,18 @@ export default function Header() {
                     >
                       <Shield className="h-4 w-4 mr-2" />
                       Stewards
+                    </Button>
+                  </Link>
+                )}
+                {hasComponent("sitespecific.btu") && (
+                  <Link href="/sitespecific/btu/csgs" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location.startsWith("/sitespecific/btu/csg") ? "default" : "ghost"}
+                      className="w-full justify-start pl-8"
+                      data-testid="mobile-nav-class-size-grievances"
+                    >
+                      <FileWarning className="h-4 w-4 mr-2" />
+                      Class Size Grievances
                     </Button>
                   </Link>
                 )}
@@ -482,7 +495,7 @@ export default function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant={location === "/workers" || location.startsWith("/cardcheck") || location.startsWith("/bargaining-units") || location === "/stewards" ? "default" : "ghost"}
+                  variant={location === "/workers" || location.startsWith("/cardcheck") || location.startsWith("/bargaining-units") || location === "/stewards" || location.startsWith("/sitespecific/btu/csg") ? "default" : "ghost"}
                   size="sm"
                   data-testid="nav-workers"
                 >
@@ -526,6 +539,16 @@ export default function Header() {
                       <div className="flex items-center cursor-pointer" data-testid="menu-stewards">
                         <Shield className="h-4 w-4 mr-2" />
                         Stewards
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {hasComponent("sitespecific.btu") && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/sitespecific/btu/csgs" className="w-full">
+                      <div className="flex items-center cursor-pointer" data-testid="menu-class-size-grievances">
+                        <FileWarning className="h-4 w-4 mr-2" />
+                        Class Size Grievances
                       </div>
                     </Link>
                   </DropdownMenuItem>

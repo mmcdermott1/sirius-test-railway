@@ -190,7 +190,9 @@ import EventRegisterPage from "@/pages/event-register";
 import EventRosterPage from "@/pages/event-roster";
 import EventSelfRegisterPage from "@/pages/event-self-register";
 import BtuCsgListPage from "@/pages/sitespecific/btu/csg-list";
-import BtuCsgFormPage from "@/pages/sitespecific/btu/csg-form";
+import BtuCsgViewPage from "@/pages/sitespecific/btu/csg-view";
+import BtuCsgEditPage from "@/pages/sitespecific/btu/csg-edit";
+import BtuCsgNewPage from "@/pages/sitespecific/btu/csg-new";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -914,10 +916,18 @@ function Router() {
       </Route>
 
       {/* BTU Site-specific routes */}
-      <Route path="/sitespecific/btu/csg/new">
+      <Route path="/sitespecific/btu/csgs/new">
         <ProtectedRoute permission="admin" component="sitespecific.btu">
           <AuthenticatedLayout>
-            <BtuCsgFormPage />
+            <BtuCsgNewPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/sitespecific/btu/csg/:id/edit">
+        <ProtectedRoute permission="admin" component="sitespecific.btu">
+          <AuthenticatedLayout>
+            <BtuCsgEditPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -925,12 +935,12 @@ function Router() {
       <Route path="/sitespecific/btu/csg/:id">
         <ProtectedRoute permission="admin" component="sitespecific.btu">
           <AuthenticatedLayout>
-            <BtuCsgFormPage />
+            <BtuCsgViewPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
 
-      <Route path="/sitespecific/btu/csg">
+      <Route path="/sitespecific/btu/csgs">
         <ProtectedRoute permission="admin" component="sitespecific.btu">
           <AuthenticatedLayout>
             <BtuCsgListPage />

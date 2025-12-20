@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Loader2, AlertTriangle, Download, Search, Eye, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -38,9 +40,20 @@ const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "o
   closed: "outline",
 };
 
+const STATUS_OPTIONS = [
+  { value: "all", label: "All Statuses" },
+  { value: "pending", label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+];
+
 export default function BtuCsgListPage() {
   const { toast } = useToast();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [schoolFilter, setSchoolFilter] = useState("");
 
   const { data: records = [], isLoading, error } = useQuery<BtuCsgRecord[]>({
     queryKey: ["/api/sitespecific/btu/csg"],
@@ -67,6 +80,115 @@ export default function BtuCsgListPage() {
     },
   });
 
+  const uniqueSchools = useMemo(() => {
+    const schools = records
+      .map(r => r.school)
+      .filter((school): school is string => !!school);
+    return Array.from(new Set(schools)).sort();
+  }, [records]);
+
+  const filteredRecords = useMemo(() => {
+    return records.filter(record => {
+      const matchesSearch = searchQuery === "" || 
+        `${record.firstName} ${record.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.bpsId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.school?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === "all" || record.status === statusFilter;
+      const matchesSchool = schoolFilter === "" || record.school === schoolFilter;
+
+      return matchesSearch && matchesStatus && matchesSchool;
+    });
+  }, [records, searchQuery, statusFilter, schoolFilter]);
+
+  const escapeCSV = (value: string | null | undefined): string => {
+    if (value === null || value === undefined) return "";
+    const str = String(value);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const exportToCSV = () => {
+    if (filteredRecords.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no records matching the current filters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const headers = [
+      "ID",
+      "BPS ID",
+      "First Name",
+      "Last Name",
+      "Phone",
+      "Non-BPS Email",
+      "School",
+      "Principal/Headmaster",
+      "Role",
+      "Type of Class",
+      "Course",
+      "Section",
+      "Number of Students",
+      "Comments",
+      "Status",
+      "Admin Notes",
+      "Created At",
+      "Updated At",
+    ];
+
+    const rows = filteredRecords.map((record) => [
+      escapeCSV(record.id),
+      escapeCSV(record.bpsId),
+      escapeCSV(record.firstName),
+      escapeCSV(record.lastName),
+      escapeCSV(record.phone),
+      escapeCSV(record.nonBpsEmail),
+      escapeCSV(record.school),
+      escapeCSV(record.principalHeadmaster),
+      escapeCSV(record.role),
+      escapeCSV(record.typeOfClass),
+      escapeCSV(record.course),
+      escapeCSV(record.section),
+      escapeCSV(record.numberOfStudents),
+      escapeCSV(record.comments),
+      escapeCSV(record.status),
+      escapeCSV(record.adminNotes),
+      escapeCSV(record.createdAt),
+      escapeCSV(record.updatedAt),
+    ]);
+
+    const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+    const BOM = "\uFEFF";
+
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `class-size-grievances-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${filteredRecords.length} record(s) to CSV.`,
+    });
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setSchoolFilter("");
+  };
+
+  const hasActiveFilters = searchQuery !== "" || statusFilter !== "all" || schoolFilter !== "";
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -90,7 +212,7 @@ export default function BtuCsgListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">
             Class Size Grievances
@@ -99,19 +221,80 @@ export default function BtuCsgListPage() {
             Manage class size grievance submissions
           </p>
         </div>
-        <Link href="/sitespecific/btu/csg/new">
-          <Button data-testid="button-new-csg">
-            <Plus className="h-4 w-4 mr-2" />
-            New Grievance
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={exportToCSV} data-testid="button-export-csv">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
           </Button>
-        </Link>
+          <Link href="/sitespecific/btu/csgs/new">
+            <Button data-testid="button-new-csg">
+              <Plus className="h-4 w-4 mr-2" />
+              New Grievance
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {records.length === 0 ? (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, BPS ID, or school..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-search"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={schoolFilter} onValueChange={setSchoolFilter}>
+              <SelectTrigger className="w-[200px]" data-testid="select-school-filter">
+                <SelectValue placeholder="All Schools" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Schools</SelectItem>
+                {uniqueSchools.map((school) => (
+                  <SelectItem key={school} value={school}>
+                    {school}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-filters">
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="text-sm text-muted-foreground mt-2">
+            Showing {filteredRecords.length} of {records.length} records
+          </div>
+        </CardContent>
+      </Card>
+
+      {filteredRecords.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              No grievance records found. Click "New Grievance" to create one.
+              {records.length === 0 
+                ? 'No grievance records found. Click "New Grievance" to create one.'
+                : "No records match the current filters."}
             </p>
           </CardContent>
         </Card>
@@ -121,6 +304,7 @@ export default function BtuCsgListPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>BPS ID</TableHead>
                 <TableHead>School</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Class Type</TableHead>
@@ -130,25 +314,26 @@ export default function BtuCsgListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {records.map((record) => (
+              {filteredRecords.map((record) => (
                 <TableRow key={record.id} data-testid={`row-csg-${record.id}`}>
                   <TableCell className="font-medium">
                     {record.firstName} {record.lastName}
                   </TableCell>
+                  <TableCell>{record.bpsId || "-"}</TableCell>
                   <TableCell>{record.school || "-"}</TableCell>
                   <TableCell>{record.role || "-"}</TableCell>
                   <TableCell>{record.typeOfClass || "-"}</TableCell>
                   <TableCell>{record.numberOfStudents || "-"}</TableCell>
                   <TableCell>
                     <Badge variant={STATUS_COLORS[record.status] || "secondary"}>
-                      {record.status}
+                      {record.status.replace("_", " ")}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <Link href={`/sitespecific/btu/csg/${record.id}`}>
-                        <Button variant="ghost" size="icon" data-testid={`button-edit-${record.id}`}>
-                          <Pencil className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" data-testid={`button-view-${record.id}`}>
+                          <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
                       <Button

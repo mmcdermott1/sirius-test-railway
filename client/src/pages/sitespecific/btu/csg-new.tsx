@@ -1,6 +1,5 @@
-import { useEffect } from "react";
-import { useParams, useLocation, Link } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation, Link } from "wouter";
+import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,27 +33,6 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-interface BtuCsgRecord {
-  id: string;
-  bpsId: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  phone: string | null;
-  nonBpsEmail: string | null;
-  school: string | null;
-  principalHeadmaster: string | null;
-  role: string | null;
-  typeOfClass: string | null;
-  course: string | null;
-  section: string | null;
-  numberOfStudents: string | null;
-  comments: string | null;
-  status: string;
-  adminNotes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
   { value: "in_progress", label: "In Progress" },
@@ -62,21 +40,9 @@ const STATUS_OPTIONS = [
   { value: "closed", label: "Closed" },
 ];
 
-export default function BtuCsgFormPage() {
+export default function BtuCsgNewPage() {
   const { toast } = useToast();
-  const params = useParams<{ id?: string }>();
   const [, navigate] = useLocation();
-  const isEditMode = params.id && params.id !== "new";
-
-  const { data: existingRecord, isLoading: isLoadingRecord } = useQuery<BtuCsgRecord>({
-    queryKey: ["/api/sitespecific/btu/csg", params.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/sitespecific/btu/csg/${params.id}`);
-      if (!response.ok) throw new Error("Failed to fetch record");
-      return response.json();
-    },
-    enabled: !!isEditMode,
-  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -99,28 +65,6 @@ export default function BtuCsgFormPage() {
     },
   });
 
-  useEffect(() => {
-    if (existingRecord && isEditMode) {
-      form.reset({
-        bpsId: existingRecord.bpsId || "",
-        firstName: existingRecord.firstName || "",
-        lastName: existingRecord.lastName || "",
-        phone: existingRecord.phone || "",
-        nonBpsEmail: existingRecord.nonBpsEmail || "",
-        school: existingRecord.school || "",
-        principalHeadmaster: existingRecord.principalHeadmaster || "",
-        role: existingRecord.role || "",
-        typeOfClass: existingRecord.typeOfClass || "",
-        course: existingRecord.course || "",
-        section: existingRecord.section || "",
-        numberOfStudents: existingRecord.numberOfStudents || "",
-        comments: existingRecord.comments || "",
-        status: existingRecord.status || "pending",
-        adminNotes: existingRecord.adminNotes || "",
-      });
-    }
-  }, [existingRecord, isEditMode, form]);
-
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
       return apiRequest("POST", "/api/sitespecific/btu/csg", data);
@@ -131,7 +75,7 @@ export default function BtuCsgFormPage() {
         title: "Success",
         description: "Grievance record created successfully.",
       });
-      navigate("/sitespecific/btu/csg");
+      navigate("/sitespecific/btu/csgs");
     },
     onError: (error: any) => {
       toast({
@@ -142,50 +86,14 @@ export default function BtuCsgFormPage() {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      return apiRequest("PATCH", `/api/sitespecific/btu/csg/${params.id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sitespecific/btu/csg"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/sitespecific/btu/csg", params.id] });
-      toast({
-        title: "Success",
-        description: "Grievance record updated successfully.",
-      });
-      navigate("/sitespecific/btu/csg");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to update record.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const onSubmit = (data: FormData) => {
-    if (isEditMode) {
-      updateMutation.mutate(data);
-    } else {
-      createMutation.mutate(data);
-    }
+    createMutation.mutate(data);
   };
-
-  const isPending = createMutation.isPending || updateMutation.isPending;
-
-  if (isEditMode && isLoadingRecord) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" data-testid="loading-spinner" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/sitespecific/btu/csg">
+        <Link href="/sitespecific/btu/csgs">
           <Button variant="ghost" size="sm" data-testid="button-back">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
@@ -193,7 +101,7 @@ export default function BtuCsgFormPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">
-            {isEditMode ? "Edit" : "New"} Class Size Grievance
+            New Class Size Grievance
           </h1>
         </div>
       </div>
@@ -435,14 +343,14 @@ export default function BtuCsgFormPage() {
           </Card>
 
           <div className="flex justify-end gap-4">
-            <Link href="/sitespecific/btu/csg">
+            <Link href="/sitespecific/btu/csgs">
               <Button variant="outline" type="button" data-testid="button-cancel">
                 Cancel
               </Button>
             </Link>
-            <Button type="submit" disabled={isPending} data-testid="button-submit">
-              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isEditMode ? "Save Changes" : "Create Grievance"}
+            <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
+              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create Grievance
             </Button>
           </div>
         </form>
