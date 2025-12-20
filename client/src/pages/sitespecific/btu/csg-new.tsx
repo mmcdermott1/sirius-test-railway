@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { useLocation, Link } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,6 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
+interface PrefillData {
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  nonBpsEmail: string | null;
+  school: string | null;
+}
 
 const formSchema = z.object({
   bpsId: z.string().optional(),
@@ -44,6 +53,10 @@ export default function BtuCsgNewPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
+  const { data: prefillData } = useQuery<PrefillData>({
+    queryKey: ["/api/sitespecific/btu/csg/prefill/current-user"],
+  });
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,6 +77,15 @@ export default function BtuCsgNewPage() {
       adminNotes: "",
     },
   });
+
+  useEffect(() => {
+    if (prefillData) {
+      if (prefillData.firstName) form.setValue("firstName", prefillData.firstName);
+      if (prefillData.lastName) form.setValue("lastName", prefillData.lastName);
+      if (prefillData.phone) form.setValue("phone", prefillData.phone);
+      if (prefillData.school) form.setValue("school", prefillData.school);
+    }
+  }, [prefillData, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {

@@ -51,6 +51,48 @@ export function registerBtuCsgRoutes(
     }
   });
 
+  app.get("/api/sitespecific/btu/csg/prefill/current-user", requireAuth, componentMiddleware, async (req, res) => {
+    try {
+      const prefillData: Record<string, string | null> = {
+        firstName: null,
+        lastName: null,
+        phone: null,
+        nonBpsEmail: null,
+        school: null,
+      };
+
+      const user = (req as any).user?.dbUser;
+      if (!user?.email) {
+        return res.json(prefillData);
+      }
+
+      const contact = await storage.contacts.getContactByEmail(user.email);
+      if (contact) {
+        prefillData.firstName = contact.given || null;
+        prefillData.lastName = contact.family || null;
+
+        const phoneNumbersList = await storage.contacts.phoneNumbers.getPhoneNumbersByContact(contact.id);
+        const primaryPhone = phoneNumbersList.find((p: { isPrimary: boolean | null }) => p.isPrimary) || phoneNumbersList[0];
+        if (primaryPhone) {
+          prefillData.phone = primaryPhone.phoneNumber;
+        }
+      }
+
+      const worker = await storage.workers.getWorkerByContactEmail(user.email);
+      if (worker && worker.denormHomeEmployerId) {
+        const employer = await storage.employers.getEmployer(worker.denormHomeEmployerId);
+        if (employer) {
+          prefillData.school = employer.name;
+        }
+      }
+
+      res.json(prefillData);
+    } catch (error) {
+      console.error("Failed to get prefill data:", error);
+      res.status(500).json({ message: "Failed to get prefill data" });
+    }
+  });
+
   app.get("/api/sitespecific/btu/csg/:id", requireAuth, componentMiddleware, async (req, res) => {
     try {
       const tableExists = await btuCsgStorage.tableExists();
