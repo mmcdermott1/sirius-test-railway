@@ -34,3 +34,21 @@ export const insertBtuCsgSchema = createInsertSchema(sitespecificBtuCsg).omit({
 
 export type BtuCsgRecord = typeof sitespecificBtuCsg.$inferSelect;
 export type InsertBtuCsgRecord = z.infer<typeof insertBtuCsgSchema>;
+
+export const sitespecificBtuEmployerMap = pgTable("sitespecific_btu_employer_map", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  departmentId: varchar("department_id"),
+  departmentTitle: varchar("department_title"),
+  locationId: varchar("location_id"),
+  locationTitle: varchar("location_title"),
+  jobCode: varchar("job_code"),
+  jobTitle: varchar("job_title"),
+  employerName: varchar("employer_name"),
+});
+
+export const insertBtuEmployerMapSchema = createInsertSchema(sitespecificBtuEmployerMap).omit({
+  id: true,
+});
+
+export type BtuEmployerMap = typeof sitespecificBtuEmployerMap.$inferSelect;
+export type InsertBtuEmployerMap = z.infer<typeof insertBtuEmployerMapSchema>;

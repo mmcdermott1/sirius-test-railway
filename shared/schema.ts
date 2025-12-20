@@ -556,6 +556,17 @@ export {
   type InsertWorkerStewardAssignment,
 } from "./schema/worker/steward/schema";
 
+export {
+  sitespecificBtuCsg,
+  insertBtuCsgSchema,
+  type BtuCsgRecord,
+  type InsertBtuCsgRecord,
+  sitespecificBtuEmployerMap,
+  insertBtuEmployerMapSchema,
+  type BtuEmployerMap,
+  type InsertBtuEmployerMap,
+} from "./schema/sitespecific/btu/schema";
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

@@ -97,7 +97,7 @@ export const componentRegistry: ComponentDefinition[] = [
     schemaManifest: {
       version: 1,
       schemaPath: "./shared/schema/sitespecific/btu/schema.ts",
-      tables: ["sitespecific_btu_csg"]
+      tables: ["sitespecific_btu_csg", "sitespecific_btu_employer_map"]
     }
   },
   {
