@@ -31,6 +31,7 @@ import { type SessionStorage, createSessionStorage, sessionLoggingConfig } from 
 import { type FloodStorage, createFloodStorage } from "./flood";
 import { type EventStorage, createEventStorage, eventLoggingConfig, type EventOccurrenceStorage, createEventOccurrenceStorage, eventOccurrenceLoggingConfig, type EventParticipantStorage, createEventParticipantStorage, eventParticipantLoggingConfig } from "./events";
 import { type WorkerStewardAssignmentStorage, createWorkerStewardAssignmentStorage, workerStewardAssignmentLoggingConfig } from "./worker-steward-assignments";
+import { type BtuCsgStorage, createBtuCsgStorage, btuCsgLoggingConfig } from "./sitespecific-btu-csg";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -73,6 +74,7 @@ export interface IStorage {
   eventOccurrences: EventOccurrenceStorage;
   eventParticipants: EventParticipantStorage;
   workerStewardAssignments: WorkerStewardAssignmentStorage;
+  btuCsg: BtuCsgStorage;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -112,6 +114,7 @@ export class DatabaseStorage implements IStorage {
   eventOccurrences: EventOccurrenceStorage;
   eventParticipants: EventParticipantStorage;
   workerStewardAssignments: WorkerStewardAssignmentStorage;
+  btuCsg: BtuCsgStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -214,6 +217,7 @@ export class DatabaseStorage implements IStorage {
     this.eventOccurrences = withStorageLogging(createEventOccurrenceStorage(), eventOccurrenceLoggingConfig);
     this.eventParticipants = withStorageLogging(createEventParticipantStorage(), eventParticipantLoggingConfig);
     this.workerStewardAssignments = withStorageLogging(createWorkerStewardAssignmentStorage(), workerStewardAssignmentLoggingConfig);
+    this.btuCsg = withStorageLogging(createBtuCsgStorage(), btuCsgLoggingConfig);
   }
 }
 

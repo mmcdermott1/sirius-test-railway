@@ -2,7 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
 import { requireComponent } from "./components";
-import { createBtuCsgStorage, type InsertBtuCsgRecord } from "../storage/sitespecific-btu-csg";
+import { storage } from "../storage";
+import type { InsertBtuCsgRecord } from "../storage/sitespecific-btu-csg";
 import { z } from "zod";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -31,18 +32,18 @@ export function registerBtuCsgRoutes(
   requireAuth: AuthMiddleware,
   requirePermission: PermissionMiddleware
 ) {
-  const storage = createBtuCsgStorage();
+  const btuCsgStorage = storage.btuCsg;
   const componentMiddleware = requireComponent("sitespecific.btu");
 
   app.get("/api/sitespecific/btu/csg", requireAuth, componentMiddleware, async (req, res) => {
     try {
-      const tableExists = await storage.tableExists();
+      const tableExists = await btuCsgStorage.tableExists();
       if (!tableExists) {
         return res.status(503).json({ 
           message: "BTU CSG table does not exist. Please enable the BTU component first." 
         });
       }
-      const records = await storage.getAll();
+      const records = await btuCsgStorage.getAll();
       res.json(records);
     } catch (error) {
       console.error("Failed to fetch BTU CSG records:", error);
@@ -52,13 +53,13 @@ export function registerBtuCsgRoutes(
 
   app.get("/api/sitespecific/btu/csg/:id", requireAuth, componentMiddleware, async (req, res) => {
     try {
-      const tableExists = await storage.tableExists();
+      const tableExists = await btuCsgStorage.tableExists();
       if (!tableExists) {
         return res.status(503).json({ 
           message: "BTU CSG table does not exist. Please enable the BTU component first." 
         });
       }
-      const record = await storage.get(req.params.id);
+      const record = await btuCsgStorage.get(req.params.id);
       if (!record) {
         return res.status(404).json({ message: "Record not found" });
       }
@@ -71,7 +72,7 @@ export function registerBtuCsgRoutes(
 
   app.post("/api/sitespecific/btu/csg", requireAuth, componentMiddleware, async (req, res) => {
     try {
-      const tableExists = await storage.tableExists();
+      const tableExists = await btuCsgStorage.tableExists();
       if (!tableExists) {
         return res.status(503).json({ 
           message: "BTU CSG table does not exist. Please enable the BTU component first." 
@@ -86,7 +87,7 @@ export function registerBtuCsgRoutes(
         });
       }
 
-      const record = await storage.create(parseResult.data as InsertBtuCsgRecord);
+      const record = await btuCsgStorage.create(parseResult.data as InsertBtuCsgRecord);
       res.status(201).json(record);
     } catch (error) {
       console.error("Failed to create BTU CSG record:", error);
@@ -96,7 +97,7 @@ export function registerBtuCsgRoutes(
 
   app.patch("/api/sitespecific/btu/csg/:id", requireAuth, componentMiddleware, async (req, res) => {
     try {
-      const tableExists = await storage.tableExists();
+      const tableExists = await btuCsgStorage.tableExists();
       if (!tableExists) {
         return res.status(503).json({ 
           message: "BTU CSG table does not exist. Please enable the BTU component first." 
@@ -111,7 +112,7 @@ export function registerBtuCsgRoutes(
         });
       }
 
-      const record = await storage.update(req.params.id, parseResult.data as Partial<InsertBtuCsgRecord>);
+      const record = await btuCsgStorage.update(req.params.id, parseResult.data as Partial<InsertBtuCsgRecord>);
       if (!record) {
         return res.status(404).json({ message: "Record not found" });
       }
@@ -124,14 +125,14 @@ export function registerBtuCsgRoutes(
 
   app.delete("/api/sitespecific/btu/csg/:id", requireAuth, componentMiddleware, async (req, res) => {
     try {
-      const tableExists = await storage.tableExists();
+      const tableExists = await btuCsgStorage.tableExists();
       if (!tableExists) {
         return res.status(503).json({ 
           message: "BTU CSG table does not exist. Please enable the BTU component first." 
         });
       }
       
-      const deleted = await storage.delete(req.params.id);
+      const deleted = await btuCsgStorage.delete(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Record not found" });
       }

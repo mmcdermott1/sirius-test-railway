@@ -7,6 +7,7 @@ import {
   type InsertBtuCsgRecord 
 } from "../../shared/schema/sitespecific/btu/schema";
 import { getTableName } from "drizzle-orm";
+import type { StorageLoggingConfig } from "./middleware/logging";
 
 export type { BtuCsgRecord, InsertBtuCsgRecord };
 
@@ -83,3 +84,82 @@ export function createBtuCsgStorage(): BtuCsgStorage {
     },
   };
 }
+
+export const btuCsgLoggingConfig: StorageLoggingConfig<BtuCsgStorage> = {
+  module: 'btu-csg',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args, result) => result?.id || 'new record',
+      getDescription: async (args, result) => {
+        const firstName = result?.firstName || args[0]?.firstName || '';
+        const lastName = result?.lastName || args[0]?.lastName || '';
+        const name = `${firstName} ${lastName}`.trim() || 'Unknown';
+        return `Created BTU CSG record for ${name}`;
+      },
+      after: async (args, result) => {
+        return {
+          record: result,
+          metadata: {
+            id: result?.id,
+            bpsId: result?.bpsId,
+            firstName: result?.firstName,
+            lastName: result?.lastName,
+            status: result?.status,
+          }
+        };
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      getDescription: async (args, result, beforeState) => {
+        const firstName = result?.firstName || beforeState?.record?.firstName || '';
+        const lastName = result?.lastName || beforeState?.record?.lastName || '';
+        const name = `${firstName} ${lastName}`.trim() || 'Unknown';
+        return `Updated BTU CSG record for ${name}`;
+      },
+      before: async (args, storage) => {
+        const record = await storage.get(args[0]);
+        return { record };
+      },
+      after: async (args, result, _storage, beforeState) => {
+        return {
+          record: result,
+          previousRecord: beforeState?.record,
+          metadata: {
+            id: result?.id,
+            bpsId: result?.bpsId,
+            firstName: result?.firstName,
+            lastName: result?.lastName,
+            status: result?.status,
+          }
+        };
+      }
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0],
+      getDescription: async (args, result, beforeState) => {
+        const firstName = beforeState?.record?.firstName || '';
+        const lastName = beforeState?.record?.lastName || '';
+        const name = `${firstName} ${lastName}`.trim() || 'Unknown';
+        return `Deleted BTU CSG record for ${name}`;
+      },
+      before: async (args, storage) => {
+        const record = await storage.get(args[0]);
+        return { record };
+      },
+      after: async (args, result, _storage, beforeState) => {
+        return {
+          deletedRecord: beforeState?.record,
+          success: result,
+          metadata: {
+            id: beforeState?.record?.id,
+            bpsId: beforeState?.record?.bpsId,
+          }
+        };
+      }
+    },
+  },
+};
