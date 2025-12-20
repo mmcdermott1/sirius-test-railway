@@ -70,7 +70,7 @@ export const componentRegistry: ComponentDefinition[] = [
     schemaManifest: {
       version: 1,
       schemaPath: "./shared/schema/cardcheck/schema.ts",
-      tables: ["cardcheck_definitions", "esigs", "cardchecks"]
+      tables: ["cardcheck_definitions", "cardchecks"]
     }
   },
   {
@@ -119,7 +119,13 @@ export const componentRegistry: ComponentDefinition[] = [
     name: "Shop Stewards",
     description: "Ability to designate workers as shop stewards",
     enabledByDefault: false,
-    category: "core"
+    category: "core",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/worker/steward/schema.ts",
+      tables: ["worker_steward_assignments"]
+    }
   },
   {
     id: "trust.providers.login",
