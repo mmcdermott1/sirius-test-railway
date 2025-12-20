@@ -2,9 +2,11 @@ import { pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { workers } from "../../../schema";
 
 export const sitespecificBtuCsg = pgTable("sitespecific_btu_csg", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workerId: varchar("worker_id").references(() => workers.id, { onDelete: 'set null' }),
   bpsId: text("bps_id"),
   firstName: text("first_name"),
   lastName: text("last_name"),
