@@ -5,6 +5,7 @@ import { requireComponent } from "./components";
 import { storage } from "../storage";
 import type { InsertBtuCsgRecord } from "../storage/sitespecific-btu-csg";
 import type { InsertBtuEmployerMap } from "../storage/sitespecific-btu-employer-map";
+import { insertBtuEmployerMapSchema } from "../../shared/schema/sitespecific/btu/schema";
 import { z } from "zod";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -189,16 +190,6 @@ export function registerBtuCsgRoutes(
   // Employer Map routes
   const employerMapStorage = storage.btuEmployerMap;
 
-  const employerMapInsertSchema = z.object({
-    departmentId: z.string().nullable().optional(),
-    departmentTitle: z.string().nullable().optional(),
-    locationId: z.string().nullable().optional(),
-    locationTitle: z.string().nullable().optional(),
-    jobCode: z.string().nullable().optional(),
-    jobTitle: z.string().nullable().optional(),
-    employerName: z.string().nullable().optional(),
-  });
-
   app.get("/api/sitespecific/btu/employer-map", requireAuth, componentMiddleware, async (req, res) => {
     try {
       const tableExists = await employerMapStorage.tableExists();
@@ -217,7 +208,12 @@ export function registerBtuCsgRoutes(
       
       const records = await employerMapStorage.getAll(filters);
       res.json(records);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "COMPONENT_TABLE_NOT_FOUND") {
+        return res.status(503).json({ 
+          message: "Employer map table does not exist. Please enable the BTU component first." 
+        });
+      }
       console.error("Failed to fetch employer map records:", error);
       res.status(500).json({ message: "Failed to fetch records" });
     }
@@ -239,7 +235,12 @@ export function registerBtuCsgRoutes(
       ]);
       
       res.json({ departments, locations, employerNames });
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "COMPONENT_TABLE_NOT_FOUND") {
+        return res.status(503).json({ 
+          message: "Employer map table does not exist. Please enable the BTU component first." 
+        });
+      }
       console.error("Failed to fetch employer map filter options:", error);
       res.status(500).json({ message: "Failed to fetch filter options" });
     }
@@ -258,7 +259,12 @@ export function registerBtuCsgRoutes(
         return res.status(404).json({ message: "Record not found" });
       }
       res.json(record);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "COMPONENT_TABLE_NOT_FOUND") {
+        return res.status(503).json({ 
+          message: "Employer map table does not exist. Please enable the BTU component first." 
+        });
+      }
       console.error("Failed to fetch employer map record:", error);
       res.status(500).json({ message: "Failed to fetch record" });
     }
@@ -273,7 +279,7 @@ export function registerBtuCsgRoutes(
         });
       }
       
-      const parseResult = employerMapInsertSchema.safeParse(req.body);
+      const parseResult = insertBtuEmployerMapSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
           message: "Validation failed", 
@@ -283,7 +289,12 @@ export function registerBtuCsgRoutes(
 
       const record = await employerMapStorage.create(parseResult.data as InsertBtuEmployerMap);
       res.status(201).json(record);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "COMPONENT_TABLE_NOT_FOUND") {
+        return res.status(503).json({ 
+          message: "Employer map table does not exist. Please enable the BTU component first." 
+        });
+      }
       console.error("Failed to create employer map record:", error);
       res.status(500).json({ message: "Failed to create record" });
     }
@@ -298,7 +309,7 @@ export function registerBtuCsgRoutes(
         });
       }
       
-      const parseResult = employerMapInsertSchema.partial().safeParse(req.body);
+      const parseResult = insertBtuEmployerMapSchema.partial().safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
           message: "Validation failed", 
@@ -311,7 +322,12 @@ export function registerBtuCsgRoutes(
         return res.status(404).json({ message: "Record not found" });
       }
       res.json(record);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "COMPONENT_TABLE_NOT_FOUND") {
+        return res.status(503).json({ 
+          message: "Employer map table does not exist. Please enable the BTU component first." 
+        });
+      }
       console.error("Failed to update employer map record:", error);
       res.status(500).json({ message: "Failed to update record" });
     }
@@ -331,7 +347,12 @@ export function registerBtuCsgRoutes(
         return res.status(404).json({ message: "Record not found" });
       }
       res.json({ message: "Record deleted successfully" });
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === "COMPONENT_TABLE_NOT_FOUND") {
+        return res.status(503).json({ 
+          message: "Employer map table does not exist. Please enable the BTU component first." 
+        });
+      }
       console.error("Failed to delete employer map record:", error);
       res.status(500).json({ message: "Failed to delete record" });
     }

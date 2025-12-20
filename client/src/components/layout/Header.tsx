@@ -25,6 +25,7 @@ import {
   Clock,
   Droplets,
   FileWarning,
+  Map,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -260,6 +261,18 @@ export default function Header() {
                     Monthly Uploads
                   </Button>
                 </Link>
+                {hasComponent("sitespecific.btu") && (
+                  <Link href="/sitespecific/btu/employer-map" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location === "/sitespecific/btu/employer-map" ? "default" : "ghost"}
+                      className="w-full justify-start pl-8"
+                      data-testid="mobile-nav-employer-map"
+                    >
+                      <Map className="h-4 w-4 mr-2" />
+                      Employer Map
+                    </Button>
+                  </Link>
+                )}
 
                 {(hasComponent("trust.providers") || (hasPermission("admin") && hasComponent("trust.benefits.scan"))) && (
                   <>
@@ -593,6 +606,16 @@ export default function Header() {
                     </div>
                   </Link>
                 </DropdownMenuItem>
+                {hasComponent("sitespecific.btu") && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/sitespecific/btu/employer-map" className="w-full">
+                      <div className="flex items-center cursor-pointer" data-testid="menu-employer-map">
+                        <Map className="h-4 w-4 mr-2" />
+                        Employer Map
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 

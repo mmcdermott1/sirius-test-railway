@@ -193,6 +193,7 @@ import BtuCsgListPage from "@/pages/sitespecific/btu/csg-list";
 import BtuCsgViewPage from "@/pages/sitespecific/btu/csg-view";
 import BtuCsgEditPage from "@/pages/sitespecific/btu/csg-edit";
 import BtuCsgNewPage from "@/pages/sitespecific/btu/csg-new";
+import BtuEmployerMapListPage from "@/pages/sitespecific/btu/employer-map-list";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -944,6 +945,14 @@ function Router() {
         <ProtectedRoute permission="admin" component="sitespecific.btu">
           <AuthenticatedLayout>
             <BtuCsgListPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/sitespecific/btu/employer-map">
+        <ProtectedRoute permission="admin" component="sitespecific.btu">
+          <AuthenticatedLayout>
+            <BtuEmployerMapListPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
