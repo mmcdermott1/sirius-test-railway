@@ -14,8 +14,9 @@ import {
 export interface SchemaOperationResult {
   success: boolean;
   tableName: string;
-  operation: "create" | "drop" | "push";
+  operation: "create" | "drop" | "push" | "retain";
   error?: string;
+  message?: string;
 }
 
 export interface ComponentLifecycleResult {
@@ -24,6 +25,7 @@ export interface ComponentLifecycleResult {
   schemaOperations: SchemaOperationResult[];
   schemaState: ComponentSchemaState | null;
   error?: string;
+  message?: string;
 }
 
 export interface DriftCheckResult {
@@ -164,7 +166,15 @@ export async function enableComponentSchema(componentId: string): Promise<Compon
   };
 }
 
-export async function disableComponentSchema(componentId: string): Promise<ComponentLifecycleResult> {
+export interface DisableSchemaOptions {
+  retainData?: boolean;
+}
+
+export async function disableComponentSchema(
+  componentId: string,
+  options: DisableSchemaOptions = {}
+): Promise<ComponentLifecycleResult> {
+  const { retainData = true } = options;
   const component = getComponentById(componentId);
   
   if (!component) {
@@ -188,6 +198,26 @@ export async function disableComponentSchema(componentId: string): Promise<Compo
 
   const operations: SchemaOperationResult[] = [];
   let hasError = false;
+
+  if (retainData) {
+    for (const tableName of component.schemaManifest.tables) {
+      const exists = await tableExists(tableName);
+      operations.push({
+        success: true,
+        tableName,
+        operation: "retain",
+        message: exists ? "Table retained" : "Table does not exist",
+      });
+    }
+    
+    return {
+      success: true,
+      componentId,
+      schemaOperations: operations,
+      schemaState: null,
+      message: "Component disabled with tables retained",
+    };
+  }
 
   for (const tableName of component.schemaManifest.tables) {
     try {

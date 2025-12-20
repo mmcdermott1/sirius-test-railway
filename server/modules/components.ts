@@ -137,7 +137,7 @@ export function registerComponentRoutes(
   app.put("/api/components/config/:componentId", requireAccess(policies.admin), async (req, res) => {
     try {
       const { componentId } = req.params;
-      const { enabled, confirmDestructive } = req.body;
+      const { enabled, confirmDestructive, retainData } = req.body;
 
       if (typeof enabled !== 'boolean') {
         return res.status(400).json({ message: "enabled must be a boolean" });
@@ -148,7 +148,9 @@ export function registerComponentRoutes(
         return res.status(404).json({ message: "Component not found" });
       }
 
-      if (component.managesSchema && !enabled) {
+      const shouldRetainData = retainData !== false;
+
+      if (component.managesSchema && !enabled && !shouldRetainData) {
         const schemaInfo = await getComponentSchemaInfo(component);
         const hasActiveTables = schemaInfo.tablesExist.some(exists => exists);
         
@@ -174,10 +176,10 @@ export function registerComponentRoutes(
             });
           }
         } else {
-          const lifecycleResult = await disableComponentSchema(componentId);
+          const lifecycleResult = await disableComponentSchema(componentId, { retainData: shouldRetainData });
           if (!lifecycleResult.success) {
             return res.status(500).json({
-              message: "Failed to drop component tables",
+              message: "Failed to process component tables",
               schemaOperations: lifecycleResult.schemaOperations,
               error: lifecycleResult.error
             });

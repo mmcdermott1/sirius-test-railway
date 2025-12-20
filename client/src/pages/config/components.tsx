@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Info, Database, AlertTriangle, Loader2 } from "lucide-react";
+import { Info, Database, AlertTriangle, Loader2, Archive, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { getAllComponents, ComponentDefinition, ComponentConfig } from "@shared/components";
 
@@ -41,10 +43,11 @@ export default function ComponentsConfigPage() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [isCheckingSchema, setIsCheckingSchema] = useState(false);
+  const [dataAction, setDataAction] = useState<"retain" | "delete">("retain");
 
   const updateComponentMutation = useMutation({
-    mutationFn: async ({ componentId, enabled, confirmDestructive }: { componentId: string; enabled: boolean; confirmDestructive?: string }) => {
-      return apiRequest("PUT", `/api/components/config/${componentId}`, { enabled, confirmDestructive });
+    mutationFn: async ({ componentId, enabled, confirmDestructive, retainData }: { componentId: string; enabled: boolean; confirmDestructive?: string; retainData?: boolean }) => {
+      return apiRequest("PUT", `/api/components/config/${componentId}`, { enabled, confirmDestructive, retainData });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/components/config"] });
@@ -54,6 +57,7 @@ export default function ComponentsConfigPage() {
       });
       setPendingAction(null);
       setConfirmText("");
+      setDataAction("retain");
     },
     onError: (error: any, variables) => {
       toast({
@@ -67,6 +71,7 @@ export default function ComponentsConfigPage() {
       }));
       setPendingAction(null);
       setConfirmText("");
+      setDataAction("retain");
     },
   });
 
@@ -117,8 +122,9 @@ export default function ComponentsConfigPage() {
 
     const isDisabling = !pendingAction.enabled;
     const hasActiveTables = pendingAction.schemaInfo?.tablesExist.some(exists => exists);
+    const isDeleting = dataAction === "delete";
 
-    if (isDisabling && hasActiveTables && confirmText !== "DELETE") {
+    if (isDisabling && hasActiveTables && isDeleting && confirmText !== "DELETE") {
       toast({
         title: "Confirmation Required",
         description: "Please type DELETE to confirm.",
@@ -131,13 +137,15 @@ export default function ComponentsConfigPage() {
     updateComponentMutation.mutate({
       componentId: pendingAction.componentId,
       enabled: pendingAction.enabled,
-      confirmDestructive: isDisabling && hasActiveTables ? "DELETE" : undefined,
+      retainData: !isDeleting,
+      confirmDestructive: isDisabling && hasActiveTables && isDeleting ? "DELETE" : undefined,
     });
   };
 
   const handleCancelAction = () => {
     setPendingAction(null);
     setConfirmText("");
+    setDataAction("retain");
   };
 
   // Sort components alphabetically by component ID
@@ -243,7 +251,7 @@ export default function ComponentsConfigPage() {
                 </>
               )}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription asChild>
               {pendingAction?.enabled ? (
                 <div className="space-y-3">
                   <p>Enabling this component will create the following database tables:</p>
@@ -254,29 +262,69 @@ export default function ComponentsConfigPage() {
                   </ul>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <p className="text-destructive font-medium">
-                    Warning: This action will permanently delete all data in the following tables:
+                <div className="space-y-4">
+                  <p className="text-muted-foreground">
+                    This component manages the following database tables:
                   </p>
                   <ul className="list-disc list-inside space-y-1">
                     {pendingAction?.schemaInfo?.tables.map((table, idx) => (
                       <li key={table} className="font-mono text-sm">
                         {table}
                         {pendingAction?.schemaInfo?.tablesExist[idx] && (
-                          <Badge variant="destructive" className="ml-2 text-xs">Contains Data</Badge>
+                          <Badge variant="secondary" className="ml-2 text-xs">Contains Data</Badge>
                         )}
                       </li>
                     ))}
                   </ul>
-                  <div className="pt-2">
-                    <p className="text-sm mb-2">Type <strong>DELETE</strong> to confirm:</p>
-                    <Input
-                      value={confirmText}
-                      onChange={(e) => setConfirmText(e.target.value)}
-                      placeholder="Type DELETE"
-                      data-testid="input-confirm-delete"
-                    />
+                  
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-3">What should happen to the data?</p>
+                    <RadioGroup
+                      value={dataAction}
+                      onValueChange={(value: "retain" | "delete") => {
+                        setDataAction(value);
+                        if (value === "retain") setConfirmText("");
+                      }}
+                      className="space-y-3"
+                    >
+                      <div className="flex items-start space-x-3 p-3 rounded-md border bg-muted/30">
+                        <RadioGroupItem value="retain" id="retain" data-testid="radio-retain" />
+                        <div className="flex-1">
+                          <Label htmlFor="retain" className="flex items-center gap-2 font-medium cursor-pointer">
+                            <Archive className="h-4 w-4 text-muted-foreground" />
+                            Keep Tables
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Tables and data will be preserved. You can re-enable this component later without losing data.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-3 p-3 rounded-md border border-destructive/30 bg-destructive/5">
+                        <RadioGroupItem value="delete" id="delete" data-testid="radio-delete" />
+                        <div className="flex-1">
+                          <Label htmlFor="delete" className="flex items-center gap-2 font-medium cursor-pointer text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                            Delete Tables
+                          </Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            All tables and data will be permanently deleted. This cannot be undone.
+                          </p>
+                        </div>
+                      </div>
+                    </RadioGroup>
                   </div>
+
+                  {dataAction === "delete" && (
+                    <div className="pt-2 border-t">
+                      <p className="text-sm mb-2 text-destructive font-medium">Type <strong>DELETE</strong> to confirm deletion:</p>
+                      <Input
+                        value={confirmText}
+                        onChange={(e) => setConfirmText(e.target.value)}
+                        placeholder="Type DELETE"
+                        data-testid="input-confirm-delete"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </DialogDescription>
@@ -286,13 +334,15 @@ export default function ComponentsConfigPage() {
               Cancel
             </Button>
             <Button
-              variant={pendingAction?.enabled ? "default" : "destructive"}
+              variant={pendingAction?.enabled ? "default" : (dataAction === "delete" ? "destructive" : "default")}
               onClick={handleConfirmAction}
-              disabled={updateComponentMutation.isPending || (!pendingAction?.enabled && confirmText !== "DELETE")}
+              disabled={updateComponentMutation.isPending || (!pendingAction?.enabled && dataAction === "delete" && confirmText !== "DELETE")}
               data-testid="button-confirm"
             >
               {updateComponentMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {pendingAction?.enabled ? "Enable Component" : "Delete Tables & Disable"}
+              {pendingAction?.enabled 
+                ? "Enable Component" 
+                : (dataAction === "delete" ? "Delete Tables & Disable" : "Disable & Keep Tables")}
             </Button>
           </DialogFooter>
         </DialogContent>
