@@ -1,9 +1,3 @@
-import { 
-  BTU_CSG_TABLE_NAME, 
-  BTU_CSG_CREATE_SQL, 
-  BTU_CSG_DROP_SQL 
-} from "./schema/sitespecific/btu/schema";
-
 export interface ComponentDefinition {
   id: string;
   name: string;
@@ -21,13 +15,8 @@ export interface ComponentConfig {
 
 export interface ComponentSchemaManifest {
   version?: number;
-  tables: ComponentTableManifest[];
-}
-
-export interface ComponentTableManifest {
-  tableName: string;
-  createSql: string;
-  dropSql: string;
+  schemaPath: string;
+  tables: string[];
 }
 
 export type ComponentTableStatus = "active" | "dropped" | "pending" | "error";
@@ -101,13 +90,8 @@ export const componentRegistry: ComponentDefinition[] = [
     managesSchema: true,
     schemaManifest: {
       version: 1,
-      tables: [
-        {
-          tableName: BTU_CSG_TABLE_NAME,
-          createSql: BTU_CSG_CREATE_SQL,
-          dropSql: BTU_CSG_DROP_SQL
-        }
-      ]
+      schemaPath: "./shared/schema/sitespecific/btu/schema.ts",
+      tables: ["sitespecific_btu_csg"]
     }
   },
   {
@@ -250,16 +234,3 @@ export function getSchemaManagingComponents(): ComponentDefinition[] {
   return componentRegistry.filter(c => c.managesSchema && c.schemaManifest);
 }
 
-/**
- * Simple hash function for SQL statements (for drift detection)
- */
-export function computeSqlChecksum(sql: string): string {
-  const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase();
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    const char = normalized.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16);
-}

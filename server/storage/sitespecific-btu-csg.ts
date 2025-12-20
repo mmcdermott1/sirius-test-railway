@@ -3,10 +3,10 @@ import { eq, desc } from "drizzle-orm";
 import { tableExists as tableExistsUtil } from "./utils";
 import { 
   sitespecificBtuCsg,
-  BTU_CSG_TABLE_NAME,
   type BtuCsgRecord, 
   type InsertBtuCsgRecord 
 } from "../../shared/schema/sitespecific/btu/schema";
+import { getTableName } from "drizzle-orm";
 
 export type { BtuCsgRecord, InsertBtuCsgRecord };
 
@@ -19,10 +19,12 @@ export interface BtuCsgStorage {
   tableExists(): Promise<boolean>;
 }
 
+const tableName = getTableName(sitespecificBtuCsg);
+
 export function createBtuCsgStorage(): BtuCsgStorage {
   return {
     async tableExists(): Promise<boolean> {
-      return tableExistsUtil(BTU_CSG_TABLE_NAME);
+      return tableExistsUtil(tableName);
     },
 
     async getAll(): Promise<BtuCsgRecord[]> {

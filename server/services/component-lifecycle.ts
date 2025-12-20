@@ -5,7 +5,6 @@ import { sql } from "drizzle-orm";
 import {
   getComponentById,
   getComponentSchemaStateVariableName,
-  computeSqlChecksum,
   ComponentSchemaState,
   ComponentTableState,
   ComponentSchemaDrift,
@@ -15,7 +14,7 @@ import {
 export interface SchemaOperationResult {
   success: boolean;
   tableName: string;
-  operation: "create" | "drop";
+  operation: "create" | "drop" | "push";
   error?: string;
 }
 
@@ -95,37 +94,46 @@ export async function enableComponentSchema(componentId: string): Promise<Compon
   const now = new Date().toISOString();
   let hasError = false;
 
-  for (const tableManifest of component.schemaManifest.tables) {
-    try {
-      const exists = await tableExists(tableManifest.tableName);
+  try {
+    const { pushComponentSchema } = await import("./component-schema-push");
+    await pushComponentSchema(componentId);
+    
+    for (const tableName of component.schemaManifest.tables) {
+      const exists = await tableExists(tableName);
       
-      if (!exists) {
-        await db.execute(sql.raw(tableManifest.createSql));
-      }
-      
-      operations.push({
-        success: true,
-        tableName: tableManifest.tableName,
-        operation: "create",
-      });
+      if (exists) {
+        operations.push({
+          success: true,
+          tableName,
+          operation: "push",
+        });
 
-      tableStates.push({
-        tableName: tableManifest.tableName,
-        status: "active",
-        appliedAt: now,
-        droppedAt: null,
-        checksum: computeSqlChecksum(tableManifest.createSql),
-      });
-    } catch (error) {
-      hasError = true;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      operations.push({
-        success: false,
-        tableName: tableManifest.tableName,
-        operation: "create",
-        error: errorMessage,
-      });
+        tableStates.push({
+          tableName,
+          status: "active",
+          appliedAt: now,
+          droppedAt: null,
+          checksum: `v${component.schemaManifest.version ?? 1}`,
+        });
+      } else {
+        hasError = true;
+        operations.push({
+          success: false,
+          tableName,
+          operation: "push",
+          error: `Table ${tableName} was not created by schema push`,
+        });
+      }
     }
+  } catch (error) {
+    hasError = true;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    operations.push({
+      success: false,
+      tableName: component.schemaManifest.schemaPath,
+      operation: "push",
+      error: errorMessage,
+    });
   }
 
   const allSuccessful = !hasError;
@@ -152,7 +160,7 @@ export async function enableComponentSchema(componentId: string): Promise<Compon
     componentId,
     schemaOperations: operations,
     schemaState: null,
-    error: "Some schema operations failed - state not saved",
+    error: "Schema push failed - state not saved",
   };
 }
 
@@ -181,17 +189,17 @@ export async function disableComponentSchema(componentId: string): Promise<Compo
   const operations: SchemaOperationResult[] = [];
   let hasError = false;
 
-  for (const tableManifest of component.schemaManifest.tables) {
+  for (const tableName of component.schemaManifest.tables) {
     try {
-      const exists = await tableExists(tableManifest.tableName);
+      const exists = await tableExists(tableName);
       
       if (exists) {
-        await db.execute(sql.raw(tableManifest.dropSql));
+        await db.execute(sql.raw(`DROP TABLE IF EXISTS ${tableName} CASCADE`));
       }
       
       operations.push({
         success: true,
-        tableName: tableManifest.tableName,
+        tableName,
         operation: "drop",
       });
     } catch (error) {
@@ -199,7 +207,7 @@ export async function disableComponentSchema(componentId: string): Promise<Compo
       const errorMessage = error instanceof Error ? error.message : String(error);
       operations.push({
         success: false,
-        tableName: tableManifest.tableName,
+        tableName,
         operation: "drop",
         error: errorMessage,
       });
@@ -247,16 +255,16 @@ export async function checkComponentSchemaDrift(componentId: string): Promise<Dr
   let hasUnexpectedTables = false;
   let hasMissingTables = false;
 
-  for (const tableManifest of component.schemaManifest.tables) {
-    const exists = await tableExists(tableManifest.tableName);
-    const stateEntry = schemaState?.tables.find(t => t.tableName === tableManifest.tableName);
+  for (const tableName of component.schemaManifest.tables) {
+    const exists = await tableExists(tableName);
+    const stateEntry = schemaState?.tables.find(t => t.tableName === tableName);
 
     if (stateEntry?.status === "active" && !exists) {
       hasMissingTables = true;
-      details.push(`Table ${tableManifest.tableName} is marked active but does not exist in database`);
+      details.push(`Table ${tableName} is marked active but does not exist in database`);
     } else if ((!stateEntry || stateEntry.status === "dropped") && exists) {
       hasUnexpectedTables = true;
-      details.push(`Table ${tableManifest.tableName} exists in database but is not tracked as active`);
+      details.push(`Table ${tableName} exists in database but is not tracked as active`);
     }
   }
 
@@ -294,7 +302,7 @@ export async function getComponentSchemaInfo(component: ComponentDefinition): Pr
     };
   }
 
-  const tables = component.schemaManifest.tables.map(t => t.tableName);
+  const tables = component.schemaManifest.tables;
   const schemaState = await getSchemaState(component.id);
   const tablesExist: boolean[] = [];
 
