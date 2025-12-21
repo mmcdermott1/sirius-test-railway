@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { createCommStorage, createCommSmsOptinStorage, createCommEmailOptinStorage, createCommPostalOptinStorage, storage } from "../storage";
+import { createCommStorage, createCommSmsOptinStorage, createCommEmailOptinStorage, createCommPostalOptinStorage, createCommInappStorage, storage } from "../storage";
 import { sendSms } from "../services/sms-sender";
 import { sendEmail } from "../services/email-sender";
 import { sendPostal } from "../services/postal-sender";
@@ -16,6 +16,7 @@ const commStorage = createCommStorage();
 const smsOptinStorage = createCommSmsOptinStorage();
 const emailOptinStorage = createCommEmailOptinStorage();
 const postalOptinStorage = createCommPostalOptinStorage();
+const commInappStorage = createCommInappStorage();
 
 const sendSmsSchema = z.object({
   phoneNumber: z.string().min(1, "Phone number is required"),
@@ -677,6 +678,128 @@ export function registerCommRoutes(
     } catch (error) {
       console.error("Failed to fetch postal templates:", error);
       res.status(500).json({ message: "Failed to fetch postal templates" });
+    }
+  });
+
+  // ===== In-App Alerts Routes =====
+
+  // Get unread count for the current user
+  app.get("/api/alerts/unread-count", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const count = await commInappStorage.getUnreadCountByUser(user.id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Failed to fetch unread alert count:", error);
+      res.status(500).json({ message: "Failed to fetch unread alert count" });
+    }
+  });
+
+  // Get all alerts for the current user (with optional status filter)
+  app.get("/api/alerts", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { status, limit } = req.query;
+      const statusFilter = typeof status === 'string' ? status : undefined;
+      
+      let alerts = await commInappStorage.getCommInappsByUser(user.id, statusFilter);
+
+      // Apply limit if specified
+      if (limit && !isNaN(Number(limit))) {
+        alerts = alerts.slice(0, Number(limit));
+      }
+
+      res.json(alerts);
+    } catch (error) {
+      console.error("Failed to fetch alerts:", error);
+      res.status(500).json({ message: "Failed to fetch alerts" });
+    }
+  });
+
+  // Get a specific alert by ID
+  app.get("/api/alerts/:id", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { id } = req.params;
+      const alert = await commInappStorage.getCommInapp(id);
+
+      if (!alert) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+
+      // Ensure user can only access their own alerts
+      if (alert.userId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(alert);
+    } catch (error) {
+      console.error("Failed to fetch alert:", error);
+      res.status(500).json({ message: "Failed to fetch alert" });
+    }
+  });
+
+  // Mark an alert as read
+  app.patch("/api/alerts/:id/read", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { id } = req.params;
+      const alert = await commInappStorage.getCommInapp(id);
+
+      if (!alert) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+
+      // Ensure user can only mark their own alerts as read
+      if (alert.userId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedAlert = await commInappStorage.markAsRead(id);
+      res.json(updatedAlert);
+    } catch (error) {
+      console.error("Failed to mark alert as read:", error);
+      res.status(500).json({ message: "Failed to mark alert as read" });
+    }
+  });
+
+  // Mark all alerts as read for current user
+  app.patch("/api/alerts/mark-all-read", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Get all unread alerts for the user and mark each as read
+      const unreadAlerts = await commInappStorage.getCommInappsByUser(user.id, "pending");
+      const results = await Promise.all(
+        unreadAlerts.map((alert) => commInappStorage.markAsRead(alert.id))
+      );
+
+      res.json({ 
+        message: "All alerts marked as read",
+        count: results.filter(Boolean).length 
+      });
+    } catch (error) {
+      console.error("Failed to mark all alerts as read:", error);
+      res.status(500).json({ message: "Failed to mark all alerts as read" });
     }
   });
 }
