@@ -1191,3 +1191,70 @@ export const stripePaymentMethodLoggingConfig: StorageLoggingConfig<StripePaymen
     }
   }
 };
+
+/**
+ * Helper to resolve worker ID from an EA
+ */
+async function getWorkerIdFromEaId(eaId: string): Promise<string | undefined> {
+  const eaStorage = createLedgerEaStorage();
+  const ea = await eaStorage.get(eaId);
+  if (ea && ea.entityType === 'worker') {
+    return ea.entityId;
+  }
+  return undefined;
+}
+
+/**
+ * Logging configuration for ledger payment storage operations
+ * 
+ * Logs all payment mutations with full argument capture and change tracking.
+ * Links to worker entity when the payment's EA is associated with a worker.
+ */
+export const ledgerPaymentLoggingConfig: StorageLoggingConfig<LedgerPaymentStorage> = {
+  module: 'ledger.payments',
+  methods: {
+    create: {
+      enabled: true,
+      getEntityId: (args, result) => result?.id || 'new payment',
+      getHostEntityId: async (args, result) => {
+        if (result?.ledgerEaId) {
+          return await getWorkerIdFromEaId(result.ledgerEaId);
+        }
+        return undefined;
+      },
+      after: async (args, result, storage) => {
+        return result; // Capture created payment
+      }
+    },
+    update: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Payment ID
+      getHostEntityId: async (args, result, beforeState) => {
+        const eaId = result?.ledgerEaId || beforeState?.ledgerEaId;
+        if (eaId) {
+          return await getWorkerIdFromEaId(eaId);
+        }
+        return undefined;
+      },
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Current state
+      },
+      after: async (args, result, storage) => {
+        return result; // New state (diff auto-calculated)
+      }
+    },
+    delete: {
+      enabled: true,
+      getEntityId: (args) => args[0], // Payment ID
+      getHostEntityId: async (args, result, beforeState) => {
+        if (beforeState?.ledgerEaId) {
+          return await getWorkerIdFromEaId(beforeState.ledgerEaId);
+        }
+        return undefined;
+      },
+      before: async (args, storage) => {
+        return await storage.get(args[0]); // Capture what's being deleted
+      }
+    }
+  }
+};

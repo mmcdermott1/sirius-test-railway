@@ -9,7 +9,7 @@ import { type TrustProviderStorage, createTrustProviderStorage } from "./trust-p
 import { type TrustProviderContactStorage, createTrustProviderContactStorage, trustProviderContactLoggingConfig } from "./trust-provider-contacts";
 import { type WorkerIdStorage, createWorkerIdStorage, workerIdLoggingConfig } from "./worker-ids";
 import { type BookmarkStorage, createBookmarkStorage } from "./bookmarks";
-import { type LedgerStorage, createLedgerStorage, ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig } from "./ledger";
+import { type LedgerStorage, createLedgerStorage, ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig, ledgerPaymentLoggingConfig } from "./ledger";
 import { type EmployerContactStorage, createEmployerContactStorage, employerContactLoggingConfig } from "./employer-contacts";
 import { type WizardStorage, createWizardStorage, wizardLoggingConfig } from "./wizards";
 import { type WizardFeedMappingStorage, createWizardFeedMappingStorage } from "./wizard_feed_mappings";
@@ -148,7 +148,7 @@ export class DatabaseStorage implements IStorage {
     this.trustProviderContacts = withStorageLogging(createTrustProviderContactStorage(this.contacts), trustProviderContactLoggingConfig);
     this.workerIds = withStorageLogging(createWorkerIdStorage(), workerIdLoggingConfig);
     this.bookmarks = createBookmarkStorage();
-    this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig);
+    this.ledger = createLedgerStorage(ledgerAccountLoggingConfig, stripePaymentMethodLoggingConfig, undefined, ledgerPaymentLoggingConfig);
     this.employerContacts = withStorageLogging(createEmployerContactStorage(this.contacts), employerContactLoggingConfig);
     this.wizards = withStorageLogging(createWizardStorage(), wizardLoggingConfig);
     this.wizardFeedMappings = createWizardFeedMappingStorage();
