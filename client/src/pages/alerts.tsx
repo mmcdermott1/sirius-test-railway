@@ -1,11 +1,10 @@
 import { Bell, CheckCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, Redirect } from "wouter";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,7 +21,11 @@ interface CommInapp {
   createdAt: string;
 }
 
-export default function AlertsPage() {
+interface AlertsPageProps {
+  activeTab?: "unread" | "read" | "all";
+}
+
+export default function AlertsPage({ activeTab = "unread" }: AlertsPageProps) {
   const [, navigate] = useLocation();
   const { user } = useAuth();
 
@@ -69,7 +72,26 @@ export default function AlertsPage() {
   const pendingAlerts = alerts?.filter(a => a.status === "pending") || [];
   const readAlerts = alerts?.filter(a => a.status === "read") || [];
 
-  const renderAlertList = (alertList: CommInapp[], emptyMessage: string) => {
+  // Determine which alerts to show based on activeTab
+  const displayedAlerts = activeTab === "unread" 
+    ? pendingAlerts 
+    : activeTab === "read" 
+      ? readAlerts 
+      : alerts || [];
+
+  const emptyMessage = activeTab === "unread" 
+    ? "No unread notifications" 
+    : activeTab === "read" 
+      ? "No read notifications" 
+      : "No notifications";
+
+  const tabs = [
+    { id: "unread", label: "Unread", count: pendingAlerts.length, path: "/alerts/unread" },
+    { id: "read", label: "Read", count: readAlerts.length, path: "/alerts/read" },
+    { id: "all", label: "All", count: alerts?.length || 0, path: "/alerts/all" },
+  ];
+
+  const renderAlertList = () => {
     if (isLoading) {
       return (
         <div className="space-y-3">
@@ -86,7 +108,7 @@ export default function AlertsPage() {
       );
     }
 
-    if (alertList.length === 0) {
+    if (displayedAlerts.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Bell className="h-12 w-12 mb-4 opacity-50" />
@@ -97,7 +119,7 @@ export default function AlertsPage() {
 
     return (
       <div className="space-y-3">
-        {alertList.map((alert) => (
+        {displayedAlerts.map((alert) => (
           <Card
             key={alert.id}
             className={`hover-elevate cursor-pointer transition-colors ${
@@ -109,7 +131,7 @@ export default function AlertsPage() {
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     {alert.status === "pending" && (
                       <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0" />
                     )}
@@ -123,7 +145,7 @@ export default function AlertsPage() {
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                     {alert.body}
                   </p>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                     <span>{format(new Date(alert.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
                     {alert.linkUrl && (
                       <span className="flex items-center gap-1 text-primary font-medium">
@@ -156,8 +178,9 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="container max-w-4xl py-6 px-4">
-      <div className="flex items-center justify-between gap-4 mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <Bell className="h-6 w-6" />
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Notifications</h1>
@@ -176,41 +199,39 @@ export default function AlertsPage() {
         )}
       </div>
 
-      <Tabs defaultValue="unread" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="unread" data-testid="tab-unread">
-            Unread
-            {pendingAlerts.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {pendingAlerts.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="read" data-testid="tab-read">
-            Read
-            {readAlerts.length > 0 && (
-              <Badge variant="outline" className="ml-2">
-                {readAlerts.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="all" data-testid="tab-all">
-            All
-          </TabsTrigger>
-        </TabsList>
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTab;
+          return (
+            <Link key={tab.id} href={tab.path}>
+              <Button
+                variant={isActive ? "default" : "outline"}
+                size="sm"
+                data-testid={`tab-${tab.id}`}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <Badge 
+                    variant={isActive ? "secondary" : "outline"} 
+                    className="ml-2"
+                  >
+                    {tab.count}
+                  </Badge>
+                )}
+              </Button>
+            </Link>
+          );
+        })}
+      </div>
 
-        <TabsContent value="unread">
-          {renderAlertList(pendingAlerts, "No unread notifications")}
-        </TabsContent>
-
-        <TabsContent value="read">
-          {renderAlertList(readAlerts, "No read notifications")}
-        </TabsContent>
-
-        <TabsContent value="all">
-          {renderAlertList(alerts || [], "No notifications")}
-        </TabsContent>
-      </Tabs>
+      {/* Alert List */}
+      {renderAlertList()}
     </div>
   );
+}
+
+// Redirect component for /alerts to /alerts/unread
+export function AlertsRedirect() {
+  return <Redirect to="/alerts/unread" />;
 }

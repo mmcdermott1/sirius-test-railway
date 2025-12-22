@@ -14,7 +14,7 @@ import Bootstrap from "@/pages/bootstrap";
 import SmsOptinPage from "@/pages/sms-optin";
 import Dashboard from "@/pages/dashboard";
 import Bookmarks from "@/pages/bookmarks";
-import AlertsPage from "@/pages/alerts";
+import AlertsPage, { AlertsRedirect } from "@/pages/alerts";
 import Reports from "@/pages/reports";
 import ReportType from "@/pages/report-type";
 import Workers from "@/pages/workers";
@@ -533,10 +533,34 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/alerts/unread">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <AlertsPage activeTab="unread" />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/alerts/read">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <AlertsPage activeTab="read" />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/alerts/all">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <AlertsPage activeTab="all" />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/alerts">
         <ProtectedRoute>
           <AuthenticatedLayout>
-            <AlertsPage />
+            <AlertsRedirect />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

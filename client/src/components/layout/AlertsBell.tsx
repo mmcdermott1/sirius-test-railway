@@ -188,7 +188,7 @@ export function AlertsBell() {
         </ScrollArea>
 
         <div className="border-t px-4 py-2">
-          <Link href="/alerts" onClick={() => setIsOpen(false)}>
+          <Link href="/alerts/unread" onClick={() => setIsOpen(false)}>
             <Button
               variant="ghost"
               size="sm"
