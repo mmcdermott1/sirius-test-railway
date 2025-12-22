@@ -1205,6 +1205,16 @@ async function getWorkerIdFromEaId(eaId: string): Promise<string | undefined> {
 }
 
 /**
+ * Helper to format a payment for logging display
+ */
+function formatPaymentForLog(payment: LedgerPayment | undefined): string {
+  if (!payment) return 'payment';
+  const amount = payment.amount ? `$${payment.amount}` : '';
+  const memo = payment.memo ? ` - ${payment.memo}` : '';
+  return amount ? `${amount} payment${memo}` : 'payment';
+}
+
+/**
  * Logging configuration for ledger payment storage operations
  * 
  * Logs all payment mutations with full argument capture and change tracking.
@@ -1215,7 +1225,7 @@ export const ledgerPaymentLoggingConfig: StorageLoggingConfig<LedgerPaymentStora
   methods: {
     create: {
       enabled: true,
-      getEntityId: (args, result) => result?.id || 'new payment',
+      getEntityId: (args, result) => formatPaymentForLog(result),
       getHostEntityId: async (args, result) => {
         if (result?.ledgerEaId) {
           return await getWorkerIdFromEaId(result.ledgerEaId);
@@ -1228,7 +1238,7 @@ export const ledgerPaymentLoggingConfig: StorageLoggingConfig<LedgerPaymentStora
     },
     update: {
       enabled: true,
-      getEntityId: (args) => args[0], // Payment ID
+      getEntityId: (args, result, beforeState) => formatPaymentForLog(result || beforeState),
       getHostEntityId: async (args, result, beforeState) => {
         const eaId = result?.ledgerEaId || beforeState?.ledgerEaId;
         if (eaId) {
@@ -1245,7 +1255,7 @@ export const ledgerPaymentLoggingConfig: StorageLoggingConfig<LedgerPaymentStora
     },
     delete: {
       enabled: true,
-      getEntityId: (args) => args[0], // Payment ID
+      getEntityId: (args, result, beforeState) => formatPaymentForLog(beforeState),
       getHostEntityId: async (args, result, beforeState) => {
         if (beforeState?.ledgerEaId) {
           return await getWorkerIdFromEaId(beforeState.ledgerEaId);
