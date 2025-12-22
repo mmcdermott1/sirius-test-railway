@@ -222,16 +222,21 @@ function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location, setLocation] = useLocation();
 
-  // Check if bootstrap is needed
+  // Check if bootstrap is needed - only for unauthenticated users
+  // If user is authenticated, bootstrap was already completed (can't have users without bootstrap)
   const { data: bootstrapData, isLoading: isBootstrapLoading } = useQuery<{
     needed: boolean;
   }>({
     queryKey: ["/api/bootstrap/needed"],
     retry: false,
+    enabled: !isAuthenticated && !isLoading,
   });
 
-  // Redirect to bootstrap page if needed
+  // Redirect to bootstrap page if needed (only for unauthenticated users)
   useEffect(() => {
+    // Skip redirect logic for authenticated users - they don't need bootstrap
+    if (isAuthenticated) return;
+    
     if (!isBootstrapLoading && bootstrapData) {
       if (bootstrapData.needed && location !== "/bootstrap") {
         setLocation("/bootstrap");
@@ -239,10 +244,11 @@ function Router() {
         setLocation("/login");
       }
     }
-  }, [bootstrapData, isBootstrapLoading, location, setLocation]);
+  }, [bootstrapData, isBootstrapLoading, location, setLocation, isAuthenticated]);
 
-  // Show loading while checking bootstrap status
-  if (isBootstrapLoading) {
+  // Show loading while checking auth or bootstrap status (for unauthenticated users only)
+  const showLoading = isLoading || (!isAuthenticated && isBootstrapLoading);
+  if (showLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
