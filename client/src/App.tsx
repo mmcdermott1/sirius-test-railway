@@ -4,6 +4,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { TerminologyProvider } from "@/contexts/TerminologyContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -184,6 +185,7 @@ import AccountTransactions from "@/pages/config/ledger/account-transactions";
 import AccountParticipants from "@/pages/account-participants";
 import AccountSettings from "@/pages/config/ledger/account-settings";
 import SiteInformation from "@/pages/site-information";
+import TerminologyConfigPage from "@/pages/config/terminology";
 import PolicyView from "@/pages/policy-view";
 import PolicyEdit from "@/pages/policy-edit";
 import PolicyBenefits from "@/pages/policy-benefits";
@@ -1526,6 +1528,16 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/config/terminology">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <TerminologyConfigPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/config/dashboard-plugins">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
@@ -2017,8 +2029,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Router />
+          <TerminologyProvider>
+            <Toaster />
+            <Router />
+          </TerminologyProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

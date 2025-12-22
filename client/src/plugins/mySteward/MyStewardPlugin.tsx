@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DashboardPluginProps } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTerm } from "@/contexts/TerminologyContext";
 
 interface MyStewardData {
   stewards: Array<{
@@ -20,6 +21,7 @@ interface MyStewardData {
 }
 
 export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
+  const term = useTerm();
   const hasAccess = enabledComponents?.includes("worker.steward");
 
   const { data, isLoading, error } = useQuery<MyStewardData>({
@@ -37,7 +39,7 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            My Steward
+            My {term("steward")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -60,7 +62,7 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            My Steward
+            My {term("steward")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -78,7 +80,7 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            My Steward
+            My {term("steward")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -96,7 +98,7 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            My Steward
+            My {term("steward")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -114,12 +116,12 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            My Steward
+            My {term("steward")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground" data-testid="text-no-steward">
-            No shop steward is found for {data.bargainingUnit.name} at {data.employer.name}.
+            No {term("steward", { lowercase: true })} is found for {data.bargainingUnit.name} at {data.employer.name}.
           </p>
         </CardContent>
       </Card>
@@ -131,7 +133,7 @@ export function MyStewardPlugin({ enabledComponents }: DashboardPluginProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="h-5 w-5" />
-          My Steward{data.stewards.length > 1 ? "s" : ""}
+          {data.stewards.length > 1 ? `My ${term("steward", { plural: true })}` : `My ${term("steward")}`}
         </CardTitle>
       </CardHeader>
       <CardContent>

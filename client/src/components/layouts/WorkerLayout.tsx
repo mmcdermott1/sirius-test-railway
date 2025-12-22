@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookmarkButton } from "@/components/ui/bookmark-button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTerm } from "@/contexts/TerminologyContext";
 
 interface WorkerLayoutContextValue {
   worker: Worker;
@@ -34,6 +35,7 @@ interface WorkerLayoutProps {
 export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const { id } = useParams<{ id: string }>();
   const { hasComponent } = useAuth();
+  const term = useTerm();
 
   const { data: worker, isLoading: workerLoading, error: workerError } = useQuery<Worker>({
     queryKey: ["/api/workers", id],
@@ -176,7 +178,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const unionSubTabs = [
     ...(hasComponent("cardcheck") ? [{ id: "cardchecks", label: "Cardchecks", href: `/workers/${worker.id}/union/cardchecks` }] : []),
     ...(hasComponent("bargainingunits") ? [{ id: "bargaining-unit", label: "Bargaining Unit", href: `/workers/${worker.id}/union/bargaining-unit` }] : []),
-    ...(hasComponent("worker.steward") ? [{ id: "steward", label: "Steward", href: `/workers/${worker.id}/union/steward` }] : []),
+    ...(hasComponent("worker.steward") ? [{ id: "steward", label: term("steward"), href: `/workers/${worker.id}/union/steward` }] : []),
     ...(hasComponent("worker.steward") ? [{ id: "representatives", label: "Representatives", href: `/workers/${worker.id}/union/representatives` }] : []),
   ];
 

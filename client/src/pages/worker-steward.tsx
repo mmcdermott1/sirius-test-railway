@@ -12,6 +12,7 @@ import { AlertTriangle, Loader2, Users, CheckCircle, Plus, Trash2, ExternalLink 
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { User, Role, Variable, RolePermission, BargainingUnit, Employer, WorkerStewardAssignment } from "@shared/schema";
+import { useTerm } from "@/contexts/TerminologyContext";
 import { Link } from "wouter";
 import {
   Table,
@@ -48,6 +49,7 @@ interface WorkerStewardAssignmentWithDetails extends WorkerStewardAssignment {
 function StewardAssignmentsSection() {
   const { worker } = useWorkerLayout();
   const { toast } = useToast();
+  const term = useTerm();
   const [isAddingAssignment, setIsAddingAssignment] = useState(false);
   const [selectedEmployerId, setSelectedEmployerId] = useState<string>(
     worker.denormHomeEmployerId || NONE_VALUE
@@ -80,13 +82,13 @@ function StewardAssignmentsSection() {
       setSelectedBargainingUnitId(worker.bargainingUnitId || NONE_VALUE);
       toast({
         title: "Success",
-        description: "Steward assignment added successfully",
+        description: `${term("steward")} assignment added successfully`,
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add steward assignment",
+        description: error.message || `Failed to add ${term("steward", { lowercase: true })} assignment`,
         variant: "destructive",
       });
     },
@@ -101,13 +103,13 @@ function StewardAssignmentsSection() {
       setDeleteAssignmentId(null);
       toast({
         title: "Success",
-        description: "Steward assignment removed successfully",
+        description: `${term("steward")} assignment removed successfully`,
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to remove steward assignment",
+        description: error.message || `Failed to remove ${term("steward", { lowercase: true })} assignment`,
         variant: "destructive",
       });
     },
@@ -138,9 +140,9 @@ function StewardAssignmentsSection() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <div>
-          <CardTitle>Steward Assignments</CardTitle>
+          <CardTitle>{term("steward")} Assignments</CardTitle>
           <CardDescription>
-            Manage the employer and bargaining unit combinations this worker is a steward for
+            Manage the employer and bargaining unit combinations this worker is a {term("steward", { lowercase: true })} for
           </CardDescription>
         </div>
         {!isAddingAssignment && (
@@ -220,7 +222,7 @@ function StewardAssignmentsSection() {
           <p className="text-muted-foreground text-sm">Loading assignments...</p>
         ) : assignments.length === 0 ? (
           <p className="text-muted-foreground text-sm" data-testid="text-no-steward-assignments">
-            No steward assignments yet. Click "Add Assignment" to create one.
+            No {term("steward", { lowercase: true })} assignments yet. Click &ldquo;Add Assignment&rdquo; to create one.
           </p>
         ) : (
           <Table>
@@ -277,9 +279,9 @@ function StewardAssignmentsSection() {
         <AlertDialog open={!!deleteAssignmentId} onOpenChange={() => setDeleteAssignmentId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove Steward Assignment</AlertDialogTitle>
+              <AlertDialogTitle>Remove {term("steward")} Assignment</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to remove this steward assignment? This action cannot be undone.
+                Are you sure you want to remove this {term("steward", { lowercase: true })} assignment? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -301,6 +303,7 @@ function StewardAssignmentsSection() {
 function WorkerStewardContent() {
   const { worker, contact } = useWorkerLayout();
   const { toast } = useToast();
+  const term = useTerm();
   const queryClient = useQueryClient();
   const [isToggling, setIsToggling] = useState(false);
 
@@ -403,14 +406,14 @@ function WorkerStewardContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users", linkedUser?.id, "roles"] });
       toast({
-        title: "Shop Steward Enabled",
-        description: `${contact?.displayName || "Worker"} has been designated as a shop steward.`,
+        title: `${term("steward")} Enabled`,
+        description: `${contact?.displayName || "Worker"} has been designated as a ${term("steward", { lowercase: true })}.`,
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to enable shop steward status.",
+        description: error.message || `Failed to enable ${term("steward", { lowercase: true })} status.`,
         variant: "destructive",
       });
     },
@@ -426,14 +429,14 @@ function WorkerStewardContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users", linkedUser?.id, "roles"] });
       toast({
-        title: "Shop Steward Disabled",
-        description: `${contact?.displayName || "Worker"} is no longer designated as a shop steward.`,
+        title: `${term("steward")} Disabled`,
+        description: `${contact?.displayName || "Worker"} is no longer designated as a ${term("steward", { lowercase: true })}.`,
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to disable shop steward status.",
+        description: error.message || `Failed to disable ${term("steward", { lowercase: true })} status.`,
         variant: "destructive",
       });
     },
@@ -461,10 +464,10 @@ function WorkerStewardContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Shop Steward
+            {term("steward")}
           </CardTitle>
           <CardDescription>
-            Manage shop steward designation for this worker
+            Manage {term("steward", { lowercase: true })} designation for this worker
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -481,19 +484,19 @@ function WorkerStewardContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Shop Steward
+            {term("steward")}
           </CardTitle>
           <CardDescription>
-            Manage shop steward designation for this worker
+            Manage {term("steward", { lowercase: true })} designation for this worker
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive" data-testid="alert-no-steward-role-configured">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Steward Role Not Configured</AlertTitle>
+            <AlertTitle>{term("steward")} Role Not Configured</AlertTitle>
             <AlertDescription>
-              No steward role has been configured. Please go to <strong>Config &gt; Workers &gt; Steward</strong> to 
-              select a role for shop stewards before you can designate workers as stewards.
+              No {term("steward", { lowercase: true })} role has been configured. Please go to <strong>Config &gt; Workers &gt; {term("steward")}</strong> to 
+              select a role for {term("steward", { plural: true, lowercase: true })} before you can designate workers as {term("steward", { plural: true, lowercase: true })}.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -507,10 +510,10 @@ function WorkerStewardContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Shop Steward
+            {term("steward")}
           </CardTitle>
           <CardDescription>
-            Manage shop steward designation for this worker
+            Manage {term("steward", { lowercase: true })} designation for this worker
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -518,8 +521,8 @@ function WorkerStewardContent() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Configuration Issue</AlertTitle>
             <AlertDescription>
-              The configured steward role "{stewardRole?.name || stewardConfig.role}" no longer has the 
-              "workers.steward" permission. Please update the configuration in <strong>Config &gt; Workers &gt; Steward</strong>.
+              The configured {term("steward", { lowercase: true })} role &ldquo;{stewardRole?.name || stewardConfig.role}&rdquo; no longer has the 
+              &ldquo;workers.steward&rdquo; permission. Please update the configuration in <strong>Config &gt; Workers &gt; {term("steward")}</strong>.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -533,10 +536,10 @@ function WorkerStewardContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Shop Steward
+            {term("steward")}
           </CardTitle>
           <CardDescription>
-            Manage shop steward designation for this worker
+            Manage {term("steward", { lowercase: true })} designation for this worker
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -545,7 +548,7 @@ function WorkerStewardContent() {
             <AlertTitle>No Email Address</AlertTitle>
             <AlertDescription>
               This worker's contact does not have an email address. An email address is required to link 
-              a worker to a user account for shop steward designation.
+              a worker to a user account for {term("steward", { lowercase: true })} designation.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -559,10 +562,10 @@ function WorkerStewardContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Shop Steward
+            {term("steward")}
           </CardTitle>
           <CardDescription>
-            Manage shop steward designation for this worker
+            Manage {term("steward", { lowercase: true })} designation for this worker
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -571,7 +574,7 @@ function WorkerStewardContent() {
             <AlertTitle>No User Account</AlertTitle>
             <AlertDescription>
               There is no user account associated with this worker's email address ({contactEmail}). 
-              A user account must be created for this worker before they can be designated as a shop steward.
+              A user account must be created for this worker before they can be designated as a {term("steward", { lowercase: true })}.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -585,22 +588,22 @@ function WorkerStewardContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Shop Steward
+            {term("steward")}
           </CardTitle>
           <CardDescription>
-            Manage shop steward designation for this worker
+            Manage {term("steward", { lowercase: true })} designation for this worker
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div className="space-y-1">
               <Label htmlFor="steward-toggle" className="text-base font-medium">
-                Shop Steward Status
+                {term("steward")} Status
               </Label>
               <p className="text-sm text-muted-foreground">
                 {hasStewardRole 
-                  ? "This worker is currently designated as a shop steward"
-                  : "Enable to designate this worker as a shop steward"
+                  ? `This worker is currently designated as a ${term("steward", { lowercase: true })}`
+                  : `Enable to designate this worker as a ${term("steward", { lowercase: true })}`
                 }
               </p>
             </div>
@@ -619,17 +622,17 @@ function WorkerStewardContent() {
           {hasStewardRole && (
             <Alert data-testid="alert-steward-active">
               <CheckCircle className="h-4 w-4" />
-              <AlertTitle>Active Shop Steward</AlertTitle>
+              <AlertTitle>Active {term("steward")}</AlertTitle>
               <AlertDescription>
-                This worker has the "{stewardRole?.name}" role assigned to their user account, 
-                granting them shop steward permissions.
+                This worker has the &ldquo;{stewardRole?.name}&rdquo; role assigned to their user account, 
+                granting them {term("steward", { lowercase: true })} permissions.
               </AlertDescription>
             </Alert>
           )}
 
           <div className="text-sm text-muted-foreground space-y-1">
             <p><strong>Linked User:</strong> {linkedUser.email}</p>
-            <p><strong>Steward Role:</strong> {stewardRole?.name || "Unknown"}</p>
+            <p><strong>{term("steward")} Role:</strong> {stewardRole?.name || "Unknown"}</p>
           </div>
         </CardContent>
       </Card>

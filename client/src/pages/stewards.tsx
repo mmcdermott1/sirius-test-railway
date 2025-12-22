@@ -11,6 +11,7 @@ import { Download, Filter, X, Users } from "lucide-react";
 import { useState, useMemo } from "react";
 import { stringify } from "csv-stringify/browser/esm/sync";
 import type { Employer, BargainingUnit } from "@shared/schema";
+import { useTerm } from "@/contexts/TerminologyContext";
 
 interface StewardAssignmentListItem {
   id: string;
@@ -23,6 +24,7 @@ interface StewardAssignmentListItem {
 }
 
 export default function Stewards() {
+  const term = useTerm();
   const [showFilters, setShowFilters] = useState(false);
   const [filterEmployer, setFilterEmployer] = useState<string>("all");
   const [filterBargainingUnit, setFilterBargainingUnit] = useState<string>("all");
@@ -75,7 +77,7 @@ export default function Stewards() {
     if (!filteredAssignments.length) return;
 
     const csvData = filteredAssignments.map(assignment => ({
-      "Steward Name": assignment.worker?.displayName || "Unknown",
+      [`${term("steward")} Name`]: assignment.worker?.displayName || "Unknown",
       "Employer": assignment.employer?.name || "Unknown",
       "Bargaining Unit": assignment.bargainingUnit?.name || "Unknown",
     }));
@@ -96,10 +98,10 @@ export default function Stewards() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100" data-testid="text-page-title">
-          Shop Stewards
+          {term("steward", { plural: true })}
         </h1>
         <p className="text-muted-foreground mt-1">
-          View all shop steward assignments across employers and bargaining units
+          View all {term("steward", { plural: true, lowercase: true })} assignments across employers and bargaining units
         </p>
       </div>
 
@@ -108,7 +110,7 @@ export default function Stewards() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Steward Assignments
+              {term("steward")} Assignments
             </CardTitle>
             <CardDescription>
               {isLoading ? "Loading..." : `${filteredAssignments.length} assignment${filteredAssignments.length !== 1 ? "s" : ""}`}
@@ -204,20 +206,20 @@ export default function Stewards() {
             <div className="text-center py-8 text-muted-foreground">
               {hasActiveFilters ? (
                 <>
-                  <p>No steward assignments match your filters.</p>
+                  <p>No {term("steward", { lowercase: true })} assignments match your filters.</p>
                   <Button variant="link" onClick={clearFilters} className="mt-2">
                     Clear filters
                   </Button>
                 </>
               ) : (
-                <p>No steward assignments found.</p>
+                <p>No {term("steward", { lowercase: true })} assignments found.</p>
               )}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Steward</TableHead>
+                  <TableHead>{term("steward")}</TableHead>
                   <TableHead>Employer</TableHead>
                   <TableHead>Bargaining Unit</TableHead>
                 </TableRow>

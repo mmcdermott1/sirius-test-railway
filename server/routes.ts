@@ -57,6 +57,7 @@ import { registerFloodEventRoutes } from "./modules/flood-events";
 import { registerEventsRoutes } from "./modules/events";
 import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
 import { registerBtuCsgRoutes } from "./modules/sitespecific-btu-csg";
+import { registerTerminologyRoutes } from "./modules/terminology";
 import { requireAccess } from "./accessControl";
 import { policies } from "./policies";
 import { addressValidationService } from "./services/address-validation";
@@ -289,6 +290,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register site settings routes
   registerSiteSettingsRoutes(app, requireAuth, requirePermission, requireAccess, policies);
+
+  // Register terminology routes
+  registerTerminologyRoutes(app, requireAuth, requirePermission, requireAccess, policies);
 
   // Register system mode routes
   registerSystemModeRoutes(app, requireAuth, requirePermission, requireAccess, policies);
