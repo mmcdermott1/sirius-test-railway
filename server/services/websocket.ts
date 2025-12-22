@@ -125,11 +125,21 @@ function authenticateConnection(
 
     sessionMiddleware(req, mockRes, () => {
       const session = (req as any).session;
-      if (session?.userId) {
-        resolve(session.userId);
-      } else {
-        resolve(null);
+      
+      // Check for masquerade first
+      if (session?.masqueradeUserId) {
+        resolve(session.masqueradeUserId);
+        return;
       }
+      
+      // Get user ID from Passport session (session.passport.user.dbUser.id)
+      const passportUser = session?.passport?.user;
+      if (passportUser?.dbUser?.id) {
+        resolve(passportUser.dbUser.id);
+        return;
+      }
+      
+      resolve(null);
     });
   });
 }
