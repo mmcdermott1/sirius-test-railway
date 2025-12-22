@@ -4,7 +4,7 @@ import { createCommStorage, createCommSmsOptinStorage, createCommEmailOptinStora
 import { sendSms } from "../services/sms-sender";
 import { sendEmail } from "../services/email-sender";
 import { sendPostal } from "../services/postal-sender";
-import { markInappAsRead, markAllInappAsRead } from "../services/inapp-sender";
+import { sendInapp, markInappAsRead, markAllInappAsRead } from "../services/inapp-sender";
 import { handleStatusCallback } from "../services/comm-status/handler";
 import { serviceRegistry } from "../services/service-registry";
 import type { PostalTransport, PostalAddress } from "../services/providers/postal";
@@ -59,6 +59,14 @@ const sendPostalSchema = z.object({
   doubleSided: z.boolean().optional(),
 }).refine(data => data.file || data.templateId, {
   message: "Either file or templateId is required",
+});
+
+const sendInappSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+  title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
+  body: z.string().min(1, "Body is required").max(500, "Body must be 500 characters or less"),
+  linkUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  linkLabel: z.string().max(50, "Link label must be 50 characters or less").optional(),
 });
 
 async function notifyAlertCountChange(userId: string): Promise<void> {
@@ -260,6 +268,94 @@ export function registerCommRoutes(
     } catch (error) {
       console.error("Failed to send postal mail:", error);
       res.status(500).json({ message: "Failed to send postal mail" });
+    }
+  });
+
+  app.get("/api/contacts/:contactId/user-lookup", requireAuth, requirePermission("workers.view"), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      
+      const contact = await storage.contacts.getContact(contactId);
+      if (!contact) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+
+      if (!contact.email) {
+        return res.json({
+          hasEmail: false,
+          hasUser: false,
+          user: null,
+          message: "Contact does not have an email address",
+        });
+      }
+
+      const user = await storage.users.getUserByEmail(contact.email);
+      
+      res.json({
+        hasEmail: true,
+        hasUser: !!user,
+        user: user ? {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        } : null,
+        email: contact.email,
+      });
+
+    } catch (error) {
+      console.error("Failed to lookup user for contact:", error);
+      res.status(500).json({ message: "Failed to lookup user for contact" });
+    }
+  });
+
+  app.post("/api/contacts/:contactId/inapp", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      
+      const parsed = sendInappSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          message: "Invalid request body", 
+          errors: parsed.error.flatten() 
+        });
+      }
+
+      const { userId, title, body, linkUrl, linkLabel } = parsed.data;
+      const currentUser = (req as any).user;
+
+      const result = await sendInapp({
+        contactId,
+        userId,
+        title,
+        body,
+        linkUrl: linkUrl || undefined,
+        linkLabel: linkLabel || undefined,
+        initiatedBy: currentUser?.id,
+      });
+
+      if (!result.success) {
+        const statusCode = result.errorCode === 'VALIDATION_ERROR' 
+          ? 400 
+          : 500;
+        
+        return res.status(statusCode).json({
+          message: result.error,
+          errorCode: result.errorCode,
+          comm: result.comm,
+          commInapp: result.commInapp,
+        });
+      }
+
+      res.status(201).json({
+        message: "In-app message sent successfully",
+        comm: result.comm,
+        commInapp: result.commInapp,
+      });
+
+    } catch (error) {
+      console.error("Failed to send in-app message:", error);
+      res.status(500).json({ message: "Failed to send in-app message" });
     }
   });
 

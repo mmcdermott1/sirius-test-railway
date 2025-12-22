@@ -36,7 +36,7 @@ export function useUserLayout() {
 }
 
 interface UserLayoutProps {
-  activeTab: "details" | "logs" | "email" | "phone-numbers" | "addresses" | "comm-history" | "send-sms" | "send-email" | "send-postal";
+  activeTab: "details" | "logs" | "email" | "phone-numbers" | "addresses" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp";
   children: ReactNode;
 }
 
@@ -183,10 +183,11 @@ export function UserLayout({ activeTab, children }: UserLayoutProps) {
     { id: "send-sms", label: "Send SMS", href: `/users/${user.id}/comm/send-sms` },
     { id: "send-email", label: "Send Email", href: `/users/${user.id}/comm/send-email` },
     { id: "send-postal", label: "Send Postal", href: `/users/${user.id}/comm/send-postal` },
+    { id: "send-inapp", label: "Send In-App", href: `/users/${user.id}/comm/send-inapp` },
   ];
 
   const isContactSubTab = ["email", "phone-numbers", "addresses"].includes(activeTab);
-  const isCommSubTab = ["comm-history", "send-sms", "send-email", "send-postal"].includes(activeTab);
+  const isCommSubTab = ["comm-history", "send-sms", "send-email", "send-postal", "send-inapp"].includes(activeTab);
   const showContactSubTabs = isContactSubTab;
   const showCommSubTabs = isCommSubTab;
 

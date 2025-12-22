@@ -49,6 +49,7 @@ import WorkerCommHistory from "@/pages/worker-comm-history";
 import WorkerSendSms from "@/pages/worker-send-sms";
 import WorkerSendEmail from "@/pages/worker-send-email";
 import WorkerSendPostal from "@/pages/worker-send-postal";
+import WorkerSendInApp from "@/pages/worker-send-inapp";
 import CommDetail from "@/pages/comm-detail";
 import WorkerDelete from "@/pages/worker-delete";
 import Employers from "@/pages/employers";
@@ -71,6 +72,7 @@ import EmployerContactCommHistory from "@/pages/employer-contact-comm-history";
 import EmployerContactSendSms from "@/pages/employer-contact-send-sms";
 import EmployerContactSendEmail from "@/pages/employer-contact-send-email";
 import EmployerContactSendPostal from "@/pages/employer-contact-send-postal";
+import EmployerContactSendInApp from "@/pages/employer-contact-send-inapp";
 import EmployerLogs from "@/pages/employer-logs";
 import EmployerPolicyHistory from "@/pages/employer-policy-history";
 import EmployerStewards from "@/pages/employer-stewards";
@@ -103,6 +105,7 @@ import TrustProviderContactCommHistory from "@/pages/trust-provider-contact-comm
 import TrustProviderContactSendSms from "@/pages/trust-provider-contact-send-sms";
 import TrustProviderContactSendEmail from "@/pages/trust-provider-contact-send-email";
 import TrustProviderContactSendPostal from "@/pages/trust-provider-contact-send-postal";
+import TrustProviderContactSendInApp from "@/pages/trust-provider-contact-send-inapp";
 import TrustProviderLogsPage from "@/pages/trust-provider-logs";
 import BargainingUnitsPage from "@/pages/bargaining-units";
 import BargainingUnitViewPage from "@/pages/bargaining-unit-view";
@@ -118,6 +121,7 @@ import UserCommHistory from "@/pages/admin/user-comm-history";
 import UserSendSms from "@/pages/admin/user-send-sms";
 import UserSendEmail from "@/pages/admin/user-send-email";
 import UserSendPostal from "@/pages/admin/user-send-postal";
+import UserSendInApp from "@/pages/admin/user-send-inapp";
 import AdminRolesPage from "@/pages/admin/roles";
 import AdminPermissionsPage from "@/pages/admin/permissions";
 import WmbScanQueue from "@/pages/admin/wmb-scan-queue";
@@ -302,6 +306,14 @@ function Router() {
         <ProtectedRoute permission="workers.view">
           <AuthenticatedLayout>
             <WorkerSendPostal />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/comm/send-inapp">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <WorkerSendInApp />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -828,6 +840,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/employer-contacts/:id/comm/send-inapp">
+        <ProtectedRoute permission="workers.view">
+          <AuthenticatedLayout>
+            <EmployerContactSendInApp />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/employers/:id/ledger/stripe/customer">
         <ProtectedRoute permission="admin" component="ledger">
           <AuthenticatedLayout>
@@ -1161,6 +1181,14 @@ function Router() {
         <ProtectedRoute policy="staff" component="trust.providers">
           <AuthenticatedLayout>
             <TrustProviderContactSendPostal />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust-provider-contacts/:id/comm/send-inapp">
+        <ProtectedRoute policy="staff" component="trust.providers">
+          <AuthenticatedLayout>
+            <TrustProviderContactSendInApp />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -1820,6 +1848,14 @@ function Router() {
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <UserSendPostal />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/users/:id/comm/send-inapp">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <UserSendInApp />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
