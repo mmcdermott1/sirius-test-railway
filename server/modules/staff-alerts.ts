@@ -50,16 +50,45 @@ export function registerStaffAlertRoutes(
         const variable = await storage.variables.getByName(variableName);
         if (!variable) {
           const emptyConfig: StaffAlertConfig = { recipients: [] };
-          return res.json(emptyConfig);
+          return res.json({ config: emptyConfig, warnings: [] });
         }
         
+        let config: StaffAlertConfig;
         try {
-          const validated = staffAlertConfigSchema.parse(variable.value);
-          res.json(validated);
+          config = staffAlertConfigSchema.parse(variable.value);
         } catch (parseError) {
           const emptyConfig: StaffAlertConfig = { recipients: [] };
-          res.json(emptyConfig);
+          return res.json({ config: emptyConfig, warnings: [] });
         }
+        
+        // Check for missing contacts
+        const warnings: Array<{ userId: string; email: string; message: string }> = [];
+        if (config.recipients.length > 0) {
+          const authorizedUsers = await storage.users.getUsersWithAnyPermission(["staff", "admin"]);
+          const authorizedUsersMap = new Map(authorizedUsers.map(u => [u.id, u]));
+          
+          for (const recipient of config.recipients) {
+            const user = authorizedUsersMap.get(recipient.userId);
+            if (user && user.email) {
+              const contact = await storage.contacts.getContactByEmail(user.email);
+              if (!contact) {
+                warnings.push({
+                  userId: recipient.userId,
+                  email: user.email,
+                  message: `No contact record found with email "${user.email}". Alerts will fail for this user until a contact is created.`,
+                });
+              }
+            } else if (user && !user.email) {
+              warnings.push({
+                userId: recipient.userId,
+                email: '',
+                message: `User has no email address. Alerts will fail for this user.`,
+              });
+            }
+          }
+        }
+        
+        res.json({ config, warnings });
       } catch (error: any) {
         console.error("Error fetching staff alert config:", error);
         res.status(500).json({ message: error.message || "Failed to fetch config" });
@@ -87,9 +116,12 @@ export function registerStaffAlertRoutes(
         const config = parseResult.data;
         
         // Validate that all user IDs are authorized staff/admin users
+        const warnings: Array<{ userId: string; email: string; message: string }> = [];
+        
         if (config.recipients.length > 0) {
           const authorizedUsers = await storage.users.getUsersWithAnyPermission(["staff", "admin"]);
           const authorizedUserIds = new Set(authorizedUsers.map(u => u.id));
+          const authorizedUsersMap = new Map(authorizedUsers.map(u => [u.id, u]));
           
           const invalidUserIds = config.recipients
             .filter(r => !authorizedUserIds.has(r.userId))
@@ -100,6 +132,27 @@ export function registerStaffAlertRoutes(
               message: "Invalid user IDs in configuration",
               invalidUserIds,
             });
+          }
+          
+          // Check if each recipient has a matching contact record
+          for (const recipient of config.recipients) {
+            const user = authorizedUsersMap.get(recipient.userId);
+            if (user && user.email) {
+              const contact = await storage.contacts.getContactByEmail(user.email);
+              if (!contact) {
+                warnings.push({
+                  userId: recipient.userId,
+                  email: user.email,
+                  message: `No contact record found with email "${user.email}". Alerts will fail for this user until a contact is created.`,
+                });
+              }
+            } else if (user && !user.email) {
+              warnings.push({
+                userId: recipient.userId,
+                email: '',
+                message: `User has no email address. Alerts will fail for this user.`,
+              });
+            }
           }
         }
         
@@ -114,7 +167,13 @@ export function registerStaffAlertRoutes(
           });
         }
         
-        res.json({ message: "Configuration saved", config });
+        res.json({ 
+          message: warnings.length > 0 
+            ? "Configuration saved with warnings" 
+            : "Configuration saved", 
+          config,
+          warnings: warnings.length > 0 ? warnings : undefined,
+        });
       } catch (error: any) {
         console.error("Error saving staff alert config:", error);
         res.status(500).json({ message: error.message || "Failed to save config" });

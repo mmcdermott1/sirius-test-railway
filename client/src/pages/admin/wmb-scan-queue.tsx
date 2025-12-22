@@ -110,6 +110,7 @@ export default function WmbScanQueue() {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alertConfig, setAlertConfig] = useState<StaffAlertConfig>({ recipients: [] });
   const [alertConfigDirty, setAlertConfigDirty] = useState(false);
+  const [alertWarnings, setAlertWarnings] = useState<Array<{ userId: string; email: string; message: string }>>([]);
 
   const { data: statuses = [], isLoading: isLoadingStatuses, refetch: refetchStatuses } = useQuery<MonthStatus[]>({
     queryKey: ["/api/wmb-scan/status"],
@@ -119,25 +120,37 @@ export default function WmbScanQueue() {
     queryKey: ["/api/wmb-scan/summary"],
   });
 
-  const { data: savedAlertConfig, isLoading: isLoadingAlertConfig } = useQuery<StaffAlertConfig>({
+  const { data: savedAlertData, isLoading: isLoadingAlertConfig } = useQuery<{ config: StaffAlertConfig; warnings: Array<{ userId: string; email: string; message: string }> }>({
     queryKey: ["/api/staff-alerts/trust_wmb_scan"],
   });
 
   useEffect(() => {
-    if (savedAlertConfig && !alertConfigDirty) {
-      setAlertConfig(savedAlertConfig);
+    if (savedAlertData && !alertConfigDirty) {
+      setAlertConfig(savedAlertData.config);
+      setAlertWarnings(savedAlertData.warnings || []);
     }
-  }, [savedAlertConfig, alertConfigDirty]);
+  }, [savedAlertData, alertConfigDirty]);
 
   const saveAlertConfigMutation = useMutation({
     mutationFn: async (config: StaffAlertConfig) => {
       return apiRequest("PUT", "/api/staff-alerts/trust_wmb_scan", config);
     },
-    onSuccess: () => {
-      toast({
-        title: "Configuration Saved",
-        description: "Alert recipients have been updated",
-      });
+    onSuccess: (result: any) => {
+      const warnings = result?.warnings || [];
+      setAlertWarnings(warnings);
+      
+      if (warnings.length > 0) {
+        toast({
+          title: "Configuration Saved with Warnings",
+          description: `${warnings.length} recipient(s) may not receive alerts due to missing contact records.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Configuration Saved",
+          description: "Alert recipients have been updated",
+        });
+      }
       setAlertConfigDirty(false);
       queryClient.invalidateQueries({ queryKey: ["/api/staff-alerts/trust_wmb_scan"] });
     },
@@ -539,6 +552,26 @@ export default function WmbScanQueue() {
                       <span className="text-sm text-muted-foreground">Unsaved changes</span>
                     )}
                   </div>
+                  
+                  {alertWarnings.length > 0 && (
+                    <div className="mt-4 p-3 rounded-md border border-destructive/50 bg-destructive/10" data-testid="alert-warnings">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-destructive">
+                            {alertWarnings.length} recipient{alertWarnings.length !== 1 ? "s" : ""} cannot receive alerts
+                          </p>
+                          <ul className="text-xs text-muted-foreground space-y-1">
+                            {alertWarnings.map((warning, idx) => (
+                              <li key={idx}>
+                                {warning.email ? `${warning.email}: ` : ""}{warning.message}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
