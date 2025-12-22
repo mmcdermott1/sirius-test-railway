@@ -448,7 +448,7 @@ export function createWorkerHoursStorage(
       
       return { success: result.length > 0, notifications };
     },
-
+    executeChargePlugins
     async upsertWorkerHours(data: { workerId: string; month: number; year: number; employerId: string; employmentStatusId: string; hours: number | null; home?: boolean }): Promise<WorkerHoursResult> {
       const [savedHours] = await db
         .insert(workerHours)
