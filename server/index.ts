@@ -30,6 +30,9 @@ import "./services/providers";
 // Import and register flood events
 import { registerFloodEvents, loadFloodConfigFromVariables } from "./flood";
 
+// Import log notifier module
+import { initLogNotifier } from "./modules/log-notifier";
+
 // Helper function to redact sensitive data from responses before logging
 function redactSensitiveData(data: any): any {
   if (!data || typeof data !== 'object') return data;
@@ -175,6 +178,9 @@ app.use((req, res, next) => {
   // Load custom flood configurations from variables
   await loadFloodConfigFromVariables();
   logger.info("Flood configs loaded from variables", { source: "startup" });
+
+  // Initialize log notifier (listens to LOG events for conditional in-app alerts)
+  initLogNotifier();
 
   // Bootstrap default cron jobs
   await bootstrapCronJobs();
