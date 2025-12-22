@@ -214,6 +214,21 @@ async function sendScanCompletionAlerts(
 
     const result = await sendStaffAlerts("trust_wmb_scan", payload, storage);
 
+    if (result.deliveryResults.some(r => r.status === 'failed')) {
+      const failures = result.deliveryResults.filter(r => r.status === 'failed');
+      logger.warn(`Some scan completion alerts failed`, {
+        service: "wmb-scan-queue",
+        month: completedStatus.month,
+        year: completedStatus.year,
+        failures: failures.map(f => ({
+          userId: f.userId,
+          medium: f.medium,
+          error: f.error,
+          errorCode: f.errorCode,
+        })),
+      });
+    }
+
     logger.info(`Sent scan completion alerts for ${periodLabel}`, {
       service: "wmb-scan-queue",
       month: completedStatus.month,
