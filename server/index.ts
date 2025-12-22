@@ -9,6 +9,7 @@ import { initAccessControl } from "./accessControl";
 import { storage } from "./storage";
 import { captureRequestContext } from "./middleware/request-context";
 import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler, deleteExpiredFloodEventsHandler } from "./cron";
+import { migrateFromLegacyVariables, loadComponentCache } from "./services/component-cache";
 
 // Import charge plugins module to trigger registration
 // Note: Individual plugins are registered in ./charge-plugins/index.ts
@@ -128,6 +129,17 @@ app.use((req, res, next) => {
   // Initialize address validation service (loads or creates config)
   await addressValidationService.getConfig();
   logger.info("Address validation service initialized", { source: "startup" });
+
+  // Migrate legacy component variables and load component cache
+  const migrationResult = await migrateFromLegacyVariables();
+  if (migrationResult.migrated) {
+    logger.info("Migrated legacy component variables", { 
+      source: "startup",
+      migratedCount: migrationResult.migratedCount 
+    });
+  }
+  await loadComponentCache();
+  logger.info("Component cache initialized", { source: "startup" });
 
   // Register cron job handlers
   registerCronJob('delete-expired-reports', deleteExpiredReportsHandler);

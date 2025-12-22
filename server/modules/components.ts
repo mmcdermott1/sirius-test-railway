@@ -1,14 +1,20 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "../storage";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
-import { getAllComponents, getComponentById, ComponentConfig, getAncestorComponentIds, ComponentDefinition, ComponentSchemaState } from "../../shared/components";
+import { getAllComponents, getComponentById, ComponentConfig, ComponentDefinition, ComponentSchemaState } from "../../shared/components";
 import {
   enableComponentSchema,
   disableComponentSchema,
   checkComponentSchemaDrift,
   getComponentSchemaInfo,
 } from "../services/component-lifecycle";
+import {
+  isComponentEnabledSync,
+  getEnabledComponentIdsSync,
+  isCacheInitialized,
+  loadComponentCache,
+  updateComponentCache,
+} from "../services/component-cache";
 
 // Type for middleware functions
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -19,11 +25,15 @@ type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Respo
  * Uses isComponentEnabled which includes hierarchical parent checking
  */
 async function getComponentConfigs(): Promise<ComponentConfig[]> {
+  if (!isCacheInitialized()) {
+    await loadComponentCache();
+  }
+  
   const allComponents = getAllComponents();
   const configs: ComponentConfig[] = [];
 
   for (const component of allComponents) {
-    const enabled = await isComponentEnabled(component.id);
+    const enabled = isComponentEnabledSync(component.id);
     
     configs.push({
       componentId: component.id,
@@ -37,53 +47,25 @@ async function getComponentConfigs(): Promise<ComponentConfig[]> {
 /**
  * Get all enabled component IDs
  * Returns only components that are fully enabled (including parent checks)
+ * Uses in-memory cache for performance
  */
 export async function getEnabledComponentIds(): Promise<string[]> {
-  const allComponents = getAllComponents();
-  const enabledIds: string[] = [];
-
-  for (const component of allComponents) {
-    const enabled = await isComponentEnabled(component.id);
-    if (enabled) {
-      enabledIds.push(component.id);
-    }
+  if (!isCacheInitialized()) {
+    await loadComponentCache();
   }
-
-  return enabledIds;
+  return getEnabledComponentIdsSync();
 }
 
 /**
  * Check if a component is enabled
  * Also checks that all parent components are enabled (hierarchical check)
+ * Uses in-memory cache for performance
  */
 export async function isComponentEnabled(componentId: string): Promise<boolean> {
-  const component = getComponentById(componentId);
-  if (!component) {
-    return false;
+  if (!isCacheInitialized()) {
+    await loadComponentCache();
   }
-
-  // Check all ancestor components - if any are disabled, this component is disabled
-  const ancestors = getAncestorComponentIds(componentId);
-  for (const ancestorId of ancestors) {
-    const ancestorComponent = getComponentById(ancestorId);
-    if (!ancestorComponent) {
-      continue; // Skip if ancestor not found in registry
-    }
-    
-    const ancestorVariableName = `component_${ancestorId}`;
-    const ancestorVariable = await storage.variables.getByName(ancestorVariableName);
-    const ancestorEnabled = ancestorVariable ? ancestorVariable.value === true : ancestorComponent.enabledByDefault;
-    
-    if (!ancestorEnabled) {
-      return false; // Parent is disabled, so this component must be disabled
-    }
-  }
-
-  // All parents are enabled, now check this component's own status
-  const variableName = `component_${componentId}`;
-  const variable = await storage.variables.getByName(variableName);
-  
-  return variable ? variable.value === true : component.enabledByDefault;
+  return isComponentEnabledSync(componentId);
 }
 
 /**
@@ -187,20 +169,7 @@ export function registerComponentRoutes(
         }
       }
 
-      const variableName = `component_${componentId}`;
-      const existingVariable = await storage.variables.getByName(variableName);
-      
-      if (existingVariable) {
-        await storage.variables.update(existingVariable.id, {
-          name: variableName,
-          value: enabled
-        });
-      } else {
-        await storage.variables.create({
-          name: variableName,
-          value: enabled
-        });
-      }
+      await updateComponentCache(componentId, enabled);
 
       const effectiveEnabled = await isComponentEnabled(componentId);
 
