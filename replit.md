@@ -32,7 +32,7 @@ All database queries are strictly confined to the storage layer (`server/storage
 -   **Trust Provider Contacts Management**: Full CRUD operations for trust provider contacts.
 -   **Bookmarks**: User-specific, entity-agnostic bookmarking.
 -   **Dashboard Plugin System**: Extensible architecture for customizable dashboard widgets, including "My Steward" plugin that displays stewards assigned to the current user's home employer and bargaining unit with contact details (name, email, phone).
--   **Components Feature Flag System**: Centralized registry for managing application features with dependency management and access control.
+-   **Components Feature Flag System**: Centralized registry for managing application features with dependency management and access control. Component enabled states are stored in a single `components` JSON variable (not individual per-component variables) and cached in memory at startup. The cache is invalidated only on enable/disable operations, eliminating per-request database queries.
 -   **Routing Architecture**: Consistent routing for configuration, detail pages, and reports.
 -   **Ledger System**: Manages financial transactions with accounts, payments, transactions, entity-account linking, payment allocation, and an integrity report.
 -   **Wizards**: Flexible workflow state management for multi-step processes, including "Feed Wizards" and a Report Wizard Framework.
