@@ -207,8 +207,8 @@ async function sendScanCompletionAlerts(
       inapp: {
         title: `WMB Scan Completed: ${periodLabel}`,
         body: `Processed ${totalProcessed} workers (${successCount} success, ${failedCount} failed). Benefits: ${benefitsStarted} started, ${benefitsContinued} continued, ${benefitsTerminated} terminated.`,
-        linkUrl: "/admin/wmb-scan-queue",
-        linkLabel: "View Details",
+        linkUrl: `/admin/wmb-scan/${completedStatus.id}`,
+        linkLabel: "View Scan Details",
       },
     };
 
