@@ -110,10 +110,21 @@ export default function AlertsPage({ activeTab = "unread" }: AlertsPageProps) {
 
     if (displayedAlerts.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Bell className="h-12 w-12 mb-4 opacity-50" />
-          <p className="text-lg font-medium">{emptyMessage}</p>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+              <Bell className="text-muted-foreground" size={32} />
+            </div>
+            <h3 className="text-lg font-medium text-foreground mb-2">{emptyMessage}</h3>
+            <p className="text-muted-foreground text-center">
+              {activeTab === "unread" 
+                ? "You're all caught up!" 
+                : activeTab === "read"
+                  ? "No notifications have been read yet."
+                  : "You don't have any notifications yet."}
+            </p>
+          </CardContent>
+        </Card>
       );
     }
 
@@ -178,55 +189,82 @@ export default function AlertsPage({ activeTab = "unread" }: AlertsPageProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="bg-background text-foreground min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Bell className="h-6 w-6" />
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Notifications</h1>
+      <header className="bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Bell className="text-primary-foreground" size={16} />
+              </div>
+              <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">
+                Notifications
+              </h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              {pendingAlerts.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => markAllReadMutation.mutate()}
+                  disabled={markAllReadMutation.isPending}
+                  data-testid="button-mark-all-read"
+                >
+                  <CheckCheck className="h-4 w-4 mr-2" />
+                  Mark all as read
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
-        {pendingAlerts.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => markAllReadMutation.mutate()}
-            disabled={markAllReadMutation.isPending}
-            data-testid="button-mark-all-read"
-          >
-            <CheckCheck className="h-4 w-4 mr-2" />
-            Mark all as read
-          </Button>
-        )}
-      </div>
+      </header>
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTab;
-          return (
-            <Link key={tab.id} href={tab.path}>
-              <Button
-                variant={isActive ? "default" : "outline"}
-                size="sm"
-                data-testid={`tab-${tab.id}`}
-              >
-                {tab.label}
-                {tab.count > 0 && (
-                  <Badge 
-                    variant={isActive ? "secondary" : "outline"} 
-                    className="ml-2"
+      <div className="bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center space-x-2 py-3">
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTab;
+              return isActive ? (
+                <Button
+                  key={tab.id}
+                  variant="default"
+                  size="sm"
+                  data-testid={`tab-${tab.id}`}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {tab.count}
+                    </Badge>
+                  )}
+                </Button>
+              ) : (
+                <Link key={tab.id} href={tab.path}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid={`tab-${tab.id}`}
                   >
-                    {tab.count}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
-          );
-        })}
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <Badge variant="outline" className="ml-2">
+                        {tab.count}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Alert List */}
-      {renderAlertList()}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {renderAlertList()}
+      </main>
     </div>
   );
 }
