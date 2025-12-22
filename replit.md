@@ -46,6 +46,7 @@ All database queries are strictly confined to the storage layer (`server/storage
 -   **Database Quickstarts**: Admin-only feature for exporting and importing complete database snapshots.
 -   **Cron Job System**: Scheduled task execution framework with database-backed job configuration.
 -   **System Mode**: Application-wide environment mode setting (dev/test/live) with corresponding UI indicators.
+-   **Migration Framework**: Versioned database migration system in `/scripts/migrate/`. Migrations are registered in `scripts/migrate/index.ts`, run at startup via `server/services/migration-runner.ts`, and tracked with a `migrations_version` variable. New migrations use numbered filenames (e.g., `002_feature_name.ts`) and implement `Migration` interface with `name`, `version`, and `run()` function.
 
 # External Dependencies
 
