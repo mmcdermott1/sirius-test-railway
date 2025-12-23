@@ -46,15 +46,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-
-interface SiteSettings {
-  siteName: string;
-  footer: string;
-}
-
-interface SystemModeResponse {
-  mode: "dev" | "test" | "live";
-}
+import { SiteSettings, SystemModeResponse } from "@/lib/system-types";
 
 export default function Header() {
   const { user, logout, hasPermission, hasComponent, masquerade, stopMasquerade } = useAuth();

@@ -26,6 +26,7 @@ import { formatPhoneNumberForDisplay } from "@/lib/phone-utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneNumber } from "@/lib/entity-types";
+import { SystemModeResponse } from "@/lib/system-types";
 
 interface SmsOptinStatus {
   exists: boolean;
@@ -38,10 +39,6 @@ interface SmsOptinStatus {
     allowlist: boolean;
     optinDate?: string;
   } | null;
-}
-
-interface SystemModeResponse {
-  mode: "dev" | "test" | "live";
 }
 
 interface CommSmsProps {
