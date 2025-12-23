@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { TrustBenefit } from "@/lib/policy-types";
+import { LedgerAccountBase } from "@/lib/ledger-types";
 
 interface ChargePluginConfig {
   id: string;
@@ -38,13 +39,6 @@ interface ChargePluginConfig {
   };
 }
 
-interface LedgerAccount {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-}
-
 export default function GbhetLegalBenefitConfigList({ pluginId }: ChargePluginConfigProps) {
   const { toast } = useToast();
 
@@ -57,7 +51,7 @@ export default function GbhetLegalBenefitConfigList({ pluginId }: ChargePluginCo
     },
   });
 
-  const { data: accounts = [] } = useQuery<LedgerAccount[]>({
+  const { data: accounts = [] } = useQuery<LedgerAccountBase[]>({
     queryKey: ["/api/ledger/accounts"],
   });
 

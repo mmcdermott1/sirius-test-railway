@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { LedgerAccountBase } from "@/lib/ledger-types";
 
 interface ChargePluginConfig {
   id: string;
@@ -32,13 +33,6 @@ interface ChargePluginConfig {
     eventTypeIds?: string[];
     attendedStatuses?: string[];
   };
-}
-
-interface LedgerAccount {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
 }
 
 interface EventType {
@@ -59,7 +53,7 @@ export default function BtuStewardAttendanceConfigList({ pluginId }: ChargePlugi
     },
   });
 
-  const { data: accounts = [] } = useQuery<LedgerAccount[]>({
+  const { data: accounts = [] } = useQuery<LedgerAccountBase[]>({
     queryKey: ["/api/ledger/accounts"],
   });
 

@@ -19,6 +19,7 @@ import { RateHistorySection } from "@/components/charge-plugins/RateHistorySecti
 import { baseRateHistoryEntrySchema, BaseRateHistoryEntry } from "@shared/schema";
 import { EmploymentStatus } from "@/lib/entity-types";
 import { Employer } from "@/lib/employer-types";
+import { LedgerAccountBase } from "@/lib/ledger-types";
 
 // Use base schema from shared with coerce for number input
 const rateHistoryEntrySchema = baseRateHistoryEntrySchema.extend({
@@ -49,13 +50,6 @@ const formSchema = z.object({
 );
 
 type FormData = z.infer<typeof formSchema>;
-
-interface LedgerAccount {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-}
 
 interface ChargePluginConfig {
   id: string;
@@ -95,7 +89,7 @@ export default function HourFixedConfigFormPage() {
   });
 
   // Fetch ledger accounts
-  const { data: accounts = [] } = useQuery<LedgerAccount[]>({
+  const { data: accounts = [] } = useQuery<LedgerAccountBase[]>({
     queryKey: ["/api/ledger/accounts"],
   });
 

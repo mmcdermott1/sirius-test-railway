@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { EmploymentStatus } from "@/lib/entity-types";
+import { LedgerAccountBase } from "@/lib/ledger-types";
 
 interface ChargePluginConfig {
   id: string;
@@ -37,13 +38,6 @@ interface ChargePluginConfig {
   };
 }
 
-interface LedgerAccount {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-}
-
 export default function GbhetLegalHourlyConfigList({ pluginId }: ChargePluginConfigProps) {
   const { toast } = useToast();
 
@@ -56,7 +50,7 @@ export default function GbhetLegalHourlyConfigList({ pluginId }: ChargePluginCon
     },
   });
 
-  const { data: accounts = [] } = useQuery<LedgerAccount[]>({
+  const { data: accounts = [] } = useQuery<LedgerAccountBase[]>({
     queryKey: ["/api/ledger/accounts"],
   });
 

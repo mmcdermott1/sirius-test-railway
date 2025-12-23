@@ -28,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { LedgerAccount } from "@/lib/ledger-types";
 
 interface Currency {
   code: string;
@@ -35,14 +36,6 @@ interface Currency {
   precision: number;
   symbol?: string;
   symbolPosition?: 'prefix' | 'suffix';
-}
-
-interface LedgerAccount {
-  id: string;
-  name: string;
-  description: string | null;
-  currencyCode: string;
-  isActive: boolean;
 }
 
 export default function LedgerAccountsPage() {
