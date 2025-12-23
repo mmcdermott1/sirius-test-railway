@@ -31,19 +31,7 @@ import {
 import { format } from "date-fns";
 import { formatPhoneNumberForDisplay } from "@/lib/phone-utils";
 import { CommWithDetails } from "@/lib/comm-types";
-
-interface WinstonLog {
-  id: number;
-  level: string | null;
-  message: string | null;
-  timestamp: string | null;
-  source: string | null;
-  meta: Record<string, unknown> | null;
-  module: string | null;
-  operation: string | null;
-  entityId: string | null;
-  description: string | null;
-}
+import { WinstonLog } from "@/lib/system-types";
 
 export default function CommDetail() {
   const { commId } = useParams<{ commId: string }>();
