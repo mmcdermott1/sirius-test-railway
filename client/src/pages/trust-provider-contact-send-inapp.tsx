@@ -1,10 +1,14 @@
 import { TrustProviderContactLayout, useTrustProviderContactLayout } from "@/components/layouts/TrustProviderContactLayout";
-import { CommInApp } from "@/components/comm/CommInApp";
+import { CommSendWrapper } from "@/components/comm/CommSendWrapper";
 
 function TrustProviderContactSendInAppContent() {
   const { trustProviderContact } = useTrustProviderContactLayout();
-
-  return <CommInApp contactId={trustProviderContact.contactId} />;
+  const contact = trustProviderContact.contact ? {
+    id: trustProviderContact.contactId,
+    email: trustProviderContact.contact.email,
+    displayName: trustProviderContact.contact.displayName,
+  } : null;
+  return <CommSendWrapper channel="inapp" contact={contact} />;
 }
 
 export default function TrustProviderContactSendInApp() {
