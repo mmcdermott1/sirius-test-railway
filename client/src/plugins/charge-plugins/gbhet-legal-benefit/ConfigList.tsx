@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { TrustBenefit } from "@/lib/policy-types";
 
 interface ChargePluginConfig {
   id: string;
@@ -42,11 +43,6 @@ interface LedgerAccount {
   name: string;
   description: string | null;
   isActive: boolean;
-}
-
-interface TrustBenefit {
-  id: string;
-  name: string;
 }
 
 export default function GbhetLegalBenefitConfigList({ pluginId }: ChargePluginConfigProps) {

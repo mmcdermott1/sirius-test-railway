@@ -17,12 +17,7 @@ import { getStepComponent, getStepController } from "@/components/wizards/steps/
 import type { WizardData } from "@shared/schema";
 import type { ReportData } from "@shared/wizard-types";
 import { Wizard, WizardType, WizardStatus, WizardStep } from "@/lib/wizard-types";
-
-interface Employer {
-  id: string;
-  name: string;
-  siriusId: number;
-}
+import { Employer } from "@/lib/employer-types";
 
 export default function WizardView() {
   const { id } = useParams<{ id: string }>();

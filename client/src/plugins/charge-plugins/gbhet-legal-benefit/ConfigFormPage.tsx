@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { RateHistorySection } from "@/components/charge-plugins/RateHistorySection";
 import { sortRatesDescending } from "@/lib/rateHistory";
 import { useEffect } from "react";
+import { TrustBenefit } from "@/lib/policy-types";
 
 const formSchema = z.object({
   accountId: z.string().min(1, "Account is required"),
@@ -32,11 +33,6 @@ interface LedgerAccount {
   name: string;
   description: string | null;
   isActive: boolean;
-}
-
-interface TrustBenefit {
-  id: string;
-  name: string;
 }
 
 interface ChargePluginConfig {

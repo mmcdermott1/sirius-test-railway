@@ -5,17 +5,12 @@ import { Link } from "wouter";
 import { Plus, Edit } from "lucide-react";
 import type { ChargePluginConfigProps } from "../registry";
 import { getCurrentRateValue } from "@/lib/rateHistory";
+import { Employer } from "@/lib/employer-types";
 
 interface LedgerAccount {
   id: string;
   name: string;
   description: string | null;
-  isActive: boolean;
-}
-
-interface Employer {
-  id: string;
-  name: string;
   isActive: boolean;
 }
 
