@@ -4,25 +4,7 @@ import { CommList } from "@/components/worker/CommList";
 import { useQuery } from "@tanstack/react-query";
 import { MessageSquare, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
-interface CommSmsDetails {
-  id: string;
-  commId: string;
-  to: string | null;
-  body: string | null;
-  data: Record<string, unknown> | null;
-}
-
-interface CommWithSms {
-  id: string;
-  medium: string;
-  contactId: string;
-  status: string;
-  sent: string | null;
-  received: string | null;
-  data: Record<string, unknown> | null;
-  smsDetails?: CommSmsDetails | null;
-}
+import { CommWithSms } from "@/lib/comm-types";
 
 function UserCommHistoryContent() {
   const { contact } = useUserLayout();
