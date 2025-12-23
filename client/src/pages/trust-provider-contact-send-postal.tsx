@@ -5,19 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Mail } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
-interface Address {
-  id: string;
-  contactId: string;
-  friendlyName: string | null;
-  street: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  isPrimary: boolean;
-  isActive: boolean;
-}
+import { Address } from "@/lib/entity-types";
 
 function TrustProviderContactSendPostalContent() {
   const { trustProviderContact } = useTrustProviderContactLayout();

@@ -5,15 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, MessageSquare } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
-interface PhoneNumber {
-  id: string;
-  contactId: string;
-  friendlyName: string | null;
-  phoneNumber: string;
-  isPrimary: boolean;
-  isActive: boolean;
-}
+import { PhoneNumber } from "@/lib/entity-types";
 
 function TrustProviderContactSendSmsContent() {
   const { trustProviderContact } = useTrustProviderContactLayout();
