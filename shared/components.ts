@@ -168,6 +168,13 @@ export const componentRegistry: ComponentDefinition[] = [
     description: "Management of bargaining units and worker associations",
     enabledByDefault: false,
     category: "core"
+  },
+  {
+    id: "dispatch",
+    name: "Dispatch",
+    description: "Dispatch functionality",
+    enabledByDefault: false,
+    category: "core"
   }
 ];
 
