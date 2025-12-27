@@ -312,14 +312,17 @@ function DispatchJobPageInner() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Job Type</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ""}>
+                <Select 
+                  onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)} 
+                  value={field.value || "__none__"}
+                >
                   <FormControl>
                     <SelectTrigger data-testid="select-jobtype">
                       <SelectValue placeholder="Select job type" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">No type</SelectItem>
+                    <SelectItem value="__none__">No type</SelectItem>
                     {jobTypes.map((type) => (
                       <SelectItem key={type.id} value={type.id}>
                         {type.name}
