@@ -32,6 +32,7 @@ import WorkerBargainingUnit from "@/pages/worker-bargaining-unit";
 import WorkerSteward from "@/pages/worker-steward";
 import WorkerRepresentatives from "@/pages/worker-representatives";
 import WorkerDispatchStatus from "@/pages/workers/dispatch-status";
+import WorkerDispatchDoNotCall from "@/pages/workers/dispatch-do-not-call";
 import WorkerLedgerAccounts from "@/pages/worker-ledger-accounts";
 import Stewards from "@/pages/stewards";
 import WorkerBenefitsHistory from "@/pages/worker-benefits-history";
@@ -467,6 +468,14 @@ function Router() {
         <ProtectedRoute permission="workers.view" component="dispatch">
           <AuthenticatedLayout>
             <WorkerDispatchStatus />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/dispatch/do-not-call">
+        <ProtectedRoute permission="workers.view" component="dispatch">
+          <AuthenticatedLayout>
+            <WorkerDispatchDoNotCall />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

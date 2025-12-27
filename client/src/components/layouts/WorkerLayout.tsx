@@ -28,7 +28,7 @@ export function useWorkerLayout() {
 }
 
 interface WorkerLayoutProps {
-  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "user" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "union" | "cardchecks" | "bargaining-unit" | "steward" | "representatives" | "dispatch" | "dispatch-status" | "accounting" | "logs" | "delete";
+  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "user" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "union" | "cardchecks" | "bargaining-unit" | "steward" | "representatives" | "dispatch" | "dispatch-status" | "dispatch-dnc" | "accounting" | "logs" | "delete";
   children: ReactNode;
 }
 
@@ -212,6 +212,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
 
   const dispatchSubTabs = [
     { id: "dispatch-status", label: "Status", href: `/workers/${worker.id}/dispatch/status` },
+    { id: "dispatch-dnc", label: "Do Not Call", href: `/workers/${worker.id}/dispatch/do-not-call` },
   ];
 
   // Determine if we're in a sub-tab
@@ -221,7 +222,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const isEmploymentSubTab = ["current", "history", "monthly", "daily"].includes(activeTab);
   const isBenefitsSubTab = ["benefits-history", "benefits-eligibility", "benefits-scan"].includes(activeTab);
   const isUnionSubTab = ["cardchecks", "bargaining-unit", "steward", "representatives"].includes(activeTab);
-  const isDispatchSubTab = ["dispatch-status"].includes(activeTab);
+  const isDispatchSubTab = ["dispatch-status", "dispatch-dnc"].includes(activeTab);
   const showIdentitySubTabs = isIdentitySubTab;
   const showContactSubTabs = isContactSubTab;
   const showCommSubTabs = isCommSubTab;
