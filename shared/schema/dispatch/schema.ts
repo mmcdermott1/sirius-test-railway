@@ -33,6 +33,8 @@ export const insertDispatchJobTypeSchema = createInsertSchema(optionsDispatchJob
 export const insertDispatchJobSchema = createInsertSchema(dispatchJobs).omit({
   id: true,
   createdAt: true,
+}).extend({
+  startDate: z.coerce.date(),
 });
 
 export type InsertDispatchJobType = z.infer<typeof insertDispatchJobTypeSchema>;
