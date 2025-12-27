@@ -38,6 +38,13 @@ export {
   type WorkerDispatchEligDenorm,
 } from "./schema/dispatch/schema";
 
+export {
+  workerDispatchHfe,
+  insertWorkerDispatchHfeSchema,
+  type InsertWorkerDispatchHfe,
+  type WorkerDispatchHfe,
+} from "./schema/dispatch/hfe-schema";
+
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",

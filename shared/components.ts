@@ -194,7 +194,13 @@ export const componentRegistry: ComponentDefinition[] = [
     name: "Dispatch Hold for Employer",
     description: "Hold for Employer management for dispatch",
     enabledByDefault: false,
-    category: "dispatch"
+    category: "dispatch",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/hfe-schema.ts",
+      tables: ["worker_dispatch_hfe"]
+    }
   }
 ];
 
