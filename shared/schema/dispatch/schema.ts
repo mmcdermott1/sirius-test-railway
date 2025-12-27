@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { employers } from "../../schema";
+import { employers, workers } from "../../schema";
 
 export const optionsDispatchJobType = pgTable("options_dispatch_job_type", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -42,3 +42,35 @@ export type DispatchJobType = typeof optionsDispatchJobType.$inferSelect;
 
 export type InsertDispatchJob = z.infer<typeof insertDispatchJobSchema>;
 export type DispatchJob = typeof dispatchJobs.$inferSelect;
+
+// Dispatches (worker assignments to jobs)
+export const dispatchStatusEnum = [
+  "pending", 
+  "notified", 
+  "accepted_primary", 
+  "accepted_secondary", 
+  "layoff", 
+  "resigned", 
+  "declined"
+] as const;
+export type DispatchStatus = typeof dispatchStatusEnum[number];
+
+export const dispatches = pgTable("dispatches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jobId: varchar("job_id").notNull().references(() => dispatchJobs.id, { onDelete: 'cascade' }),
+  workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
+  status: varchar("status").notNull().default("pending"),
+  data: jsonb("data"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+});
+
+export const insertDispatchSchema = createInsertSchema(dispatches).omit({
+  id: true,
+}).extend({
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+});
+
+export type InsertDispatch = z.infer<typeof insertDispatchSchema>;
+export type Dispatch = typeof dispatches.$inferSelect;
