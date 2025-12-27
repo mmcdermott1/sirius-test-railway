@@ -35,8 +35,7 @@ export interface WorkerDispatchHfeStorage {
   create(hfe: InsertWorkerDispatchHfe): Promise<WorkerDispatchHfe>;
   update(id: string, hfe: Partial<InsertWorkerDispatchHfe>): Promise<WorkerDispatchHfe | undefined>;
   delete(id: string): Promise<boolean>;
-  deleteExpired(): Promise<number>;
-  countExpired(): Promise<number>;
+  findExpired(): Promise<WorkerDispatchHfe[]>;
 }
 
 async function getWorkerName(workerId: string): Promise<string> {
@@ -175,22 +174,12 @@ export function createWorkerDispatchHfeStorage(): WorkerDispatchHfeStorage {
       return !!deleted;
     },
 
-    async deleteExpired() {
+    async findExpired() {
       const today = new Date().toISOString().split('T')[0];
-      const deleted = await db
-        .delete(workerDispatchHfe)
-        .where(lt(workerDispatchHfe.holdUntil, today))
-        .returning();
-      return deleted.length;
-    },
-
-    async countExpired() {
-      const today = new Date().toISOString().split('T')[0];
-      const result = await db
-        .select({ count: sql<number>`count(*)::int` })
+      return await db
+        .select()
         .from(workerDispatchHfe)
         .where(lt(workerDispatchHfe.holdUntil, today));
-      return result[0]?.count || 0;
     }
   };
 }
