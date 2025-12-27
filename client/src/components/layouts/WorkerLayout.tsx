@@ -28,7 +28,7 @@ export function useWorkerLayout() {
 }
 
 interface WorkerLayoutProps {
-  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "user" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "union" | "cardchecks" | "bargaining-unit" | "steward" | "representatives" | "accounting" | "logs" | "delete";
+  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "user" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "union" | "cardchecks" | "bargaining-unit" | "steward" | "representatives" | "dispatch" | "dispatch-status" | "accounting" | "logs" | "delete";
   children: ReactNode;
 }
 
@@ -161,6 +161,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     { id: "employment", label: "Employment", href: `/workers/${worker.id}/employment/current` },
     { id: "benefits", label: "Benefits", href: `/workers/${worker.id}/benefits/history` },
     ...(hasUnionTab ? [{ id: "union", label: "Union", href: `/workers/${worker.id}/union/cardchecks` }] : []),
+    ...(hasComponent("dispatch") ? [{ id: "dispatch", label: "Dispatch", href: `/workers/${worker.id}/dispatch/status` }] : []),
     ...(hasComponent("ledger") ? [{ id: "accounting", label: "Accounting", href: `/workers/${worker.id}/ledger/accounts` }] : []),
     { id: "logs", label: "Logs", href: `/workers/${worker.id}/logs` },
     { id: "delete", label: "Delete", href: `/workers/${worker.id}/delete` },
@@ -209,6 +210,10 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     { id: "benefits-scan", label: "Scan", href: `/workers/${worker.id}/benefits/scan` },
   ];
 
+  const dispatchSubTabs = [
+    { id: "dispatch-status", label: "Status", href: `/workers/${worker.id}/dispatch/status` },
+  ];
+
   // Determine if we're in a sub-tab
   const isIdentitySubTab = ["name", "ids", "birth-date", "gender", "work-status", "user"].includes(activeTab);
   const isContactSubTab = ["email", "addresses", "phone-numbers"].includes(activeTab);
@@ -216,12 +221,14 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const isEmploymentSubTab = ["current", "history", "monthly", "daily"].includes(activeTab);
   const isBenefitsSubTab = ["benefits-history", "benefits-eligibility", "benefits-scan"].includes(activeTab);
   const isUnionSubTab = ["cardchecks", "bargaining-unit", "steward", "representatives"].includes(activeTab);
+  const isDispatchSubTab = ["dispatch-status"].includes(activeTab);
   const showIdentitySubTabs = isIdentitySubTab;
   const showContactSubTabs = isContactSubTab;
   const showCommSubTabs = isCommSubTab;
   const showEmploymentSubTabs = isEmploymentSubTab;
   const showBenefitsSubTabs = isBenefitsSubTab;
   const showUnionSubTabs = isUnionSubTab;
+  const showDispatchSubTabs = isDispatchSubTab;
 
   const contextValue: WorkerLayoutContextValue = {
     worker,
@@ -263,7 +270,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-2 py-3">
               {mainTabs.map((tab) => {
-                const isActive = tab.id === activeTab || (tab.id === "identity" && isIdentitySubTab) || (tab.id === "contact" && isContactSubTab) || (tab.id === "comm" && isCommSubTab) || (tab.id === "employment" && isEmploymentSubTab) || (tab.id === "benefits" && isBenefitsSubTab) || (tab.id === "union" && isUnionSubTab);
+                const isActive = tab.id === activeTab || (tab.id === "identity" && isIdentitySubTab) || (tab.id === "contact" && isContactSubTab) || (tab.id === "comm" && isCommSubTab) || (tab.id === "employment" && isEmploymentSubTab) || (tab.id === "benefits" && isBenefitsSubTab) || (tab.id === "union" && isUnionSubTab) || (tab.id === "dispatch" && isDispatchSubTab);
                 return isActive ? (
                   <Button
                     key={tab.id}
@@ -455,6 +462,38 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center space-x-2 py-2 pl-4">
                 {unionSubTabs.map((tab) => (
+                  tab.id === activeTab ? (
+                    <Button
+                      key={tab.id}
+                      variant="secondary"
+                      size="sm"
+                      data-testid={`button-worker-${tab.id}`}
+                    >
+                      {tab.label}
+                    </Button>
+                  ) : (
+                    <Link key={tab.id} href={tab.href}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`button-worker-${tab.id}`}
+                      >
+                        {tab.label}
+                      </Button>
+                    </Link>
+                  )
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dispatch Sub-Tab Navigation */}
+        {showDispatchSubTabs && (
+          <div className="bg-muted/30 border-b border-border">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center space-x-2 py-2 pl-4">
+                {dispatchSubTabs.map((tab) => (
                   tab.id === activeTab ? (
                     <Button
                       key={tab.id}

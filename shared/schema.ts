@@ -12,6 +12,9 @@ export {
   dispatches,
   dispatchStatusEnum,
   insertDispatchSchema,
+  workerDispatchStatus,
+  workerDispatchStatusEnum,
+  insertWorkerDispatchStatusSchema,
   type DispatchJobStatus,
   type InsertDispatchJobType,
   type DispatchJobType,
@@ -20,6 +23,9 @@ export {
   type DispatchStatus,
   type InsertDispatch,
   type Dispatch,
+  type WorkerDispatchStatusOption,
+  type InsertWorkerDispatchStatus,
+  type WorkerDispatchStatus,
 } from "./schema/dispatch/schema";
 
 // Session storage table for Replit Auth

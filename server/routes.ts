@@ -57,6 +57,8 @@ import { registerFloodEventRoutes } from "./modules/flood-events";
 import { registerEventsRoutes } from "./modules/events";
 import { registerDispatchJobsRoutes } from "./modules/dispatch-jobs";
 import { registerDispatchesRoutes } from "./modules/dispatches";
+import workerDispatchStatusRouter from "./modules/worker-dispatch-status";
+import { requireComponent } from "./modules/components";
 import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
 import { registerBtuCsgRoutes } from "./modules/sitespecific-btu-csg";
 import { registerTerminologyRoutes } from "./modules/terminology";
@@ -973,6 +975,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register dispatches routes
   registerDispatchesRoutes(app, requireAuth, requirePermission);
+
+  // Register worker dispatch status routes
+  const dispatchComponent = requireComponent("dispatch");
+  app.use("/api/worker-dispatch-status", requireAuth, dispatchComponent, requirePermission("workers.view"), workerDispatchStatusRouter);
 
   // Register site-specific routes
   registerBtuCsgRoutes(app, requireAuth, requirePermission);
