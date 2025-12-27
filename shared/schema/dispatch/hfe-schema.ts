@@ -14,7 +14,7 @@ export const workerDispatchHfe = pgTable("worker_dispatch_hfe", {
 export const insertWorkerDispatchHfeSchema = createInsertSchema(workerDispatchHfe).omit({
   id: true,
 }).extend({
-  holdUntil: z.coerce.date(),
+  holdUntil: z.string(),
 });
 
 export type InsertWorkerDispatchHfe = z.infer<typeof insertWorkerDispatchHfeSchema>;

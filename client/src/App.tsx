@@ -33,6 +33,7 @@ import WorkerSteward from "@/pages/worker-steward";
 import WorkerRepresentatives from "@/pages/worker-representatives";
 import WorkerDispatchStatus from "@/pages/workers/dispatch-status";
 import WorkerDispatchDoNotCall from "@/pages/workers/dispatch-do-not-call";
+import WorkerDispatchHoldForEmployer from "@/pages/workers/dispatch-hold-for-employer";
 import WorkerLedgerAccounts from "@/pages/worker-ledger-accounts";
 import Stewards from "@/pages/stewards";
 import WorkerBenefitsHistory from "@/pages/worker-benefits-history";
@@ -476,6 +477,14 @@ function Router() {
         <ProtectedRoute permission="workers.view" component="dispatch">
           <AuthenticatedLayout>
             <WorkerDispatchDoNotCall />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/dispatch/hold-for-employer">
+        <ProtectedRoute permission="workers.view" component="dispatch.hfe">
+          <AuthenticatedLayout>
+            <WorkerDispatchHoldForEmployer />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

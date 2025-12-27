@@ -59,6 +59,7 @@ import { registerDispatchJobsRoutes } from "./modules/dispatch-jobs";
 import { registerDispatchesRoutes } from "./modules/dispatches";
 import workerDispatchStatusRouter from "./modules/worker-dispatch-status";
 import workerDispatchDncRouter from "./modules/worker-dispatch-dnc";
+import workerDispatchHfeRouter from "./modules/worker-dispatch-hfe";
 import { requireComponent } from "./modules/components";
 import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
 import { registerBtuCsgRoutes } from "./modules/sitespecific-btu-csg";
@@ -983,6 +984,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register worker dispatch DNC routes
   app.use("/api/worker-dispatch-dnc", requireAuth, dispatchComponent, requirePermission("workers.view"), workerDispatchDncRouter);
+
+  // Register worker dispatch HFE routes
+  const hfeComponent = requireComponent("dispatch.hfe");
+  app.use("/api/worker-dispatch-hfe", requireAuth, dispatchComponent, hfeComponent, requirePermission("workers.view"), workerDispatchHfeRouter);
 
   // Register site-specific routes
   registerBtuCsgRoutes(app, requireAuth, requirePermission);
