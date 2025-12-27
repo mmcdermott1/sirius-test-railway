@@ -8,7 +8,7 @@ import { setupAuth } from "./replitAuth";
 import { initAccessControl } from "./accessControl";
 import { storage } from "./storage";
 import { captureRequestContext } from "./middleware/request-context";
-import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler, deleteExpiredFloodEventsHandler } from "./cron";
+import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler, deleteExpiredFloodEventsHandler, deleteExpiredHfeHandler } from "./cron";
 import { loadComponentCache } from "./services/component-cache";
 import { runMigrations } from "../scripts/migrate";
 import { initializeWebSocket } from "./services/websocket";
@@ -176,6 +176,7 @@ app.use((req, res, next) => {
   registerCronJob('delete-old-cron-logs', deleteOldCronLogsHandler);
   registerCronJob('process-wmb-batch', processWmbBatchHandler);
   registerCronJob('delete-expired-flood-events', deleteExpiredFloodEventsHandler);
+  registerCronJob('delete-expired-hfe', deleteExpiredHfeHandler);
   logger.info("Cron job handlers registered", { source: "startup" });
 
   // Register flood events

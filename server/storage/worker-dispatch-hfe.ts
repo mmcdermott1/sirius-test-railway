@@ -7,7 +7,7 @@ import {
   type WorkerDispatchHfe, 
   type InsertWorkerDispatchHfe
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, lt, sql } from "drizzle-orm";
 import { type StorageLoggingConfig } from "./middleware/logging";
 
 export interface WorkerDispatchHfeWithRelations extends WorkerDispatchHfe {
@@ -35,6 +35,8 @@ export interface WorkerDispatchHfeStorage {
   create(hfe: InsertWorkerDispatchHfe): Promise<WorkerDispatchHfe>;
   update(id: string, hfe: Partial<InsertWorkerDispatchHfe>): Promise<WorkerDispatchHfe | undefined>;
   delete(id: string): Promise<boolean>;
+  deleteExpired(): Promise<number>;
+  countExpired(): Promise<number>;
 }
 
 async function getWorkerName(workerId: string): Promise<string> {
@@ -171,6 +173,24 @@ export function createWorkerDispatchHfeStorage(): WorkerDispatchHfeStorage {
         .where(eq(workerDispatchHfe.id, id))
         .returning();
       return !!deleted;
+    },
+
+    async deleteExpired() {
+      const today = new Date().toISOString().split('T')[0];
+      const deleted = await db
+        .delete(workerDispatchHfe)
+        .where(lt(workerDispatchHfe.holdUntil, today))
+        .returning();
+      return deleted.length;
+    },
+
+    async countExpired() {
+      const today = new Date().toISOString().split('T')[0];
+      const result = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(workerDispatchHfe)
+        .where(lt(workerDispatchHfe.holdUntil, today));
+      return result[0]?.count || 0;
     }
   };
 }

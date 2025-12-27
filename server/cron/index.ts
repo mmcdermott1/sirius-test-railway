@@ -6,3 +6,4 @@ export { deleteExpiredReportsHandler } from './jobs/deleteExpiredReports';
 export { deleteOldCronLogsHandler } from './jobs/deleteOldCronLogs';
 export { processWmbBatchHandler } from './jobs/processWmbBatch';
 export { deleteExpiredFloodEventsHandler } from './jobs/deleteExpiredFloodEvents';
+export { deleteExpiredHfeHandler } from './jobs/deleteExpiredHfe';

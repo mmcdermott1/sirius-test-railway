@@ -36,6 +36,12 @@ const DEFAULT_CRON_JOBS: DefaultCronJob[] = [
     schedule: '0 * * * *', // Every hour at minute 0
     isEnabled: true,
   },
+  {
+    name: 'delete-expired-hfe',
+    description: 'Deletes Hold for Employer entries where the hold date has passed',
+    schedule: '0 4 * * *', // Daily at 4 AM
+    isEnabled: true,
+  },
 ];
 
 export async function bootstrapCronJobs(): Promise<void> {
