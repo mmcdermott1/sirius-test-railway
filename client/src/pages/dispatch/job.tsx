@@ -99,7 +99,7 @@ const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   employerId: z.string().min(1, "Employer is required"),
-  jobTypeId: z.string().optional(),
+  jobTypeId: z.string().min(1, "Job type is required"),
   status: z.enum(dispatchJobStatusEnum),
   startDate: z.string().min(1, "Start date is required"),
 });
@@ -311,18 +311,14 @@ function DispatchJobPageInner() {
             name="jobTypeId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Job Type</FormLabel>
-                <Select 
-                  onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)} 
-                  value={field.value || "__none__"}
-                >
+                <FormLabel>Job Type *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-jobtype">
                       <SelectValue placeholder="Select job type" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="__none__">No type</SelectItem>
                     {jobTypes.map((type) => (
                       <SelectItem key={type.id} value={type.id}>
                         {type.name}
