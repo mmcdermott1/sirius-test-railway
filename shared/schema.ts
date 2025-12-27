@@ -48,6 +48,14 @@ export {
   type WorkerDispatchHfe,
 } from "./schema/dispatch/hfe-schema";
 
+export {
+  eligibilityPluginConfigSchema,
+  jobTypeEligibilitySchema,
+  type EligibilityPluginConfig,
+  type JobTypeEligibility,
+  type EligibilityPluginMetadata,
+} from "./schema/dispatch/eligibility-config";
+
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",

@@ -1,8 +1,11 @@
 import { logger } from "../logger";
 import { isComponentEnabledSync } from "./component-cache";
+import type { EligibilityPluginMetadata } from "@shared/schema";
 
 export interface DispatchEligPlugin {
   id: string;
+  name: string;
+  description: string;
   componentId: string;
   recomputeWorker(workerId: string): Promise<void>;
 }
@@ -66,6 +69,16 @@ class DispatchEligPluginRegistry {
 
   getAllPluginIds(): string[] {
     return Array.from(this.plugins.keys());
+  }
+
+  getAllPluginsMetadata(): EligibilityPluginMetadata[] {
+    return Array.from(this.plugins.values()).map(plugin => ({
+      id: plugin.id,
+      name: plugin.name,
+      description: plugin.description,
+      componentId: plugin.componentId,
+      componentEnabled: isComponentEnabledSync(plugin.componentId),
+    }));
   }
 }
 

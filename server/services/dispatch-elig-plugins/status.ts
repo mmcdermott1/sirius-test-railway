@@ -8,6 +8,8 @@ const AVAILABLE_VALUE = "Available";
 
 export const dispatchStatusPlugin: DispatchEligPlugin = {
   id: "dispatch_status",
+  name: "Dispatch Availability",
+  description: "Only includes workers whose dispatch status is set to Available",
   componentId: "dispatch",
 
   async recomputeWorker(workerId: string): Promise<void> {
