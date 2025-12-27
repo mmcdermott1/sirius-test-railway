@@ -3,6 +3,19 @@ import { pgTable, pgEnum, text, varchar, boolean, timestamp, date, primaryKey, j
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export {
+  optionsDispatchJobType,
+  dispatchJobs,
+  dispatchJobStatusEnum,
+  insertDispatchJobTypeSchema,
+  insertDispatchJobSchema,
+  type DispatchJobStatus,
+  type InsertDispatchJobType,
+  type DispatchJobType,
+  type InsertDispatchJob,
+  type DispatchJob,
+} from "./schema/dispatch/schema";
+
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",
@@ -282,28 +295,6 @@ export const optionsTrustProviderType = pgTable("options_trust_provider_type", {
   name: text("name").notNull(),
   description: text("description"),
   data: jsonb("data"),
-});
-
-export const optionsDispatchJobType = pgTable("options_dispatch_job_type", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  data: jsonb("data"),
-});
-
-export const dispatchJobStatusEnum = ["draft", "open", "running", "closed", "archived"] as const;
-export type DispatchJobStatus = typeof dispatchJobStatusEnum[number];
-
-export const dispatchJobs = pgTable("dispatch_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
-  jobTypeId: varchar("job_type_id").references(() => optionsDispatchJobType.id, { onDelete: 'set null' }),
-  title: text("title").notNull(),
-  description: text("description"),
-  status: varchar("status").notNull().default("draft"),
-  startDate: timestamp("start_date").notNull(),
-  data: jsonb("data"),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
 export const optionsEventType = pgTable("options_event_type", {
@@ -796,15 +787,6 @@ export const insertTrustProviderTypeSchema = createInsertSchema(optionsTrustProv
   id: true,
 });
 
-export const insertDispatchJobTypeSchema = createInsertSchema(optionsDispatchJobType).omit({
-  id: true,
-});
-
-export const insertDispatchJobSchema = createInsertSchema(dispatchJobs).omit({
-  id: true,
-  createdAt: true,
-});
-
 export const insertEventTypeSchema = createInsertSchema(optionsEventType).omit({
   id: true,
 });
@@ -1005,12 +987,6 @@ export type EmployerType = typeof optionsEmployerType.$inferSelect;
 
 export type InsertTrustProviderType = z.infer<typeof insertTrustProviderTypeSchema>;
 export type TrustProviderType = typeof optionsTrustProviderType.$inferSelect;
-
-export type InsertDispatchJobType = z.infer<typeof insertDispatchJobTypeSchema>;
-export type DispatchJobType = typeof optionsDispatchJobType.$inferSelect;
-
-export type InsertDispatchJob = z.infer<typeof insertDispatchJobSchema>;
-export type DispatchJob = typeof dispatchJobs.$inferSelect;
 
 export type InsertEventType = z.infer<typeof insertEventTypeSchema>;
 export type EventType = typeof optionsEventType.$inferSelect;

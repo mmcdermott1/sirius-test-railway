@@ -174,7 +174,13 @@ export const componentRegistry: ComponentDefinition[] = [
     name: "Dispatch",
     description: "Dispatch functionality",
     enabledByDefault: false,
-    category: "core"
+    category: "core",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/schema.ts",
+      tables: ["options_dispatch_job_type", "dispatch_jobs"]
+    }
   }
 ];
 
