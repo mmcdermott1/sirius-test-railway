@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Component, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -38,6 +38,50 @@ import { Link } from "wouter";
 import { dispatchJobStatusEnum, type Employer, type DispatchJobType } from "@shared/schema";
 import type { DispatchJobWithRelations } from "../../../../server/storage/dispatch-jobs";
 
+// Error boundary for catching render errors
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: { componentStack: string }) {
+    console.error("[DispatchJobPage] Error caught by boundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="container mx-auto py-8">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <h2 className="text-xl font-semibold text-destructive mb-2">Something went wrong</h2>
+              <p className="text-muted-foreground mb-4">
+                {this.state.error?.message || "An unexpected error occurred"}
+              </p>
+              <pre className="text-left text-xs bg-muted p-4 rounded overflow-auto max-h-48">
+                {this.state.error?.stack}
+              </pre>
+              <Link href="/dispatch/jobs">
+                <Button variant="outline" className="mt-4">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Jobs
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const iconMap: Record<string, LucideIcon> = {
   Briefcase, Truck, HardHat, Wrench, Clock, Calendar,
   ClipboardList, Package, MapPin, Users,
@@ -62,13 +106,15 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export default function DispatchJobPage() {
+function DispatchJobPageInner() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const isNew = !id || id === "new";
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<string>(isNew ? "edit" : "view");
+  const [activeTab, setActiveTab] = useState<string>("view");
+  
+  console.log("[DispatchJobPage] Rendering with id:", id, "isNew:", isNew);
 
   const { data: employers = [] } = useQuery<Employer[]>({
     queryKey: ["/api/employers"],
@@ -472,5 +518,13 @@ export default function DispatchJobPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function DispatchJobPage() {
+  return (
+    <ErrorBoundary>
+      <DispatchJobPageInner />
+    </ErrorBoundary>
   );
 }
