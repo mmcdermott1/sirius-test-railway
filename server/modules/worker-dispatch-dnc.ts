@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { insertDispatchWorkerDncSchema } from "@shared/schema";
-import { createDispatchWorkerDncStorage, dispatchWorkerDncLoggingConfig } from "../storage/dispatch-worker-dnc";
+import { insertWorkerDispatchDncSchema } from "@shared/schema";
+import { createWorkerDispatchDncStorage, workerDispatchDncLoggingConfig } from "../storage/worker-dispatch-dnc";
 import { withStorageLogging } from "../storage/middleware/logging";
 import { z } from "zod";
 import { db } from "../db";
@@ -10,8 +10,8 @@ import { eq, inArray } from "drizzle-orm";
 const router = Router();
 
 const storage = withStorageLogging(
-  createDispatchWorkerDncStorage(),
-  dispatchWorkerDncLoggingConfig
+  createWorkerDispatchDncStorage(),
+  workerDispatchDncLoggingConfig
 );
 
 async function enrichWithEmployer(entries: any[]) {
@@ -69,7 +69,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const validated = insertDispatchWorkerDncSchema.parse(req.body);
+    const validated = insertWorkerDispatchDncSchema.parse(req.body);
     const entry = await storage.create(validated);
     const [enriched] = await enrichWithEmployer([entry]);
     res.status(201).json(enriched);
@@ -84,7 +84,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.put("/:id", async (req: Request, res: Response) => {
   try {
-    const validated = insertDispatchWorkerDncSchema.partial().parse(req.body);
+    const validated = insertWorkerDispatchDncSchema.partial().parse(req.body);
     const entry = await storage.update(req.params.id, validated);
     if (!entry) {
       return res.status(404).json({ error: "DNC entry not found" });

@@ -100,7 +100,7 @@ export type WorkerDispatchStatus = typeof workerDispatchStatus.$inferSelect;
 export const dispatchWorkerDncTypeEnum = ["employer", "worker"] as const;
 export type DispatchWorkerDncType = typeof dispatchWorkerDncTypeEnum[number];
 
-export const dispatchWorkerDnc = pgTable("dispatch_worker_dnc", {
+export const workerDispatchDnc = pgTable("worker_dispatch_dnc", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
   employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
@@ -111,11 +111,11 @@ export const dispatchWorkerDnc = pgTable("dispatch_worker_dnc", {
   workerEmployerTypeUnique: sql`UNIQUE(${table.workerId}, ${table.employerId}, ${table.type})`,
 }));
 
-export const insertDispatchWorkerDncSchema = createInsertSchema(dispatchWorkerDnc).omit({
+export const insertWorkerDispatchDncSchema = createInsertSchema(workerDispatchDnc).omit({
   id: true,
 }).extend({
   type: z.enum(dispatchWorkerDncTypeEnum),
 });
 
-export type InsertDispatchWorkerDnc = z.infer<typeof insertDispatchWorkerDncSchema>;
-export type DispatchWorkerDnc = typeof dispatchWorkerDnc.$inferSelect;
+export type InsertWorkerDispatchDnc = z.infer<typeof insertWorkerDispatchDncSchema>;
+export type WorkerDispatchDnc = typeof workerDispatchDnc.$inferSelect;

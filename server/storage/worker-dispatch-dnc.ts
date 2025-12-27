@@ -1,16 +1,16 @@
 import { db } from "../db";
 import { 
-  dispatchWorkerDnc,
+  workerDispatchDnc,
   workers,
   contacts,
   employers,
-  type DispatchWorkerDnc, 
-  type InsertDispatchWorkerDnc
+  type WorkerDispatchDnc, 
+  type InsertWorkerDispatchDnc
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { type StorageLoggingConfig } from "./middleware/logging";
 
-export interface DispatchWorkerDncWithRelations extends DispatchWorkerDnc {
+export interface WorkerDispatchDncWithRelations extends WorkerDispatchDnc {
   worker?: {
     id: string;
     siriusId: number | null;
@@ -27,14 +27,14 @@ export interface DispatchWorkerDncWithRelations extends DispatchWorkerDnc {
   } | null;
 }
 
-export interface DispatchWorkerDncStorage {
-  getAll(): Promise<DispatchWorkerDnc[]>;
-  get(id: string): Promise<DispatchWorkerDnc | undefined>;
-  getByWorker(workerId: string): Promise<DispatchWorkerDnc[]>;
-  getByEmployer(employerId: string): Promise<DispatchWorkerDnc[]>;
-  getByWorkerAndEmployer(workerId: string, employerId: string): Promise<DispatchWorkerDnc[]>;
-  create(dnc: InsertDispatchWorkerDnc): Promise<DispatchWorkerDnc>;
-  update(id: string, dnc: Partial<InsertDispatchWorkerDnc>): Promise<DispatchWorkerDnc | undefined>;
+export interface WorkerDispatchDncStorage {
+  getAll(): Promise<WorkerDispatchDnc[]>;
+  get(id: string): Promise<WorkerDispatchDnc | undefined>;
+  getByWorker(workerId: string): Promise<WorkerDispatchDnc[]>;
+  getByEmployer(employerId: string): Promise<WorkerDispatchDnc[]>;
+  getByWorkerAndEmployer(workerId: string, employerId: string): Promise<WorkerDispatchDnc[]>;
+  create(dnc: InsertWorkerDispatchDnc): Promise<WorkerDispatchDnc>;
+  update(id: string, dnc: Partial<InsertWorkerDispatchDnc>): Promise<WorkerDispatchDnc | undefined>;
   delete(id: string): Promise<boolean>;
 }
 
@@ -62,8 +62,8 @@ async function getEmployerName(employerId: string): Promise<string> {
   return employer?.name || 'Unknown Employer';
 }
 
-export const dispatchWorkerDncLoggingConfig: StorageLoggingConfig<DispatchWorkerDncStorage> = {
-  module: 'dispatch-worker-dnc',
+export const workerDispatchDncLoggingConfig: StorageLoggingConfig<WorkerDispatchDncStorage> = {
+  module: 'worker-dispatch-dnc',
   methods: {
     create: {
       enabled: true,
@@ -119,65 +119,65 @@ export const dispatchWorkerDncLoggingConfig: StorageLoggingConfig<DispatchWorker
   }
 };
 
-export function createDispatchWorkerDncStorage(): DispatchWorkerDncStorage {
+export function createWorkerDispatchDncStorage(): WorkerDispatchDncStorage {
   return {
     async getAll() {
-      return await db.select().from(dispatchWorkerDnc);
+      return await db.select().from(workerDispatchDnc);
     },
 
     async get(id: string) {
       const [result] = await db
         .select()
-        .from(dispatchWorkerDnc)
-        .where(eq(dispatchWorkerDnc.id, id));
+        .from(workerDispatchDnc)
+        .where(eq(workerDispatchDnc.id, id));
       return result;
     },
 
     async getByWorker(workerId: string) {
       return await db
         .select()
-        .from(dispatchWorkerDnc)
-        .where(eq(dispatchWorkerDnc.workerId, workerId));
+        .from(workerDispatchDnc)
+        .where(eq(workerDispatchDnc.workerId, workerId));
     },
 
     async getByEmployer(employerId: string) {
       return await db
         .select()
-        .from(dispatchWorkerDnc)
-        .where(eq(dispatchWorkerDnc.employerId, employerId));
+        .from(workerDispatchDnc)
+        .where(eq(workerDispatchDnc.employerId, employerId));
     },
 
     async getByWorkerAndEmployer(workerId: string, employerId: string) {
       return await db
         .select()
-        .from(dispatchWorkerDnc)
+        .from(workerDispatchDnc)
         .where(and(
-          eq(dispatchWorkerDnc.workerId, workerId),
-          eq(dispatchWorkerDnc.employerId, employerId)
+          eq(workerDispatchDnc.workerId, workerId),
+          eq(workerDispatchDnc.employerId, employerId)
         ));
     },
 
-    async create(dnc: InsertDispatchWorkerDnc) {
+    async create(dnc: InsertWorkerDispatchDnc) {
       const [result] = await db
-        .insert(dispatchWorkerDnc)
+        .insert(workerDispatchDnc)
         .values(dnc)
         .returning();
       return result;
     },
 
-    async update(id: string, dnc: Partial<InsertDispatchWorkerDnc>) {
+    async update(id: string, dnc: Partial<InsertWorkerDispatchDnc>) {
       const [result] = await db
-        .update(dispatchWorkerDnc)
+        .update(workerDispatchDnc)
         .set(dnc)
-        .where(eq(dispatchWorkerDnc.id, id))
+        .where(eq(workerDispatchDnc.id, id))
         .returning();
       return result;
     },
 
     async delete(id: string) {
       const result = await db
-        .delete(dispatchWorkerDnc)
-        .where(eq(dispatchWorkerDnc.id, id))
+        .delete(workerDispatchDnc)
+        .where(eq(workerDispatchDnc.id, id))
         .returning();
       return result.length > 0;
     }

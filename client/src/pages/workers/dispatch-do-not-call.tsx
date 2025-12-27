@@ -13,14 +13,14 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { PhoneOff, Plus, Trash2, Building2 } from "lucide-react";
-import type { DispatchWorkerDnc } from "@shared/schema";
+import type { WorkerDispatchDnc } from "@shared/schema";
 
 interface Employer {
   id: string;
   name: string;
 }
 
-interface DncWithEmployer extends DispatchWorkerDnc {
+interface DncWithEmployer extends WorkerDispatchDnc {
   employer?: Employer | null;
 }
 
@@ -33,7 +33,7 @@ function DispatchDoNotCallContent() {
   const [newMessage, setNewMessage] = useState<string>("");
 
   const { data: dncEntries = [], isLoading } = useQuery<DncWithEmployer[]>({
-    queryKey: ["/api/dispatch-worker-dnc/worker", worker.id],
+    queryKey: ["/api/worker-dispatch-dnc/worker", worker.id],
   });
 
   const { data: employers = [] } = useQuery<Employer[]>({
@@ -42,10 +42,10 @@ function DispatchDoNotCallContent() {
 
   const createMutation = useMutation({
     mutationFn: async (data: { workerId: string; employerId: string; type: string; message: string | null }) => {
-      return apiRequest("POST", "/api/dispatch-worker-dnc", data);
+      return apiRequest("POST", "/api/worker-dispatch-dnc", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dispatch-worker-dnc/worker", worker.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/worker-dispatch-dnc/worker", worker.id] });
       toast({
         title: "Entry added",
         description: "The Do Not Call entry has been added.",
@@ -66,10 +66,10 @@ function DispatchDoNotCallContent() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/dispatch-worker-dnc/${id}`);
+      return apiRequest("DELETE", `/api/worker-dispatch-dnc/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dispatch-worker-dnc/worker", worker.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/worker-dispatch-dnc/worker", worker.id] });
       toast({
         title: "Entry removed",
         description: "The Do Not Call entry has been removed.",
