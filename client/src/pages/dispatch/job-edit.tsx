@@ -27,19 +27,19 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Save } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
-import { dispatchJobStatusEnum, type Employer, type DispatchJobType } from "@shared/schema";
+import { dispatchJobStatusEnum, type Employer, type DispatchJobType, type JobTypeData } from "@shared/schema";
 import { DispatchJobLayout, useDispatchJobLayout } from "@/components/layouts/DispatchJobLayout";
+import { useEffect, useMemo } from "react";
 
-const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  employerId: z.string().min(1, "Employer is required"),
-  jobTypeId: z.string().min(1, "Job type is required"),
-  status: z.enum(dispatchJobStatusEnum),
-  startDate: z.string().min(1, "Start date is required"),
-});
-
-type FormData = z.infer<typeof formSchema>;
+type FormData = {
+  title: string;
+  description?: string;
+  employerId: string;
+  jobTypeId: string;
+  status: typeof dispatchJobStatusEnum[number];
+  startDate: string;
+  workerCount: string;
+};
 
 function DispatchJobEditContent() {
   const { job } = useDispatchJobLayout();
@@ -55,7 +55,6 @@ function DispatchJobEditContent() {
   });
 
   const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
     defaultValues: {
       title: job.title,
       description: job.description || "",
@@ -63,15 +62,35 @@ function DispatchJobEditContent() {
       jobTypeId: job.jobTypeId || "",
       status: job.status as typeof dispatchJobStatusEnum[number],
       startDate: format(new Date(job.startDate), "yyyy-MM-dd"),
+      workerCount: job.workerCount?.toString() || "",
     },
   });
 
+  const watchedJobTypeId = form.watch("jobTypeId");
+
+  const selectedJobType = useMemo(() => {
+    return jobTypes.find(jt => jt.id === watchedJobTypeId);
+  }, [jobTypes, watchedJobTypeId]);
+
+  const jobTypeData = selectedJobType?.data as JobTypeData | undefined;
+  const minWorkers = jobTypeData?.minWorkers;
+  const maxWorkers = jobTypeData?.maxWorkers;
+  const isFixedWorkerCount = minWorkers !== undefined && maxWorkers !== undefined && minWorkers === maxWorkers;
+
+  useEffect(() => {
+    if (isFixedWorkerCount && minWorkers !== undefined) {
+      form.setValue("workerCount", minWorkers.toString());
+    }
+  }, [isFixedWorkerCount, minWorkers, form]);
+
   const updateMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      const workerCountNum = data.workerCount ? parseInt(data.workerCount, 10) : null;
       return apiRequest("PUT", `/api/dispatch-jobs/${job.id}`, {
         ...data,
         jobTypeId: data.jobTypeId || null,
         startDate: new Date(data.startDate).toISOString(),
+        workerCount: workerCountNum,
       });
     },
     onSuccess: () => {
@@ -93,6 +112,40 @@ function DispatchJobEditContent() {
   });
 
   const onSubmit = (data: FormData) => {
+    if (!data.title.trim()) {
+      toast({ title: "Error", description: "Title is required", variant: "destructive" });
+      return;
+    }
+    if (!data.employerId) {
+      toast({ title: "Error", description: "Employer is required", variant: "destructive" });
+      return;
+    }
+    if (!data.jobTypeId) {
+      toast({ title: "Error", description: "Job type is required", variant: "destructive" });
+      return;
+    }
+    if (!data.startDate) {
+      toast({ title: "Error", description: "Start date is required", variant: "destructive" });
+      return;
+    }
+
+    const workerCountNum = data.workerCount ? parseInt(data.workerCount, 10) : null;
+    
+    if (workerCountNum === null) {
+      toast({ title: "Error", description: "Worker count is required", variant: "destructive" });
+      return;
+    }
+
+    if (minWorkers !== undefined && workerCountNum < minWorkers) {
+      toast({ title: "Error", description: `Worker count must be at least ${minWorkers}`, variant: "destructive" });
+      return;
+    }
+
+    if (maxWorkers !== undefined && workerCountNum > maxWorkers) {
+      toast({ title: "Error", description: `Worker count must be at most ${maxWorkers}`, variant: "destructive" });
+      return;
+    }
+
     updateMutation.mutate(data);
   };
 
@@ -233,6 +286,48 @@ function DispatchJobEditContent() {
                 )}
               />
             </div>
+
+            {!isFixedWorkerCount ? (
+              <FormField
+                control={form.control}
+                name="workerCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Worker Count *
+                      {minWorkers !== undefined && maxWorkers !== undefined && (
+                        <span className="text-muted-foreground ml-2 font-normal">
+                          ({minWorkers} - {maxWorkers})
+                        </span>
+                      )}
+                      {minWorkers !== undefined && maxWorkers === undefined && (
+                        <span className="text-muted-foreground ml-2 font-normal">
+                          (min: {minWorkers})
+                        </span>
+                      )}
+                      {minWorkers === undefined && maxWorkers !== undefined && (
+                        <span className="text-muted-foreground ml-2 font-normal">
+                          (max: {maxWorkers})
+                        </span>
+                      )}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        min={minWorkers ?? 1}
+                        max={maxWorkers}
+                        placeholder="Number of workers"
+                        data-testid="input-workercount"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <input type="hidden" {...form.register("workerCount")} />
+            )}
 
             <div className="flex items-center gap-2 pt-4">
               <Button
