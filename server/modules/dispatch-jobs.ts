@@ -6,6 +6,7 @@ import { policies } from "../policies";
 import { requireComponent } from "./components";
 import type { DispatchJobFilters } from "../storage/dispatch-jobs";
 import { dispatchEligPluginRegistry } from "../services/dispatch-elig-plugin-registry";
+import { createDispatchEligibleWorkersStorage } from "../storage/dispatch-eligible-workers";
 
 export function registerDispatchJobsRoutes(
   app: Express,
@@ -192,6 +193,24 @@ export function registerDispatchJobsRoutes(
       res.json(plugins);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch eligibility plugins" });
+    }
+  });
+
+  app.get("/api/dispatch-jobs/:id/eligible-workers", dispatchComponent, requireAccess(policies.admin), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { limit: limitParam, offset: offsetParam } = req.query;
+      
+      const limit = Math.min(parseInt(limitParam as string) || 100, 500);
+      const offset = parseInt(offsetParam as string) || 0;
+      
+      const eligibleWorkersStorage = createDispatchEligibleWorkersStorage();
+      const result = await eligibleWorkersStorage.getEligibleWorkersForJob(id, limit, offset);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch eligible workers:", error);
+      res.status(500).json({ message: "Failed to fetch eligible workers" });
     }
   });
 }
