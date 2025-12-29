@@ -2,6 +2,7 @@ import { logger } from "../../logger";
 import { createWorkerDispatchHfeStorage } from "../../storage/worker-dispatch-hfe";
 import { createWorkerDispatchEligDenormStorage } from "../../storage/worker-dispatch-elig-denorm";
 import type { DispatchEligPlugin, EligibilityCondition, EligibilityQueryContext } from "../dispatch-elig-plugin-registry";
+import { EventType } from "../event-bus";
 
 const HFE_CATEGORY = "hfe";
 
@@ -10,6 +11,13 @@ export const dispatchHfePlugin: DispatchEligPlugin = {
   name: "Hold for Employer",
   description: "Only includes workers who are being held for a specific employer",
   componentId: "dispatch.hfe",
+
+  eventHandlers: [
+    {
+      event: EventType.DISPATCH_HFE_SAVED,
+      getWorkerId: (payload) => payload.workerId,
+    },
+  ],
 
   getEligibilityCondition(context: EligibilityQueryContext, _config: Record<string, unknown>): EligibilityCondition | null {
     // Workers must either have no HFE entries, OR have one matching this employer

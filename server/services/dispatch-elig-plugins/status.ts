@@ -2,6 +2,7 @@ import { logger } from "../../logger";
 import { createWorkerDispatchStatusStorage } from "../../storage/worker-dispatch-status";
 import { createWorkerDispatchEligDenormStorage } from "../../storage/worker-dispatch-elig-denorm";
 import type { DispatchEligPlugin, EligibilityCondition, EligibilityQueryContext } from "../dispatch-elig-plugin-registry";
+import { EventType } from "../event-bus";
 
 const DISPSTATUS_CATEGORY = "dispstatus";
 const AVAILABLE_VALUE = "Available";
@@ -11,6 +12,13 @@ export const dispatchStatusPlugin: DispatchEligPlugin = {
   name: "Dispatch Availability",
   description: "Only includes workers whose dispatch status is set to Available",
   componentId: "dispatch",
+
+  eventHandlers: [
+    {
+      event: EventType.DISPATCH_STATUS_SAVED,
+      getWorkerId: (payload) => payload.workerId,
+    },
+  ],
 
   getEligibilityCondition(_context: EligibilityQueryContext, _config: Record<string, unknown>): EligibilityCondition | null {
     // Workers must have a dispstatus entry with value "Available"

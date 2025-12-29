@@ -1,5 +1,6 @@
 import { logger } from "../logger";
-import { isComponentEnabledSync } from "./component-cache";
+import { isComponentEnabledSync, isCacheInitialized } from "./component-cache";
+import { eventBus, EventType } from "./event-bus";
 import type { EligibilityPluginMetadata, EligibilityPluginConfig } from "@shared/schema";
 
 /**
@@ -30,11 +31,43 @@ export interface EligibilityQueryContext {
   jobTypeId: string | null;
 }
 
+/**
+ * Base interface for event payloads that can trigger eligibility recomputation.
+ * All eligible event types must include a workerId field.
+ */
+export interface WorkerEventPayload {
+  workerId: string;
+}
+
+/**
+ * Describes an event handler that a plugin wants to subscribe to.
+ * The handler will be called when the specified event is emitted.
+ * 
+ * IMPORTANT: Only subscribe to events whose payloads include a `workerId` field.
+ * The registry validates this at runtime and will log errors for invalid payloads.
+ * 
+ * Supported events:
+ * - DISPATCH_DNC_SAVED
+ * - DISPATCH_HFE_SAVED
+ * - DISPATCH_STATUS_SAVED
+ */
+export interface PluginEventHandler {
+  /** The event type to listen for. Must be an event with a workerId in its payload. */
+  event: EventType;
+  /** 
+   * Handler function that receives the event payload and returns the worker ID to recompute.
+   * The payload is guaranteed to have a workerId field at runtime.
+   */
+  getWorkerId: (payload: WorkerEventPayload) => string;
+}
+
 export interface DispatchEligPlugin {
   id: string;
   name: string;
   description: string;
   componentId: string;
+  /** Optional event handlers this plugin wants to subscribe to */
+  eventHandlers?: PluginEventHandler[];
   recomputeWorker(workerId: string): Promise<void>;
   /**
    * Returns the eligibility condition this plugin contributes to the query.
@@ -48,20 +81,104 @@ export interface DispatchEligPlugin {
 
 class DispatchEligPluginRegistry {
   private plugins = new Map<string, DispatchEligPlugin>();
+  private subscribedHandlerIds = new Map<string, string[]>();
 
   register(plugin: DispatchEligPlugin): void {
     if (this.plugins.has(plugin.id)) {
       logger.warn(`Dispatch eligibility plugin ${plugin.id} already registered, overwriting`, {
         service: "dispatch-elig-registry",
       });
+      this.unsubscribePluginHandlers(plugin.id);
     }
     this.plugins.set(plugin.id, plugin);
     logger.info(`Dispatch eligibility plugin registered: ${plugin.id}`, {
       service: "dispatch-elig-registry",
     });
+
+    if (plugin.eventHandlers && plugin.eventHandlers.length > 0) {
+      this.subscribePluginHandlers(plugin);
+    }
+  }
+
+  private subscribePluginHandlers(plugin: DispatchEligPlugin): void {
+    if (!plugin.eventHandlers) return;
+
+    const handlerIds: string[] = [];
+
+    for (const eventHandler of plugin.eventHandlers) {
+      const handlerId = eventBus.on(eventHandler.event, async (payload) => {
+        if (!isCacheInitialized()) {
+          logger.warn(`Component cache not initialized, skipping ${plugin.id} eligibility recompute`, {
+            service: "dispatch-elig-registry",
+            pluginId: plugin.id,
+          });
+          return;
+        }
+
+        if (!isComponentEnabledSync(plugin.componentId)) {
+          logger.debug(`${plugin.componentId} component not enabled, skipping recompute`, {
+            service: "dispatch-elig-registry",
+            pluginId: plugin.id,
+          });
+          return;
+        }
+
+        // Runtime validation: ensure payload contains workerId
+        if (!payload || typeof payload !== "object" || !("workerId" in payload)) {
+          logger.error(`Event payload missing workerId for plugin ${plugin.id}`, {
+            service: "dispatch-elig-registry",
+            pluginId: plugin.id,
+            event: eventHandler.event,
+          });
+          return;
+        }
+
+        try {
+          const workerId = eventHandler.getWorkerId(payload as WorkerEventPayload);
+          if (!workerId || typeof workerId !== "string") {
+            logger.error(`getWorkerId returned invalid value for plugin ${plugin.id}`, {
+              service: "dispatch-elig-registry",
+              pluginId: plugin.id,
+              workerId,
+            });
+            return;
+          }
+          await plugin.recomputeWorker(workerId);
+        } catch (error) {
+          logger.error(`Failed to extract workerId for plugin ${plugin.id}`, {
+            service: "dispatch-elig-registry",
+            pluginId: plugin.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
+      handlerIds.push(handlerId);
+    }
+
+    this.subscribedHandlerIds.set(plugin.id, handlerIds);
+    logger.debug(`Subscribed ${handlerIds.length} event handler(s) for plugin ${plugin.id}`, {
+      service: "dispatch-elig-registry",
+      pluginId: plugin.id,
+      handlerCount: handlerIds.length,
+    });
+  }
+
+  private unsubscribePluginHandlers(pluginId: string): void {
+    const handlerIds = this.subscribedHandlerIds.get(pluginId);
+    if (handlerIds) {
+      for (const handlerId of handlerIds) {
+        eventBus.off(handlerId);
+      }
+      this.subscribedHandlerIds.delete(pluginId);
+      logger.debug(`Unsubscribed ${handlerIds.length} event handler(s) for plugin ${pluginId}`, {
+        service: "dispatch-elig-registry",
+        pluginId,
+      });
+    }
   }
 
   unregister(pluginId: string): boolean {
+    this.unsubscribePluginHandlers(pluginId);
     const removed = this.plugins.delete(pluginId);
     if (removed) {
       logger.info(`Dispatch eligibility plugin unregistered: ${pluginId}`, {
