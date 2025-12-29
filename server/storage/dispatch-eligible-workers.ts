@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { workers, contacts, workerDispatchEligDenorm, type EligibilityPluginConfig, type JobTypeData } from "@shared/schema";
-import { sql, eq, and, exists, notExists, or } from "drizzle-orm";
+import { sql, eq, and, exists, notExists, or, ilike } from "drizzle-orm";
 import { logger } from "../logger";
 import { 
   dispatchEligPluginRegistry, 
@@ -14,6 +14,11 @@ export interface EligibleWorker {
   id: string;
   siriusId: number;
   displayName: string;
+}
+
+export interface EligibleWorkersFilters {
+  siriusId?: number;
+  name?: string;
 }
 
 export interface EligibleWorkersResult {
@@ -35,8 +40,8 @@ export interface EligibleWorkersSqlResult {
 }
 
 export interface DispatchEligibleWorkersStorage {
-  getEligibleWorkersForJob(jobId: string, limit?: number, offset?: number): Promise<EligibleWorkersResult>;
-  getEligibleWorkersForJobSql(jobId: string, limit?: number, offset?: number): Promise<EligibleWorkersSqlResult | null>;
+  getEligibleWorkersForJob(jobId: string, limit?: number, offset?: number, filters?: EligibleWorkersFilters): Promise<EligibleWorkersResult>;
+  getEligibleWorkersForJobSql(jobId: string, limit?: number, offset?: number, filters?: EligibleWorkersFilters): Promise<EligibleWorkersSqlResult | null>;
 }
 
 type DynamicQuery = ReturnType<ReturnType<typeof db.select>["from"]>["$dynamic"] extends (...args: any) => infer R ? R : never;
@@ -46,7 +51,7 @@ interface QueryBuildResult {
   appliedConditions: Array<{ pluginId: string; condition: EligibilityCondition }>;
 }
 
-async function buildEligibleWorkersQuery(jobId: string): Promise<QueryBuildResult | null> {
+async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorkersFilters): Promise<QueryBuildResult | null> {
   const jobStorage = createDispatchJobStorage();
   const optionsStorage = createOptionsStorage();
 
@@ -153,9 +158,19 @@ async function buildEligibleWorkersQuery(jobId: string): Promise<QueryBuildResul
     }
   });
 
+  const filterConditions: any[] = [];
+  if (filters?.siriusId !== undefined) {
+    filterConditions.push(eq(workers.siriusId, filters.siriusId));
+  }
+  if (filters?.name) {
+    filterConditions.push(ilike(contacts.displayName, `%${filters.name}%`));
+  }
+
+  const allConditions = [...whereConditions, ...filterConditions];
+  
   let finalQuery = baseQuery;
-  if (whereConditions.length > 0) {
-    finalQuery = baseQuery.where(and(...whereConditions));
+  if (allConditions.length > 0) {
+    finalQuery = baseQuery.where(and(...allConditions));
   }
 
   return { finalQuery: finalQuery as any, appliedConditions };
@@ -163,8 +178,8 @@ async function buildEligibleWorkersQuery(jobId: string): Promise<QueryBuildResul
 
 export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersStorage {
   return {
-    async getEligibleWorkersForJob(jobId: string, limit = 100, offset = 0): Promise<EligibleWorkersResult> {
-      const result = await buildEligibleWorkersQuery(jobId);
+    async getEligibleWorkersForJob(jobId: string, limit = 100, offset = 0, filters?: EligibleWorkersFilters): Promise<EligibleWorkersResult> {
+      const result = await buildEligibleWorkersQuery(jobId, filters);
       if (!result) {
         return { workers: [], total: 0, appliedConditions: [] };
       }
@@ -200,8 +215,8 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
       };
     },
 
-    async getEligibleWorkersForJobSql(jobId: string, limit = 100, offset = 0): Promise<EligibleWorkersSqlResult | null> {
-      const result = await buildEligibleWorkersQuery(jobId);
+    async getEligibleWorkersForJobSql(jobId: string, limit = 100, offset = 0, filters?: EligibleWorkersFilters): Promise<EligibleWorkersSqlResult | null> {
+      const result = await buildEligibleWorkersQuery(jobId, filters);
       if (!result) {
         return null;
       }

@@ -200,13 +200,24 @@ export function registerDispatchJobsRoutes(
   app.get("/api/dispatch-jobs/:id/eligible-workers", dispatchComponent, requireAccess(policies.admin), async (req, res) => {
     try {
       const { id } = req.params;
-      const { limit: limitParam, offset: offsetParam } = req.query;
+      const { limit: limitParam, offset: offsetParam, siriusId: siriusIdParam, name: nameParam } = req.query;
       
       const limit = Math.min(parseInt(limitParam as string) || 100, 500);
       const offset = parseInt(offsetParam as string) || 0;
       
+      const filters: { siriusId?: number; name?: string } = {};
+      if (siriusIdParam) {
+        const parsed = parseInt(siriusIdParam as string);
+        if (!isNaN(parsed)) {
+          filters.siriusId = parsed;
+        }
+      }
+      if (nameParam && typeof nameParam === "string" && nameParam.trim()) {
+        filters.name = nameParam.trim();
+      }
+      
       const eligibleWorkersStorage = createDispatchEligibleWorkersStorage();
-      const result = await eligibleWorkersStorage.getEligibleWorkersForJob(id, limit, offset);
+      const result = await eligibleWorkersStorage.getEligibleWorkersForJob(id, limit, offset, Object.keys(filters).length > 0 ? filters : undefined);
       
       res.json(result);
     } catch (error) {
@@ -223,13 +234,24 @@ export function registerDispatchJobsRoutes(
       }
 
       const { id } = req.params;
-      const { limit: limitParam, offset: offsetParam } = req.query;
+      const { limit: limitParam, offset: offsetParam, siriusId: siriusIdParam, name: nameParam } = req.query;
       
       const limit = Math.min(parseInt(limitParam as string) || 100, 500);
       const offset = parseInt(offsetParam as string) || 0;
       
+      const filters: { siriusId?: number; name?: string } = {};
+      if (siriusIdParam) {
+        const parsed = parseInt(siriusIdParam as string);
+        if (!isNaN(parsed)) {
+          filters.siriusId = parsed;
+        }
+      }
+      if (nameParam && typeof nameParam === "string" && nameParam.trim()) {
+        filters.name = nameParam.trim();
+      }
+      
       const eligibleWorkersStorage = createDispatchEligibleWorkersStorage();
-      const result = await eligibleWorkersStorage.getEligibleWorkersForJobSql(id, limit, offset);
+      const result = await eligibleWorkersStorage.getEligibleWorkersForJobSql(id, limit, offset, Object.keys(filters).length > 0 ? filters : undefined);
       
       if (!result) {
         res.status(404).json({ message: "Job not found" });

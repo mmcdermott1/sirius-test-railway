@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Users, AlertCircle, RefreshCw, Code, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, AlertCircle, RefreshCw, Code, Eye, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { prettifySqlSimple } from "@shared/utils/sql-prettify";
 
@@ -60,8 +61,35 @@ function EligibleWorkersContent() {
   const [sqlData, setSqlData] = useState<SqlResponse | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [siriusIdFilter, setSiriusIdFilter] = useState("");
+  const [nameFilter, setNameFilter] = useState("");
 
   const offset = (page - 1) * pageSize;
+
+  const buildFilterParams = () => {
+    const params = new URLSearchParams();
+    params.set("limit", String(pageSize));
+    params.set("offset", String(offset));
+    if (siriusIdFilter.trim()) {
+      params.set("siriusId", siriusIdFilter.trim());
+    }
+    if (nameFilter.trim()) {
+      params.set("name", nameFilter.trim());
+    }
+    return params.toString();
+  };
+
+  const handleFilterChange = () => {
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setSiriusIdFilter("");
+    setNameFilter("");
+    setPage(1);
+  };
+
+  const hasFilters = siriusIdFilter.trim() || nameFilter.trim();
 
   const { data: componentConfig = [] } = useQuery<ComponentConfig[]>({
     queryKey: ["/api/components/config"],
@@ -72,7 +100,7 @@ function EligibleWorkersContent() {
 
   const fetchSqlMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/dispatch-jobs/${id}/eligible-workers-sql?limit=${pageSize}&offset=${offset}`);
+      const response = await fetch(`/api/dispatch-jobs/${id}/eligible-workers-sql?${buildFilterParams()}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Failed to fetch SQL");
@@ -104,9 +132,9 @@ function EligibleWorkersContent() {
     refetch,
     isFetching 
   } = useQuery<EligibleWorkersResponse>({
-    queryKey: ["/api/dispatch-jobs", id, "eligible-workers", page, pageSize],
+    queryKey: ["/api/dispatch-jobs", id, "eligible-workers", page, pageSize, siriusIdFilter, nameFilter],
     queryFn: async () => {
-      const response = await fetch(`/api/dispatch-jobs/${id}/eligible-workers?limit=${pageSize}&offset=${offset}&_t=${Date.now()}`);
+      const response = await fetch(`/api/dispatch-jobs/${id}/eligible-workers?${buildFilterParams()}&_t=${Date.now()}`);
       if (!response.ok) {
         throw new Error("Failed to fetch eligible workers");
       }
@@ -213,18 +241,66 @@ function EligibleWorkersContent() {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Filter by ID"
+              value={siriusIdFilter}
+              onChange={(e) => {
+                setSiriusIdFilter(e.target.value);
+                handleFilterChange();
+              }}
+              className="w-28"
+              data-testid="input-filter-sirius-id"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-1">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Filter by name"
+                value={nameFilter}
+                onChange={(e) => {
+                  setNameFilter(e.target.value);
+                  handleFilterChange();
+                }}
+                className="pl-9"
+                data-testid="input-filter-name"
+              />
+            </div>
+          </div>
+          {hasFilters && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearFilters}
+              data-testid="button-clear-filters"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+
         {workers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
               <Users className="text-muted-foreground" size={32} />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              No Eligible Workers
+              {hasFilters ? "No Matching Workers" : "No Eligible Workers"}
             </h3>
             <p className="text-muted-foreground max-w-md">
-              No workers currently meet the eligibility criteria for this job.
-              {job.jobType ? ` Check the eligibility settings for "${job.jobType.name}" job type.` : " This job has no job type configured with eligibility rules."}
+              {hasFilters 
+                ? "No workers match the current filters. Try adjusting your search criteria."
+                : `No workers currently meet the eligibility criteria for this job.${job.jobType ? ` Check the eligibility settings for "${job.jobType.name}" job type.` : " This job has no job type configured with eligibility rules."}`
+              }
             </p>
+            {hasFilters && (
+              <Button variant="outline" size="sm" className="mt-4" onClick={clearFilters} data-testid="button-clear-filters-empty">
+                Clear Filters
+              </Button>
+            )}
           </div>
         ) : (
           <Table>
