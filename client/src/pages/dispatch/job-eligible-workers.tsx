@@ -1,10 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
+import { useState } from "react";
 import { DispatchJobLayout, useDispatchJobLayout } from "@/components/layouts/DispatchJobLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ExternalLink, AlertCircle, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Users, ExternalLink, AlertCircle, RefreshCw, Code } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 interface EligibleWorker {
   id: string;
@@ -25,9 +29,63 @@ interface EligibleWorkersResponse {
   }>;
 }
 
+interface ComponentConfig {
+  componentId: string;
+  enabled: boolean;
+}
+
+interface SqlResponse {
+  sql: string;
+  params: unknown[];
+  appliedConditions: Array<{
+    pluginId: string;
+    condition: {
+      type: string;
+      category: string;
+      value: string;
+    };
+  }>;
+}
+
 function EligibleWorkersContent() {
   const { id } = useParams<{ id: string }>();
   const { job } = useDispatchJobLayout();
+  const { toast } = useToast();
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [sqlData, setSqlData] = useState<SqlResponse | null>(null);
+
+  const { data: componentConfig = [] } = useQuery<ComponentConfig[]>({
+    queryKey: ["/api/components/config"],
+    staleTime: 60000,
+  });
+
+  const isDebugEnabled = componentConfig.find(c => c.componentId === "debug")?.enabled ?? false;
+
+  const fetchSqlMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/dispatch-jobs/${id}/eligible-workers-sql?limit=500`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to fetch SQL");
+      }
+      return response.json() as Promise<SqlResponse>;
+    },
+    onSuccess: (data) => {
+      setSqlData(data);
+      setShowSqlModal(true);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch SQL query",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleShowSql = () => {
+    fetchSqlMutation.mutate();
+  };
 
   const { 
     data, 
@@ -104,6 +162,7 @@ function EligibleWorkersContent() {
   const total = data?.total || 0;
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="flex items-center gap-2">
@@ -113,15 +172,29 @@ function EligibleWorkersContent() {
             ({total})
           </span>
         </CardTitle>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => refetch()} 
-          disabled={isFetching}
-          data-testid="button-refresh"
-        >
-          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex items-center gap-2">
+          {isDebugEnabled && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleShowSql} 
+              disabled={fetchSqlMutation.isPending}
+              data-testid="button-debug-sql"
+            >
+              <Code className="h-4 w-4 mr-1" />
+              Debug: show SQL
+            </Button>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => refetch()} 
+            disabled={isFetching}
+            data-testid="button-refresh"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {workers.length === 0 ? (
@@ -173,6 +246,49 @@ function EligibleWorkersContent() {
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={showSqlModal} onOpenChange={setShowSqlModal}>
+      <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Code className="h-5 w-5" />
+            Eligible Workers SQL Query
+          </DialogTitle>
+          <DialogDescription>
+            The SQL query used to fetch eligible workers for this job.
+          </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="h-[60vh]">
+          {sqlData && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-medium mb-2">SQL:</h4>
+                <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto whitespace-pre-wrap break-all font-mono">
+                  {sqlData.sql}
+                </pre>
+              </div>
+              {sqlData.params.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Parameters:</h4>
+                  <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto whitespace-pre-wrap break-all font-mono">
+                    {JSON.stringify(sqlData.params, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {sqlData.appliedConditions.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Applied Conditions:</h4>
+                  <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto whitespace-pre-wrap break-all font-mono">
+                    {JSON.stringify(sqlData.appliedConditions, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

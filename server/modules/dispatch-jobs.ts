@@ -7,6 +7,7 @@ import { requireComponent } from "./components";
 import type { DispatchJobFilters } from "../storage/dispatch-jobs";
 import { dispatchEligPluginRegistry } from "../services/dispatch-elig-plugin-registry";
 import { createDispatchEligibleWorkersStorage } from "../storage/dispatch-eligible-workers";
+import { isComponentEnabledSync } from "../services/component-cache";
 
 export function registerDispatchJobsRoutes(
   app: Express,
@@ -211,6 +212,34 @@ export function registerDispatchJobsRoutes(
     } catch (error) {
       console.error("Failed to fetch eligible workers:", error);
       res.status(500).json({ message: "Failed to fetch eligible workers" });
+    }
+  });
+
+  app.get("/api/dispatch-jobs/:id/eligible-workers-sql", dispatchComponent, requireAccess(policies.admin), async (req, res) => {
+    try {
+      if (!isComponentEnabledSync("debug")) {
+        res.status(403).json({ message: "Debug component is not enabled" });
+        return;
+      }
+
+      const { id } = req.params;
+      const { limit: limitParam, offset: offsetParam } = req.query;
+      
+      const limit = Math.min(parseInt(limitParam as string) || 100, 500);
+      const offset = parseInt(offsetParam as string) || 0;
+      
+      const eligibleWorkersStorage = createDispatchEligibleWorkersStorage();
+      const result = await eligibleWorkersStorage.getEligibleWorkersForJobSql(id, limit, offset);
+      
+      if (!result) {
+        res.status(404).json({ message: "Job not found" });
+        return;
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch eligible workers SQL:", error);
+      res.status(500).json({ message: "Failed to fetch eligible workers SQL" });
     }
   });
 }
