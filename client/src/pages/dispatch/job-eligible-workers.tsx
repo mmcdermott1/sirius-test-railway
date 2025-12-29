@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Users, ExternalLink, AlertCircle, RefreshCw, Code } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { prettifySqlSimple } from "@shared/utils/sql-prettify";
 
 interface EligibleWorker {
   id: string;
@@ -264,7 +265,7 @@ function EligibleWorkersContent() {
               <div>
                 <h4 className="text-sm font-medium mb-2">SQL:</h4>
                 <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto whitespace-pre-wrap break-all font-mono">
-                  {sqlData.sql}
+                  {prettifySqlSimple(sqlData.sql)}
                 </pre>
               </div>
               {sqlData.params.length > 0 && (
