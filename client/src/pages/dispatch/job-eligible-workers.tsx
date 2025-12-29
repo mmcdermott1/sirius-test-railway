@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Users, ExternalLink, AlertCircle, RefreshCw, Code } from "lucide-react";
+import { Users, AlertCircle, RefreshCw, Code, Eye } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { prettifySqlSimple } from "@shared/utils/sql-prettify";
 
@@ -212,30 +213,38 @@ function EligibleWorkersContent() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {workers.map((worker) => (
-              <div 
-                key={worker.id} 
-                className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
-                data-testid={`row-worker-${worker.id}`}
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium text-foreground" data-testid={`text-worker-name-${worker.id}`}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-16">#</TableHead>
+                <TableHead className="w-32">ID</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="w-24 text-right">View</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {workers.map((worker, index) => (
+                <TableRow key={worker.id} data-testid={`row-worker-${worker.id}`}>
+                  <TableCell className="text-muted-foreground" data-testid={`text-row-number-${worker.id}`}>
+                    {index + 1}
+                  </TableCell>
+                  <TableCell data-testid={`text-worker-sirius-id-${worker.id}`}>
+                    {worker.siriusId}
+                  </TableCell>
+                  <TableCell className="font-medium" data-testid={`text-worker-name-${worker.id}`}>
                     {worker.displayName || "Unnamed Worker"}
-                  </span>
-                  <span className="text-sm text-muted-foreground" data-testid={`text-worker-sirius-id-${worker.id}`}>
-                    #{worker.siriusId}
-                  </span>
-                </div>
-                <Link href={`/workers/${worker.id}`}>
-                  <Button variant="ghost" size="sm" data-testid={`button-view-worker-${worker.id}`}>
-                    View
-                    <ExternalLink className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link href={`/workers/${worker.id}`}>
+                      <Button variant="ghost" size="icon" data-testid={`button-view-worker-${worker.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
         
         {data?.appliedConditions && data.appliedConditions.length > 0 && (
