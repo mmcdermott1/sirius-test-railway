@@ -301,3 +301,15 @@ export function getSchemaManagingComponents(): ComponentDefinition[] {
   return componentRegistry.filter(c => c.managesSchema && c.schemaManifest);
 }
 
+/**
+ * Get all descendant component IDs for a component
+ * For example: "dispatch" -> ["dispatch.dnc", "dispatch.hfe", "dispatch.status"]
+ *              "trust" -> ["trust.providers", "trust.providers.login", ...]
+ */
+export function getDescendantComponentIds(componentId: string): string[] {
+  const prefix = componentId + '.';
+  return componentRegistry
+    .filter(c => c.id.startsWith(prefix))
+    .map(c => c.id);
+}
+

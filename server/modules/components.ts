@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { requireAccess } from "../accessControl";
 import { policies } from "../policies";
-import { getAllComponents, getComponentById, ComponentConfig, ComponentDefinition, ComponentSchemaState } from "../../shared/components";
+import { getAllComponents, getComponentById, getDescendantComponentIds, ComponentConfig, ComponentDefinition, ComponentSchemaState } from "../../shared/components";
 import {
   enableComponentSchema,
   disableComponentSchema,
@@ -129,6 +129,25 @@ export function registerComponentRoutes(
       const component = getComponentById(componentId);
       if (!component) {
         return res.status(404).json({ message: "Component not found" });
+      }
+
+      // When disabling, check if any descendant components are still enabled
+      if (!enabled) {
+        const descendantIds = getDescendantComponentIds(componentId);
+        const enabledDescendants = descendantIds.filter(id => isComponentEnabledSync(id));
+        
+        if (enabledDescendants.length > 0) {
+          const descendantNames = enabledDescendants.map(id => {
+            const desc = getComponentById(id);
+            return desc ? desc.name : id;
+          });
+          
+          return res.status(400).json({
+            message: `Cannot disable "${component.name}" because the following dependent components are still enabled. Please disable them first.`,
+            enabledDescendants: enabledDescendants,
+            enabledDescendantNames: descendantNames
+          });
+        }
       }
 
       const shouldRetainData = retainData !== false;
