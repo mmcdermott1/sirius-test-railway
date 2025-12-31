@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookmarkButton } from "@/components/ui/bookmark-button";
+import { DebugRecordViewer } from "@/components/debug/DebugRecordViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTerm } from "@/contexts/TerminologyContext";
 
@@ -163,6 +164,7 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
               <BookmarkButton entityType="employer" entityId={employer.id} entityName={employer.name} />
             </div>
             <div className="flex items-center space-x-4">
+              <DebugRecordViewer record={employer} entityLabel="Employer" />
               <Link href="/employers">
                 <Button variant="ghost" size="sm" data-testid="button-back-to-employers">
                   <ArrowLeft size={16} className="mr-2" />
