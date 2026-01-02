@@ -8,8 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookmarkButton } from "@/components/ui/bookmark-button";
 import { DebugRecordViewer } from "@/components/debug/DebugRecordViewer";
-import { useTerm } from "@/contexts/TerminologyContext";
-import { useEmployerTabAccess, ResolvedTab } from "@/hooks/useTabAccess";
+import { useEmployerTabAccess } from "@/hooks/useTabAccess";
 
 interface EmployerLayoutContextValue {
   employer: Employer;
@@ -32,25 +31,9 @@ interface EmployerLayoutProps {
   children: ReactNode;
 }
 
-function applyTerminology(tabs: ResolvedTab[], term: (key: string, options?: { plural?: boolean }) => string): ResolvedTab[] {
-  return tabs.map(tab => {
-    let label = tab.label;
-    
-    if (tab.id === 'union') {
-      label = term("union");
-    } else if (tab.id === 'stewards') {
-      label = term("steward", { plural: true });
-    }
-    
-    const children = tab.children ? applyTerminology(tab.children, term) : undefined;
-    
-    return { ...tab, label, children };
-  });
-}
 
 export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
   const { id } = useParams<{ id: string }>();
-  const term = useTerm();
 
   const { data: employer, isLoading: employerLoading, error: employerError } = useQuery<Employer>({
     queryKey: ["/api/employers", id],
@@ -71,16 +54,12 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
 
   const isLoading = employerLoading || tabAccessLoading;
 
-  const mainTabs = useMemo(() => applyTerminology(tabs, term), [tabs, term]);
+  // Terminology is now applied centrally in useTabAccess hook
+  const mainTabs = tabs;
   
   const activeRoot = useMemo(() => {
-    const root = getActiveRoot(activeTab);
-    if (root) {
-      const displayTabs = applyTerminology([root], term);
-      return displayTabs[0];
-    }
-    return undefined;
-  }, [activeTab, getActiveRoot, term]);
+    return getActiveRoot(activeTab);
+  }, [activeTab, getActiveRoot]);
 
   const subTabs = activeRoot?.children;
 

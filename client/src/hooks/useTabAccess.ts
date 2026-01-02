@@ -8,6 +8,7 @@ import {
   buildTabHref,
 } from "@shared/tabRegistry";
 import { apiRequest } from "@/lib/queryClient";
+import { useTerm } from "@/contexts/TerminologyContext";
 
 interface TabAccessResponse {
   tabs: TabAccessResult[];
@@ -59,6 +60,8 @@ export function useTabAccess({
   entityId, 
   enabled = true 
 }: UseTabAccessOptions): UseTabAccessResult {
+  const term = useTerm();
+  
   const { data, isLoading, isError } = useQuery<TabAccessResponse>({
     queryKey: ['/api/access/tabs', entityType, entityId],
     queryFn: async () => {
@@ -101,9 +104,14 @@ export function useTabAccess({
             ? filterAndResolve(tab.children)
             : undefined;
           
+          // Apply terminology substitution if termKey is defined
+          const label = tab.termKey 
+            ? term(tab.termKey, { plural: tab.termPlural })
+            : tab.label;
+          
           return {
             id: tab.id,
-            label: tab.label,
+            label,
             href: buildTabHref(tab.hrefTemplate, entityId),
             hasChildren: (filteredChildren?.length ?? 0) > 0,
             children: filteredChildren && filteredChildren.length > 0 ? filteredChildren : undefined,
@@ -112,7 +120,7 @@ export function useTabAccess({
     };
 
     return filterAndResolve(tree);
-  }, [entityType, entityId, isLoading, data?.tabs, accessMap]);
+  }, [entityType, entityId, isLoading, data?.tabs, accessMap, term]);
 
   const getActiveRoot = (activeTabId: string): ResolvedTab | undefined => {
     for (const rootTab of filteredTree) {

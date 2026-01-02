@@ -8,8 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookmarkButton } from "@/components/ui/bookmark-button";
 import { DebugRecordViewer } from "@/components/debug/DebugRecordViewer";
-import { useTerm } from "@/contexts/TerminologyContext";
-import { useWorkerTabAccess, ResolvedTab } from "@/hooks/useTabAccess";
+import { useWorkerTabAccess } from "@/hooks/useTabAccess";
 
 interface WorkerLayoutContextValue {
   worker: Worker;
@@ -33,28 +32,9 @@ interface WorkerLayoutProps {
   children: ReactNode;
 }
 
-/**
- * Apply terminology substitutions to tab labels
- */
-function applyTerminology(tabs: ResolvedTab[], term: (key: string, options?: { plural?: boolean }) => string): ResolvedTab[] {
-  return tabs.map(tab => {
-    let label = tab.label;
-    
-    if (tab.id === 'steward') {
-      label = term("steward");
-    } else if (tab.id === 'union') {
-      label = term("union");
-    }
-    
-    const children = tab.children ? applyTerminology(tab.children, term) : undefined;
-    
-    return { ...tab, label, children };
-  });
-}
 
 export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const { id } = useParams<{ id: string }>();
-  const term = useTerm();
   
   const { 
     tabs,
@@ -89,16 +69,12 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const isLoading = workerLoading || tabsLoading;
   const isError = !!workerError;
 
-  const mainTabs = useMemo(() => applyTerminology(tabs, term), [tabs, term]);
+  // Terminology is now applied centrally in useTabAccess hook
+  const mainTabs = tabs;
   
   const activeRoot = useMemo(() => {
-    const root = getActiveRoot(activeTab);
-    if (root) {
-      const displayTabs = applyTerminology([root], term);
-      return displayTabs[0];
-    }
-    return undefined;
-  }, [activeTab, getActiveRoot, term]);
+    return getActiveRoot(activeTab);
+  }, [activeTab, getActiveRoot]);
 
   const subTabs = activeRoot?.children;
 
