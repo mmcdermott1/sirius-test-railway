@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useMemo } from "react";
 import { User, ArrowLeft } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BookmarkButton } from "@/components/ui/bookmark-button";
 import { DebugRecordViewer } from "@/components/debug/DebugRecordViewer";
 import { useTerm } from "@/contexts/TerminologyContext";
-import { useWorkerTabAccess } from "@/hooks/useTabAccess";
+import { useWorkerTabAccess, ResolvedTab } from "@/hooks/useTabAccess";
 
 interface WorkerLayoutContextValue {
   worker: Worker;
@@ -29,24 +29,36 @@ export function useWorkerLayout() {
 }
 
 interface WorkerLayoutProps {
-  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "user" | "bans" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "union" | "cardchecks" | "bargaining-unit" | "steward" | "representatives" | "dispatch" | "dispatch-status" | "dispatch-dnc" | "dispatch-hfe" | "accounting" | "logs" | "delete";
+  activeTab: string;
   children: ReactNode;
+}
+
+/**
+ * Apply terminology substitutions to tab labels
+ */
+function applyTerminology(tabs: ResolvedTab[], term: (key: string, options?: { plural?: boolean }) => string): ResolvedTab[] {
+  return tabs.map(tab => {
+    let label = tab.label;
+    
+    if (tab.id === 'steward') {
+      label = term("steward");
+    } else if (tab.id === 'union') {
+      label = term("union");
+    }
+    
+    const children = tab.children ? applyTerminology(tab.children, term) : undefined;
+    
+    return { ...tab, label, children };
+  });
 }
 
 export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   const { id } = useParams<{ id: string }>();
   const term = useTerm();
   
-  // Fetch tab access based on actual permissions
   const { 
-    mainTabs, 
-    identitySubTabs, 
-    contactSubTabs, 
-    commSubTabs, 
-    employmentSubTabs, 
-    benefitsSubTabs, 
-    unionSubTabs, 
-    dispatchSubTabs,
+    tabs,
+    getActiveRoot,
     isLoading: tabsLoading 
   } = useWorkerTabAccess(id);
 
@@ -66,20 +78,30 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     queryFn: async () => {
       const response = await fetch(`/api/contacts/${worker?.contactId}`);
       if (!response.ok) {
-        // Return undefined if user doesn't have permission to view contact
         return undefined;
       }
       return response.json();
     },
     enabled: !!worker?.contactId,
-    retry: false, // Don't retry on permission errors
+    retry: false,
   });
 
-  // Wait for worker AND tab access to load - contact is optional (may fail due to permissions)
   const isLoading = workerLoading || tabsLoading;
   const isError = !!workerError;
 
-  // Error/Not found state - check this BEFORE loading
+  const mainTabs = useMemo(() => applyTerminology(tabs, term), [tabs, term]);
+  
+  const activeRoot = useMemo(() => {
+    const root = getActiveRoot(activeTab);
+    if (root) {
+      const displayTabs = applyTerminology([root], term);
+      return displayTabs[0];
+    }
+    return undefined;
+  }, [activeTab, getActiveRoot, term]);
+
+  const subTabs = activeRoot?.children;
+
   if (workerError) {
     return (
       <div className="bg-background text-foreground min-h-screen">
@@ -127,7 +149,6 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     );
   }
 
-  // Loading state - check this AFTER error handling
   if (isLoading || !worker) {
     return (
       <div className="bg-background text-foreground min-h-screen">
@@ -165,30 +186,6 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     );
   }
 
-  // Success state - render layout with tabs
-  // Dynamic tabs are loaded from useWorkerTabAccess hook based on actual permissions
-  
-  // Apply terminology substitution for steward tab
-  const displayUnionSubTabs = unionSubTabs.map(tab => 
-    tab.id === 'steward' ? { ...tab, label: term("steward") } : tab
-  );
-
-  // Determine if we're in a sub-tab
-  const isIdentitySubTab = ["name", "ids", "birth-date", "gender", "work-status", "user", "bans"].includes(activeTab);
-  const isContactSubTab = ["email", "addresses", "phone-numbers"].includes(activeTab);
-  const isCommSubTab = ["comm-history", "send-sms", "send-email", "send-postal", "send-inapp"].includes(activeTab);
-  const isEmploymentSubTab = ["current", "history", "monthly", "daily"].includes(activeTab);
-  const isBenefitsSubTab = ["benefits-history", "benefits-eligibility", "benefits-scan"].includes(activeTab);
-  const isUnionSubTab = ["cardchecks", "bargaining-unit", "steward", "representatives"].includes(activeTab);
-  const isDispatchSubTab = ["dispatch-status", "dispatch-dnc", "dispatch-hfe"].includes(activeTab);
-  const showIdentitySubTabs = isIdentitySubTab;
-  const showContactSubTabs = isContactSubTab;
-  const showCommSubTabs = isCommSubTab;
-  const showEmploymentSubTabs = isEmploymentSubTab;
-  const showBenefitsSubTabs = isBenefitsSubTab;
-  const showUnionSubTabs = isUnionSubTab;
-  const showDispatchSubTabs = isDispatchSubTab;
-
   const contextValue: WorkerLayoutContextValue = {
     worker,
     contact,
@@ -208,9 +205,9 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
                   <User className="text-primary-foreground" size={16} />
                 </div>
                 <h1 className="text-xl font-semibold text-foreground" data-testid={`text-worker-name-${worker.id}`}>
-                  {contact?.displayName || 'Loading...'}
+                  {contact?.displayName || `Worker ${worker.id.slice(0, 8)}`}
                 </h1>
-                <BookmarkButton entityType="worker" entityId={worker.id} entityName={contact?.displayName} />
+                <BookmarkButton entityType="worker" entityId={worker.id} entityName={contact?.displayName || `Worker ${worker.id.slice(0, 8)}`} />
               </div>
               <div className="flex items-center space-x-4">
                 <DebugRecordViewer record={worker} entityLabel="Worker" />
@@ -225,12 +222,12 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
           </div>
         </header>
 
-        {/* Main Tab Navigation */}
+        {/* Main Tab Navigation - rendered dynamically from registry */}
         <div className="bg-card border-b border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-2 py-3">
               {mainTabs.map((tab) => {
-                const isActive = tab.id === activeTab || (tab.id === "identity" && isIdentitySubTab) || (tab.id === "contact" && isContactSubTab) || (tab.id === "comm" && isCommSubTab) || (tab.id === "employment" && isEmploymentSubTab) || (tab.id === "benefits" && isBenefitsSubTab) || (tab.id === "union" && isUnionSubTab) || (tab.id === "dispatch" && isDispatchSubTab);
+                const isActive = tab.id === activeRoot?.id;
                 return isActive ? (
                   <Button
                     key={tab.id}
@@ -256,204 +253,12 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
           </div>
         </div>
 
-        {/* Identity Sub-Tab Navigation */}
-        {showIdentitySubTabs && (
+        {/* Sub-Tab Navigation - rendered dynamically when parent has children */}
+        {subTabs && subTabs.length > 0 && (
           <div className="bg-muted/30 border-b border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center space-x-2 py-2 pl-4">
-                {identitySubTabs.map((tab) => (
-                  tab.id === activeTab ? (
-                    <Button
-                      key={tab.id}
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`button-worker-${tab.id}`}
-                    >
-                      {tab.label}
-                    </Button>
-                  ) : (
-                    <Link key={tab.id} href={tab.href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`button-worker-${tab.id}`}
-                      >
-                        {tab.label}
-                      </Button>
-                    </Link>
-                  )
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Contact Sub-Tab Navigation */}
-        {showContactSubTabs && (
-          <div className="bg-muted/30 border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center space-x-2 py-2 pl-4">
-                {contactSubTabs.map((tab) => (
-                  tab.id === activeTab ? (
-                    <Button
-                      key={tab.id}
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`button-worker-${tab.id}`}
-                    >
-                      {tab.label}
-                    </Button>
-                  ) : (
-                    <Link key={tab.id} href={tab.href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`button-worker-${tab.id}`}
-                      >
-                        {tab.label}
-                      </Button>
-                    </Link>
-                  )
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Comm Sub-Tab Navigation */}
-        {showCommSubTabs && (
-          <div className="bg-muted/30 border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center space-x-2 py-2 pl-4">
-                {commSubTabs.map((tab) => (
-                  tab.id === activeTab ? (
-                    <Button
-                      key={tab.id}
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`button-worker-${tab.id}`}
-                    >
-                      {tab.label}
-                    </Button>
-                  ) : (
-                    <Link key={tab.id} href={tab.href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`button-worker-${tab.id}`}
-                      >
-                        {tab.label}
-                      </Button>
-                    </Link>
-                  )
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Employment Sub-Tab Navigation */}
-        {showEmploymentSubTabs && (
-          <div className="bg-muted/30 border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center space-x-2 py-2 pl-4">
-                {employmentSubTabs.map((tab) => (
-                  tab.id === activeTab ? (
-                    <Button
-                      key={tab.id}
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`button-worker-${tab.id}`}
-                    >
-                      {tab.label}
-                    </Button>
-                  ) : (
-                    <Link key={tab.id} href={tab.href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`button-worker-${tab.id}`}
-                      >
-                        {tab.label}
-                      </Button>
-                    </Link>
-                  )
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Benefits Sub-Tab Navigation */}
-        {showBenefitsSubTabs && (
-          <div className="bg-muted/30 border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center space-x-2 py-2 pl-4">
-                {benefitsSubTabs.map((tab) => (
-                  tab.id === activeTab ? (
-                    <Button
-                      key={tab.id}
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`button-worker-${tab.id}`}
-                    >
-                      {tab.label}
-                    </Button>
-                  ) : (
-                    <Link key={tab.id} href={tab.href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`button-worker-${tab.id}`}
-                      >
-                        {tab.label}
-                      </Button>
-                    </Link>
-                  )
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Union Sub-Tab Navigation */}
-        {showUnionSubTabs && (
-          <div className="bg-muted/30 border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center space-x-2 py-2 pl-4">
-                {displayUnionSubTabs.map((tab) => (
-                  tab.id === activeTab ? (
-                    <Button
-                      key={tab.id}
-                      variant="secondary"
-                      size="sm"
-                      data-testid={`button-worker-${tab.id}`}
-                    >
-                      {tab.label}
-                    </Button>
-                  ) : (
-                    <Link key={tab.id} href={tab.href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        data-testid={`button-worker-${tab.id}`}
-                      >
-                        {tab.label}
-                      </Button>
-                    </Link>
-                  )
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Dispatch Sub-Tab Navigation */}
-        {showDispatchSubTabs && (
-          <div className="bg-muted/30 border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center space-x-2 py-2 pl-4">
-                {dispatchSubTabs.map((tab) => (
+                {subTabs.map((tab) => (
                   tab.id === activeTab ? (
                     <Button
                       key={tab.id}

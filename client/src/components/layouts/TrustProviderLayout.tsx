@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TrustProvider } from "@shared/schema";
-import { createContext, useContext } from "react";
-import { useProviderTabAccess } from "@/hooks/useTabAccess";
+import { createContext, useContext, useMemo } from "react";
+import { useProviderTabAccess, ResolvedTab } from "@/hooks/useTabAccess";
 
 interface TrustProviderLayoutContextValue {
   provider: TrustProvider | undefined;
@@ -26,7 +26,7 @@ export function useTrustProviderLayout() {
 
 interface TrustProviderLayoutProps {
   children: React.ReactNode;
-  activeTab: "view" | "edit" | "contacts" | "logs";
+  activeTab: string;
 }
 
 export default function TrustProviderLayout({ children, activeTab }: TrustProviderLayoutProps) {
@@ -44,12 +44,22 @@ export default function TrustProviderLayout({ children, activeTab }: TrustProvid
     },
   });
 
-  // Use the tab access hook to get pre-filtered tabs
-  const { mainTabs, isLoading: tabAccessLoading } = useProviderTabAccess(id || '');
+  const { 
+    tabs,
+    getActiveRoot,
+    isLoading: tabAccessLoading 
+  } = useProviderTabAccess(id || '');
   
   const isLoading = providerLoading || tabAccessLoading;
 
-  // Loading state
+  const mainTabs = tabs;
+  
+  const activeRoot = useMemo(() => {
+    return getActiveRoot(activeTab);
+  }, [activeTab, getActiveRoot]);
+
+  const subTabs = activeRoot?.children;
+
   if (isLoading || !provider) {
     return (
       <div className="bg-background text-foreground min-h-screen">
@@ -87,7 +97,6 @@ export default function TrustProviderLayout({ children, activeTab }: TrustProvid
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="bg-background text-foreground min-h-screen">
@@ -125,8 +134,6 @@ export default function TrustProviderLayout({ children, activeTab }: TrustProvid
     );
   }
 
-  // mainTabs are pre-filtered by the hook
-
   const contextValue: TrustProviderLayoutContextValue = {
     provider,
     isLoading: false,
@@ -160,12 +167,12 @@ export default function TrustProviderLayout({ children, activeTab }: TrustProvid
           </div>
         </header>
 
-        {/* Main Tab Navigation */}
+        {/* Main Tab Navigation - rendered dynamically from registry */}
         <div className="bg-card border-b border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-2 py-3">
               {mainTabs.map((tab) => {
-                const isActive = tab.id === activeTab;
+                const isActive = tab.id === activeRoot?.id;
                 return isActive ? (
                   <Button
                     key={tab.id}
@@ -190,6 +197,38 @@ export default function TrustProviderLayout({ children, activeTab }: TrustProvid
             </div>
           </div>
         </div>
+
+        {/* Sub-Tab Navigation - rendered dynamically when parent has children */}
+        {subTabs && subTabs.length > 0 && (
+          <div className="bg-muted/30 border-b border-border">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center space-x-2 py-2 pl-4">
+                {subTabs.map((tab) => (
+                  tab.id === activeTab ? (
+                    <Button
+                      key={tab.id}
+                      variant="secondary"
+                      size="sm"
+                      data-testid={`button-provider-${tab.id}`}
+                    >
+                      {tab.label}
+                    </Button>
+                  ) : (
+                    <Link key={tab.id} href={tab.href}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`button-provider-${tab.id}`}
+                      >
+                        {tab.label}
+                      </Button>
+                    </Link>
+                  )
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

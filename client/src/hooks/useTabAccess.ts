@@ -1,20 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { 
   TabEntityType, 
   TabAccessResult, 
-  TabDefinition,
-  workerTabs,
-  workerIdentitySubTabs,
-  workerContactSubTabs,
-  workerCommSubTabs,
-  workerEmploymentSubTabs,
-  workerBenefitsSubTabs,
-  workerUnionSubTabs,
-  workerDispatchSubTabs,
-  employerTabs,
-  employerAccountingSubTabs,
-  employerUnionSubTabs,
-  providerTabs,
+  HierarchicalTab,
+  getTabTreeForEntity,
   buildTabHref,
 } from "@shared/tabRegistry";
 import { apiRequest } from "@/lib/queryClient";
@@ -29,24 +19,38 @@ interface UseTabAccessOptions {
   enabled?: boolean;
 }
 
-interface TabWithAccess extends TabDefinition {
+/**
+ * A tab with href resolved and access information
+ */
+export interface ResolvedTab {
+  id: string;
+  label: string;
   href: string;
-  granted: boolean;
-  reason?: string;
+  hasChildren: boolean;
+  children?: ResolvedTab[];
 }
 
+/**
+ * Result from useTabAccess hook - provides filtered hierarchical tabs
+ */
 interface UseTabAccessResult {
   isLoading: boolean;
   isError: boolean;
-  tabAccess: Map<string, boolean>;
+  /** All accessible root tabs with their accessible children */
+  tabs: ResolvedTab[];
+  /** Check if a specific tab is accessible */
   hasAccess: (tabId: string) => boolean;
-  filterTabs: <T extends TabDefinition>(tabs: T[]) => (T & { href: string })[];
-  getTabsWithAccess: (tabs: TabDefinition[]) => TabWithAccess[];
+  /** Get the root tab for a given tab ID (returns the tab itself if it's a root) */
+  getActiveRoot: (activeTabId: string) => ResolvedTab | undefined;
+  /** Get children of a root tab */
+  getChildren: (rootTabId: string) => ResolvedTab[];
+  /** Check if a tab ID belongs to a root's children */
+  isChildOfRoot: (tabId: string, rootId: string) => boolean;
 }
 
 /**
  * Hook to fetch and manage tab access for an entity
- * Returns filtered tabs based on the user's actual access permissions
+ * Returns a filtered hierarchical tree based on the user's actual access permissions
  */
 export function useTabAccess({ 
   entityType, 
@@ -56,7 +60,6 @@ export function useTabAccess({
   const { data, isLoading, isError } = useQuery<TabAccessResponse>({
     queryKey: ['/api/access/tabs', entityType, entityId],
     queryFn: async () => {
-      // apiRequest already returns parsed JSON, don't call .json() again
       return await apiRequest('POST', '/api/access/tabs', {
         entityType,
         entityId,
@@ -67,49 +70,82 @@ export function useTabAccess({
     retry: false,
   });
 
-  const tabAccess = new Map<string, boolean>();
-  if (data?.tabs) {
-    for (const tab of data.tabs) {
-      tabAccess.set(tab.tabId, tab.granted);
+  const accessMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (data?.tabs) {
+      for (const tab of data.tabs) {
+        map.set(tab.tabId, tab.granted);
+      }
     }
-  }
+    return map;
+  }, [data?.tabs]);
 
-  // Helper function to check if a specific tab is accessible
   const hasAccess = (tabId: string): boolean => {
-    return tabAccess.get(tabId) === true;
+    return accessMap.get(tabId) === true;
   };
 
-  const filterTabs = <T extends TabDefinition>(tabs: T[]): (T & { href: string })[] => {
+  const filteredTree = useMemo((): ResolvedTab[] => {
     if (isLoading || !data?.tabs || !entityId) {
       return [];
     }
 
-    return tabs
-      .filter(tab => tabAccess.get(tab.id) === true)
-      .map(tab => ({
-        ...tab,
-        href: buildTabHref(tab.hrefTemplate, entityId),
-      }));
+    const tree = getTabTreeForEntity(entityType);
+    
+    const filterAndResolve = (tabs: HierarchicalTab[]): ResolvedTab[] => {
+      return tabs
+        .filter(tab => accessMap.get(tab.id) === true)
+        .map(tab => {
+          const filteredChildren = tab.children 
+            ? filterAndResolve(tab.children)
+            : undefined;
+          
+          return {
+            id: tab.id,
+            label: tab.label,
+            href: buildTabHref(tab.hrefTemplate, entityId),
+            hasChildren: (filteredChildren?.length ?? 0) > 0,
+            children: filteredChildren && filteredChildren.length > 0 ? filteredChildren : undefined,
+          };
+        });
+    };
+
+    return filterAndResolve(tree);
+  }, [entityType, entityId, isLoading, data?.tabs, accessMap]);
+
+  const getActiveRoot = (activeTabId: string): ResolvedTab | undefined => {
+    for (const rootTab of filteredTree) {
+      if (rootTab.id === activeTabId) {
+        return rootTab;
+      }
+      if (rootTab.children) {
+        const isChild = rootTab.children.some(child => child.id === activeTabId);
+        if (isChild) {
+          return rootTab;
+        }
+      }
+    }
+    return undefined;
   };
 
-  const getTabsWithAccess = (tabs: TabDefinition[]): TabWithAccess[] => {
-    if (!entityId) return [];
+  const getChildren = (rootTabId: string): ResolvedTab[] => {
+    const root = filteredTree.find(tab => tab.id === rootTabId);
+    return root?.children ?? [];
+  };
 
-    return tabs.map(tab => ({
-      ...tab,
-      href: buildTabHref(tab.hrefTemplate, entityId),
-      granted: tabAccess.get(tab.id) ?? false,
-      reason: data?.tabs.find(t => t.tabId === tab.id)?.reason,
-    }));
+  const isChildOfRoot = (tabId: string, rootId: string): boolean => {
+    const root = filteredTree.find(tab => tab.id === rootId);
+    if (!root || !root.children) return false;
+    return root.children.some(child => child.id === tabId);
   };
 
   return {
     isLoading,
     isError,
-    tabAccess,
+    tabs: filteredTree,
     hasAccess,
-    filterTabs,
-    getTabsWithAccess,
+    getActiveRoot,
+    getChildren,
+    isChildOfRoot,
   };
 }
 
@@ -117,55 +153,31 @@ export function useTabAccess({
  * Hook specifically for worker entity tabs
  */
 export function useWorkerTabAccess(workerId: string | undefined, enabled = true) {
-  const access = useTabAccess({ 
+  return useTabAccess({ 
     entityType: 'worker', 
     entityId: workerId, 
     enabled 
   });
-
-  return {
-    ...access,
-    mainTabs: access.filterTabs(workerTabs),
-    identitySubTabs: access.filterTabs(workerIdentitySubTabs),
-    contactSubTabs: access.filterTabs(workerContactSubTabs),
-    commSubTabs: access.filterTabs(workerCommSubTabs),
-    employmentSubTabs: access.filterTabs(workerEmploymentSubTabs),
-    benefitsSubTabs: access.filterTabs(workerBenefitsSubTabs),
-    unionSubTabs: access.filterTabs(workerUnionSubTabs),
-    dispatchSubTabs: access.filterTabs(workerDispatchSubTabs),
-  };
 }
 
 /**
  * Hook specifically for employer entity tabs
  */
 export function useEmployerTabAccess(employerId: string | undefined, enabled = true) {
-  const access = useTabAccess({ 
+  return useTabAccess({ 
     entityType: 'employer', 
     entityId: employerId, 
     enabled 
   });
-
-  return {
-    ...access,
-    mainTabs: access.filterTabs(employerTabs),
-    accountingSubTabs: access.filterTabs(employerAccountingSubTabs),
-    unionSubTabs: access.filterTabs(employerUnionSubTabs),
-  };
 }
 
 /**
  * Hook specifically for provider entity tabs
  */
 export function useProviderTabAccess(providerId: string | undefined, enabled = true) {
-  const access = useTabAccess({ 
+  return useTabAccess({ 
     entityType: 'provider', 
     entityId: providerId, 
     enabled 
   });
-
-  return {
-    ...access,
-    mainTabs: access.filterTabs(providerTabs),
-  };
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useMemo } from "react";
 import { Building2, ArrowLeft } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BookmarkButton } from "@/components/ui/bookmark-button";
 import { DebugRecordViewer } from "@/components/debug/DebugRecordViewer";
 import { useTerm } from "@/contexts/TerminologyContext";
-import { useEmployerTabAccess } from "@/hooks/useTabAccess";
+import { useEmployerTabAccess, ResolvedTab } from "@/hooks/useTabAccess";
 
 interface EmployerLayoutContextValue {
   employer: Employer;
@@ -28,8 +28,24 @@ export function useEmployerLayout() {
 }
 
 interface EmployerLayoutProps {
-  activeTab: "details" | "edit" | "workers" | "contacts" | "wizards" | "accounting" | "accounts" | "payment-methods" | "customer" | "logs" | "policy-history" | "union" | "stewards" | "dispatch";
+  activeTab: string;
   children: ReactNode;
+}
+
+function applyTerminology(tabs: ResolvedTab[], term: (key: string, options?: { plural?: boolean }) => string): ResolvedTab[] {
+  return tabs.map(tab => {
+    let label = tab.label;
+    
+    if (tab.id === 'union') {
+      label = term("union");
+    } else if (tab.id === 'stewards') {
+      label = term("steward", { plural: true });
+    }
+    
+    const children = tab.children ? applyTerminology(tab.children, term) : undefined;
+    
+    return { ...tab, label, children };
+  });
 }
 
 export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
@@ -47,18 +63,27 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
     },
   });
 
-  // Use the tab access hook to get pre-filtered tabs
   const { 
-    mainTabs: accessMainTabs, 
-    accountingSubTabs: accessAccountingSubTabs,
-    unionSubTabs: accessUnionSubTabs,
+    tabs,
+    getActiveRoot,
     isLoading: tabAccessLoading 
   } = useEmployerTabAccess(id || '');
 
   const isLoading = employerLoading || tabAccessLoading;
-  const isError = !!employerError;
 
-  // Error/Not found state - check this BEFORE loading
+  const mainTabs = useMemo(() => applyTerminology(tabs, term), [tabs, term]);
+  
+  const activeRoot = useMemo(() => {
+    const root = getActiveRoot(activeTab);
+    if (root) {
+      const displayTabs = applyTerminology([root], term);
+      return displayTabs[0];
+    }
+    return undefined;
+  }, [activeTab, getActiveRoot, term]);
+
+  const subTabs = activeRoot?.children;
+
   if (employerError) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -82,7 +107,6 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
     );
   }
 
-  // Loading state - check this AFTER error handling
   if (isLoading || !employer) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -96,26 +120,6 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
       </div>
     );
   }
-
-  // Use pre-filtered tabs from the hook, with terminology applied
-  const mainTabs = accessMainTabs.map(tab => ({
-    ...tab,
-    label: tab.id === 'union' ? term("union") : tab.label,
-  }));
-
-  const accountingSubTabs = accessAccountingSubTabs;
-
-  const unionSubTabs = accessUnionSubTabs.map(tab => ({
-    ...tab,
-    label: tab.id === 'stewards' ? term("steward", { plural: true }) : tab.label,
-  }));
-
-  // Determine if we're in a sub-tab
-  const isAccountingSubTab = ["accounts", "payment-methods", "customer"].includes(activeTab);
-  const showAccountingSubTabs = isAccountingSubTab;
-  
-  const isUnionSubTab = ["stewards"].includes(activeTab);
-  const showUnionSubTabs = isUnionSubTab;
 
   const contextValue: EmployerLayoutContextValue = {
     employer,
@@ -151,12 +155,12 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
         </div>
       </section>
 
-      {/* Main Tab Navigation */}
+      {/* Main Tab Navigation - rendered dynamically from registry */}
       <section className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-2 py-3">
             {mainTabs.map((tab) => {
-              const isActive = tab.id === activeTab || (tab.id === "accounting" && isAccountingSubTab) || (tab.id === "union" && isUnionSubTab);
+              const isActive = tab.id === activeRoot?.id;
               return isActive ? (
                 <Button
                   key={tab.id}
@@ -182,44 +186,12 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
         </div>
       </section>
 
-      {/* Accounting Sub-Tab Navigation */}
-      {showAccountingSubTabs && (
+      {/* Sub-Tab Navigation - rendered dynamically when parent has children */}
+      {subTabs && subTabs.length > 0 && (
         <section className="bg-muted/30 border-b border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-2 py-2 pl-4">
-              {accountingSubTabs.map((tab) => (
-                tab.id === activeTab ? (
-                  <Button
-                    key={tab.id}
-                    variant="secondary"
-                    size="sm"
-                    data-testid={`button-employer-${tab.id}`}
-                  >
-                    {tab.label}
-                  </Button>
-                ) : (
-                  <Link key={tab.id} href={tab.href}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      data-testid={`button-employer-${tab.id}`}
-                    >
-                      {tab.label}
-                    </Button>
-                  </Link>
-                )
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Union Sub-Tab Navigation */}
-      {showUnionSubTabs && (
-        <section className="bg-muted/30 border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center space-x-2 py-2 pl-4">
-              {unionSubTabs.map((tab) => (
+              {subTabs.map((tab) => (
                 tab.id === activeTab ? (
                   <Button
                     key={tab.id}
