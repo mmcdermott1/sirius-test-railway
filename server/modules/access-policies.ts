@@ -150,7 +150,27 @@ export function registerAccessPolicyRoutes(app: Express) {
 
       // Security: First check if user has base access to this entity type
       // This prevents users from probing tab access for entities they can't access at all
-      const basePolicy = entityType; // 'worker', 'employer', 'provider' are policy IDs
+      // Map entity types to their corresponding base access policies
+      const entityPolicyMap: Record<string, string> = {
+        worker: 'worker',
+        employer: 'employer.view',
+        provider: 'provider',
+        employer_contact: 'employer.view',
+        provider_contact: 'provider',
+        policy: 'authenticated',
+        event: 'authenticated',
+        bargaining_unit: 'authenticated',
+        btu_csg: 'authenticated',
+        cron_job: 'admin',
+        dispatch_job: 'authenticated',
+        dispatch_job_type: 'authenticated',
+        ledger_account: 'ledgerStaff',
+        ledger_payment: 'ledgerStaff',
+        trust_benefit: 'staff',
+        worker_hours: 'staff',
+        user: 'admin',
+      };
+      const basePolicy = entityPolicyMap[entityType] || 'authenticated';
       const baseAccessResult = await checkAccess(basePolicy, context.user, entityId);
       
       if (!baseAccessResult.granted) {
