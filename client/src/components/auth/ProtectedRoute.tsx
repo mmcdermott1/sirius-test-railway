@@ -55,7 +55,7 @@ export default function ProtectedRoute({ children, permission, policy, component
     queryFn: async () => {
       const params = new URLSearchParams();
       if (resourceId) {
-        params.set('id', resourceId);
+        params.set('entityId', resourceId);
       }
       const url = `/api/access/policies/${policy}${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
