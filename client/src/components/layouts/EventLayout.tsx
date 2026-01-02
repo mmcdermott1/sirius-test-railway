@@ -51,6 +51,8 @@ export default function EventLayout({ children, activeTab }: EventLayoutProps) {
     queryKey: ["/api/event-types"],
   });
 
+  const { tabs: mainTabs } = useEventTabAccess(id);
+
   const getEventType = (eventTypeId: string | null) => {
     if (!eventTypeId) return undefined;
     return eventTypes.find((t) => t.id === eventTypeId);
@@ -142,9 +144,6 @@ export default function EventLayout({ children, activeTab }: EventLayoutProps) {
   const IconComponent = getEventTypeIcon(event.eventTypeId);
   const eventType = getEventType(event.eventTypeId);
   const category = eventType?.category;
-
-  // Success state - render layout with tabs
-  const { tabs: mainTabs } = useEventTabAccess(event.id);
 
   const contextValue: EventLayoutContextValue = {
     event,
