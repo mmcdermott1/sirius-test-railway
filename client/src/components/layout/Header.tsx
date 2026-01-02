@@ -64,20 +64,23 @@ export default function Header() {
     queryKey: ["/api/system-mode"],
   });
 
+  // Type for policy access check response
+  type PolicyAccessResponse = { access: { granted: boolean } };
+
   // Check ledgerStaff policy for Accounts navigation
-  const { data: ledgerStaffPolicy } = useQuery<{ allowed: boolean }>({
+  const { data: ledgerStaffPolicy } = useQuery<PolicyAccessResponse>({
     queryKey: ["/api/access/policies/ledgerStaff"],
     staleTime: 30000,
   });
 
   // Check worker policy for Workers navigation
-  const { data: workerPolicy } = useQuery<{ allowed: boolean }>({
+  const { data: workerPolicy } = useQuery<PolicyAccessResponse>({
     queryKey: ["/api/access/policies/worker"],
     staleTime: 30000,
   });
 
   // Check employer policy for Employers navigation
-  const { data: employerPolicy } = useQuery<{ allowed: boolean }>({
+  const { data: employerPolicy } = useQuery<PolicyAccessResponse>({
     queryKey: ["/api/access/policies/employersView"],
     staleTime: 30000,
   });
@@ -177,7 +180,7 @@ export default function Header() {
                   </Button>
                 </Link>
 
-                {workerPolicy?.allowed && (
+                {workerPolicy?.access?.granted && (
                   <>
                     <div className="text-sm font-medium text-muted-foreground px-4 py-2">Workers</div>
                     <Link href="/workers" onClick={() => setMobileMenuOpen(false)}>
@@ -241,7 +244,7 @@ export default function Header() {
                   </>
                 )}
 
-                {employerPolicy?.allowed && (
+                {employerPolicy?.access?.granted && (
                   <>
                     <Link href="/employers" onClick={() => setMobileMenuOpen(false)}>
                       <Button
@@ -345,7 +348,7 @@ export default function Header() {
                   </Link>
                 )}
 
-                {ledgerStaffPolicy?.allowed && (
+                {ledgerStaffPolicy?.access?.granted && (
                   <Link href="/ledger/accounts" onClick={() => setMobileMenuOpen(false)}>
                     <Button
                       variant={location.startsWith("/ledger/accounts") ? "default" : "ghost"}
@@ -534,7 +537,7 @@ export default function Header() {
               </Button>
             </Link>
 
-            {workerPolicy?.allowed && (
+            {workerPolicy?.access?.granted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -600,7 +603,7 @@ export default function Header() {
               </DropdownMenu>
             )}
 
-            {employerPolicy?.allowed && (
+            {employerPolicy?.access?.granted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -713,7 +716,7 @@ export default function Header() {
               </Link>
             )}
 
-            {ledgerStaffPolicy?.allowed && (
+            {ledgerStaffPolicy?.access?.granted && (
               <Link href="/ledger/accounts">
                 <Button
                   variant={location.startsWith("/ledger/accounts") ? "default" : "ghost"}
