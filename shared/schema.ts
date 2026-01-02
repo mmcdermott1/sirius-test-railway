@@ -137,7 +137,7 @@ export const workerBans = pgTable("worker_bans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
   type: varchar("type"),
-  startDate: timestamp("start_date"),
+  startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
   active: boolean("active").default(true),
   message: text("message"),
@@ -669,11 +669,16 @@ export const insertWorkerSchema = createInsertSchema(workers).omit({
   contactId: true, // Contact will be managed automatically
 });
 
+export const workerBanTypeEnum = ["dispatch"] as const;
+export type WorkerBanType = typeof workerBanTypeEnum[number];
+
 export const insertWorkerBanSchema = createInsertSchema(workerBans).omit({
   id: true,
+  active: true, // Auto-calculated based on end_date
 }).extend({
-  startDate: z.coerce.date().optional().nullable(),
+  startDate: z.coerce.date(),
   endDate: z.coerce.date().optional().nullable(),
+  type: z.enum(workerBanTypeEnum).optional().nullable(),
 });
 
 export const insertEmployerSchema = createInsertSchema(employers).omit({
