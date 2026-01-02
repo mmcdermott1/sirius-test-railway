@@ -42,6 +42,12 @@ const DEFAULT_CRON_JOBS: DefaultCronJob[] = [
     schedule: '0 4 * * *', // Daily at 4 AM
     isEnabled: true,
   },
+  {
+    name: 'sweep-expired-ban-elig',
+    description: 'Clears dispatch eligibility entries for expired worker bans',
+    schedule: '0 5 * * *', // Daily at 5 AM
+    isEnabled: true,
+  },
 ];
 
 export async function bootstrapCronJobs(): Promise<void> {

@@ -121,23 +121,40 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
     .$dynamic();
 
   const whereConditions = appliedConditions.map(({ condition }) => {
-    const subquery = db
-      .select({ one: sql`1` })
-      .from(workerDispatchEligDenorm)
-      .where(and(
-        eq(workerDispatchEligDenorm.workerId, workers.id),
-        eq(workerDispatchEligDenorm.category, condition.category),
-        eq(workerDispatchEligDenorm.value, condition.value)
-      ));
-
     switch (condition.type) {
-      case "exists":
+      case "exists": {
+        const subquery = db
+          .select({ one: sql`1` })
+          .from(workerDispatchEligDenorm)
+          .where(and(
+            eq(workerDispatchEligDenorm.workerId, workers.id),
+            eq(workerDispatchEligDenorm.category, condition.category),
+            eq(workerDispatchEligDenorm.value, condition.value)
+          ));
         return exists(subquery);
+      }
       
-      case "not_exists":
+      case "not_exists": {
+        const subquery = db
+          .select({ one: sql`1` })
+          .from(workerDispatchEligDenorm)
+          .where(and(
+            eq(workerDispatchEligDenorm.workerId, workers.id),
+            eq(workerDispatchEligDenorm.category, condition.category),
+            eq(workerDispatchEligDenorm.value, condition.value)
+          ));
         return notExists(subquery);
+      }
       
-      case "exists_or_none":
+      case "exists_or_none": {
+        const valueSubquery = db
+          .select({ one: sql`1` })
+          .from(workerDispatchEligDenorm)
+          .where(and(
+            eq(workerDispatchEligDenorm.workerId, workers.id),
+            eq(workerDispatchEligDenorm.category, condition.category),
+            eq(workerDispatchEligDenorm.value, condition.value)
+          ));
         const categorySubquery = db
           .select({ one: sql`1` })
           .from(workerDispatchEligDenorm)
@@ -146,9 +163,21 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
             eq(workerDispatchEligDenorm.category, condition.category)
           ));
         return or(
-          exists(subquery),
+          exists(valueSubquery),
           notExists(categorySubquery)
         );
+      }
+      
+      case "not_exists_category": {
+        const categorySubquery = db
+          .select({ one: sql`1` })
+          .from(workerDispatchEligDenorm)
+          .where(and(
+            eq(workerDispatchEligDenorm.workerId, workers.id),
+            eq(workerDispatchEligDenorm.category, condition.category)
+          ));
+        return notExists(categorySubquery);
+      }
       
       default:
         logger.warn(`Unknown condition type: ${(condition as EligibilityCondition).type}`, {

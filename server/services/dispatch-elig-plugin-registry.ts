@@ -15,9 +15,10 @@ export interface EligibilityCondition {
    * - "exists": Worker must have a row with this category and value
    * - "not_exists": Worker must NOT have a row with this category and value
    * - "exists_or_none": Worker must either have no rows with this category, OR have one matching the value
+   * - "not_exists_category": Worker must NOT have ANY row with this category (value is ignored in query but used for documentation)
    */
-  type: "exists" | "not_exists" | "exists_or_none";
-  /** The value to check. Can be a static value or derived from job context */
+  type: "exists" | "not_exists" | "exists_or_none" | "not_exists_category";
+  /** The value to check. Can be a static value or derived from job context. For not_exists_category, this is informational only. */
   value: string;
 }
 
@@ -50,6 +51,7 @@ export interface WorkerEventPayload {
  * - DISPATCH_DNC_SAVED
  * - DISPATCH_HFE_SAVED
  * - DISPATCH_STATUS_SAVED
+ * - WORKER_BAN_SAVED
  */
 export interface PluginEventHandler {
   /** The event type to listen for. Must be an event with a workerId in its payload. */
