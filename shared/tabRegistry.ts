@@ -38,7 +38,23 @@ export interface FlatTab extends TabDefinition {
 /**
  * Entity type for tab registry
  */
-export type TabEntityType = 'worker' | 'employer' | 'employer_contact' | 'provider' | 'provider_contact' | 'policy' | 'event';
+export type TabEntityType = 
+  | 'worker' 
+  | 'employer' 
+  | 'employer_contact' 
+  | 'provider' 
+  | 'provider_contact' 
+  | 'policy' 
+  | 'event'
+  | 'bargaining_unit'
+  | 'btu_csg'
+  | 'cron_job'
+  | 'dispatch_job'
+  | 'dispatch_job_type'
+  | 'ledger_account'
+  | 'ledger_payment'
+  | 'trust_benefit'
+  | 'worker_hours';
 
 /**
  * Tab check request for batch access evaluation
@@ -175,6 +191,110 @@ export const providerTabTree: HierarchicalTab[] = [
 ];
 
 /**
+ * Policy entity tab tree
+ */
+export const policyTabTree: HierarchicalTab[] = [
+  { id: 'details', label: 'Details', hrefTemplate: '/config/policy/{id}', permission: 'policies.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/config/policy/{id}/edit', permission: 'policies.edit' },
+  { id: 'benefits', label: 'Benefits', hrefTemplate: '/config/policy/{id}/benefits', permission: 'policies.view' },
+];
+
+/**
+ * Event entity tab tree
+ */
+export const eventTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/events/{id}', permission: 'events.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/events/{id}/edit', permission: 'events.edit' },
+  { id: 'register', label: 'Register', hrefTemplate: '/events/{id}/register', permission: 'events.edit' },
+  { id: 'roster', label: 'Roster', hrefTemplate: '/events/{id}/roster', permission: 'events.view' },
+  { id: 'self-register', label: 'Self-Register', hrefTemplate: '/events/{id}/self-register', permission: 'events.view' },
+  { id: 'delete', label: 'Delete', hrefTemplate: '/events/{id}/delete', permission: 'events.delete' },
+];
+
+/**
+ * Bargaining unit entity tab tree
+ */
+export const bargainingUnitTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/bargaining-units/{id}', permission: 'bargainingunits.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/bargaining-units/{id}/edit', permission: 'bargainingunits.edit' },
+  { id: 'delete', label: 'Delete', hrefTemplate: '/bargaining-units/{id}/delete', permission: 'bargainingunits.delete' },
+];
+
+/**
+ * BTU CSG (Class Size Grievance) entity tab tree
+ */
+export const btuCsgTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/sitespecific/btu/csg/{id}', permission: 'sitespecific.btu.csg.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/sitespecific/btu/csg/{id}/edit', permission: 'sitespecific.btu.csg.edit' },
+];
+
+/**
+ * Cron job entity tab tree
+ */
+export const cronJobTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/cron-jobs/{id}', permission: 'cron.view' },
+  { id: 'settings', label: 'Settings', hrefTemplate: '/cron-jobs/{id}/settings', permission: 'cron.edit' },
+  { id: 'history', label: 'History', hrefTemplate: '/cron-jobs/{id}/history', permission: 'cron.view' },
+];
+
+/**
+ * Dispatch job entity tab tree
+ */
+export const dispatchJobTabTree: HierarchicalTab[] = [
+  { id: 'details', label: 'Details', hrefTemplate: '/dispatch/job/{id}', permission: 'dispatch.view', component: 'dispatch' },
+  { id: 'dispatches', label: 'Dispatches', hrefTemplate: '/dispatch/job/{id}/dispatches', permission: 'dispatch.view', component: 'dispatch' },
+  { id: 'eligible-workers', label: 'Eligible Workers', hrefTemplate: '/dispatch/job/{id}/eligible-workers', permission: 'dispatch.view', component: 'dispatch' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/dispatch/job/{id}/edit', permission: 'dispatch.edit', component: 'dispatch' },
+];
+
+/**
+ * Dispatch job type entity tab tree
+ */
+export const dispatchJobTypeTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/config/dispatch-job-type/{id}', permission: 'dispatch.view', component: 'dispatch' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/config/dispatch-job-type/{id}/edit', permission: 'dispatch.edit', component: 'dispatch' },
+  { id: 'plugins', label: 'Plugins', hrefTemplate: '/config/dispatch-job-type/{id}/plugins', permission: 'dispatch.edit', component: 'dispatch' },
+  { id: 'delete', label: 'Delete', hrefTemplate: '/config/dispatch-job-type/{id}/delete', permission: 'dispatch.delete', component: 'dispatch' },
+];
+
+/**
+ * Ledger account entity tab tree
+ */
+export const ledgerAccountTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/ledger/account/{id}', permission: 'ledger.view', component: 'ledger' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/ledger/account/{id}/edit', permission: 'ledger.edit', component: 'ledger' },
+  { id: 'payments', label: 'Payments', hrefTemplate: '/ledger/account/{id}/payments', permission: 'ledger.view', component: 'ledger' },
+  { id: 'transactions', label: 'Transactions', hrefTemplate: '/ledger/account/{id}/transactions', permission: 'ledger.view', component: 'ledger' },
+  { id: 'participants', label: 'Participants', hrefTemplate: '/ledger/account/{id}/participants', permission: 'ledger.view', component: 'ledger' },
+  { id: 'settings', label: 'Settings', hrefTemplate: '/ledger/account/{id}/settings', permission: 'ledger.edit', component: 'ledger' },
+];
+
+/**
+ * Ledger payment entity tab tree
+ */
+export const ledgerPaymentTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/ledger/payment/{id}', permission: 'ledger.view', component: 'ledger' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/ledger/payment/{id}/edit', permission: 'ledger.edit', component: 'ledger' },
+];
+
+/**
+ * Trust benefit entity tab tree
+ */
+export const trustBenefitTabTree: HierarchicalTab[] = [
+  { id: 'details', label: 'Details', hrefTemplate: '/trust-benefits/{id}', permission: 'trust.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/trust-benefits/{id}/edit', permission: 'trust.edit' },
+];
+
+/**
+ * Worker hours entry tab tree
+ */
+export const workerHoursTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/worker-hours/{id}', permission: 'workers.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/worker-hours/{id}/edit', permission: 'workers.edit' },
+  { id: 'delete', label: 'Delete', hrefTemplate: '/worker-hours/{id}/delete', permission: 'workers.delete' },
+];
+
+/**
  * Entity tab trees by type
  */
 export const tabTreeRegistry: Record<TabEntityType, HierarchicalTab[]> = {
@@ -183,8 +303,17 @@ export const tabTreeRegistry: Record<TabEntityType, HierarchicalTab[]> = {
   employer_contact: [],
   provider: providerTabTree,
   provider_contact: [],
-  policy: [],
-  event: [],
+  policy: policyTabTree,
+  event: eventTabTree,
+  bargaining_unit: bargainingUnitTabTree,
+  btu_csg: btuCsgTabTree,
+  cron_job: cronJobTabTree,
+  dispatch_job: dispatchJobTabTree,
+  dispatch_job_type: dispatchJobTypeTabTree,
+  ledger_account: ledgerAccountTabTree,
+  ledger_payment: ledgerPaymentTabTree,
+  trust_benefit: trustBenefitTabTree,
+  worker_hours: workerHoursTabTree,
 };
 
 /**
@@ -331,6 +460,15 @@ export const tabRegistry: Record<TabEntityType, TabDefinition[]> = {
   employer_contact: [],
   provider: allProviderTabs,
   provider_contact: [],
-  policy: [],
-  event: [],
+  policy: flattenTabTree(policyTabTree),
+  event: flattenTabTree(eventTabTree),
+  bargaining_unit: flattenTabTree(bargainingUnitTabTree),
+  btu_csg: flattenTabTree(btuCsgTabTree),
+  cron_job: flattenTabTree(cronJobTabTree),
+  dispatch_job: flattenTabTree(dispatchJobTabTree),
+  dispatch_job_type: flattenTabTree(dispatchJobTypeTabTree),
+  ledger_account: flattenTabTree(ledgerAccountTabTree),
+  ledger_payment: flattenTabTree(ledgerPaymentTabTree),
+  trust_benefit: flattenTabTree(trustBenefitTabTree),
+  worker_hours: flattenTabTree(workerHoursTabTree),
 };

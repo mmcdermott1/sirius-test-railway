@@ -181,3 +181,124 @@ export function useProviderTabAccess(providerId: string | undefined, enabled = t
     enabled 
   });
 }
+
+/**
+ * Hook specifically for policy entity tabs
+ */
+export function usePolicyTabAccess(policyId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'policy', 
+    entityId: policyId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for event entity tabs
+ */
+export function useEventTabAccess(eventId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'event', 
+    entityId: eventId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for bargaining unit entity tabs
+ */
+export function useBargainingUnitTabAccess(bargainingUnitId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'bargaining_unit', 
+    entityId: bargainingUnitId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for BTU CSG entity tabs
+ */
+export function useBtuCsgTabAccess(csgId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'btu_csg', 
+    entityId: csgId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for cron job entity tabs
+ */
+export function useCronJobTabAccess(jobName: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'cron_job', 
+    entityId: jobName, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for dispatch job entity tabs
+ */
+export function useDispatchJobTabAccess(jobId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'dispatch_job', 
+    entityId: jobId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for dispatch job type entity tabs
+ */
+export function useDispatchJobTypeTabAccess(jobTypeId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'dispatch_job_type', 
+    entityId: jobTypeId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for ledger account entity tabs
+ */
+export function useLedgerAccountTabAccess(accountId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'ledger_account', 
+    entityId: accountId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for ledger payment entity tabs
+ */
+export function useLedgerPaymentTabAccess(paymentId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'ledger_payment', 
+    entityId: paymentId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for trust benefit entity tabs
+ */
+export function useTrustBenefitTabAccess(benefitId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'trust_benefit', 
+    entityId: benefitId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for worker hours entity tabs
+ */
+export function useWorkerHoursTabAccess(hoursId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'worker_hours', 
+    entityId: hoursId, 
+    enabled 
+  });
+}
