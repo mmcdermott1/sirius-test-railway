@@ -1,8 +1,10 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, Shield } from 'lucide-react';
 import { Redirect, useLocation } from 'wouter';
 import AccessDenied from './AccessDenied';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -28,6 +30,20 @@ interface DetailedPolicyResult {
   }>;
 }
 
+class PolicyCheckError extends Error {
+  statusCode: number;
+  apiMessage: string;
+  policyId: string;
+  
+  constructor(message: string, statusCode: number, apiMessage: string, policyId: string) {
+    super(message);
+    this.name = 'PolicyCheckError';
+    this.statusCode = statusCode;
+    this.apiMessage = apiMessage;
+    this.policyId = policyId;
+  }
+}
+
 export default function ProtectedRoute({ children, permission, policy, component }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, authReady, hasPermission, hasComponent } = useAuth();
   const [location] = useLocation();
@@ -36,7 +52,7 @@ export default function ProtectedRoute({ children, permission, policy, component
   const resourceId = location.split('/').filter(Boolean).pop();
   
   // Check policy via API if policy prop is provided
-  const { data: policyResult, isLoading: isPolicyLoading, isError: isPolicyError } = useQuery<DetailedPolicyResult>({
+  const { data: policyResult, isLoading: isPolicyLoading, isError: isPolicyError, error: policyError } = useQuery<DetailedPolicyResult, PolicyCheckError>({
     queryKey: ['/api/access/policies', policy, resourceId],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -46,7 +62,19 @@ export default function ProtectedRoute({ children, permission, policy, component
       const url = `/api/access/policies/${policy}${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Failed to check policy');
+        let apiMessage = 'Unknown error';
+        try {
+          const errorData = await response.json();
+          apiMessage = errorData.message || errorData.error || 'Unknown error';
+        } catch {
+          apiMessage = response.statusText || 'Unknown error';
+        }
+        throw new PolicyCheckError(
+          `Policy check failed: ${apiMessage}`,
+          response.status,
+          apiMessage,
+          policy || 'unknown'
+        );
       }
       return response.json();
     },
@@ -109,17 +137,86 @@ export default function ProtectedRoute({ children, permission, policy, component
   if (policy) {
     // If there was an error fetching policy, fail closed (deny access)
     if (isPolicyError) {
+      const errorDetails = policyError instanceof PolicyCheckError ? policyError : null;
+      const is404 = errorDetails?.statusCode === 404;
+      
       return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-          <div className="text-center max-w-md p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Access Check Failed</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Unable to verify your access permissions. Please try refreshing the page.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              If this problem persists, please contact your administrator.
-            </p>
-          </div>
+        <div className="flex items-center justify-center min-h-screen bg-background p-4">
+          <Card className="max-w-2xl w-full">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Shield className="h-8 w-8 text-destructive" />
+                <div>
+                  <CardTitle className="text-2xl">Access Check Failed</CardTitle>
+                  <CardDescription>
+                    Unable to verify your access permissions
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>
+                  {is404 ? 'Policy Not Found' : 'Error Checking Access'}
+                </AlertTitle>
+                <AlertDescription>
+                  {errorDetails?.apiMessage || 'An unexpected error occurred while checking permissions.'}
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  Error Details
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-muted-foreground">Policy ID:</span>
+                    <span className="font-mono">{errorDetails?.policyId || policy}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-muted-foreground">Status Code:</span>
+                    <span className="font-mono">{errorDetails?.statusCode || 'Unknown'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-muted-foreground">Resource ID:</span>
+                    <span className="font-mono">{resourceId || 'None'}</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-muted-foreground">Current Path:</span>
+                    <span className="font-mono text-xs">{location}</span>
+                  </div>
+                </div>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>What does this mean?</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  {is404 ? (
+                    <>
+                      <p>
+                        The access policy <span className="font-mono">{errorDetails?.policyId || policy}</span> does not exist in the system.
+                      </p>
+                      <p className="mt-2">This could mean:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>The policy has not been registered in the application</li>
+                        <li>There is a typo in the policy name</li>
+                        <li>The feature requiring this policy is not fully configured</li>
+                      </ul>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        An error occurred while checking your access permissions.
+                      </p>
+                      <p className="mt-2">Try refreshing the page. If the problem persists, contact your administrator.</p>
+                    </>
+                  )}
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
         </div>
       );
     }
