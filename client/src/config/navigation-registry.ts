@@ -40,14 +40,14 @@ export const configSections: NavSection[] = [
     description: "Core system configuration and monitoring",
     icon: Settings,
     items: [
-      { path: "/config/system-mode", label: "System Mode", icon: Server, testId: "nav-config-system-mode", policy: "admin" },
-      { path: "/config/twilio", label: "SMS Providers", icon: MessageSquare, testId: "nav-config-sms", policy: "admin" },
-      { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", policy: "admin" },
-      { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", policy: "admin" },
+      { path: "/config/system-mode", label: "System Mode", icon: Server, testId: "nav-config-system-mode", permission: "admin" },
+      { path: "/config/twilio", label: "SMS Providers", icon: MessageSquare, testId: "nav-config-sms", permission: "admin" },
+      { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", permission: "admin" },
+      { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", permission: "admin" },
       { path: "/config/components", label: "Components", icon: Package, testId: "nav-config-components", permission: "admin" },
-      { path: "/config/logs", label: "System Logs", icon: FileText, testId: "nav-config-logs", policy: "admin" },
-      { path: "/admin/quickstarts", label: "Quickstarts", icon: Database, testId: "nav-config-quickstarts", policy: "admin" },
-      { path: "/admin/cron-jobs", label: "Cron Jobs", icon: Clock, testId: "nav-config-cron-jobs", policy: "admin" },
+      { path: "/config/logs", label: "System Logs", icon: FileText, testId: "nav-config-logs", permission: "admin" },
+      { path: "/admin/quickstarts", label: "Quickstarts", icon: Database, testId: "nav-config-quickstarts", permission: "admin" },
+      { path: "/admin/cron-jobs", label: "Cron Jobs", icon: Clock, testId: "nav-config-cron-jobs", permission: "admin" },
     ],
   },
   {
@@ -142,7 +142,7 @@ export const configSections: NavSection[] = [
     icon: Wallet,
     items: [
       { path: "/config/ledger/payment-types", label: "Payment Types", icon: Wallet, testId: "nav-ledger-payment-types", policy: "ledgerStaff" },
-      { path: "/config/ledger/charge-plugins", label: "Charge Plugins", icon: Zap, testId: "nav-ledger-charge-plugins", policy: "admin" },
+      { path: "/config/ledger/charge-plugins", label: "Charge Plugins", icon: Zap, testId: "nav-ledger-charge-plugins", permission: "admin" },
     ],
     subsections: [
       {
