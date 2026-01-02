@@ -10,18 +10,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { Ban, Plus, Trash2, Pencil } from "lucide-react";
 import type { WorkerBan } from "@shared/schema";
+import { workerBanTypeEnum } from "@shared/schema";
 import { format } from "date-fns";
+
+const BAN_TYPE_LABELS: Record<string, string> = {
+  dispatch: "Dispatch",
+};
 
 function BansContent() {
   const { worker } = useWorkerLayout();
   const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBan, setEditingBan] = useState<WorkerBan | null>(null);
+  const [formType, setFormType] = useState<string>("dispatch");
   const [formStartDate, setFormStartDate] = useState<string>("");
   const [formEndDate, setFormEndDate] = useState<string>("");
   const [formMessage, setFormMessage] = useState<string>("");
@@ -52,7 +59,7 @@ function BansContent() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<{ startDate: string; endDate: string | null; message: string | null }> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<{ type: string; startDate: string; endDate: string | null; message: string | null }> }) => {
       return apiRequest("PUT", `/api/worker-bans/${id}`, data);
     },
     onSuccess: () => {
@@ -94,6 +101,7 @@ function BansContent() {
 
   const openAddModal = () => {
     setEditingBan(null);
+    setFormType("dispatch");
     setFormStartDate(format(new Date(), "yyyy-MM-dd"));
     setFormEndDate("");
     setFormMessage("");
@@ -102,6 +110,7 @@ function BansContent() {
 
   const openEditModal = (ban: WorkerBan) => {
     setEditingBan(ban);
+    setFormType(ban.type || "dispatch");
     setFormStartDate(ban.startDate ? format(new Date(ban.startDate), "yyyy-MM-dd") : "");
     setFormEndDate(ban.endDate ? format(new Date(ban.endDate), "yyyy-MM-dd") : "");
     setFormMessage(ban.message || "");
@@ -111,6 +120,7 @@ function BansContent() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingBan(null);
+    setFormType("dispatch");
     setFormStartDate("");
     setFormEndDate("");
     setFormMessage("");
@@ -130,6 +140,7 @@ function BansContent() {
       updateMutation.mutate({
         id: editingBan.id,
         data: {
+          type: formType,
           startDate: formStartDate,
           endDate: formEndDate || null,
           message: formMessage || null,
@@ -138,7 +149,7 @@ function BansContent() {
     } else {
       createMutation.mutate({
         workerId: worker.id,
-        type: "dispatch",
+        type: formType,
         startDate: formStartDate,
         endDate: formEndDate || null,
         message: formMessage || null,
@@ -190,6 +201,7 @@ function BansContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Status</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Start Date</TableHead>
                   <TableHead>End Date</TableHead>
                   <TableHead>Reason</TableHead>
@@ -203,6 +215,9 @@ function BansContent() {
                       <Badge variant={ban.active ? "destructive" : "secondary"}>
                         {ban.active ? "Active" : "Expired"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {ban.type ? BAN_TYPE_LABELS[ban.type] || ban.type : <span className="text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell>
                       {ban.startDate ? format(new Date(ban.startDate), "MMM d, yyyy") : "-"}
@@ -266,6 +281,21 @@ function BansContent() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="type">Type</Label>
+              <Select value={formType} onValueChange={setFormType}>
+                <SelectTrigger data-testid="select-ban-type">
+                  <SelectValue placeholder="Select ban type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {workerBanTypeEnum.map((type) => (
+                    <SelectItem key={type} value={type} data-testid={`select-ban-type-${type}`}>
+                      {BAN_TYPE_LABELS[type] || type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
               <Input
