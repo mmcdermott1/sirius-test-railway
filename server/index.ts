@@ -168,7 +168,7 @@ app.use((req, res, next) => {
   logger.info("Component permissions synced", { source: "startup" });
 
   // Initialize dispatch eligibility plugin system
-  initializeDispatchEligSystem();
+  await initializeDispatchEligSystem();
   logger.info("Dispatch eligibility system initialized", { source: "startup" });
 
   // Register charge plugin event listeners

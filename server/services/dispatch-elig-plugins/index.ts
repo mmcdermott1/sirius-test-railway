@@ -1,6 +1,6 @@
 import { logger } from "../../logger";
 import { dispatchEligPluginRegistry } from "../dispatch-elig-plugin-registry";
-import { dispatchBanPlugin } from "./ban";
+import { dispatchBanPlugin, backfillDispatchBanEligibility } from "./ban";
 import { dispatchDncPlugin } from "./dnc";
 import { dispatchHfePlugin } from "./hfe";
 import { dispatchStatusPlugin } from "./status";
@@ -25,7 +25,26 @@ export function registerDispatchEligPlugins(): void {
 /**
  * Initializes the dispatch eligibility system.
  * Plugins register themselves and their event handlers automatically.
+ * Also backfills eligibility data for existing records.
  */
-export function initializeDispatchEligSystem(): void {
+export async function initializeDispatchEligSystem(): Promise<void> {
   registerDispatchEligPlugins();
+  
+  // Backfill eligibility data for existing active dispatch bans
+  // This ensures pre-existing bans are accounted for in eligibility checks
+  try {
+    const result = await backfillDispatchBanEligibility();
+    if (result.workersProcessed > 0) {
+      logger.info("Ban eligibility backfill completed during startup", {
+        service: "dispatch-elig-plugins",
+        workersProcessed: result.workersProcessed,
+        entriesCreated: result.entriesCreated,
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to backfill ban eligibility during startup", {
+      service: "dispatch-elig-plugins",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

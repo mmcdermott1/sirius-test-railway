@@ -215,6 +215,13 @@ export const componentRegistry: ComponentDefinition[] = [
     }
   },
   {
+    id: "dispatch.ban",
+    name: "Dispatch Ban",
+    description: "Excludes workers with active dispatch bans from dispatch eligibility",
+    enabledByDefault: false,
+    category: "dispatch"
+  },
+  {
     id: "debug",
     name: "Debug",
     description: "Debug tools and developer utilities",
