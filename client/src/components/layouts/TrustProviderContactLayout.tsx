@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Users } from "lucide-react";
 import { createContext, useContext } from "react";
+import { useProviderContactTabAccess } from "@/hooks/useTabAccess";
 
 interface Contact {
   id: string;
@@ -110,25 +111,11 @@ export function TrustProviderContactLayout({ children, activeTab }: TrustProvide
     );
   }
 
-  const mainTabs = [
-    { id: "view", label: "View", href: `/trust-provider-contacts/${id}` },
-    { id: "edit", label: "Edit", href: `/trust-provider-contacts/${id}/edit` },
-    { id: "name", label: "Name", href: `/trust-provider-contacts/${id}/name` },
-    { id: "email", label: "Email", href: `/trust-provider-contacts/${id}/email` },
-    { id: "phone-numbers", label: "Phone Numbers", href: `/trust-provider-contacts/${id}/phone-numbers` },
-    { id: "addresses", label: "Addresses", href: `/trust-provider-contacts/${id}/addresses` },
-    { id: "comm", label: "Comm", href: `/trust-provider-contacts/${id}/comm/history` },
-    { id: "user", label: "User", href: `/trust-provider-contacts/${id}/user` },
-  ];
-
-  const commSubTabs = [
-    { id: "comm-history", label: "History", href: `/trust-provider-contacts/${id}/comm/history` },
-    { id: "send-sms", label: "Send SMS", href: `/trust-provider-contacts/${id}/comm/send-sms` },
-    { id: "send-email", label: "Send Email", href: `/trust-provider-contacts/${id}/comm/send-email` },
-    { id: "send-postal", label: "Send Postal", href: `/trust-provider-contacts/${id}/comm/send-postal` },
-    { id: "send-inapp", label: "Send In-App", href: `/trust-provider-contacts/${id}/comm/send-inapp` },
-  ];
-
+  const { tabs: mainTabs, subTabs: tabSubTabs } = useProviderContactTabAccess(id);
+  
+  // Get comm sub-tabs from the hierarchical structure
+  const commSubTabs = tabSubTabs['comm'] || [];
+  
   const isCommSubTab = ["comm-history", "send-sms", "send-email", "send-postal", "send-inapp"].includes(activeTab);
   const showCommSubTabs = isCommSubTab;
 

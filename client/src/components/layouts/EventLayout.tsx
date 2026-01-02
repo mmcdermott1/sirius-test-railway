@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Event, EventType, EventOccurrence } from "@shared/schema";
 import { createContext, useContext } from "react";
+import { useEventTabAccess } from "@/hooks/useTabAccess";
 
 const iconMap: Record<string, LucideIcon> = {
   Calendar, Users, MapPin, Video, Presentation, Mic, Ticket, Star, Heart, Clock,
@@ -143,20 +144,7 @@ export default function EventLayout({ children, activeTab }: EventLayoutProps) {
   const category = eventType?.category;
 
   // Success state - render layout with tabs
-  const mainTabs = [
-    { id: "view", label: "View", href: `/events/${event.id}` },
-    { id: "edit", label: "Edit", href: `/events/${event.id}/edit` },
-    { id: "delete", label: "Delete", href: `/events/${event.id}/delete` },
-  ];
-  
-  // Add category-specific tabs for membership events
-  if (category === "membership") {
-    mainTabs.push(
-      { id: "register", label: "Register", href: `/events/${event.id}/register` },
-      { id: "roster", label: "Roster", href: `/events/${event.id}/roster` },
-      { id: "self-register", label: "Self Register", href: `/events/${event.id}/self-register` }
-    );
-  }
+  const { tabs: mainTabs } = useEventTabAccess(event.id);
 
   const contextValue: EventLayoutContextValue = {
     event,

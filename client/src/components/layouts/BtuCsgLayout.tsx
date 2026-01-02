@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useBtuCsgTabAccess } from "@/hooks/useTabAccess";
 
 interface BtuCsgRecord {
   id: string;
@@ -156,10 +157,7 @@ export function BtuCsgLayout({ activeTab, children }: BtuCsgLayoutProps) {
     );
   }
 
-  const tabs = [
-    { id: "view", label: "View", href: `/sitespecific/btu/csg/${record.id}` },
-    { id: "edit", label: "Edit", href: `/sitespecific/btu/csg/${record.id}/edit` },
-  ];
+  const { tabs } = useBtuCsgTabAccess(record.id);
 
   const contextValue: BtuCsgLayoutContextValue = {
     record,

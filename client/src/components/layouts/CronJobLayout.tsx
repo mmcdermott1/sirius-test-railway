@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { CronJob } from "@/lib/cron-types";
+import { useCronJobTabAccess } from "@/hooks/useTabAccess";
 
 interface CronJobLayoutContextValue {
   job: CronJob;
@@ -132,11 +133,7 @@ export function CronJobLayout({ activeTab, children }: CronJobLayoutProps) {
   }
 
   // Success state - render layout with tabs
-  const tabs = [
-    { id: "view", label: "View", href: `/cron-jobs/${encodeURIComponent(job.name)}/view` },
-    { id: "settings", label: "Settings", href: `/cron-jobs/${encodeURIComponent(job.name)}/settings` },
-    { id: "history", label: "History", href: `/cron-jobs/${encodeURIComponent(job.name)}/history` },
-  ];
+  const { tabs } = useCronJobTabAccess(encodeURIComponent(job.name));
 
   const contextValue: CronJobLayoutContextValue = {
     job,

@@ -38,6 +38,8 @@ interface UseTabAccessResult {
   isError: boolean;
   /** All accessible root tabs with their accessible children */
   tabs: ResolvedTab[];
+  /** Map of parent tab IDs to their accessible children (for easy sub-tab access) */
+  subTabs: Record<string, ResolvedTab[]>;
   /** Check if a specific tab is accessible */
   hasAccess: (tabId: string) => boolean;
   /** Get the root tab for a given tab ID (returns the tab itself if it's a root) */
@@ -138,10 +140,21 @@ export function useTabAccess({
     return root.children.some(child => child.id === tabId);
   };
 
+  const subTabs = useMemo(() => {
+    const result: Record<string, ResolvedTab[]> = {};
+    for (const tab of filteredTree) {
+      if (tab.children && tab.children.length > 0) {
+        result[tab.id] = tab.children;
+      }
+    }
+    return result;
+  }, [filteredTree]);
+
   return {
     isLoading,
     isError,
     tabs: filteredTree,
+    subTabs,
     hasAccess,
     getActiveRoot,
     getChildren,
@@ -299,6 +312,39 @@ export function useWorkerHoursTabAccess(hoursId: string | undefined, enabled = t
   return useTabAccess({ 
     entityType: 'worker_hours', 
     entityId: hoursId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for employer contact entity tabs
+ */
+export function useEmployerContactTabAccess(contactId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'employer_contact', 
+    entityId: contactId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for trust provider contact entity tabs
+ */
+export function useProviderContactTabAccess(contactId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'provider_contact', 
+    entityId: contactId, 
+    enabled 
+  });
+}
+
+/**
+ * Hook specifically for user entity tabs
+ */
+export function useUserTabAccess(userId: string | undefined, enabled = true) {
+  return useTabAccess({ 
+    entityType: 'user', 
+    entityId: userId, 
     enabled 
   });
 }

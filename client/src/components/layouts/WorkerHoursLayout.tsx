@@ -7,6 +7,7 @@ import { ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmploymentStatus } from "@/lib/entity-types";
+import { useWorkerHoursTabAccess } from "@/hooks/useTabAccess";
 
 interface WorkerHoursEntry {
   id: string;
@@ -134,11 +135,7 @@ export function WorkerHoursLayout({ children, activeTab }: WorkerHoursLayoutProp
 
   const hoursTitle = `${getMonthName(hoursEntry.month)} ${hoursEntry.day}, ${hoursEntry.year} - ${hoursEntry.employer?.name || "Unknown Employer"}`;
 
-  const mainTabs = [
-    { id: "view", label: "View", href: `/hours/${hoursId}` },
-    { id: "edit", label: "Edit", href: `/hours/${hoursId}/edit` },
-    { id: "delete", label: "Delete", href: `/hours/${hoursId}/delete` },
-  ];
+  const { tabs: mainTabs } = useWorkerHoursTabAccess(hoursId!);
 
   const contextValue: WorkerHoursLayoutContextValue = {
     hoursEntry,

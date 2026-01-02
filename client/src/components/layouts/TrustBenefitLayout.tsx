@@ -6,6 +6,7 @@ import { TrustBenefit } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTrustBenefitTabAccess } from "@/hooks/useTabAccess";
 
 interface TrustBenefitLayoutContextValue {
   benefit: TrustBenefit;
@@ -132,10 +133,7 @@ export function TrustBenefitLayout({ activeTab, children }: TrustBenefitLayoutPr
   }
 
   // Success state
-  const tabs = [
-    { id: "details", label: "Details", href: `/trust-benefits/${benefit.id}` },
-    { id: "edit", label: "Edit", href: `/trust-benefits/${benefit.id}/edit` },
-  ];
+  const { tabs } = useTrustBenefitTabAccess(benefit.id);
 
   const contextValue: TrustBenefitLayoutContextValue = {
     benefit,

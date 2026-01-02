@@ -7,6 +7,7 @@ import { ArrowLeft, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPaymentTitle } from "@/lib/payment-utils";
+import { useLedgerPaymentTabAccess } from "@/hooks/useTabAccess";
 
 interface PaymentLayoutContextValue {
   payment: LedgerPayment;
@@ -110,10 +111,7 @@ export function PaymentLayout({ children, activeTab }: PaymentLayoutProps) {
   const paymentType = paymentTypes.find(pt => pt.id === payment.paymentType);
   const paymentTitle = getPaymentTitle(payment, paymentType);
 
-  const mainTabs = [
-    { id: "view", label: "View", href: `/ledger/payment/${id}` },
-    { id: "edit", label: "Edit", href: `/ledger/payment/${id}/edit` },
-  ];
+  const { tabs: mainTabs } = useLedgerPaymentTabAccess(id!);
 
   const contextValue: PaymentLayoutContextValue = {
     payment,

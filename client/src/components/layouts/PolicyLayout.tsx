@@ -6,6 +6,7 @@ import { Policy } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePolicyTabAccess } from "@/hooks/useTabAccess";
 
 interface PolicyLayoutContextValue {
   policy: Policy;
@@ -129,11 +130,7 @@ export function PolicyLayout({ activeTab, children }: PolicyLayoutProps) {
     );
   }
 
-  const tabs = [
-    { id: "details", label: "Details", href: `/policies/${policy.id}` },
-    { id: "edit", label: "Edit", href: `/policies/${policy.id}/edit` },
-    { id: "benefits", label: "Benefits", href: `/policies/${policy.id}/benefits` },
-  ];
+  const { tabs } = usePolicyTabAccess(policy.id);
 
   const contextValue: PolicyLayoutContextValue = {
     policy,

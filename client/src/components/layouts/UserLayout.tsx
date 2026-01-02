@@ -6,6 +6,7 @@ import { Contact } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUserTabAccess } from "@/hooks/useTabAccess";
 
 interface UserDetails {
   id: string;
@@ -165,26 +166,11 @@ export function UserLayout({ activeTab, children }: UserLayoutProps) {
     ? `${user.firstName} ${user.lastName}`
     : user.firstName || user.lastName || user.email || user.id;
 
-  const mainTabs = [
-    { id: "details", label: "Details", href: `/users/${user.id}` },
-    { id: "contact", label: "Contact", href: `/users/${user.id}/contact/email` },
-    { id: "comm", label: "Comm", href: `/users/${user.id}/comm/history` },
-    { id: "logs", label: "Logs", href: `/users/${user.id}/logs` },
-  ];
-
-  const contactSubTabs = [
-    { id: "email", label: "Email", href: `/users/${user.id}/contact/email` },
-    { id: "phone-numbers", label: "Phone Numbers", href: `/users/${user.id}/contact/phone-numbers` },
-    { id: "addresses", label: "Addresses", href: `/users/${user.id}/contact/addresses` },
-  ];
-
-  const commSubTabs = [
-    { id: "comm-history", label: "History", href: `/users/${user.id}/comm/history` },
-    { id: "send-sms", label: "Send SMS", href: `/users/${user.id}/comm/send-sms` },
-    { id: "send-email", label: "Send Email", href: `/users/${user.id}/comm/send-email` },
-    { id: "send-postal", label: "Send Postal", href: `/users/${user.id}/comm/send-postal` },
-    { id: "send-inapp", label: "Send In-App", href: `/users/${user.id}/comm/send-inapp` },
-  ];
+  const { tabs: mainTabs, subTabs: tabSubTabs } = useUserTabAccess(user.id);
+  
+  // Get sub-tabs from the hierarchical structure
+  const contactSubTabs = tabSubTabs['contact'] || [];
+  const commSubTabs = tabSubTabs['comm'] || [];
 
   const isContactSubTab = ["email", "phone-numbers", "addresses"].includes(activeTab);
   const isCommSubTab = ["comm-history", "send-sms", "send-email", "send-postal", "send-inapp"].includes(activeTab);

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LedgerAccountWithDetails } from "@/lib/ledger-types";
+import { useLedgerAccountTabAccess } from "@/hooks/useTabAccess";
 
 interface LedgerAccountLayoutContextValue {
   account: LedgerAccountWithDetails;
@@ -131,14 +132,7 @@ export function LedgerAccountLayout({ activeTab, children }: LedgerAccountLayout
   }
 
   // Success state - render layout with tabs
-  const tabs = [
-    { id: "view", label: "View", href: `/ledger/accounts/${account.id}` },
-    { id: "edit", label: "Edit", href: `/ledger/accounts/${account.id}/edit` },
-    { id: "payments", label: "Payments", href: `/ledger/accounts/${account.id}/payments` },
-    { id: "transactions", label: "Transactions", href: `/ledger/accounts/${account.id}/transactions` },
-    { id: "participants", label: "Participants", href: `/ledger/accounts/${account.id}/participants` },
-    { id: "settings", label: "Settings", href: `/ledger/accounts/${account.id}/settings` },
-  ];
+  const { tabs } = useLedgerAccountTabAccess(account.id);
 
   const contextValue: LedgerAccountLayoutContextValue = {
     account,

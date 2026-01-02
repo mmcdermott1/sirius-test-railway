@@ -54,7 +54,8 @@ export type TabEntityType =
   | 'ledger_account'
   | 'ledger_payment'
   | 'trust_benefit'
-  | 'worker_hours';
+  | 'worker_hours'
+  | 'user';
 
 /**
  * Tab check request for batch access evaluation
@@ -194,9 +195,9 @@ export const providerTabTree: HierarchicalTab[] = [
  * Policy entity tab tree
  */
 export const policyTabTree: HierarchicalTab[] = [
-  { id: 'details', label: 'Details', hrefTemplate: '/config/policy/{id}', permission: 'policies.view' },
-  { id: 'edit', label: 'Edit', hrefTemplate: '/config/policy/{id}/edit', permission: 'policies.edit' },
-  { id: 'benefits', label: 'Benefits', hrefTemplate: '/config/policy/{id}/benefits', permission: 'policies.view' },
+  { id: 'details', label: 'Details', hrefTemplate: '/policies/{id}', permission: 'policies.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/policies/{id}/edit', permission: 'policies.edit' },
+  { id: 'benefits', label: 'Benefits', hrefTemplate: '/policies/{id}/benefits', permission: 'policies.view' },
 ];
 
 /**
@@ -229,10 +230,10 @@ export const btuCsgTabTree: HierarchicalTab[] = [
 ];
 
 /**
- * Cron job entity tab tree
+ * Cron job entity tab tree (uses job name as identifier, not id)
  */
 export const cronJobTabTree: HierarchicalTab[] = [
-  { id: 'view', label: 'View', hrefTemplate: '/cron-jobs/{id}', permission: 'cron.view' },
+  { id: 'view', label: 'View', hrefTemplate: '/cron-jobs/{id}/view', permission: 'cron.view' },
   { id: 'settings', label: 'Settings', hrefTemplate: '/cron-jobs/{id}/settings', permission: 'cron.edit' },
   { id: 'history', label: 'History', hrefTemplate: '/cron-jobs/{id}/history', permission: 'cron.view' },
 ];
@@ -295,14 +296,98 @@ export const workerHoursTabTree: HierarchicalTab[] = [
 ];
 
 /**
+ * Employer contact entity tab tree
+ */
+export const employerContactTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/employer-contacts/{id}', permission: 'employers.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/employer-contacts/{id}/edit', permission: 'employers.edit' },
+  { id: 'name', label: 'Name', hrefTemplate: '/employer-contacts/{id}/name', permission: 'employers.edit' },
+  { id: 'email', label: 'Email', hrefTemplate: '/employer-contacts/{id}/email', permission: 'employers.edit' },
+  { id: 'phone-numbers', label: 'Phone Numbers', hrefTemplate: '/employer-contacts/{id}/phone-numbers', permission: 'employers.edit' },
+  { id: 'addresses', label: 'Addresses', hrefTemplate: '/employer-contacts/{id}/addresses', permission: 'employers.edit' },
+  { 
+    id: 'comm', 
+    label: 'Comm', 
+    hrefTemplate: '/employer-contacts/{id}/comm/history', 
+    permission: 'communication.view',
+    children: [
+      { id: 'comm-history', label: 'History', hrefTemplate: '/employer-contacts/{id}/comm/history', permission: 'communication.view' },
+      { id: 'send-sms', label: 'Send SMS', hrefTemplate: '/employer-contacts/{id}/comm/send-sms', permission: 'communication.send' },
+      { id: 'send-email', label: 'Send Email', hrefTemplate: '/employer-contacts/{id}/comm/send-email', permission: 'communication.send' },
+      { id: 'send-postal', label: 'Send Postal', hrefTemplate: '/employer-contacts/{id}/comm/send-postal', permission: 'communication.send' },
+      { id: 'send-inapp', label: 'Send In-App', hrefTemplate: '/employer-contacts/{id}/comm/send-inapp', permission: 'communication.send' },
+    ],
+  },
+  { id: 'user', label: 'User', hrefTemplate: '/employer-contacts/{id}/user', permission: 'users.view' },
+];
+
+/**
+ * Trust provider contact entity tab tree
+ */
+export const providerContactTabTree: HierarchicalTab[] = [
+  { id: 'view', label: 'View', hrefTemplate: '/trust-provider-contacts/{id}', permission: 'providers.view' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/trust-provider-contacts/{id}/edit', permission: 'providers.edit' },
+  { id: 'name', label: 'Name', hrefTemplate: '/trust-provider-contacts/{id}/name', permission: 'providers.edit' },
+  { id: 'email', label: 'Email', hrefTemplate: '/trust-provider-contacts/{id}/email', permission: 'providers.edit' },
+  { id: 'phone-numbers', label: 'Phone Numbers', hrefTemplate: '/trust-provider-contacts/{id}/phone-numbers', permission: 'providers.edit' },
+  { id: 'addresses', label: 'Addresses', hrefTemplate: '/trust-provider-contacts/{id}/addresses', permission: 'providers.edit' },
+  { 
+    id: 'comm', 
+    label: 'Comm', 
+    hrefTemplate: '/trust-provider-contacts/{id}/comm/history', 
+    permission: 'communication.view',
+    children: [
+      { id: 'comm-history', label: 'History', hrefTemplate: '/trust-provider-contacts/{id}/comm/history', permission: 'communication.view' },
+      { id: 'send-sms', label: 'Send SMS', hrefTemplate: '/trust-provider-contacts/{id}/comm/send-sms', permission: 'communication.send' },
+      { id: 'send-email', label: 'Send Email', hrefTemplate: '/trust-provider-contacts/{id}/comm/send-email', permission: 'communication.send' },
+      { id: 'send-postal', label: 'Send Postal', hrefTemplate: '/trust-provider-contacts/{id}/comm/send-postal', permission: 'communication.send' },
+      { id: 'send-inapp', label: 'Send In-App', hrefTemplate: '/trust-provider-contacts/{id}/comm/send-inapp', permission: 'communication.send' },
+    ],
+  },
+  { id: 'user', label: 'User', hrefTemplate: '/trust-provider-contacts/{id}/user', permission: 'users.view' },
+];
+
+/**
+ * User entity tab tree
+ */
+export const userTabTree: HierarchicalTab[] = [
+  { id: 'details', label: 'Details', hrefTemplate: '/users/{id}', permission: 'users.view' },
+  { 
+    id: 'contact', 
+    label: 'Contact', 
+    hrefTemplate: '/users/{id}/contact/email', 
+    permission: 'users.view',
+    children: [
+      { id: 'email', label: 'Email', hrefTemplate: '/users/{id}/contact/email', permission: 'users.view' },
+      { id: 'phone-numbers', label: 'Phone Numbers', hrefTemplate: '/users/{id}/contact/phone-numbers', permission: 'users.view' },
+      { id: 'addresses', label: 'Addresses', hrefTemplate: '/users/{id}/contact/addresses', permission: 'users.view' },
+    ],
+  },
+  { 
+    id: 'comm', 
+    label: 'Comm', 
+    hrefTemplate: '/users/{id}/comm/history', 
+    permission: 'communication.view',
+    children: [
+      { id: 'comm-history', label: 'History', hrefTemplate: '/users/{id}/comm/history', permission: 'communication.view' },
+      { id: 'send-sms', label: 'Send SMS', hrefTemplate: '/users/{id}/comm/send-sms', permission: 'communication.send' },
+      { id: 'send-email', label: 'Send Email', hrefTemplate: '/users/{id}/comm/send-email', permission: 'communication.send' },
+      { id: 'send-postal', label: 'Send Postal', hrefTemplate: '/users/{id}/comm/send-postal', permission: 'communication.send' },
+      { id: 'send-inapp', label: 'Send In-App', hrefTemplate: '/users/{id}/comm/send-inapp', permission: 'communication.send' },
+    ],
+  },
+  { id: 'logs', label: 'Logs', hrefTemplate: '/users/{id}/logs', permission: 'users.view' },
+];
+
+/**
  * Entity tab trees by type
  */
 export const tabTreeRegistry: Record<TabEntityType, HierarchicalTab[]> = {
   worker: workerTabTree,
   employer: employerTabTree,
-  employer_contact: [],
+  employer_contact: employerContactTabTree,
   provider: providerTabTree,
-  provider_contact: [],
+  provider_contact: providerContactTabTree,
   policy: policyTabTree,
   event: eventTabTree,
   bargaining_unit: bargainingUnitTabTree,
@@ -314,6 +399,7 @@ export const tabTreeRegistry: Record<TabEntityType, HierarchicalTab[]> = {
   ledger_payment: ledgerPaymentTabTree,
   trust_benefit: trustBenefitTabTree,
   worker_hours: workerHoursTabTree,
+  user: userTabTree,
 };
 
 /**
@@ -471,4 +557,5 @@ export const tabRegistry: Record<TabEntityType, TabDefinition[]> = {
   ledger_payment: flattenTabTree(ledgerPaymentTabTree),
   trust_benefit: flattenTabTree(trustBenefitTabTree),
   worker_hours: flattenTabTree(workerHoursTabTree),
+  user: flattenTabTree(userTabTree),
 };

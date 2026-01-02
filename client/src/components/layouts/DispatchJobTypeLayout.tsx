@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import type { DispatchJobType, JobTypeData } from "@shared/schema";
 import { createContext, useContext } from "react";
+import { useDispatchJobTypeTabAccess } from "@/hooks/useTabAccess";
 
 const iconMap: Record<string, LucideIcon> = {
   Briefcase, Truck, HardHat, Wrench, Clock, Calendar, ClipboardList, Package, MapPin, Users,
@@ -116,12 +117,7 @@ export default function DispatchJobTypeLayout({ children, activeTab }: DispatchJ
     );
   }
 
-  const mainTabs = [
-    { id: "view", label: "View", href: `/config/dispatch-job-type/${jobType.id}` },
-    { id: "edit", label: "Edit", href: `/config/dispatch-job-type/${jobType.id}/edit` },
-    { id: "plugins", label: "Plugins", href: `/config/dispatch-job-type/${jobType.id}/plugins` },
-    { id: "delete", label: "Delete", href: `/config/dispatch-job-type/${jobType.id}/delete` },
-  ];
+  const { tabs: mainTabs } = useDispatchJobTypeTabAccess(jobType.id);
 
   const contextValue: DispatchJobTypeLayoutContextValue = {
     jobType,

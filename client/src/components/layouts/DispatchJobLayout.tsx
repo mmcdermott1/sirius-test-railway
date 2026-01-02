@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import type { DispatchJobWithRelations } from "../../../../server/storage/dispatch-jobs";
+import { useDispatchJobTabAccess } from "@/hooks/useTabAccess";
 
 interface DispatchJobLayoutContextValue {
   job: DispatchJobWithRelations;
@@ -91,12 +92,7 @@ export function DispatchJobLayout({ activeTab, children }: DispatchJobLayoutProp
     );
   }
 
-  const mainTabs = [
-    { id: "details", label: "Details", href: `/dispatch/job/${job.id}` },
-    { id: "dispatches", label: "Dispatches", href: `/dispatch/job/${job.id}/dispatches` },
-    { id: "eligible-workers", label: "Eligible Workers", href: `/dispatch/job/${job.id}/eligible-workers` },
-    { id: "edit", label: "Edit", href: `/dispatch/job/${job.id}/edit` },
-  ];
+  const { tabs: mainTabs } = useDispatchJobTabAccess(job.id);
 
   return (
     <DispatchJobLayoutContext.Provider value={{ job, isLoading, isError }}>
