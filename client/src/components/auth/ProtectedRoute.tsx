@@ -15,19 +15,17 @@ interface ProtectedRouteProps {
 
 interface DetailedPolicyResult {
   policy: {
+    id: string;
     name: string;
     description?: string;
+    scope?: string;
+    entityType?: string;
   };
-  allowed: boolean;
-  evaluatedAt: string;
-  adminBypass: boolean;
-  requirements: Array<{
-    type: string;
-    description: string;
-    status: 'passed' | 'failed' | 'skipped';
+  access: {
+    granted: boolean;
     reason?: string;
-    details?: any;
-  }>;
+  };
+  evaluatedAt: string;
 }
 
 class PolicyCheckError extends Error {
@@ -222,7 +220,7 @@ export default function ProtectedRoute({ children, permission, policy, component
     }
     
     // If policy result is available, check if access is allowed
-    if (policyResult && !policyResult.allowed) {
+    if (policyResult && !policyResult.access.granted) {
       return <AccessDenied policyResult={policyResult} />;
     }
     
