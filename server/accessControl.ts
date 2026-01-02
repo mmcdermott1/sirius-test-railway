@@ -208,6 +208,27 @@ export function requirePermission(permissionKey: string) {
 }
 
 /**
+ * Get the component checker function
+ */
+export function getComponentChecker(): ((componentId: string) => Promise<boolean>) | null {
+  return componentChecker;
+}
+
+/**
+ * Get the full storage instance
+ */
+export function getFullStorage(): any | null {
+  return fullStorage;
+}
+
+/**
+ * Get the access control storage instance
+ */
+export function getAccessStorage(): AccessControlStorage | null {
+  return storage;
+}
+
+/**
  * Re-export types and utilities for consumers
  */
 export type { AccessPolicy, AccessControlStorage };

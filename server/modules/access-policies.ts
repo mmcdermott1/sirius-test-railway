@@ -1,6 +1,36 @@
 import type { Express } from 'express';
-import { requireAuth, requireAccess, buildContext, checkAccess } from '../accessControl';
+import { requireAuth, requireAccess, buildContext, checkAccess, getComponentChecker, getAccessStorage } from '../accessControl';
 import { accessPolicyRegistry } from '@shared/accessPolicies';
+import { 
+  TabEntityType, 
+  TabAccessResult, 
+  getTabsForEntity,
+  TabDefinition 
+} from '@shared/tabRegistry';
+
+/**
+ * Check if a tab's component requirement is met
+ * Supports pipe-separated OR components (e.g., "cardcheck|bargainingunits|worker.steward")
+ */
+async function checkTabComponent(
+  tab: TabDefinition, 
+  componentChecker: (componentId: string) => Promise<boolean>
+): Promise<boolean> {
+  if (!tab.component) return true;
+  
+  // Handle OR components (pipe-separated)
+  if (tab.component.includes('|')) {
+    const components = tab.component.split('|');
+    for (const comp of components) {
+      if (await componentChecker(comp.trim())) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  return componentChecker(tab.component);
+}
 
 /**
  * Register access policy evaluation routes
@@ -82,6 +112,98 @@ export function registerAccessPolicyRoutes(app: Express) {
     } catch (error) {
       console.error('Error evaluating policy:', error);
       res.status(500).json({ message: 'Failed to evaluate policy' });
+    }
+  });
+
+  // POST /api/access/tabs - Batch check tab access for an entity
+  app.post("/api/access/tabs", requireAuth, async (req, res) => {
+    try {
+      const { entityType, entityId } = req.body as { entityType: TabEntityType; entityId: string };
+      
+      if (!entityType || !entityId) {
+        return res.status(400).json({ 
+          message: 'entityType and entityId are required' 
+        });
+      }
+
+      // Get all tabs for this entity type
+      const tabs = getTabsForEntity(entityType);
+      
+      if (tabs.length === 0) {
+        return res.json({ tabs: [] });
+      }
+
+      // Get context for this user
+      const context = await buildContext(req);
+      
+      if (!context.user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      // Get component checker
+      const componentChecker = getComponentChecker();
+      const accessStorage = getAccessStorage();
+      
+      if (!componentChecker || !accessStorage) {
+        return res.status(500).json({ message: 'Access control not initialized' });
+      }
+
+      // Security: First check if user has base access to this entity type
+      // This prevents users from probing tab access for entities they can't access at all
+      const basePolicy = entityType; // 'worker', 'employer', 'provider' are policy IDs
+      const baseAccessResult = await checkAccess(basePolicy, context.user, entityId);
+      
+      if (!baseAccessResult.granted) {
+        // User has no access to this entity - return 403 to avoid oracle attacks
+        return res.status(403).json({ 
+          message: 'Access denied to this entity' 
+        });
+      }
+
+      // Batch evaluate access for all tabs
+      const results: TabAccessResult[] = [];
+      
+      for (const tab of tabs) {
+        let granted = true;
+        let reason: string | undefined;
+
+        // Check component requirement first
+        const componentEnabled = await checkTabComponent(tab, componentChecker);
+        if (!componentEnabled) {
+          granted = false;
+          reason = `Component not enabled: ${tab.component}`;
+        }
+
+        // Check policy or permission if component passed
+        if (granted) {
+          if (tab.policyId) {
+            // Check policy with entity context
+            const policyResult = await checkAccess(tab.policyId, context.user, entityId);
+            granted = policyResult.granted;
+            reason = policyResult.reason;
+          } else if (tab.permission) {
+            // Check permission directly
+            const hasPermission = await accessStorage.hasPermission(context.user.id, tab.permission);
+            // Also check admin bypass
+            const isAdmin = await accessStorage.hasPermission(context.user.id, 'admin');
+            granted = hasPermission || isAdmin;
+            if (!granted) {
+              reason = `Missing permission: ${tab.permission}`;
+            }
+          }
+        }
+
+        results.push({
+          tabId: tab.id,
+          granted,
+          reason,
+        });
+      }
+
+      res.json({ tabs: results });
+    } catch (error) {
+      console.error('Error checking tab access:', error);
+      res.status(500).json({ message: 'Failed to check tab access' });
     }
   });
 }
