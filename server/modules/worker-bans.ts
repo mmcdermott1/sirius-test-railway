@@ -58,6 +58,10 @@ router.post("/", async (req: Request, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Invalid data", details: error.errors });
     }
+    if (error instanceof Error) {
+      console.error("Error creating worker ban:", error.message);
+      return res.status(400).json({ error: error.message });
+    }
     console.error("Error creating worker ban:", error);
     res.status(500).json({ error: "Failed to create worker ban" });
   }
@@ -81,6 +85,10 @@ router.put("/:id", async (req: Request, res: Response) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Invalid data", details: error.errors });
+    }
+    if (error instanceof Error) {
+      console.error("Error updating worker ban:", error.message);
+      return res.status(400).json({ error: error.message });
     }
     console.error("Error updating worker ban:", error);
     res.status(500).json({ error: "Failed to update worker ban" });

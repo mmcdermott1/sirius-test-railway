@@ -49,10 +49,10 @@ function BansContent() {
       });
       closeModal();
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to add ban.",
+        description: error.message || "Failed to add ban.",
         variant: "destructive",
       });
     },
@@ -70,10 +70,10 @@ function BansContent() {
       });
       closeModal();
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to update ban.",
+        description: error.message || "Failed to update ban.",
         variant: "destructive",
       });
     },
