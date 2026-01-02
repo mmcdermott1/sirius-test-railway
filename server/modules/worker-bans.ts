@@ -1,9 +1,24 @@
 import { Router, Request, Response } from "express";
-import { insertWorkerBanSchema } from "@shared/schema";
+import { insertWorkerBanSchema, workerBanTypeEnum } from "@shared/schema";
 import { storage } from "../storage";
 import { z } from "zod";
 
 const router = Router();
+
+const createWorkerBanApiSchema = z.object({
+  workerId: z.string(),
+  type: z.enum(workerBanTypeEnum).optional().nullable(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date().nullable().optional(),
+  message: z.string().nullable().optional(),
+});
+
+const updateWorkerBanApiSchema = z.object({
+  type: z.enum(workerBanTypeEnum).optional().nullable(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().nullable().optional(),
+  message: z.string().nullable().optional(),
+});
 
 router.get("/worker/:workerId", async (req: Request, res: Response) => {
   try {
@@ -30,8 +45,14 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const validated = insertWorkerBanSchema.parse(req.body);
-    const ban = await storage.workerBans.create(validated);
+    const validated = createWorkerBanApiSchema.parse(req.body);
+    const ban = await storage.workerBans.create({
+      workerId: validated.workerId,
+      type: validated.type ?? null,
+      startDate: validated.startDate,
+      endDate: validated.endDate ?? null,
+      message: validated.message ?? null,
+    });
     res.status(201).json(ban);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -44,8 +65,15 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.put("/:id", async (req: Request, res: Response) => {
   try {
-    const validated = insertWorkerBanSchema.partial().parse(req.body);
-    const ban = await storage.workerBans.update(req.params.id, validated);
+    const validated = updateWorkerBanApiSchema.parse(req.body);
+    const updateData: Record<string, any> = {};
+    
+    if (validated.type !== undefined) updateData.type = validated.type;
+    if (validated.startDate !== undefined) updateData.startDate = validated.startDate;
+    if (validated.endDate !== undefined) updateData.endDate = validated.endDate ?? null;
+    if (validated.message !== undefined) updateData.message = validated.message;
+    
+    const ban = await storage.workerBans.update(req.params.id, updateData);
     if (!ban) {
       return res.status(404).json({ error: "Worker ban not found" });
     }

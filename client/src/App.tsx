@@ -44,6 +44,7 @@ const WorkerRepresentatives = lazy(() => import("@/pages/worker-representatives"
 const WorkerDispatchStatus = lazy(() => import("@/pages/workers/dispatch-status"));
 const WorkerDispatchDoNotCall = lazy(() => import("@/pages/workers/dispatch-do-not-call"));
 const WorkerDispatchHoldForEmployer = lazy(() => import("@/pages/workers/dispatch-hold-for-employer"));
+const WorkerBans = lazy(() => import("@/pages/workers/bans"));
 const WorkerLedgerAccounts = lazy(() => import("@/pages/worker-ledger-accounts"));
 const Stewards = lazy(() => import("@/pages/stewards"));
 const WorkerBenefitsHistory = lazy(() => import("@/pages/worker-benefits-history"));
@@ -431,6 +432,14 @@ function Router() {
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <WorkerUserPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/bans">
+        <ProtectedRoute permission="workers.view" component="dispatch">
+          <AuthenticatedLayout>
+            <WorkerBans />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

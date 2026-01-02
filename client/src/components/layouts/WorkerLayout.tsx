@@ -29,7 +29,7 @@ export function useWorkerLayout() {
 }
 
 interface WorkerLayoutProps {
-  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "user" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "union" | "cardchecks" | "bargaining-unit" | "steward" | "representatives" | "dispatch" | "dispatch-status" | "dispatch-dnc" | "dispatch-hfe" | "accounting" | "logs" | "delete";
+  activeTab: "details" | "identity" | "name" | "email" | "ids" | "addresses" | "phone-numbers" | "birth-date" | "gender" | "work-status" | "user" | "bans" | "employment" | "current" | "history" | "monthly" | "daily" | "comm" | "comm-history" | "send-sms" | "send-email" | "send-postal" | "send-inapp" | "benefits" | "benefits-history" | "benefits-eligibility" | "benefits-scan" | "union" | "cardchecks" | "bargaining-unit" | "steward" | "representatives" | "dispatch" | "dispatch-status" | "dispatch-dnc" | "dispatch-hfe" | "accounting" | "logs" | "delete";
   children: ReactNode;
 }
 
@@ -175,6 +175,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     { id: "gender", label: "Gender", href: `/workers/${worker.id}/gender` },
     { id: "work-status", label: "Work Status", href: `/workers/${worker.id}/work-status` },
     { id: "user", label: "User", href: `/workers/${worker.id}/user` },
+    ...(hasComponent("dispatch") ? [{ id: "bans", label: "Bans", href: `/workers/${worker.id}/bans` }] : []),
   ];
 
   const unionSubTabs = [
@@ -218,7 +219,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   ];
 
   // Determine if we're in a sub-tab
-  const isIdentitySubTab = ["name", "ids", "birth-date", "gender", "work-status", "user"].includes(activeTab);
+  const isIdentitySubTab = ["name", "ids", "birth-date", "gender", "work-status", "user", "bans"].includes(activeTab);
   const isContactSubTab = ["email", "addresses", "phone-numbers"].includes(activeTab);
   const isCommSubTab = ["comm-history", "send-sms", "send-email", "send-postal", "send-inapp"].includes(activeTab);
   const isEmploymentSubTab = ["current", "history", "monthly", "daily"].includes(activeTab);
