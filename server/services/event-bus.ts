@@ -8,6 +8,7 @@ export enum EventType {
   DISPATCH_DNC_SAVED = "dispatch.dnc.saved",
   DISPATCH_HFE_SAVED = "dispatch.hfe.saved",
   DISPATCH_STATUS_SAVED = "dispatch.status.saved",
+  WORKER_BAN_SAVED = "worker.ban.saved",
   CRON = "cron",
   LOG = "log",
 }
@@ -80,6 +81,16 @@ export interface DispatchStatusSavedPayload {
   isDeleted?: boolean;
 }
 
+export interface WorkerBanSavedPayload {
+  banId: string;
+  workerId: string;
+  type: string | null;
+  startDate: Date;
+  endDate: Date | null;
+  active: boolean;
+  isDeleted?: boolean;
+}
+
 export interface CronPayload {
   jobId: string;
   mode: "live" | "test";
@@ -110,6 +121,7 @@ export interface EventPayloadMap {
   [EventType.DISPATCH_DNC_SAVED]: DispatchDncSavedPayload;
   [EventType.DISPATCH_HFE_SAVED]: DispatchHfeSavedPayload;
   [EventType.DISPATCH_STATUS_SAVED]: DispatchStatusSavedPayload;
+  [EventType.WORKER_BAN_SAVED]: WorkerBanSavedPayload;
   [EventType.CRON]: CronPayload;
   [EventType.LOG]: LogPayload;
 }

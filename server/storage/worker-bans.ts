@@ -8,6 +8,7 @@ import {
 } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { type StorageLoggingConfig } from "./middleware/logging";
+import { eventBus, EventType } from "../services/event-bus";
 
 export interface WorkerBanWithRelations extends WorkerBan {
   worker?: {
@@ -149,6 +150,16 @@ export function createWorkerBanStorage(): WorkerBanStorage {
           active
         })
         .returning();
+      
+      eventBus.emit(EventType.WORKER_BAN_SAVED, {
+        banId: created.id,
+        workerId: created.workerId,
+        type: created.type,
+        startDate: created.startDate,
+        endDate: created.endDate,
+        active: created.active ?? true,
+      });
+      
       return created;
     },
 
@@ -173,12 +184,39 @@ export function createWorkerBanStorage(): WorkerBanStorage {
         })
         .where(eq(workerBans.id, id))
         .returning();
+      
+      if (updated) {
+        eventBus.emit(EventType.WORKER_BAN_SAVED, {
+          banId: updated.id,
+          workerId: updated.workerId,
+          type: updated.type,
+          startDate: updated.startDate,
+          endDate: updated.endDate,
+          active: updated.active ?? true,
+        });
+      }
+      
       return updated;
     },
 
     async delete(id: string): Promise<boolean> {
+      const existing = await this.get(id);
       const result = await db.delete(workerBans).where(eq(workerBans.id, id));
-      return (result.rowCount ?? 0) > 0;
+      const deleted = (result.rowCount ?? 0) > 0;
+      
+      if (deleted && existing) {
+        eventBus.emit(EventType.WORKER_BAN_SAVED, {
+          banId: existing.id,
+          workerId: existing.workerId,
+          type: existing.type,
+          startDate: existing.startDate,
+          endDate: existing.endDate,
+          active: existing.active ?? true,
+          isDeleted: true,
+        });
+      }
+      
+      return deleted;
     }
   };
 }
