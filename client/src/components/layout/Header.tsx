@@ -73,15 +73,12 @@ export default function Header() {
     staleTime: 30000,
   });
 
-  // Check worker policy for Workers navigation
-  const { data: workerPolicy } = useQuery<PolicyAccessResponse>({
-    queryKey: ["/api/access/policies/worker"],
-    staleTime: 30000,
-  });
-
-  // Check employer policy for Employers navigation
-  const { data: employerPolicy } = useQuery<PolicyAccessResponse>({
-    queryKey: ["/api/access/policies/employersView"],
+  // Check staff policy for Workers and Employers navigation
+  // Note: We use 'staff' instead of 'worker' or 'employersView' because those
+  // policies have linkage rules that require entity context. For top-level navigation,
+  // staff permission is what grants access to these sections.
+  const { data: staffPolicy } = useQuery<PolicyAccessResponse>({
+    queryKey: ["/api/access/policies/staff"],
     staleTime: 30000,
   });
 
@@ -180,7 +177,7 @@ export default function Header() {
                   </Button>
                 </Link>
 
-                {workerPolicy?.access?.granted && (
+                {staffPolicy?.access?.granted && (
                   <>
                     <div className="text-sm font-medium text-muted-foreground px-4 py-2">Workers</div>
                     <Link href="/workers" onClick={() => setMobileMenuOpen(false)}>
@@ -244,7 +241,7 @@ export default function Header() {
                   </>
                 )}
 
-                {employerPolicy?.access?.granted && (
+                {staffPolicy?.access?.granted && (
                   <>
                     <Link href="/employers" onClick={() => setMobileMenuOpen(false)}>
                       <Button
@@ -537,7 +534,7 @@ export default function Header() {
               </Button>
             </Link>
 
-            {workerPolicy?.access?.granted && (
+            {staffPolicy?.access?.granted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -603,7 +600,7 @@ export default function Header() {
               </DropdownMenu>
             )}
 
-            {employerPolicy?.access?.granted && (
+            {staffPolicy?.access?.granted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
