@@ -37,6 +37,10 @@ import { initLogNotifier } from "./modules/log-notifier";
 // Import dispatch eligibility plugins system
 import { initializeDispatchEligSystem } from "./services/dispatch-elig-plugins";
 
+// Import entity access policies (triggers registration)
+import "@shared/entityAccessPolicies.definitions";
+import { registerEntityAccessModule } from "./modules/entity-access";
+
 // Helper function to redact sensitive data from responses before logging
 function redactSensitiveData(data: any): any {
   if (!data || typeof data !== 'object') return data;
@@ -207,6 +211,10 @@ app.use((req, res, next) => {
 
   // Setup request context middleware (captures user and IP for logging)
   app.use(captureRequestContext);
+
+  // Register entity access module
+  registerEntityAccessModule(app, storage);
+  logger.info("Entity access module registered", { source: "startup" });
 
   const server = await registerRoutes(app);
 
