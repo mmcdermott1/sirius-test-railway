@@ -55,12 +55,22 @@ export function registerPhoneNumberRoutes(
   requireAccess?: PolicyMiddleware
 ) {
   
-  // GET /api/contacts/:contactId/phone-numbers - Get all phone numbers for a contact (worker.self policy)
-  app.get("/api/contacts/:contactId/phone-numbers", requireAuth, requireAccess ? requireAccess('worker.self', async (req: any) => {
-    // Resolve the owning worker ID from the contact
+  // GET /api/contacts/:contactId/phone-numbers - Get all phone numbers for a contact
+  // Uses worker.self policy for worker contacts, staff policy for non-worker contacts (employer contacts, etc.)
+  app.get("/api/contacts/:contactId/phone-numbers", requireAuth, async (req, res, next) => {
+    if (!requireAccess) return next();
+    
+    // Check if this contact belongs to a worker
     const worker = await storage.workers.getWorkerByContactId(req.params.contactId);
-    return worker?.id;
-  }) : ((_req: any, _res: any, next: any) => next()), async (req, res) => {
+    
+    if (worker) {
+      // Worker contact - use worker.self policy with worker ID
+      return requireAccess('worker.self', () => worker.id)(req, res, next);
+    } else {
+      // Non-worker contact (employer contact, etc.) - require staff permission
+      return requireAccess('staff')(req, res, next);
+    }
+  }, async (req, res) => {
     try {
       const { contactId } = req.params;
       const phoneNumbers = await storage.contacts.phoneNumbers.getPhoneNumbersByContact(contactId);
