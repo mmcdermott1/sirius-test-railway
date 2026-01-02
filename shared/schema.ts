@@ -133,6 +133,17 @@ export const workers = pgTable("workers", {
   bargainingUnitId: varchar("bargaining_unit_id").references(() => bargainingUnits.id, { onDelete: 'set null' }),
 });
 
+export const workerBans = pgTable("worker_bans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
+  type: varchar("type"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  active: boolean("active").default(true),
+  message: text("message"),
+  data: jsonb("data"),
+});
+
 export const employers = pgTable("employers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   siriusId: serial("sirius_id").notNull().unique(),
@@ -658,6 +669,13 @@ export const insertWorkerSchema = createInsertSchema(workers).omit({
   contactId: true, // Contact will be managed automatically
 });
 
+export const insertWorkerBanSchema = createInsertSchema(workerBans).omit({
+  id: true,
+}).extend({
+  startDate: z.coerce.date().optional().nullable(),
+  endDate: z.coerce.date().optional().nullable(),
+});
+
 export const insertEmployerSchema = createInsertSchema(employers).omit({
   id: true,
 });
@@ -890,6 +908,9 @@ export type Contact = typeof contacts.$inferSelect;
 
 export type InsertWorker = z.infer<typeof insertWorkerSchema>;
 export type Worker = typeof workers.$inferSelect;
+
+export type InsertWorkerBan = z.infer<typeof insertWorkerBanSchema>;
+export type WorkerBan = typeof workerBans.$inferSelect;
 
 export type InsertEmployer = z.infer<typeof insertEmployerSchema>;
 export type Employer = typeof employers.$inferSelect;
