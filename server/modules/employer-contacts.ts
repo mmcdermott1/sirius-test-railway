@@ -47,8 +47,8 @@ export function registerEmployerContactRoutes(
     }
   });
   
-  // GET /api/employers/:employerId/contacts - Get all contacts for an employer (requires staff permission)
-  app.get("/api/employers/:employerId/contacts", requireAuth, requireAccess('staff'), async (req, res) => {
+  // GET /api/employers/:employerId/contacts - Get all contacts for an employer
+  app.get("/api/employers/:employerId/contacts", requireAuth, requireAccess('employer.mine', (req) => req.params.employerId), async (req, res) => {
     try {
       const { employerId } = req.params;
       const contacts = await storage.employerContacts.listByEmployer(employerId);
