@@ -1,7 +1,9 @@
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield } from 'lucide-react';
+import { Shield, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { AccessRequirement, AccessCondition, Policy } from '@/lib/policy-types';
 import {
   Table,
@@ -99,9 +101,26 @@ function getRequirementBadgeVariant(type: string) {
 }
 
 export default function PoliciesPage() {
+  const [filterText, setFilterText] = useState('');
+  
   const { data: policies = [], isLoading } = useQuery<Policy[]>({
     queryKey: ["/api/access/policies"],
   });
+
+  const filteredAndSortedPolicies = useMemo(() => {
+    const lowerFilter = filterText.toLowerCase().trim();
+    
+    return policies
+      .filter(policy => {
+        if (!lowerFilter) return true;
+        return (
+          policy.id.toLowerCase().includes(lowerFilter) ||
+          policy.name.toLowerCase().includes(lowerFilter) ||
+          (policy.description && policy.description.toLowerCase().includes(lowerFilter))
+        );
+      })
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }, [policies, filterText]);
 
   if (isLoading) {
     return (
@@ -137,7 +156,22 @@ export default function PoliciesPage() {
             Declarative access control policies used throughout the application. Users with the "admin" permission bypass all policy checks.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent>
+          <div className="mb-4">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Filter by name..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="pl-9"
+                data-testid="input-filter-policies"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Showing {filteredAndSortedPolicies.length} of {policies.length} policies
+            </p>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -148,7 +182,7 @@ export default function PoliciesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {policies.map((policy) => (
+              {filteredAndSortedPolicies.map((policy) => (
                 <TableRow key={policy.id} data-testid={`policy-${policy.id}`}>
                   <TableCell className="font-mono text-sm" data-testid={`policy-id-${policy.id}`}>
                     {policy.id}
