@@ -246,9 +246,9 @@ export const cronJobTabTree: HierarchicalTab[] = [
  * Dispatch job entity tab tree
  */
 export const dispatchJobTabTree: HierarchicalTab[] = [
-  { id: 'details', label: 'Details', hrefTemplate: '/dispatch/job/{id}', permission: 'dispatch.view', component: 'dispatch' },
-  { id: 'dispatches', label: 'Dispatches', hrefTemplate: '/dispatch/job/{id}/dispatches', permission: 'dispatch.view', component: 'dispatch' },
-  { id: 'eligible-workers', label: 'Eligible Workers', hrefTemplate: '/dispatch/job/{id}/eligible-workers', permission: 'dispatch.view', component: 'dispatch' },
+  { id: 'details', label: 'Details', hrefTemplate: '/dispatch/job/{id}', permission: 'staff', component: 'dispatch' },
+  { id: 'dispatches', label: 'Dispatches', hrefTemplate: '/dispatch/job/{id}/dispatches', permission: 'staff', component: 'dispatch' },
+  { id: 'eligible-workers', label: 'Eligible Workers', hrefTemplate: '/dispatch/job/{id}/eligible-workers', permission: 'staff', component: 'dispatch' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/dispatch/job/{id}/edit', permission: 'dispatch.edit', component: 'dispatch' },
 ];
 
@@ -256,7 +256,7 @@ export const dispatchJobTabTree: HierarchicalTab[] = [
  * Dispatch job type entity tab tree
  */
 export const dispatchJobTypeTabTree: HierarchicalTab[] = [
-  { id: 'view', label: 'View', hrefTemplate: '/config/dispatch-job-type/{id}', permission: 'dispatch.view', component: 'dispatch' },
+  { id: 'view', label: 'View', hrefTemplate: '/config/dispatch-job-type/{id}', permission: 'staff', component: 'dispatch' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/config/dispatch-job-type/{id}/edit', permission: 'dispatch.edit', component: 'dispatch' },
   { id: 'plugins', label: 'Plugins', hrefTemplate: '/config/dispatch-job-type/{id}/plugins', permission: 'dispatch.edit', component: 'dispatch' },
   { id: 'delete', label: 'Delete', hrefTemplate: '/config/dispatch-job-type/{id}/delete', permission: 'dispatch.delete', component: 'dispatch' },

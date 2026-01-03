@@ -186,14 +186,4 @@ defineRoutePolicy(
   ]
 );
 
-// ============================================================================
-// DISPATCH POLICIES
-// ============================================================================
-
-defineRoutePolicy(
-  'dispatch.view',
-  'dispatch.view',
-  'Requires dispatch.view permission',
-  [{ authenticated: true, component: 'dispatch', permission: 'dispatch.view' }]
-);
 
