@@ -163,7 +163,7 @@ export function registerFileRoutes(
     }
   });
 
-  app.get("/api/files/:id/download", requireAccess('file.read'), async (req, res) => {
+  app.get("/api/files/:id/download", requireAccess('file.read', (req) => req.params.id), async (req, res) => {
     try {
       const { id } = req.params;
       const file = await storage.files.getById(id);
@@ -184,7 +184,7 @@ export function registerFileRoutes(
     }
   });
 
-  app.get("/api/files/:id/url", requireAccess('file.read'), async (req, res) => {
+  app.get("/api/files/:id/url", requireAccess('file.read', (req) => req.params.id), async (req, res) => {
     try {
       const { id } = req.params;
       const { expiresIn = 3600 } = req.query;
@@ -207,7 +207,7 @@ export function registerFileRoutes(
     }
   });
 
-  app.patch("/api/files/:id", requireAccess('file.update'), async (req, res) => {
+  app.patch("/api/files/:id", requireAccess('file.update', (req) => req.params.id), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -245,7 +245,7 @@ export function registerFileRoutes(
     }
   });
 
-  app.delete("/api/files/:id", requireAccess('file.delete'), async (req, res) => {
+  app.delete("/api/files/:id", requireAccess('file.delete', (req) => req.params.id), async (req, res) => {
     try {
       const { id } = req.params;
       
