@@ -61,7 +61,7 @@ import { registerDispatchesRoutes } from "./modules/dispatches";
 import workerDispatchStatusRouter from "./modules/worker-dispatch-status";
 import { registerWorkerDispatchDncRoutes } from "./modules/worker-dispatch-dnc";
 import { registerWorkerDispatchHfeRoutes } from "./modules/worker-dispatch-hfe";
-import workerBansRouter from "./modules/worker-bans";
+import { registerWorkerBansRoutes } from "./modules/worker-bans";
 import { createWorkerDispatchStatusStorage } from "./storage/worker-dispatch-status";
 import { requireComponent } from "./modules/components";
 import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
@@ -1043,35 +1043,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register worker dispatch status admin routes
   app.use("/api/worker-dispatch-status", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchStatusRouter);
 
-  // Worker-accessible ban routes (worker.view policy - workers can view their own bans)
-  app.get("/api/worker-bans/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
-    try {
-      const bans = await storage.workerBans.getByWorker(req.params.workerId);
-      res.json(bans);
-    } catch (error) {
-      console.error("Error fetching worker bans:", error);
-      res.status(500).json({ error: "Failed to fetch worker bans" });
-    }
-  });
-
-  app.get("/api/worker-bans/:id", requireAuth, dispatchComponent, requireAccess('worker.view', async (req) => {
-    const ban = await storage.workerBans.get(req.params.id);
-    return ban?.workerId;
-  }), async (req, res) => {
-    try {
-      const ban = await storage.workerBans.get(req.params.id);
-      if (!ban) {
-        return res.status(404).json({ error: "Worker ban not found" });
-      }
-      res.json(ban);
-    } catch (error) {
-      console.error("Error fetching worker ban:", error);
-      res.status(500).json({ error: "Failed to fetch worker ban" });
-    }
-  });
-
-  // Register worker bans admin routes (POST, PUT, DELETE require workers.manage)
-  app.use("/api/worker-bans", requireAuth, dispatchComponent, requirePermission("staff"), workerBansRouter);
+  // Register worker bans routes (handles all access control internally)
+  registerWorkerBansRoutes(app, requireAuth, requireAccess);
 
   // Register site-specific routes
   registerBtuCsgRoutes(app, requireAuth, requirePermission);
