@@ -60,7 +60,7 @@ import { registerDispatchJobsRoutes } from "./modules/dispatch-jobs";
 import { registerDispatchesRoutes } from "./modules/dispatches";
 import workerDispatchStatusRouter from "./modules/worker-dispatch-status";
 import workerDispatchDncRouter from "./modules/worker-dispatch-dnc";
-import workerDispatchHfeRouter from "./modules/worker-dispatch-hfe";
+import workerDispatchHfeRouterworkerDispatchHfeRouter from "./modules/worker-dispatch-hfe";
 import workerBansRouter from "./modules/worker-bans";
 import { createWorkerDispatchStatusStorage } from "./storage/worker-dispatch-status";
 import { createWorkerDispatchDncStorage } from "./storage/worker-dispatch-dnc";
