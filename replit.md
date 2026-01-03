@@ -15,6 +15,13 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
 -   **Frontend**: Wouter for routing, TanStack Query for server state, React Hook Form with Zod for forms. Pages are lazy-loaded.
 -   **Backend**: Express.js with TypeScript, RESTful API, and a feature-based module structure.
 -   **Authentication**: Replit Auth (OAuth via OpenID Connect) with PostgreSQL-based session management.
+-   **Masquerade Support**: Admins can masquerade as other users. Backend endpoints that access user-specific data MUST use `getEffectiveUser()` from `server/modules/masquerade.ts` to get the correct user context (masqueraded or original). Pattern:
+    ```typescript
+    const user = (req as any).user;
+    const replitUserId = user?.claims?.sub;
+    const session = req.session as any;
+    const { dbUser } = await getEffectiveUser(session, replitUserId);
+    ```
 -   **Access Control**: Centralized, declarative role-based access control. Entity-based access policies with server-side LRU caching.
 -   **Logging**: Winston logging with a PostgreSQL backend for audit trails.
 -   **Data Storage**: PostgreSQL (Neon Database) managed with Drizzle ORM.

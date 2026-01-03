@@ -9,6 +9,7 @@ import { handleStatusCallback } from "../services/comm-status/handler";
 import { serviceRegistry } from "../services/service-registry";
 import type { PostalTransport, PostalAddress } from "../services/providers/postal";
 import { broadcastAlertUpdate } from "../services/websocket";
+import { getEffectiveUser } from "./masquerade";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -798,7 +799,11 @@ export function registerCommRoutes(
   // Get unread count for the current user
   app.get("/api/alerts/unread-count", requireAuth, async (req, res) => {
     try {
-      const dbUser = (req as any).user?.dbUser;
+      const user = (req as any).user;
+      const replitUserId = user?.claims?.sub;
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -814,7 +819,11 @@ export function registerCommRoutes(
   // Get all alerts for the current user (with optional status filter)
   app.get("/api/alerts", requireAuth, async (req, res) => {
     try {
-      const dbUser = (req as any).user?.dbUser;
+      const user = (req as any).user;
+      const replitUserId = user?.claims?.sub;
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -839,7 +848,11 @@ export function registerCommRoutes(
   // Get a specific alert by ID
   app.get("/api/alerts/:id", requireAuth, async (req, res) => {
     try {
-      const dbUser = (req as any).user?.dbUser;
+      const user = (req as any).user;
+      const replitUserId = user?.claims?.sub;
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -866,7 +879,11 @@ export function registerCommRoutes(
   // Mark an alert as read
   app.patch("/api/alerts/:id/read", requireAuth, async (req, res) => {
     try {
-      const dbUser = (req as any).user?.dbUser;
+      const user = (req as any).user;
+      const replitUserId = user?.claims?.sub;
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -891,7 +908,11 @@ export function registerCommRoutes(
   // Mark all alerts as read for current user
   app.patch("/api/alerts/mark-all-read", requireAuth, async (req, res) => {
     try {
-      const dbUser = (req as any).user?.dbUser;
+      const user = (req as any).user;
+      const replitUserId = user?.claims?.sub;
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
       }
