@@ -135,7 +135,7 @@ export const workerTabTree: HierarchicalTab[] = [
     ]
   },
   { 
-    id: 'union', label: 'Union', hrefTemplate: '/workers/{id}/union/cardchecks', policyId: 'worker.view', component: 'cardcheck|bargainingunits|worker.steward', termKey: 'union',
+    id: 'union', label: 'Union', hrefTemplate: '/workers/{id}/union/cardchecks', policyId: 'worker.view', component: 'cardcheck|bargainingunits|worker.steward',
     children: [
       { id: 'cardchecks', label: 'Cardchecks', hrefTemplate: '/workers/{id}/union/cardchecks', policyId: 'worker.view', component: 'cardcheck' },
       { id: 'bargaining-unit', label: 'Bargaining Unit', hrefTemplate: '/workers/{id}/union/bargaining-unit', permission: 'staff', component: 'bargainingunits' },
@@ -176,7 +176,7 @@ export const employerTabTree: HierarchicalTab[] = [
     ]
   },
   { 
-    id: 'union', label: 'Union', hrefTemplate: '/employers/{id}/union/stewards', permission: 'staff', component: 'worker.steward', termKey: 'union',
+    id: 'union', label: 'Union', hrefTemplate: '/employers/{id}/union/stewards', permission: 'staff', component: 'worker.steward',
     children: [
       { id: 'stewards', label: 'Stewards', hrefTemplate: '/employers/{id}/union/stewards', permission: 'staff', component: 'worker.steward', termKey: 'steward', termPlural: true },
     ]
