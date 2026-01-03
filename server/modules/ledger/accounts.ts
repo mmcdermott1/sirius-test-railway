@@ -31,8 +31,8 @@ export function registerLedgerAccountRoutes(app: Express) {
     }
   });
 
-  // GET /api/ledger/accounts/:id - Get a specific ledger account
-  app.get("/api/ledger/accounts/:id", requireComponent("ledger"), requireAccess('staff'), async (req, res) => {
+  // GET /api/ledger/accounts/:id - Get a specific ledger account (accessible to all authenticated users - contains only non-sensitive settings)
+  app.get("/api/ledger/accounts/:id", requireComponent("ledger"), requireAccess('authenticated'), async (req, res) => {
     try {
       const { id } = req.params;
       const account = await storage.ledger.accounts.get(id);
