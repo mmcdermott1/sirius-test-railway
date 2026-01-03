@@ -12,6 +12,7 @@ import {
   getTabsForEntity,
   TabDefinition 
 } from '@shared/tabRegistry';
+import { storage } from '../storage';
 
 /**
  * Check if a tab's component requirement is met
@@ -80,7 +81,7 @@ export function registerAccessPolicyRoutes(app: Express) {
   app.get("/api/access/policies/:policyId", requireAuth, async (req, res) => {
     try {
       const { policyId } = req.params;
-      const { entityId } = req.query;
+      const { entityId, entityType } = req.query;
       
       // Get the policy by ID - check both declarative and modular registries
       let policy = accessPolicyRegistry.get(policyId);
@@ -108,6 +109,14 @@ export function registerAccessPolicyRoutes(app: Express) {
         });
       }
       
+      // Resolve entityId based on entityType if needed
+      // For employer_contact, resolve the employerId from the contact
+      let resolvedEntityId = entityId as string | undefined;
+      if (entityType === 'employer_contact' && entityId) {
+        const employerContact = await storage.employerContacts.get(entityId as string);
+        resolvedEntityId = employerContact?.employerId;
+      }
+      
       // Build context from request
       const context = await buildContext(req);
       
@@ -115,7 +124,7 @@ export function registerAccessPolicyRoutes(app: Express) {
       const result = await checkAccess(
         policyId, 
         context.user, 
-        entityId as string | undefined
+        resolvedEntityId
       );
       
       res.json({

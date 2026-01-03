@@ -70,36 +70,52 @@ export default function ProtectedRoute({ children, permission, policy, component
 
   // Use explicit entityId prop if provided, otherwise extract from URL based on entity patterns
   // This handles nested routes like /workers/:id/contacts by finding the ID after known prefixes
-  const extractEntityIdFromUrl = (path: string): string | undefined => {
+  const extractEntityInfoFromUrl = (path: string): { id?: string; type?: string } => {
     const segments = path.split('/').filter(Boolean);
     
     // Known entity URL patterns: /{entityType}/{id}/...
-    const entityPrefixes = ['workers', 'employers', 'providers', 'policies', 'events', 'bargaining-units', 'csgs', 'dispatch', 'ledger'];
+    const entityPrefixMap: Record<string, string> = {
+      'workers': 'worker',
+      'employers': 'employer',
+      'providers': 'provider',
+      'policies': 'policy',
+      'events': 'event',
+      'bargaining-units': 'bargaining_unit',
+      'csgs': 'csg',
+      'dispatch': 'dispatch',
+      'ledger': 'ledger',
+      'employer-contacts': 'employer_contact',
+    };
     
     for (let i = 0; i < segments.length - 1; i++) {
-      if (entityPrefixes.includes(segments[i])) {
+      if (entityPrefixMap[segments[i]]) {
         const potentialId = segments[i + 1];
         // Skip if the next segment is a known sub-route name (not an ID)
-        const subRouteNames = ['new', 'create', 'list', 'search'];
+        const subRouteNames = ['new', 'create', 'list', 'search', 'all'];
         if (!subRouteNames.includes(potentialId)) {
-          return potentialId;
+          return { id: potentialId, type: entityPrefixMap[segments[i]] };
         }
       }
     }
     
     // Fall back to last segment
-    return segments.pop();
+    return { id: segments.pop(), type: undefined };
   };
   
-  const resourceId = entityId || extractEntityIdFromUrl(location);
+  const extractedInfo = extractEntityInfoFromUrl(location);
+  const resourceId = entityId || extractedInfo.id;
+  const detectedEntityType = entityType || extractedInfo.type;
   
   // Check policy via API if policy prop is provided
   const { data: policyResult, isLoading: isPolicyLoading, isError: isPolicyError, error: policyError } = useQuery<DetailedPolicyResult, PolicyCheckError>({
-    queryKey: ['/api/access/policies', effectivePolicy, resourceId],
+    queryKey: ['/api/access/policies', effectivePolicy, resourceId, detectedEntityType],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (resourceId) {
         params.set('entityId', resourceId);
+      }
+      if (detectedEntityType) {
+        params.set('entityType', detectedEntityType);
       }
       const url = `/api/access/policies/${effectivePolicy}${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
