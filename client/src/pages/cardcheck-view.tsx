@@ -34,7 +34,7 @@ export default function CardcheckViewPage() {
   const id = params.id;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { hasComponent } = useAuth();
+  const { hasComponent, hasPermission } = useAuth();
   const [signModalOpen, setSignModalOpen] = useState(false);
   const [checkedBoxes, setCheckedBoxes] = useState<Record<number, boolean>>({});
   const [rateValue, setRateValue] = useState<string>("");
@@ -534,30 +534,32 @@ export default function CardcheckViewPage() {
             </AlertDialog>
           )}
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="text-destructive" data-testid="button-delete">
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Cardcheck?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this cardcheck? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={() => deleteMutation.mutate()}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
+          {hasPermission('staff') && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="text-destructive" data-testid="button-delete">
                   Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Cardcheck?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this cardcheck? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => deleteMutation.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 
