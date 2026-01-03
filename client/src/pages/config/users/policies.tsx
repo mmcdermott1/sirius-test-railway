@@ -46,10 +46,6 @@ function formatConditionParts(condition: AccessCondition): ConditionPart[] {
     parts.push({ text: `Component "${condition.component}" must be enabled`, type: 'component' });
   }
   
-  if (condition.linkage) {
-    parts.push({ text: `Linkage: ${condition.linkage}`, type: 'linkage' });
-  }
-  
   if (condition.policy) {
     parts.push({ text: `Requires policy: ${condition.policy}`, type: 'policy' });
   }
@@ -120,8 +116,6 @@ function getRequirementBadgeVariant(type: string) {
       return 'secondary';
     case 'component':
       return 'outline';
-    case 'linkage':
-      return 'destructive';
     case 'policy':
       return 'outline';
     case 'attribute':

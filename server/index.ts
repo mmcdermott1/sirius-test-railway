@@ -145,7 +145,7 @@ app.use((req, res, next) => {
         return storage.users.getUser(userId);
       },
     },
-    // Full storage for linkage resolvers
+    // Full storage for entity loaders
     storage,
     // Component flag checker
     isComponentEnabled

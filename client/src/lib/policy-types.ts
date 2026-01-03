@@ -24,7 +24,6 @@ export interface AccessCondition {
   anyPermission?: string[];
   allPermissions?: string[];
   component?: string;
-  linkage?: string;
   policy?: string;
   attributes?: AttributePredicate[];
 }

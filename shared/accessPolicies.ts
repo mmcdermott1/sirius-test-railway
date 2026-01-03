@@ -51,12 +51,6 @@ export interface AccessCondition {
   component?: string;
   
   /** 
-   * Legacy linkage predicate (deprecated - use modular policies with custom evaluate functions)
-   * Retained for backwards compatibility with existing declarative policy definitions.
-   */
-  linkage?: string;
-  
-  /** 
    * Reference another policy that must also pass.
    * For entity-level policies, the same entityId is used.
    * This enables composite policies like "requires employer.dispatch permission AND employer.mine policy".

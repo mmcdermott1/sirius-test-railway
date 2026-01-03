@@ -22,7 +22,6 @@ export interface ComponentPolicyRule {
   anyPermission?: string[];
   allPermissions?: string[];
   component?: string;
-  linkage?: string;
   policy?: string;
   authenticated?: boolean;
   attributes?: ComponentPolicyRuleAttribute[];
@@ -262,9 +261,7 @@ export const componentRegistry: ComponentDefinition[] = [
         scope: "entity",
         entityType: "worker.dispatch.dnc",
         rules: [
-          { permission: "staff" },
-          { permission: "worker", linkage: "dncWorkerOwner" },
-          { permission: "employer.dispatch", linkage: "dncEmployerAssoc" }
+          { permission: "staff" }
         ]
       },
       {
@@ -273,9 +270,7 @@ export const componentRegistry: ComponentDefinition[] = [
         scope: "entity",
         entityType: "worker.dispatch.dnc",
         rules: [
-          { permission: "staff" },
-          { permission: "worker", linkage: "dncWorkerOwner", attributes: [{ path: "type", op: "eq", value: "worker" }] },
-          { permission: "employer.dispatch.manage", linkage: "dncEmployerAssoc", attributes: [{ path: "type", op: "eq", value: "employer" }] }
+          { permission: "staff" }
         ]
       }
     ]

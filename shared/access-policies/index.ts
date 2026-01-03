@@ -2,7 +2,7 @@
  * Modular Access Policy Framework
  * 
  * Each policy lives in its own file and can either:
- * - Declare simple rules (permissions, linkages, etc.)
+ * - Declare simple rules (permissions, components, etc.)
  * - Implement custom evaluation logic via an evaluate() function
  * 
  * All policies share a common caching and evaluation infrastructure.
