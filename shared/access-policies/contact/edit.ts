@@ -25,10 +25,10 @@ const policy = definePolicy({
     if (await ctx.hasPermission('employer.manage')) {
       const userContact = await ctx.getUserContact();
       if (userContact) {
-        // Get employer contacts for the current user
-        const userEmployerContacts = await ctx.storage.employerContacts?.getByContactId?.(userContact.id);
-        if (userEmployerContacts?.length > 0) {
-          // Check if the target contact belongs to the same employer(s)
+        // Get employer contacts for the current user (uses listByContactId, not getByContactId)
+        const userEmployerContacts = await ctx.storage.employerContacts?.listByContactId?.(userContact.id);
+        if (userEmployerContacts && userEmployerContacts.length > 0) {
+          // Check if the target contact belongs to the same employer(s) the user is associated with
           for (const ec of userEmployerContacts) {
             const empContacts = await ctx.storage.employerContacts?.listByEmployer?.(ec.employerId);
             if (empContacts?.some((c: any) => c.contactId === ctx.entityId)) {
