@@ -6,7 +6,7 @@ import {
   assignRoleSchema,
   assignPermissionSchema
 } from "@shared/schema";
-import { requireAccess } from "../services/access-policy-evaluator";
+import { requireAccess, clearAccessCache } from "../services/access-policy-evaluator";
 
 // Type for middleware functions that we'll accept from the main routes
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -334,6 +334,7 @@ export function registerUserRoutes(
       const { roleId } = assignRoleSchema.parse({ userId, ...req.body });
       
       const assignment = await storage.users.assignRoleToUser({ userId, roleId });
+      clearAccessCache(); // Invalidate policy cache when user roles change
       res.status(201).json(assignment);
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {
@@ -354,6 +355,7 @@ export function registerUserRoutes(
         return res.status(404).json({ message: "Assignment not found" });
       }
       
+      clearAccessCache(); // Invalidate policy cache when user roles change
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to unassign role" });
@@ -377,6 +379,7 @@ export function registerUserRoutes(
       const { permissionKey } = assignPermissionSchema.parse({ roleId, ...req.body });
       
       const assignment = await storage.users.assignPermissionToRole({ roleId, permissionKey });
+      clearAccessCache(); // Invalidate policy cache when permissions change
       res.status(201).json(assignment);
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {
@@ -401,6 +404,7 @@ export function registerUserRoutes(
         return res.status(404).json({ message: "Permission assignment not found" });
       }
       
+      clearAccessCache(); // Invalidate policy cache when permissions change
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to unassign permission" });
