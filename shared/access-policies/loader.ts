@@ -39,5 +39,7 @@ import './contact/edit';
 
 import './dispatch/dnc/view';
 import './dispatch/dnc/edit';
+import './dispatch/employer/dispatch';
+import './dispatch/employer/dispatch-manage';
 
 export { getAllPolicies, getPolicy, hasPolicy } from './index';
