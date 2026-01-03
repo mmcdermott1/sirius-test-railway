@@ -431,9 +431,11 @@ async function evaluateDelegatingLinkage(
     
     // Delegate based on entity_type
     if (file.entityType === 'esig' && file.entityId) {
-      // Delegate to esig policy - use view for reading
-      // Determine the correct policy based on the original policy being evaluated
-      const esigPolicyId = ctx.policyId?.includes('.edit') ? 'esig.edit' : 'esig.view';
+      // Delegate to esig policy
+      // Explicit list of read-only file operations that should delegate to esig.view
+      const readOnlyPolicies = ['file.view', 'file.list', 'file.read', 'file.download', 'file.preview'];
+      const isViewOnly = readOnlyPolicies.some(p => ctx.policyId?.endsWith(p) || ctx.policyId === p);
+      const esigPolicyId = isViewOnly ? 'esig.view' : 'esig.edit';
       
       const esigResult = await evaluatePolicyInternal(
         ctx.user,
