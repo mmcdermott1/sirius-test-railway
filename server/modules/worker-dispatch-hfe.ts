@@ -1,13 +1,15 @@
-import { Router, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { insertWorkerDispatchHfeSchema } from "@shared/schema";
 import { createWorkerDispatchHfeStorage, workerDispatchHfeLoggingConfig } from "../storage/worker-dispatch-hfe";
 import { withStorageLogging } from "../storage/middleware/logging";
 import { z } from "zod";
 import { db } from "../db";
 import { employers } from "@shared/schema";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
+import { requireComponent } from "./components";
 
-const router = Router();
+type RequireAccess = (policy: string, getEntityId?: (req: Request) => string | Promise<string | undefined> | undefined) => (req: Request, res: Response, next: () => void) => void;
+type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
 const storage = withStorageLogging(
   createWorkerDispatchHfeStorage(),
@@ -31,86 +33,134 @@ async function enrichWithEmployer(entries: any[]) {
   }));
 }
 
-router.get("/worker/:workerId", async (req: Request, res: Response) => {
-  try {
-    const entries = await storage.getByWorker(req.params.workerId);
-    const enriched = await enrichWithEmployer(entries);
-    res.json(enriched);
-  } catch (error) {
-    console.error("Error fetching worker HFE entries:", error);
-    res.status(500).json({ error: "Failed to fetch HFE entries" });
-  }
-});
+export function registerWorkerDispatchHfeRoutes(
+  app: Express,
+  requireAuth: RequireAuth,
+  requireAccess: RequireAccess
+) {
+  const dispatchComponent = requireComponent("dispatch");
+  const hfeComponent = requireComponent("dispatch.hfe");
 
-router.get("/employer/:employerId", async (req: Request, res: Response) => {
-  try {
-    const entries = await storage.getByEmployer(req.params.employerId);
-    const enriched = await enrichWithEmployer(entries);
-    res.json(enriched);
-  } catch (error) {
-    console.error("Error fetching employer HFE entries:", error);
-    res.status(500).json({ error: "Failed to fetch HFE entries" });
-  }
-});
-
-router.get("/:id", async (req: Request, res: Response) => {
-  try {
-    const entry = await storage.get(req.params.id);
-    if (!entry) {
-      return res.status(404).json({ error: "HFE entry not found" });
+  app.get("/api/worker-dispatch-hfe/worker/:workerId", requireAuth, dispatchComponent, hfeComponent, requireAccess('worker.view', req => req.params.workerId), async (req: Request, res: Response) => {
+    try {
+      const entries = await storage.getByWorker(req.params.workerId);
+      const enriched = await enrichWithEmployer(entries);
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching worker HFE entries:", error);
+      res.status(500).json({ error: "Failed to fetch HFE entries" });
     }
-    const [enriched] = await enrichWithEmployer([entry]);
-    res.json(enriched);
-  } catch (error) {
-    console.error("Error fetching HFE entry:", error);
-    res.status(500).json({ error: "Failed to fetch HFE entry" });
-  }
-});
+  });
 
-router.post("/", async (req: Request, res: Response) => {
-  try {
-    const validated = insertWorkerDispatchHfeSchema.parse(req.body);
-    const entry = await storage.create(validated);
-    const [enriched] = await enrichWithEmployer([entry]);
-    res.status(201).json(enriched);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid data", details: error.errors });
+  app.get("/api/worker-dispatch-hfe/employer/:employerId", requireAuth, dispatchComponent, hfeComponent, requireAccess('staff'), async (req: Request, res: Response) => {
+    try {
+      const entries = await storage.getByEmployer(req.params.employerId);
+      const enriched = await enrichWithEmployer(entries);
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching employer HFE entries:", error);
+      res.status(500).json({ error: "Failed to fetch HFE entries" });
     }
-    console.error("Error creating HFE entry:", error);
-    res.status(500).json({ error: "Failed to create HFE entry" });
-  }
-});
+  });
 
-router.put("/:id", async (req: Request, res: Response) => {
-  try {
-    const validated = insertWorkerDispatchHfeSchema.partial().parse(req.body);
-    const entry = await storage.update(req.params.id, validated);
-    if (!entry) {
-      return res.status(404).json({ error: "HFE entry not found" });
+  app.get("/api/worker-dispatch-hfe/:id", requireAuth, dispatchComponent, hfeComponent, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const entry = await storage.get(req.params.id);
+      if (!entry) {
+        return res.status(404).json({ error: "HFE entry not found" });
+      }
+      (req as any).hfeEntry = entry;
+      next();
+    } catch (error) {
+      console.error("Error fetching HFE entry:", error);
+      res.status(500).json({ error: "Failed to fetch HFE entry" });
     }
-    const [enriched] = await enrichWithEmployer([entry]);
-    res.json(enriched);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid data", details: error.errors });
+  }, requireAccess('worker.view', req => (req as any).hfeEntry?.workerId), async (req: Request, res: Response) => {
+    try {
+      const entry = (req as any).hfeEntry;
+      const [enriched] = await enrichWithEmployer([entry]);
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error enriching HFE entry:", error);
+      res.status(500).json({ error: "Failed to fetch HFE entry" });
     }
-    console.error("Error updating HFE entry:", error);
-    res.status(500).json({ error: "Failed to update HFE entry" });
-  }
-});
+  });
 
-router.delete("/:id", async (req: Request, res: Response) => {
-  try {
-    const deleted = await storage.delete(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ error: "HFE entry not found" });
+  app.post("/api/worker-dispatch-hfe", requireAuth, dispatchComponent, hfeComponent, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const validated = insertWorkerDispatchHfeSchema.parse(req.body);
+      (req as any).validatedBody = Object.freeze({ ...validated });
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      return res.status(400).json({ error: "Invalid request body" });
     }
-    res.status(204).send();
-  } catch (error) {
-    console.error("Error deleting HFE entry:", error);
-    res.status(500).json({ error: "Failed to delete HFE entry" });
-  }
-});
+  }, requireAccess('worker.edit', req => (req as any).validatedBody?.workerId), async (req: Request, res: Response) => {
+    try {
+      const validated = (req as any).validatedBody;
+      const entry = await storage.create(validated);
+      const [enriched] = await enrichWithEmployer([entry]);
+      res.status(201).json(enriched);
+    } catch (error) {
+      console.error("Error creating HFE entry:", error);
+      res.status(500).json({ error: "Failed to create HFE entry" });
+    }
+  });
 
-export default router;
+  app.put("/api/worker-dispatch-hfe/:id", requireAuth, dispatchComponent, hfeComponent, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const entry = await storage.get(req.params.id);
+      if (!entry) {
+        return res.status(404).json({ error: "HFE entry not found" });
+      }
+      (req as any).hfeEntry = entry;
+      next();
+    } catch (error) {
+      console.error("Error fetching HFE entry:", error);
+      res.status(500).json({ error: "Failed to fetch HFE entry" });
+    }
+  }, requireAccess('worker.edit', req => (req as any).hfeEntry?.workerId), async (req: Request, res: Response) => {
+    try {
+      const validated = insertWorkerDispatchHfeSchema.partial().parse(req.body);
+      const entry = await storage.update(req.params.id, validated);
+      if (!entry) {
+        return res.status(404).json({ error: "HFE entry not found" });
+      }
+      const [enriched] = await enrichWithEmployer([entry]);
+      res.json(enriched);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      console.error("Error updating HFE entry:", error);
+      res.status(500).json({ error: "Failed to update HFE entry" });
+    }
+  });
+
+  app.delete("/api/worker-dispatch-hfe/:id", requireAuth, dispatchComponent, hfeComponent, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const entry = await storage.get(req.params.id);
+      if (!entry) {
+        return res.status(404).json({ error: "HFE entry not found" });
+      }
+      (req as any).hfeEntry = entry;
+      next();
+    } catch (error) {
+      console.error("Error fetching HFE entry:", error);
+      res.status(500).json({ error: "Failed to fetch HFE entry" });
+    }
+  }, requireAccess('worker.edit', req => (req as any).hfeEntry?.workerId), async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.delete(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "HFE entry not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting HFE entry:", error);
+      res.status(500).json({ error: "Failed to delete HFE entry" });
+    }
+  });
+}

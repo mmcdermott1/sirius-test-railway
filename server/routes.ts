@@ -60,11 +60,10 @@ import { registerDispatchJobsRoutes } from "./modules/dispatch-jobs";
 import { registerDispatchesRoutes } from "./modules/dispatches";
 import workerDispatchStatusRouter from "./modules/worker-dispatch-status";
 import workerDispatchDncRouter from "./modules/worker-dispatch-dnc";
-import workerDispatchHfeRouterworkerDispatchHfeRouter from "./modules/worker-dispatch-hfe";
+import { registerWorkerDispatchHfeRoutes } from "./modules/worker-dispatch-hfe";
 import workerBansRouter from "./modules/worker-bans";
 import { createWorkerDispatchStatusStorage } from "./storage/worker-dispatch-status";
 import { createWorkerDispatchDncStorage } from "./storage/worker-dispatch-dnc";
-import { createWorkerDispatchHfeStorage } from "./storage/worker-dispatch-hfe";
 import { requireComponent } from "./modules/components";
 import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
 import { registerBtuCsgRoutes } from "./modules/sitespecific-btu-csg";
@@ -1023,10 +1022,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Dispatch components and storage
   const dispatchComponent = requireComponent("dispatch");
-  const hfeComponent = requireComponent("dispatch.hfe");
   const dispatchStatusStorage = createWorkerDispatchStatusStorage();
   const dispatchDncStorage = createWorkerDispatchDncStorage();
-  const dispatchHfeStorage = createWorkerDispatchHfeStorage();
 
   // Worker-accessible dispatch status route (worker.view policy)
   app.get("/api/worker-dispatch-status/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
@@ -1050,87 +1047,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Worker-accessible dispatch HFE route (worker.view policy)
-  app.get("/api/worker-dispatch-hfe/worker/:workerId", requireAuth, dispatchComponent, hfeComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
-    try {
-      const records = await dispatchHfeStorage.getByWorker(req.params.workerId);
-      res.json(records);
-    } catch (error) {
-      console.error("Error fetching worker HFE records:", error);
-      res.status(500).json({ error: "Failed to fetch worker HFE records" });
-    }
-  });
-
-  // Worker-accessible dispatch HFE create route (worker.edit policy)
-  // Validate body first, then check permissions with validated workerId
-  app.post("/api/worker-dispatch-hfe", requireAuth, dispatchComponent, hfeComponent, async (req, res, next) => {
-    try {
-      const validated = insertWorkerDispatchHfeSchema.parse(req.body);
-      (req as any).validatedBody = validated;
-      next();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid data", details: error.errors });
-      }
-      return res.status(400).json({ error: "Invalid request body" });
-    }
-  }, requireAccess('worker.edit', req => (req as any).validatedBody.workerId), async (req, res) => {
-    try {
-      const validated = (req as any).validatedBody;
-      const entry = await dispatchHfeStorage.create(validated);
-      res.status(201).json(entry);
-    } catch (error) {
-      console.error("Error creating HFE entry:", error);
-      res.status(500).json({ error: "Failed to create HFE entry" });
-    }
-  });
-
-  // Worker-accessible dispatch HFE update route (worker.edit policy)
-  app.put("/api/worker-dispatch-hfe/:id", requireAuth, dispatchComponent, hfeComponent, requireAccess('worker.edit', async (req) => {
-    const entry = await dispatchHfeStorage.get(req.params.id);
-    return entry?.workerId;
-  }), async (req, res) => {
-    try {
-      const validated = insertWorkerDispatchHfeSchema.partial().parse(req.body);
-      const entry = await dispatchHfeStorage.update(req.params.id, validated);
-      if (!entry) {
-        return res.status(404).json({ error: "HFE entry not found" });
-      }
-      res.json(entry);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid data", details: error.errors });
-      }
-      console.error("Error updating HFE entry:", error);
-      res.status(500).json({ error: "Failed to update HFE entry" });
-    }
-  });
-
-  // Worker-accessible dispatch HFE delete route (worker.edit policy)
-  app.delete("/api/worker-dispatch-hfe/:id", requireAuth, dispatchComponent, hfeComponent, requireAccess('worker.edit', async (req) => {
-    const entry = await dispatchHfeStorage.get(req.params.id);
-    return entry?.workerId;
-  }), async (req, res) => {
-    try {
-      const deleted = await dispatchHfeStorage.delete(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "HFE entry not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting HFE entry:", error);
-      res.status(500).json({ error: "Failed to delete HFE entry" });
-    }
-  });
+  // Register worker dispatch HFE routes (handles all access control internally)
+  registerWorkerDispatchHfeRoutes(app, requireAuth, requireAccess);
 
   // Register worker dispatch status admin routes
   app.use("/api/worker-dispatch-status", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchStatusRouter);
 
   // Register worker dispatch DNC admin routes
   app.use("/api/worker-dispatch-dnc", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchDncRouter);
-
-  // Register worker dispatch HFE admin routes
-  app.use("/api/worker-dispatch-hfe", requireAuth, dispatchComponent, hfeComponent, requirePermission("staff"), workerDispatchHfeRouter);
 
   // Worker-accessible ban routes (worker.view policy - workers can view their own bans)
   app.get("/api/worker-bans/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
