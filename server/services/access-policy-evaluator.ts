@@ -317,12 +317,6 @@ const linkageResolvers: Record<LinkagePredicate, LinkageResolver> = {
     
     // Get the DNC record - either from entityData (create) or by loading from storage (edit/delete)
     let dnc: any = ctx.entityData;
-    logger.debug(`dncWorkerOwner linkage check`, {
-      service: SERVICE,
-      hasEntityData: !!ctx.entityData,
-      entityId: ctx.entityId,
-      entityDataType: ctx.entityData?.type,
-    });
     if (!dnc && ctx.entityId) {
       dnc = await storage.workerDispatchDnc?.get?.(ctx.entityId);
     }
@@ -593,11 +587,6 @@ async function getEntityRecord(
 ): Promise<Record<string, any> | null> {
   // If entity data is provided directly (virtual entity for create operations), use it
   if (ctx.entityData) {
-    logger.debug(`Using provided entityData for attribute evaluation`, {
-      service: SERVICE,
-      entityType: ctx.entityType,
-      entityDataType: ctx.entityData.type,
-    });
     return ctx.entityData;
   }
 
@@ -1025,17 +1014,6 @@ export async function evaluatePolicy(
     accessStorage,
     checkComponent,
   };
-  
-  // Debug trace for entityData flow
-  if (options.entityData) {
-    logger.debug(`Policy evaluation with entityData`, {
-      service: SERVICE,
-      policyId,
-      entityId,
-      entityDataType: options.entityData?.type,
-      hasEntityData: !!options.entityData,
-    });
-  }
 
   // Evaluate rules (OR - any rule grants access)
   for (const rule of policy.rules) {
