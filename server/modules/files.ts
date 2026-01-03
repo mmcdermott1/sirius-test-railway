@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { insertFileSchema } from "@shared/schema";
-import { requireAccess, checkAccess, buildContext } from "../accessControl";
+import { requireAccess, checkAccess, buildContext } from "../services/access-policy-evaluator";
 import { objectStorageService } from "../services/objectStorage";
 import multer from "multer";
 import { logger } from "../logger";

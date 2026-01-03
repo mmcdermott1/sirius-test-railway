@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { chargePluginRegistry, getAllEnabledChargePlugins, isChargePluginEnabled } from "../charge-plugins/registry";
 import { type ChargePluginMetadata } from "../charge-plugins/types";
 import { z } from "zod";

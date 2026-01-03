@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { insertWorkerWsSchema, updateWorkerWsSchema, insertEmploymentStatusSchema, updateEmploymentStatusSchema, insertTrustBenefitTypeSchema, insertTrustProviderTypeSchema, insertEventTypeSchema } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 
 export function registerOptionsRoutes(
   app: Express,

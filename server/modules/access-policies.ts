@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { requireAuth, requireAccess, buildContext, checkAccess, getComponentChecker, getAccessStorage } from '../accessControl';
+import { requireAuth, requireAccess, buildContext, checkAccess, getComponentChecker, getAccessStorage } from '../services/access-policy-evaluator';
 import { accessPolicyRegistry } from '@shared/accessPolicies';
 import { 
   getPolicy as getModularPolicy, 

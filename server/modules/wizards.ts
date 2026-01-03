@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { storage } from "../storage";
 import { insertWizardSchema, wizardDataSchema, type WizardData } from "@shared/schema";
-import { requireAccess, buildContext, checkAccess } from "../accessControl";
+import { requireAccess, buildContext, checkAccess } from "../services/access-policy-evaluator";
 import { wizardRegistry } from "../wizards/index.js";
 import { FeedWizard } from "../wizards/feed.js";
 import { objectStorageService } from "../services/objectStorage.js";

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../../storage";
 import { insertLedgerEaSchema } from "@shared/schema";
-import { requireAccess } from "../../accessControl";
+import { requireAccess } from "../../services/access-policy-evaluator";
 import { requireComponent } from "../components";
 import { generateInvoicePdf } from "../../utils/pdfGenerator";
 

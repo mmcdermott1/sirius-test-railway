@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { insertDispatchJobSchema, dispatchJobStatusEnum } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { requireComponent } from "./components";
 import type { DispatchJobFilters } from "../storage/dispatch-jobs";
 import { dispatchEligPluginRegistry } from "../services/dispatch-elig-plugin-registry";

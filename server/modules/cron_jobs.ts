@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { insertCronJobSchema } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { cronScheduler, cronJobRegistry } from "../cron";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;

@@ -67,7 +67,7 @@ import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-
 import { registerBtuCsgRoutes } from "./modules/sitespecific-btu-csg";
 import { registerTerminologyRoutes } from "./modules/terminology";
 import { registerPoliciesRoutes } from "./modules/policies";
-import { requireAccess } from "./accessControl";
+import { requireAccess } from "./services/access-policy-evaluator";
 import { addressValidationService } from "./services/address-validation";
 import { phoneValidationService } from "./services/phone-validation";
 import { serviceRegistry } from "./services/service-registry";

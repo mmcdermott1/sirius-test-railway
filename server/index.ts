@@ -5,7 +5,7 @@ import { initializePermissions } from "@shared/permissions";
 import { addressValidationService } from "./services/address-validation";
 import { logger } from "./logger";
 import { setupAuth } from "./replitAuth";
-import { initAccessControl } from "./accessControl";
+import { initAccessControl } from "./services/access-policy-evaluator";
 import { storage } from "./storage";
 import { captureRequestContext } from "./middleware/request-context";
 import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler, deleteExpiredFloodEventsHandler, deleteExpiredHfeHandler, sweepExpiredBanEligHandler, syncBanActiveStatusHandler } from "./cron";

@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { insertBookmarkSchema } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { enforceFloodLimit, FloodError } from "../flood";
 import { getEffectiveUser } from "./masquerade";
 

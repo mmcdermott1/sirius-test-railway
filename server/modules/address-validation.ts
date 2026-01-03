@@ -2,7 +2,7 @@ import { Express, Request, Response, NextFunction } from "express";
 import { addressValidationService, AddressInput } from "../services/address-validation";
 import { z } from "zod";
 import { ParseAddressRequest } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 
 // Middleware types
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void;

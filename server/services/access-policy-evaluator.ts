@@ -1,12 +1,15 @@
 /**
  * Access Policy Evaluator
  * 
- * Single evaluation engine for access checks using modular policies
- * defined in shared/access-policies/ with custom evaluate functions.
- * Supports caching for entity-level checks.
+ * Unified access control module providing:
+ * - Policy evaluation engine using modular policies from shared/access-policies/
+ * - Express middleware for route protection (requireAccess, requireAuth, requirePermission)
+ * - Request context building with masquerade support
+ * - LRU caching for entity-level access checks
  */
 
-import { AccessResult, buildCacheKey } from '@shared/accessPolicies';
+import { Request, Response, NextFunction } from 'express';
+import { AccessResult, buildCacheKey, accessPolicyRegistry, AccessPolicy } from '@shared/accessPolicies';
 import { getPolicy as getModularPolicy } from '@shared/access-policies';
 import { createPolicyContext } from './policy-context';
 import { logger } from '../logger';
@@ -141,6 +144,252 @@ export interface AccessControlStorage {
  * Component flag checker function type
  */
 type ComponentChecker = (componentId: string) => Promise<boolean>;
+
+// Module state - initialized via initAccessControl()
+let storage: AccessControlStorage | null = null;
+let componentChecker: ComponentChecker | null = null;
+let fullStorage: any = null;
+
+/**
+ * Initialize the access control module with storage and component checker implementations
+ */
+export function initAccessControl(
+  storageImpl: AccessControlStorage,
+  fullStorageImpl: any,
+  componentCheckerImpl: ComponentChecker
+) {
+  storage = storageImpl;
+  fullStorage = fullStorageImpl;
+  componentChecker = componentCheckerImpl;
+}
+
+/**
+ * Context object containing all information needed for access control decisions
+ */
+export interface AccessContext {
+  user: User | null;
+  route: string;
+  method: string;
+  params: Record<string, any>;
+  body?: any;
+  query?: any;
+  resources?: Record<string, any>;
+}
+
+/**
+ * Build access context from an Express request
+ * Handles Replit Auth and masquerading
+ */
+export async function buildContext(req: Request): Promise<AccessContext> {
+  let user: User | null = null;
+
+  // Check if user is authenticated via Replit
+  const replitUser = (req as any).user;
+  if (replitUser && replitUser.claims && storage) {
+    const replitUserId = replitUser.claims.sub;
+    const session = (req as any).session;
+
+    // Check if masquerading
+    if (session?.masqueradeUserId) {
+      const masqueradeUser = await storage.getUser(session.masqueradeUserId);
+      if (masqueradeUser) {
+        user = masqueradeUser;
+      }
+    } else {
+      // Normal authentication - look up database user by Replit ID
+      const dbUser = await storage.getUserByReplitId(replitUserId);
+      if (dbUser) {
+        user = dbUser;
+      }
+    }
+  }
+
+  return {
+    user,
+    route: req.route?.path || req.path,
+    method: req.method,
+    params: req.params,
+    body: req.body,
+    query: req.query,
+    resources: {},
+  };
+}
+
+/**
+ * Check access using the unified policy evaluator
+ * 
+ * @param policyId - The ID of the policy to evaluate
+ * @param user - The authenticated user (null if not authenticated)
+ * @param entityId - Optional entity ID for entity-level checks
+ */
+export async function checkAccess(
+  policyId: string,
+  user: User | null,
+  entityId?: string
+): Promise<{ granted: boolean; reason?: string }> {
+  if (!storage || !componentChecker || !fullStorage) {
+    throw new Error('Access control not initialized');
+  }
+
+  const result = await evaluatePolicy(
+    user,
+    policyId,
+    fullStorage,
+    storage,
+    componentChecker,
+    entityId
+  );
+
+  return {
+    granted: result.granted,
+    reason: result.reason,
+  };
+}
+
+/**
+ * Options for requireAccess when using an options object
+ */
+export interface RequireAccessOptions {
+  /** Function to extract entity ID from request */
+  getEntityId?: (req: Request) => string | undefined | Promise<string | undefined>;
+  /** Function to extract entity data directly from request (for create operations) */
+  getEntityData?: (req: Request) => Record<string, any> | undefined | Promise<Record<string, any> | undefined>;
+}
+
+/**
+ * Create an Express middleware that enforces an access policy by ID
+ * 
+ * @param policyId - The ID of the policy to enforce
+ * @param getEntityIdOrOptions - Either a function to extract entity ID, or an options object
+ */
+export function requireAccess(
+  policyId: string,
+  getEntityIdOrOptions?: ((req: Request) => string | undefined | Promise<string | undefined>) | RequireAccessOptions
+) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!storage || !componentChecker || !fullStorage) {
+        throw new Error('Access control not initialized');
+      }
+
+      const context = await buildContext(req);
+      
+      // Handle both function and options object forms
+      let entityId: string | undefined;
+      let entityData: Record<string, any> | undefined;
+      
+      if (typeof getEntityIdOrOptions === 'function') {
+        entityId = await Promise.resolve(getEntityIdOrOptions(req));
+      } else if (getEntityIdOrOptions) {
+        entityId = await Promise.resolve(getEntityIdOrOptions.getEntityId?.(req));
+        entityData = await Promise.resolve(getEntityIdOrOptions.getEntityData?.(req));
+      }
+
+      const result = await evaluatePolicy(
+        context.user,
+        policyId,
+        fullStorage,
+        storage,
+        componentChecker,
+        entityId,
+        undefined, // entityType - use policy's default
+        { entityData }
+      );
+
+      if (!result.granted) {
+        return res.status(403).json({
+          message: result.reason || 'Access denied',
+          error: 'ACCESS_DENIED',
+          policy: policyId,
+          entityId: entityId || null,
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Access control error:', error);
+      return res.status(500).json({
+        message: 'Internal server error during access control',
+      });
+    }
+  };
+}
+
+/**
+ * Backward compatibility: wrap authentication check in new system
+ */
+export const requireAuth = requireAccess('authenticated');
+
+/**
+ * Backward compatibility: wrap permission check in new system
+ * This creates an inline policy - prefer using defined policies instead
+ */
+export function requirePermission(permissionKey: string) {
+  // For backward compatibility, we check if a policy with this permission exists
+  // Otherwise fall back to requiring the 'authenticated' policy + manual check
+  const policyId = permissionKey; // Policy ID matches permission key
+  if (accessPolicyRegistry.has(policyId)) {
+    return requireAccess(policyId);
+  }
+  
+  // Fallback: create a dynamic check (not recommended - define policies explicitly)
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!storage) {
+        throw new Error('Access control not initialized');
+      }
+
+      const context = await buildContext(req);
+      
+      if (!context.user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      // Check admin bypass
+      const isAdmin = await storage.hasPermission(context.user.id, 'admin');
+      if (isAdmin) {
+        return next();
+      }
+
+      // Check specific permission
+      const hasPermission = await storage.hasPermission(context.user.id, permissionKey);
+      if (!hasPermission) {
+        return res.status(403).json({ message: `Missing permission: ${permissionKey}` });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Access control error:', error);
+      return res.status(500).json({
+        message: 'Internal server error during access control',
+      });
+    }
+  };
+}
+
+/**
+ * Get the component checker function
+ */
+export function getComponentChecker(): ComponentChecker | null {
+  return componentChecker;
+}
+
+/**
+ * Get the full storage instance
+ */
+export function getFullStorage(): any | null {
+  return fullStorage;
+}
+
+/**
+ * Get the access control storage instance
+ */
+export function getAccessStorage(): AccessControlStorage | null {
+  return storage;
+}
+
+// Re-export types for consumers
+export type { AccessPolicy };
 
 /**
  * Evaluate a modular policy (from shared/access-policies/)

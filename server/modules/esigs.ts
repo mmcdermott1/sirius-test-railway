@@ -156,7 +156,7 @@ export function registerEsigsRoutes(
         
         // Use evaluatePolicy to check the policy dynamically
         const { evaluatePolicy } = await import("../services/access-policy-evaluator");
-        const { getAccessStorage, getComponentChecker } = await import("../accessControl");
+        const { getAccessStorage, getComponentChecker } = await import("../services/access-policy-evaluator");
         
         const accessStorage = getAccessStorage();
         const componentChecker = getComponentChecker();
@@ -183,7 +183,7 @@ export function registerEsigsRoutes(
         }
       } else {
         // No entity context provided - require staff permission
-        const { getAccessStorage: getAS } = await import("../accessControl");
+        const { getAccessStorage: getAS } = await import("../services/access-policy-evaluator");
         const accessStorage = getAS();
         if (!accessStorage) {
           return res.status(500).json({ message: "Access control not initialized" });

@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { insertVariableSchema } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 
 // Type for middleware functions that we'll accept from the main routes
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;

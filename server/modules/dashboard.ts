@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { requireComponent } from "./components";
 import { employerMonthlyPluginConfigSchema } from "@shared/schema";
 import { getPluginMetadata } from "@shared/pluginMetadata";

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { insertEventSchema, insertEventOccurrenceSchema } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { requireComponent } from "./components";
 import { 
   getAllEventCategories, 

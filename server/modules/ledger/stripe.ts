@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
-import { requireAccess } from "../../accessControl";
+import { requireAccess } from "../../services/access-policy-evaluator";
 import { storage } from "../../storage";
 
 let stripe: Stripe | null = null;

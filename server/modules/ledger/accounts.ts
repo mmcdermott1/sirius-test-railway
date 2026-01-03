@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { storage } from "../../storage";
 import { insertLedgerAccountSchema, ledgerAccountDataSchema } from "@shared/schema";
 import { getAllCurrencies, hasCurrency } from "@shared/currency";
-import { requireAccess } from "../../accessControl";
+import { requireAccess } from "../../services/access-policy-evaluator";
 import { requireComponent } from "../components";
 
 export function registerLedgerAccountRoutes(app: Express) {

@@ -6,7 +6,7 @@ import {
   assignRoleSchema,
   assignPermissionSchema
 } from "@shared/schema";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 
 // Type for middleware functions that we'll accept from the main routes
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;

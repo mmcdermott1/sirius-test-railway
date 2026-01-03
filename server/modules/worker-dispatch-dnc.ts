@@ -7,7 +7,7 @@ import { db } from "../db";
 import { employers } from "@shared/schema";
 import { inArray } from "drizzle-orm";
 import { requireComponent } from "./components";
-import type { RequireAccessOptions } from "../accessControl";
+import type { RequireAccessOptions } from "../services/access-policy-evaluator";
 
 type RequireAccess = (
   policy: string,

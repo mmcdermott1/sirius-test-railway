@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { DatabaseStorage } from "../storage";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { floodEventRegistry } from "../flood/registry";
 import { z } from "zod";
 

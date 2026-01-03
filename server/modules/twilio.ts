@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { z } from "zod";
 import { serviceRegistry } from "../services/service-registry";
 import type { SmsTransport } from "../services/providers/sms";

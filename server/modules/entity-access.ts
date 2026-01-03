@@ -6,8 +6,11 @@
 
 import { Express } from 'express';
 import { z } from 'zod';
-import { requireAuth, requireAccess, buildContext, checkAccess } from '../accessControl';
 import { 
+  requireAuth, 
+  requireAccess, 
+  buildContext, 
+  checkAccess,
   evaluatePolicy,
   evaluatePolicyBatch,
   getAccessCacheStats,

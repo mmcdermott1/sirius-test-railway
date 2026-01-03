@@ -1,5 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { getAllComponents, getComponentById, getDescendantComponentIds, getAncestorComponentIds, ComponentConfig, ComponentDefinition, ComponentSchemaState } from "../../shared/components";
 import {
   enableComponentSchema,

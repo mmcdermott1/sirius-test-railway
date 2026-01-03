@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { z } from "zod";
 import { exportQuickstart, importQuickstart, listQuickstarts, deleteQuickstart } from "../services/quickstart";
 import { isAuthenticated } from "../replitAuth";
-import { requireAccess } from "../accessControl";
+import { requireAccess } from "../services/access-policy-evaluator";
 
 const exportSchema = z.object({
   name: z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/, "Name must contain only letters, numbers, hyphens, and underscores"),
