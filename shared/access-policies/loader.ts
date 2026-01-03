@@ -18,6 +18,7 @@ import './ledger/stripe-employer';
 import './employer/manage';
 import './employer/view';
 import './employer/mine';
+import './employer/ledger';
 
 import './worker/view';
 import './worker/edit';
