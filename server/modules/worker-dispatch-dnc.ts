@@ -7,8 +7,12 @@ import { db } from "../db";
 import { employers } from "@shared/schema";
 import { inArray } from "drizzle-orm";
 import { requireComponent } from "./components";
+import type { RequireAccessOptions } from "../accessControl";
 
-type RequireAccess = (policy: string, getEntityId?: (req: Request) => string | Promise<string | undefined> | undefined) => (req: Request, res: Response, next: () => void) => void;
+type RequireAccess = (
+  policy: string,
+  getEntityIdOrOptions?: ((req: Request) => string | Promise<string | undefined> | undefined) | RequireAccessOptions
+) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
 const storage = withStorageLogging(
@@ -62,6 +66,7 @@ export function registerWorkerDispatchDncRoutes(
     }
   });
 
+  // Get single DNC entry by ID - load first for 404, then check access
   app.get("/api/worker-dispatch-dnc/:id", requireAuth, dispatchComponent, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const entry = await storage.get(req.params.id);
@@ -74,7 +79,10 @@ export function registerWorkerDispatchDncRoutes(
       console.error("Error fetching DNC entry:", error);
       res.status(500).json({ error: "Failed to fetch DNC entry" });
     }
-  }, requireAccess('worker.view', req => (req as any).dncEntry?.workerId), async (req: Request, res: Response) => {
+  }, requireAccess('worker.dispatch.dnc.view', {
+    getEntityId: req => req.params.id,
+    getEntityData: req => (req as any).dncEntry
+  }), async (req: Request, res: Response) => {
     try {
       const entry = (req as any).dncEntry;
       const [enriched] = await enrichWithEmployer([entry]);
@@ -85,6 +93,7 @@ export function registerWorkerDispatchDncRoutes(
     }
   });
 
+  // Create DNC entry - uses DNC edit policy with entityData from validated body
   app.post("/api/worker-dispatch-dnc", requireAuth, dispatchComponent, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const validated = insertWorkerDispatchDncSchema.parse(req.body);
@@ -96,7 +105,9 @@ export function registerWorkerDispatchDncRoutes(
       }
       return res.status(400).json({ error: "Invalid request body" });
     }
-  }, requireAccess('worker.edit', req => (req as any).validatedBody?.workerId), async (req: Request, res: Response) => {
+  }, requireAccess('worker.dispatch.dnc.edit', {
+    getEntityData: req => (req as any).validatedBody
+  }), async (req: Request, res: Response) => {
     try {
       const validated = (req as any).validatedBody;
       const entry = await storage.create(validated);
@@ -108,21 +119,33 @@ export function registerWorkerDispatchDncRoutes(
     }
   });
 
+  // Update DNC entry - load existing, merge with request body, check policy against merged data
   app.put("/api/worker-dispatch-dnc/:id", requireAuth, dispatchComponent, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const entry = await storage.get(req.params.id);
       if (!entry) {
         return res.status(404).json({ error: "DNC entry not found" });
       }
+      const validated = insertWorkerDispatchDncSchema.partial().parse(req.body);
+      // Merge existing record with updates - policy checks resulting state
+      const mergedData = { ...entry, ...validated };
       (req as any).dncEntry = Object.freeze({ ...entry });
+      (req as any).mergedData = Object.freeze(mergedData);
+      (req as any).validatedBody = Object.freeze({ ...validated });
       next();
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
       console.error("Error fetching DNC entry:", error);
       res.status(500).json({ error: "Failed to fetch DNC entry" });
     }
-  }, requireAccess('worker.edit', req => (req as any).dncEntry?.workerId), async (req: Request, res: Response) => {
+  }, requireAccess('worker.dispatch.dnc.edit', {
+    getEntityId: req => req.params.id,
+    getEntityData: req => (req as any).mergedData // Check policy against resulting state
+  }), async (req: Request, res: Response) => {
     try {
-      const validated = insertWorkerDispatchDncSchema.partial().parse(req.body);
+      const validated = (req as any).validatedBody;
       const entry = await storage.update(req.params.id, validated);
       if (!entry) {
         return res.status(404).json({ error: "DNC entry not found" });
@@ -130,14 +153,12 @@ export function registerWorkerDispatchDncRoutes(
       const [enriched] = await enrichWithEmployer([entry]);
       res.json(enriched);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid data", details: error.errors });
-      }
       console.error("Error updating DNC entry:", error);
       res.status(500).json({ error: "Failed to update DNC entry" });
     }
   });
 
+  // Delete DNC entry - load first for 404 and access check
   app.delete("/api/worker-dispatch-dnc/:id", requireAuth, dispatchComponent, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const entry = await storage.get(req.params.id);
@@ -150,7 +171,10 @@ export function registerWorkerDispatchDncRoutes(
       console.error("Error fetching DNC entry:", error);
       res.status(500).json({ error: "Failed to fetch DNC entry" });
     }
-  }, requireAccess('worker.edit', req => (req as any).dncEntry?.workerId), async (req: Request, res: Response) => {
+  }, requireAccess('worker.dispatch.dnc.edit', {
+    getEntityId: req => req.params.id,
+    getEntityData: req => (req as any).dncEntry
+  }), async (req: Request, res: Response) => {
     try {
       const deleted = await storage.delete(req.params.id);
       if (!deleted) {

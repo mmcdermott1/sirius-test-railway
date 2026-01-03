@@ -143,6 +143,8 @@ interface LinkageContext {
   userEmail: string;
   entityType: PolicyEntityType;
   entityId: string;
+  /** Entity data provided directly for create operations */
+  entityData?: Record<string, any>;
 }
 
 /**
@@ -313,8 +315,17 @@ const linkageResolvers: Record<LinkagePredicate, LinkageResolver> = {
   dncWorkerOwner: async (ctx, storage) => {
     if (ctx.entityType !== 'worker.dispatch.dnc') return false;
     
-    // Get the DNC record using injected storage
-    const dnc = await storage.workerDispatchDnc?.get?.(ctx.entityId);
+    // Get the DNC record - either from entityData (create) or by loading from storage (edit/delete)
+    let dnc: any = ctx.entityData;
+    logger.debug(`dncWorkerOwner linkage check`, {
+      service: SERVICE,
+      hasEntityData: !!ctx.entityData,
+      entityId: ctx.entityId,
+      entityDataType: ctx.entityData?.type,
+    });
+    if (!dnc && ctx.entityId) {
+      dnc = await storage.workerDispatchDnc?.get?.(ctx.entityId);
+    }
     if (!dnc) return false;
     
     // Find user's contact by email
@@ -332,8 +343,11 @@ const linkageResolvers: Record<LinkagePredicate, LinkageResolver> = {
   dncEmployerAssoc: async (ctx, storage) => {
     if (ctx.entityType !== 'worker.dispatch.dnc') return false;
     
-    // Get the DNC record using injected storage
-    const dnc = await storage.workerDispatchDnc?.get?.(ctx.entityId);
+    // Get the DNC record - either from entityData (create) or by loading from storage (edit/delete)
+    let dnc: any = ctx.entityData;
+    if (!dnc && ctx.entityId) {
+      dnc = await storage.workerDispatchDnc?.get?.(ctx.entityId);
+    }
     if (!dnc) return false;
     
     // Find user's contact by email
@@ -560,6 +574,8 @@ interface EvaluationContext {
   policyId: string;
   entityType?: PolicyEntityType | string;
   entityId?: string;
+  /** Entity data provided directly (for create operations where no entity exists yet) */
+  entityData?: Record<string, any>;
   storage: any;
   accessStorage: AccessControlStorage;
   checkComponent: ComponentChecker;
@@ -575,6 +591,16 @@ interface EvaluationContext {
 async function getEntityRecord(
   ctx: EvaluationContext
 ): Promise<Record<string, any> | null> {
+  // If entity data is provided directly (virtual entity for create operations), use it
+  if (ctx.entityData) {
+    logger.debug(`Using provided entityData for attribute evaluation`, {
+      service: SERVICE,
+      entityType: ctx.entityType,
+      entityDataType: ctx.entityData.type,
+    });
+    return ctx.entityData;
+  }
+
   if (!ctx.entityType || !ctx.entityId) {
     return null;
   }
@@ -696,9 +722,9 @@ async function evaluateCondition(
     }
   }
 
-  // Check linkage (requires entity context)
+  // Check linkage (requires entity context - either entityId or entityData)
   if (condition.linkage) {
-    if (!ctx.entityType || !ctx.entityId) {
+    if (!ctx.entityType || (!ctx.entityId && !ctx.entityData)) {
       return { passed: false, reason: 'Linkage check requires entity context' };
     }
 
@@ -721,7 +747,8 @@ async function evaluateCondition(
         userId: ctx.user.id,
         userEmail: ctx.user.email,
         entityType: ctx.entityType as PolicyEntityType,
-        entityId: ctx.entityId,
+        entityId: ctx.entityId || '',
+        entityData: ctx.entityData,
       };
 
       const hasLinkage = await resolver(linkageCtx, ctx.storage);
@@ -908,7 +935,8 @@ async function evaluatePolicyInternal(
  * @param accessStorage - Access control storage for permissions
  * @param checkComponent - Function to check component flags
  * @param entityId - Entity ID (required for entity-level policies)
- * @param options - Evaluation options
+ * @param entityType - Override entity type (optional, uses policy's entityType if not provided)
+ * @param options - Evaluation options including entityData for virtual entities
  */
 export async function evaluatePolicy(
   user: User | null,
@@ -917,7 +945,8 @@ export async function evaluatePolicy(
   accessStorage: AccessControlStorage,
   checkComponent: ComponentChecker,
   entityId?: string,
-  options: { skipCache?: boolean } = {}
+  entityType?: string,
+  options: { skipCache?: boolean; entityData?: Record<string, any> } = {}
 ): Promise<AccessResult> {
   // Get policy
   const policy = accessPolicyRegistry.get(policyId);
@@ -930,18 +959,22 @@ export async function evaluatePolicy(
   }
 
   // Check if policy requires entity context
+  // entityData can serve as virtual entity for create operations (no entityId yet)
   const requiresEntity = policyRequiresEntityContext(policy);
-  if (requiresEntity && !entityId) {
+  if (requiresEntity && !entityId && !options.entityData) {
     return {
       granted: false,
-      reason: 'Policy requires entity context but no entity ID provided',
+      reason: 'Policy requires entity context but no entity ID or data provided',
       evaluatedAt: Date.now(),
     };
   }
 
   // Check cache for entity-level checks
-  const cacheKey = user ? buildCacheKey(user.id, policyId, entityId) : null;
-  if (cacheKey && !options.skipCache) {
+  // Skip cache when entityData is provided - these are transient/virtual states (create operations, merged state for updates)
+  // that should be evaluated fresh each time
+  const shouldUseCache = !options.skipCache && !options.entityData;
+  const cacheKey = shouldUseCache && user ? buildCacheKey(user.id, policyId, entityId) : null;
+  if (cacheKey) {
     const cached = accessCache.get(cacheKey);
     if (cached) {
       logger.debug(`Access cache hit`, { 
@@ -978,8 +1011,8 @@ export async function evaluatePolicy(
     isAdmin = await accessStorage.hasPermission(user.id, 'admin');
   }
 
-  // Determine entityType - use policy's entityType, or infer from linkage rules
-  const effectiveEntityType = policy.entityType || inferEntityTypeFromRules(policy.rules);
+  // Determine entityType - use provided entityType, or policy's entityType, or infer from linkage rules
+  const effectiveEntityType = entityType || policy.entityType || inferEntityTypeFromRules(policy.rules);
   
   // Build evaluation context
   const ctx: EvaluationContext = {
@@ -987,10 +1020,22 @@ export async function evaluatePolicy(
     policyId,
     entityType: effectiveEntityType,
     entityId,
+    entityData: options.entityData,
     storage,
     accessStorage,
     checkComponent,
   };
+  
+  // Debug trace for entityData flow
+  if (options.entityData) {
+    logger.debug(`Policy evaluation with entityData`, {
+      service: SERVICE,
+      policyId,
+      entityId,
+      entityDataType: options.entityData?.type,
+      hasEntityData: !!options.entityData,
+    });
+  }
 
   // Evaluate rules (OR - any rule grants access)
   for (const rule of policy.rules) {

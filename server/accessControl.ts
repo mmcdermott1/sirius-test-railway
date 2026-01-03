@@ -112,14 +112,24 @@ export async function checkAccess(
 }
 
 /**
+ * Options for requireAccess when using an options object
+ */
+export interface RequireAccessOptions {
+  /** Function to extract entity ID from request */
+  getEntityId?: (req: Request) => string | undefined | Promise<string | undefined>;
+  /** Function to extract entity data directly from request (for create operations) */
+  getEntityData?: (req: Request) => Record<string, any> | undefined | Promise<Record<string, any> | undefined>;
+}
+
+/**
  * Create an Express middleware that enforces an access policy by ID
  * 
  * @param policyId - The ID of the policy to enforce
- * @param getEntityId - Optional function to extract entity ID from request for entity-level checks (can be sync or async)
+ * @param getEntityIdOrOptions - Either a function to extract entity ID, or an options object
  */
 export function requireAccess(
   policyId: string,
-  getEntityId?: (req: Request) => string | undefined | Promise<string | undefined>
+  getEntityIdOrOptions?: ((req: Request) => string | undefined | Promise<string | undefined>) | RequireAccessOptions
 ) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -128,7 +138,17 @@ export function requireAccess(
       }
 
       const context = await buildContext(req);
-      const entityId = await Promise.resolve(getEntityId?.(req));
+      
+      // Handle both function and options object forms
+      let entityId: string | undefined;
+      let entityData: Record<string, any> | undefined;
+      
+      if (typeof getEntityIdOrOptions === 'function') {
+        entityId = await Promise.resolve(getEntityIdOrOptions(req));
+      } else if (getEntityIdOrOptions) {
+        entityId = await Promise.resolve(getEntityIdOrOptions.getEntityId?.(req));
+        entityData = await Promise.resolve(getEntityIdOrOptions.getEntityData?.(req));
+      }
 
       const result = await evaluatePolicy(
         context.user,
@@ -136,7 +156,9 @@ export function requireAccess(
         fullStorage,
         storage,
         componentChecker,
-        entityId
+        entityId,
+        undefined, // entityType - use policy's default
+        { entityData }
       );
 
       if (!result.granted) {
