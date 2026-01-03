@@ -156,13 +156,8 @@ export function initializePermissions(): void {
       module: 'core'
     },
     {
-      key: 'ledger.employer',
-      description: 'Access to employer ledger functionality',
-      module: 'core'
-    },
-    {
-      key: 'ledger.staff',
-      description: 'Access to staff ledger functionality',
+      key: 'employer.ledger',
+      description: 'Access to employer ledger functionality for employer users',
       module: 'core'
     },
     {

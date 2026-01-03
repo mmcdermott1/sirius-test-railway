@@ -168,11 +168,11 @@ export const employerTabTree: HierarchicalTab[] = [
   { id: 'wizards', label: 'Wizards', hrefTemplate: '/employers/{id}/wizards', permission: 'staff' },
   { id: 'logs', label: 'Logs', hrefTemplate: '/employers/{id}/logs', permission: 'staff' },
   { 
-    id: 'accounting', label: 'Accounting', hrefTemplate: '/employers/{id}/ledger/accounts', permission: 'ledger.staff|ledger.employer', component: 'ledger',
+    id: 'accounting', label: 'Accounting', hrefTemplate: '/employers/{id}/ledger/accounts', policyId: 'employer.ledger', component: 'ledger',
     children: [
-      { id: 'accounts', label: 'Accounts', hrefTemplate: '/employers/{id}/ledger/accounts', permission: 'ledger.staff|ledger.employer' },
-      { id: 'payment-methods', label: 'Payment Methods', hrefTemplate: '/employers/{id}/ledger/stripe/payment_methods', permission: 'ledger.staff|ledger.employer' },
-      { id: 'customer', label: 'Customer', hrefTemplate: '/employers/{id}/ledger/stripe/customer', permission: 'ledger.staff|ledger.employer' },
+      { id: 'accounts', label: 'Accounts', hrefTemplate: '/employers/{id}/ledger/accounts', policyId: 'employer.ledger' },
+      { id: 'payment-methods', label: 'Payment Methods', hrefTemplate: '/employers/{id}/ledger/stripe/payment_methods', policyId: 'employer.ledger' },
+      { id: 'customer', label: 'Customer', hrefTemplate: '/employers/{id}/ledger/stripe/customer', policyId: 'employer.ledger' },
     ]
   },
   { 
