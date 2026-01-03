@@ -447,7 +447,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/union/bargaining-unit">
-        <ProtectedRoute policy="worker.view" component="bargainingunits">
+        <ProtectedRoute permission="staff" component="bargainingunits">
           <AuthenticatedLayout>
             <WorkerBargainingUnit />
           </AuthenticatedLayout>
@@ -487,7 +487,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/union/steward">
-        <ProtectedRoute policy="worker.view" component="worker.steward">
+        <ProtectedRoute permission="staff" component="worker.steward">
           <AuthenticatedLayout>
             <WorkerSteward />
           </AuthenticatedLayout>

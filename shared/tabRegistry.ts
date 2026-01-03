@@ -493,6 +493,51 @@ export function isChildOf(childId: string, parentId: string, tree: HierarchicalT
 }
 
 /**
+ * Access requirements extracted from a tab definition.
+ * Provides a single source of truth for route protection.
+ */
+export interface TabAccessRequirements {
+  policyId?: string;
+  permission?: string;
+  component?: string;
+}
+
+/**
+ * Get access requirements for a specific tab by ID and entity type.
+ * Returns the policy, permission, and component requirements from the tab registry.
+ * This is the single source of truth for both frontend route protection and backend middleware.
+ */
+export function getTabAccessRequirements(
+  entityType: TabEntityType,
+  tabId: string
+): TabAccessRequirements | null {
+  const tree = tabTreeRegistry[entityType];
+  if (!tree) return null;
+  
+  const tab = findTabById(tabId, tree);
+  if (!tab) return null;
+  
+  return {
+    policyId: tab.policyId,
+    permission: tab.permission,
+    component: tab.component,
+  };
+}
+
+/**
+ * Get a tab by ID for a specific entity type.
+ * Returns the full tab definition including all access metadata.
+ */
+export function getTabForEntity(
+  entityType: TabEntityType,
+  tabId: string
+): HierarchicalTab | undefined {
+  const tree = tabTreeRegistry[entityType];
+  if (!tree) return undefined;
+  return findTabById(tabId, tree);
+}
+
+/**
  * Helper to extract root-level tabs from a tree (without children, for flat rendering)
  */
 function getRootTabs(tree: HierarchicalTab[]): TabDefinition[] {
