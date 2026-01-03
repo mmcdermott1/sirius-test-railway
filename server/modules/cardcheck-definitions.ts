@@ -11,7 +11,7 @@ export function registerCardcheckDefinitionsRoutes(
 ) {
   const cardcheckComponent = requireComponent("cardcheck");
 
-  app.get("/api/cardcheck/definitions", requireAuth, cardcheckComponent, requirePermission("staff"), async (req, res) => {
+  app.get("/api/cardcheck/definitions", requireAuth, cardcheckComponent, async (req, res) => {
     try {
       const definitions = await storage.cardcheckDefinitions.getAllCardcheckDefinitions();
       res.json(definitions);
@@ -20,7 +20,7 @@ export function registerCardcheckDefinitionsRoutes(
     }
   });
 
-  app.get("/api/cardcheck/definition/:id", requireAuth, cardcheckComponent, requirePermission("staff"), async (req, res) => {
+  app.get("/api/cardcheck/definition/:id", requireAuth, cardcheckComponent, async (req, res) => {
     try {
       const { id } = req.params;
       const definition = await storage.cardcheckDefinitions.getCardcheckDefinitionById(id);
