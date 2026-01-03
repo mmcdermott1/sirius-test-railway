@@ -58,11 +58,10 @@ import { registerFloodEventRoutes } from "./modules/flood-events";
 import { registerEventsRoutes } from "./modules/events";
 import { registerDispatchJobsRoutes } from "./modules/dispatch-jobs";
 import { registerDispatchesRoutes } from "./modules/dispatches";
-import workerDispatchStatusRouter from "./modules/worker-dispatch-status";
+import { registerWorkerDispatchStatusRoutes } from "./modules/worker-dispatch-status";
 import { registerWorkerDispatchDncRoutes } from "./modules/worker-dispatch-dnc";
 import { registerWorkerDispatchHfeRoutes } from "./modules/worker-dispatch-hfe";
 import { registerWorkerBansRoutes } from "./modules/worker-bans";
-import { createWorkerDispatchStatusStorage } from "./storage/worker-dispatch-status";
 import { requireComponent } from "./modules/components";
 import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
 import { registerBtuCsgRoutes } from "./modules/sitespecific-btu-csg";
@@ -1019,29 +1018,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register dispatches routes
   registerDispatchesRoutes(app, requireAuth, requirePermission);
 
-  // Dispatch components and storage
-  const dispatchComponent = requireComponent("dispatch");
-  const dispatchStatusStorage = createWorkerDispatchStatusStorage();
-
-  // Worker-accessible dispatch status route (worker.view policy)
-  app.get("/api/worker-dispatch-status/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
-    try {
-      const status = await dispatchStatusStorage.getByWorker(req.params.workerId);
-      res.json(status || null);
-    } catch (error) {
-      console.error("Error fetching worker dispatch status:", error);
-      res.status(500).json({ error: "Failed to fetch worker dispatch status" });
-    }
-  });
+  // Register worker dispatch status routes (handles all access control internally)
+  registerWorkerDispatchStatusRoutes(app, requireAuth, requireAccess);
 
   // Register worker dispatch DNC routes (handles all access control internally)
   registerWorkerDispatchDncRoutes(app, requireAuth, requireAccess);
 
   // Register worker dispatch HFE routes (handles all access control internally)
   registerWorkerDispatchHfeRoutes(app, requireAuth, requireAccess);
-
-  // Register worker dispatch status admin routes
-  app.use("/api/worker-dispatch-status", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchStatusRouter);
 
   // Register worker bans routes (handles all access control internally)
   registerWorkerBansRoutes(app, requireAuth, requireAccess);
