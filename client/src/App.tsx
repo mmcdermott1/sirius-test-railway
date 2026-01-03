@@ -319,7 +319,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/phone-numbers">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerPhoneNumbers />
           </AuthenticatedLayout>
@@ -327,7 +327,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/comm/history">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerCommHistory />
           </AuthenticatedLayout>
@@ -375,7 +375,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/addresses">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerAddresses />
           </AuthenticatedLayout>
@@ -383,7 +383,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/name">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerName />
           </AuthenticatedLayout>
@@ -391,7 +391,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/email">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerEmail />
           </AuthenticatedLayout>
@@ -407,7 +407,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/birth-date">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerBirthDate />
           </AuthenticatedLayout>
@@ -415,7 +415,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/gender">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerGender />
           </AuthenticatedLayout>
@@ -423,7 +423,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/work-status">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerWorkStatus />
           </AuthenticatedLayout>
@@ -439,7 +439,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/bans">
-        <ProtectedRoute permission="staff" component="dispatch">
+        <ProtectedRoute policy="worker.view" component="dispatch">
           <AuthenticatedLayout>
             <WorkerBans />
           </AuthenticatedLayout>
@@ -447,7 +447,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/union/bargaining-unit">
-        <ProtectedRoute permission="staff" component="bargainingunits">
+        <ProtectedRoute policy="worker.view" component="bargainingunits">
           <AuthenticatedLayout>
             <WorkerBargainingUnit />
           </AuthenticatedLayout>
@@ -455,7 +455,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/benefits/history">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerBenefitsHistory />
           </AuthenticatedLayout>
@@ -463,7 +463,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/benefits/eligibility">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerBenefitsEligibility />
           </AuthenticatedLayout>
@@ -479,7 +479,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/union/cardchecks">
-        <ProtectedRoute permission="staff" component="cardcheck">
+        <ProtectedRoute policy="worker.view" component="cardcheck">
           <AuthenticatedLayout>
             <WorkerCardchecks />
           </AuthenticatedLayout>
@@ -487,7 +487,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/union/steward">
-        <ProtectedRoute permission="staff" component="worker.steward">
+        <ProtectedRoute policy="worker.view" component="worker.steward">
           <AuthenticatedLayout>
             <WorkerSteward />
           </AuthenticatedLayout>
@@ -495,7 +495,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/union/representatives">
-        <ProtectedRoute permission="staff" component="worker.steward">
+        <ProtectedRoute policy="worker.view" component="worker.steward">
           <AuthenticatedLayout>
             <WorkerRepresentatives />
           </AuthenticatedLayout>
@@ -503,7 +503,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/dispatch/status">
-        <ProtectedRoute permission="staff" component="dispatch">
+        <ProtectedRoute policy="worker.view" component="dispatch">
           <AuthenticatedLayout>
             <WorkerDispatchStatus />
           </AuthenticatedLayout>
@@ -511,7 +511,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/dispatch/do-not-call">
-        <ProtectedRoute permission="staff" component="dispatch">
+        <ProtectedRoute policy="worker.view" component="dispatch">
           <AuthenticatedLayout>
             <WorkerDispatchDoNotCall />
           </AuthenticatedLayout>
@@ -519,7 +519,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/dispatch/hold-for-employer">
-        <ProtectedRoute permission="staff" component="dispatch.hfe">
+        <ProtectedRoute policy="worker.view" component="dispatch.hfe">
           <AuthenticatedLayout>
             <WorkerDispatchHoldForEmployer />
           </AuthenticatedLayout>
@@ -543,7 +543,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/employment/current">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerCurrentEmployment />
           </AuthenticatedLayout>
@@ -551,7 +551,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/employment/history">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerEmploymentHistory />
           </AuthenticatedLayout>
@@ -559,7 +559,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/employment/monthly">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerHoursMonthly />
           </AuthenticatedLayout>
@@ -567,7 +567,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/employment/daily">
-        <ProtectedRoute permission="staff">
+        <ProtectedRoute policy="worker.view">
           <AuthenticatedLayout>
             <WorkerHoursDaily />
           </AuthenticatedLayout>
