@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { Ban, Plus, Trash2, Pencil } from "lucide-react";
@@ -26,6 +27,8 @@ const BAN_TYPE_LABELS: Record<string, string> = {
 function BansContent() {
   const { worker } = useWorkerLayout();
   const { toast } = useToast();
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('staff');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBan, setEditingBan] = useState<WorkerBan | null>(null);
   const [formType, setFormType] = useState<string>("dispatch");
@@ -182,10 +185,12 @@ function BansContent() {
               <Ban className="h-5 w-5" />
               <CardTitle>Worker Bans</CardTitle>
             </div>
-            <Button onClick={openAddModal} data-testid="button-add-ban">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Ban
-            </Button>
+            {canEdit && (
+              <Button onClick={openAddModal} data-testid="button-add-ban">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Ban
+              </Button>
+            )}
           </div>
           <CardDescription>
             Manage bans that restrict this worker from dispatch activities.
@@ -205,7 +210,7 @@ function BansContent() {
                   <TableHead>Start Date</TableHead>
                   <TableHead>End Date</TableHead>
                   <TableHead>Reason</TableHead>
-                  <TableHead className="w-[120px]">Actions</TableHead>
+                  {canEdit && <TableHead className="w-[120px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -228,42 +233,44 @@ function BansContent() {
                     <TableCell className="max-w-xs truncate">
                       {ban.message || <span className="text-muted-foreground">-</span>}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditModal(ban)}
-                          data-testid={`button-edit-ban-${ban.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`button-delete-ban-${ban.id}`}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Remove Ban</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to remove this ban? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteMutation.mutate(ban.id)}
-                                data-testid={`button-confirm-delete-ban-${ban.id}`}
-                              >
-                                Remove
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
+                    {canEdit && (
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditModal(ban)}
+                            data-testid={`button-edit-ban-${ban.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" data-testid={`button-delete-ban-${ban.id}`}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove Ban</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to remove this ban? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(ban.id)}
+                                  data-testid={`button-confirm-delete-ban-${ban.id}`}
+                                >
+                                  Remove
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
