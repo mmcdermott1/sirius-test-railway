@@ -11,7 +11,7 @@ export function registerOptionsRoutes(
   // Worker ID Type routes
   
   // GET /api/worker-id-types - Get all worker ID types (requires workers.view permission)
-  app.get("/api/worker-id-types", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/worker-id-types", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const workerIdTypes = await storage.options.workerIdTypes.getAllWorkerIdTypes();
       res.json(workerIdTypes);
@@ -21,7 +21,7 @@ export function registerOptionsRoutes(
   });
 
   // GET /api/worker-id-types/:id - Get a specific worker ID type (requires workers.view permission)
-  app.get("/api/worker-id-types/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/worker-id-types/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const workerIdType = await storage.options.workerIdTypes.getWorkerIdType(id);
@@ -766,7 +766,7 @@ export function registerOptionsRoutes(
   // Gender Options routes
 
   // GET /api/gender-options - Get all gender options (requires workers.view permission)
-  app.get("/api/gender-options", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/gender-options", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const genderOptions = await storage.options.gender.getAllGenderOptions();
       res.json(genderOptions);
@@ -776,7 +776,7 @@ export function registerOptionsRoutes(
   });
 
   // GET /api/gender-options/:id - Get a specific gender option (requires workers.view permission)
-  app.get("/api/gender-options/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/gender-options/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const genderOption = await storage.options.gender.getGenderOption(id);
@@ -893,7 +893,7 @@ export function registerOptionsRoutes(
   // Trust Benefit Types routes
 
   // GET /api/trust-benefit-types - Get all trust benefit types (requires workers.view permission)
-  app.get("/api/trust-benefit-types", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/trust-benefit-types", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const trustBenefitTypes = await storage.options.trustBenefitTypes.getAllTrustBenefitTypes();
       res.json(trustBenefitTypes);
@@ -903,7 +903,7 @@ export function registerOptionsRoutes(
   });
 
   // GET /api/trust-benefit-types/:id - Get a specific trust benefit type (requires workers.view permission)
-  app.get("/api/trust-benefit-types/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/trust-benefit-types/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const trustBenefitType = await storage.options.trustBenefitTypes.getTrustBenefitType(id);

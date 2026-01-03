@@ -101,7 +101,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.get("/api/comm/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/comm/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const record = await commStorage.getCommWithDetails(id);
@@ -117,7 +117,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.post("/api/contacts/:contactId/sms", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/contacts/:contactId/sms", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -167,7 +167,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.post("/api/contacts/:contactId/email", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/contacts/:contactId/email", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -219,7 +219,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.post("/api/contacts/:contactId/postal", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/contacts/:contactId/postal", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -276,7 +276,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.get("/api/contacts/:contactId/user-lookup", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/contacts/:contactId/user-lookup", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -314,7 +314,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.post("/api/contacts/:contactId/inapp", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/contacts/:contactId/inapp", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -364,7 +364,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.get("/api/phone-numbers/:phoneNumber/sms-optin", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/phone-numbers/:phoneNumber/sms-optin", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { phoneNumber } = req.params;
       const optin = await smsOptinStorage.getSmsOptinByPhoneNumber(phoneNumber);
@@ -395,7 +395,7 @@ export function registerCommRoutes(
     await handleStatusCallback(req, res, commId);
   });
 
-  app.get("/api/comm/:id/logs", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/comm/:id/logs", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const { module, operation, startDate, endDate } = req.query;
@@ -428,7 +428,7 @@ export function registerCommRoutes(
     message: "At least one of optin or allowlist must be provided",
   });
 
-  app.get("/api/email-optin/:email", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/email-optin/:email", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { email } = req.params;
       const optin = await emailOptinStorage.getEmailOptinByEmail(email);
@@ -454,7 +454,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.put("/api/email-optin/:email", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/email-optin/:email", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { email } = req.params;
       
@@ -540,7 +540,7 @@ export function registerCommRoutes(
     message: "At least one of optin or allowlist must be provided",
   });
 
-  app.post("/api/postal/verify-address", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/postal/verify-address", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const parsed = addressVerificationSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -585,7 +585,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.get("/api/postal-optin/:canonicalAddress", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/postal-optin/:canonicalAddress", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { canonicalAddress } = req.params;
       const decodedAddress = decodeURIComponent(canonicalAddress);
@@ -614,7 +614,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.put("/api/postal-optin/:canonicalAddress", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/postal-optin/:canonicalAddress", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { canonicalAddress } = req.params;
       const decodedAddress = decodeURIComponent(canonicalAddress);
@@ -672,7 +672,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.post("/api/postal/verify-and-register", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/postal/verify-and-register", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const parsed = addressVerificationSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -766,7 +766,7 @@ export function registerCommRoutes(
     }
   });
 
-  app.get("/api/postal/templates", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.get("/api/postal/templates", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       let postalProvider: PostalTransport;
       try {

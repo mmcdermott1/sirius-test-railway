@@ -65,7 +65,7 @@ export function registerContactPostalRoutes(
   });
 
   // GET /api/addresses/:id - Get specific address
-  app.get("/api/addresses/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/addresses/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const address = await storage.contacts.addresses.getContactPostal(id);
@@ -81,7 +81,7 @@ export function registerContactPostalRoutes(
   });
 
   // POST /api/contacts/:contactId/addresses - Create new address for a contact
-  app.post("/api/contacts/:contactId/addresses", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/contacts/:contactId/addresses", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -108,7 +108,7 @@ export function registerContactPostalRoutes(
   });
 
   // PUT /api/addresses/:id - Update address
-  app.put("/api/addresses/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/addresses/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -140,7 +140,7 @@ export function registerContactPostalRoutes(
   });
 
   // PUT /api/addresses/:id/set-primary - Set address as primary
-  app.put("/api/addresses/:id/set-primary", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/addresses/:id/set-primary", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -166,7 +166,7 @@ export function registerContactPostalRoutes(
   });
 
   // DELETE /api/addresses/:id - Delete address
-  app.delete("/api/addresses/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/addresses/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.contacts.addresses.deleteContactPostal(id);

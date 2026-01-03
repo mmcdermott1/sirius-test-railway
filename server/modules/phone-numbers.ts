@@ -81,7 +81,7 @@ export function registerPhoneNumberRoutes(
   });
 
   // GET /api/phone-numbers/:id - Get specific phone number
-  app.get("/api/phone-numbers/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/phone-numbers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const phoneNumber = await storage.contacts.phoneNumbers.getPhoneNumber(id);
@@ -97,7 +97,7 @@ export function registerPhoneNumberRoutes(
   });
 
   // POST /api/contacts/:contactId/phone-numbers - Create new phone number for a contact
-  app.post("/api/contacts/:contactId/phone-numbers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/contacts/:contactId/phone-numbers", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -136,7 +136,7 @@ export function registerPhoneNumberRoutes(
   });
 
   // PUT /api/phone-numbers/:id - Update phone number
-  app.put("/api/phone-numbers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/phone-numbers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -185,7 +185,7 @@ export function registerPhoneNumberRoutes(
   });
 
   // PUT /api/phone-numbers/:id/set-primary - Set phone number as primary
-  app.put("/api/phone-numbers/:id/set-primary", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/phone-numbers/:id/set-primary", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -211,7 +211,7 @@ export function registerPhoneNumberRoutes(
   });
 
   // DELETE /api/phone-numbers/:id - Delete phone number
-  app.delete("/api/phone-numbers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/phone-numbers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.contacts.phoneNumbers.deletePhoneNumber(id);
@@ -227,7 +227,7 @@ export function registerPhoneNumberRoutes(
   });
 
   // POST /api/phone-numbers/:id/revalidate - Re-validate phone number and update sms_optin record
-  app.post("/api/phone-numbers/:id/revalidate", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/phone-numbers/:id/revalidate", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       

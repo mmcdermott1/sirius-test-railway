@@ -41,7 +41,7 @@ export function registerWorkerHoursRoutes(
   });
 
   // POST /api/workers/:workerId/hours - Create a new hours entry for a worker
-  app.post("/api/workers/:workerId/hours", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/workers/:workerId/hours", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { workerId } = req.params;
       const { month, year, day, employerId, employmentStatusId, hours, home } = req.body;
@@ -75,7 +75,7 @@ export function registerWorkerHoursRoutes(
   });
 
   // GET /api/worker-hours/:id - Get a single worker hours entry
-  app.get("/api/worker-hours/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/worker-hours/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const hoursEntry = await workerHoursStorage.getWorkerHoursById(id);
@@ -92,7 +92,7 @@ export function registerWorkerHoursRoutes(
   });
 
   // PATCH /api/worker-hours/:id - Update a worker hours entry
-  app.patch("/api/worker-hours/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.patch("/api/worker-hours/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const { year, month, day, employerId, employmentStatusId, hours, home } = req.body;
@@ -125,7 +125,7 @@ export function registerWorkerHoursRoutes(
   });
 
   // DELETE /api/worker-hours/:id - Delete a worker hours entry
-  app.delete("/api/worker-hours/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/worker-hours/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const result = await workerHoursStorage.deleteWorkerHours(id);
@@ -146,7 +146,7 @@ export function registerWorkerHoursRoutes(
   });
 
   // GET /api/worker-hours/:id/transactions - Get ledger entries for an hours entry
-  app.get("/api/worker-hours/:id/transactions", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.get("/api/worker-hours/:id/transactions", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       

@@ -126,7 +126,7 @@ export function registerEsigsRoutes(
     }
   });
 
-  app.post("/api/esigs/upload-document", requireAuth, requirePermission("workers.manage"), upload.single("file"), async (req, res) => {
+  app.post("/api/esigs/upload-document", requireAuth, requirePermission("staff"), upload.single("file"), async (req, res) => {
     try {
       const user = req.user as any;
       const replitUserId = user?.claims?.sub;
@@ -220,7 +220,7 @@ export function registerEsigsRoutes(
     }
   });
 
-  app.post("/api/cardcheck/:id/sign", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/cardcheck/:id/sign", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id: cardcheckId } = req.params;
       const user = req.user as any;

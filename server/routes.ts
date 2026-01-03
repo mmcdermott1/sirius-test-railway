@@ -350,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Worker routes (protected with authentication and permissions)
   
   // GET /api/workers/with-details - Get all workers with contact and phone data (optimized for list view)
-  app.get("/api/workers/with-details", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/workers/with-details", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const workers = await storage.workers.getWorkersWithDetails();
       res.json(workers);
@@ -361,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // GET /api/workers - Get all workers (requires workers.view permission)
-  app.get("/api/workers", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/workers", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const workers = await storage.workers.getAllWorkers();
       res.json(workers);
@@ -371,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/workers/employers/summary - Get employer summary for all workers (requires workers.view permission)
-  app.get("/api/workers/employers/summary", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/workers/employers/summary", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const workerEmployers = await storage.workers.getWorkersEmployersSummary();
       res.json(workerEmployers);
@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/workers/benefits/current - Get current month benefits for all workers (requires workers.view permission)
-  app.get("/api/workers/benefits/current", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/workers/benefits/current", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const workerBenefits = await storage.workers.getWorkersCurrentBenefits();
       res.json(workerBenefits);
@@ -418,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/workers - Create a new worker (requires workers.manage permission)
-  app.post("/api/workers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/workers", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { name } = req.body;
       if (!name || typeof name !== 'string' || !name.trim()) {
@@ -432,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PUT /api/workers/:id - Update a worker's contact name, email, birth date, SSN, or gender (requires workers.manage permission)
-  app.put("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/workers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const { name, nameComponents, email, birthDate, ssn, gender, genderNota } = req.body;
@@ -519,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/workers/:id - Partially update a worker (requires workers.manage permission)
-  app.patch("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.patch("/api/workers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const { bargainingUnitId } = req.body;
@@ -558,7 +558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DELETE /api/workers/:id - Delete a worker (requires workers.manage permission)
-  app.delete("/api/workers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/workers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.workers.deleteWorker(id);
@@ -631,7 +631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/employers - Create a new employer (requires workers.manage permission)
-  app.post("/api/employers", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/employers", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { name, isActive = true, typeId } = req.body;
       
@@ -652,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PUT /api/employers/:id - Update an employer (requires workers.manage permission)
-  app.put("/api/employers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.put("/api/employers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const { name, isActive, typeId } = req.body;
@@ -695,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DELETE /api/employers/:id - Delete an employer (requires workers.manage permission)
-  app.delete("/api/employers/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/employers/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.employers.deleteEmployer(id);
@@ -712,7 +712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/contacts/by-email/:email - Get a contact by email (requires workers.view permission)
-  app.get("/api/contacts/by-email/:email", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/contacts/by-email/:email", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { email } = req.params;
       const contact = await storage.contacts.getContactByEmail(email);
@@ -939,7 +939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/workers/:workerId/benefits - Create a new benefit entry for a worker (requires workers.manage permission)
-  app.post("/api/workers/:workerId/benefits", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/workers/:workerId/benefits", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { workerId } = req.params;
       const { month, year, employerId, benefitId } = req.body;
@@ -967,7 +967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DELETE /api/worker-benefits/:id - Delete a worker benefit entry (requires workers.manage permission)
-  app.delete("/api/worker-benefits/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/worker-benefits/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.workers.deleteWorkerBenefit(id);
@@ -1036,13 +1036,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Register worker dispatch status admin routes
-  app.use("/api/worker-dispatch-status", requireAuth, dispatchComponent, requirePermission("workers.view"), workerDispatchStatusRouter);
+  app.use("/api/worker-dispatch-status", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchStatusRouter);
 
   // Register worker dispatch DNC admin routes
-  app.use("/api/worker-dispatch-dnc", requireAuth, dispatchComponent, requirePermission("workers.view"), workerDispatchDncRouter);
+  app.use("/api/worker-dispatch-dnc", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchDncRouter);
 
   // Register worker dispatch HFE admin routes
-  app.use("/api/worker-dispatch-hfe", requireAuth, dispatchComponent, hfeComponent, requirePermission("workers.view"), workerDispatchHfeRouter);
+  app.use("/api/worker-dispatch-hfe", requireAuth, dispatchComponent, hfeComponent, requirePermission("staff"), workerDispatchHfeRouter);
 
   // Worker-accessible ban routes (worker.self policy - workers can view their own bans)
   app.get("/api/worker-bans/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.self', req => req.params.workerId), async (req, res) => {
@@ -1072,7 +1072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Register worker bans admin routes (POST, PUT, DELETE require workers.manage)
-  app.use("/api/worker-bans", requireAuth, dispatchComponent, requirePermission("workers.manage"), workerBansRouter);
+  app.use("/api/worker-bans", requireAuth, dispatchComponent, requirePermission("staff"), workerBansRouter);
 
   // Register site-specific routes
   registerBtuCsgRoutes(app, requireAuth, requirePermission);

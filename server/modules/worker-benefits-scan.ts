@@ -21,7 +21,7 @@ export function registerWorkerBenefitsScanRoutes(
   app.post(
     "/api/workers/:id/benefits/scan",
     requireAuth,
-    requireAccess('workers.manage'),
+    requireAccess('staff'),
     async (req, res) => {
       try {
         const { id: workerId } = req.params;

@@ -67,7 +67,7 @@ export const configSections: NavSection[] = [
     description: "Trust benefits and provider configuration",
     icon: Heart,
     items: [
-      { path: "/trust-benefits", label: "Trust Benefits", icon: Heart, testId: "nav-trust-benefits", permission: "workers.view" },
+      { path: "/trust-benefits", label: "Trust Benefits", icon: Heart, testId: "nav-trust-benefits", permission: "staff" },
       { path: "/config/trust-benefit-types", label: "Trust Benefit Types", icon: List, testId: "nav-config-trust-benefit-types", permission: "admin" },
       { path: "/config/provider-contact-types", label: "Provider Contact Types", icon: List, testId: "nav-config-provider-contact-types", permission: "admin" },
       { path: "/config/trust/providers/user-settings", label: "Provider User Settings", icon: Settings, testId: "nav-config-users-trust-provider-settings", permission: "admin" },

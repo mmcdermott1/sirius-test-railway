@@ -51,7 +51,7 @@ export function registerEmployerContactRoutes(
   });
 
   // POST /api/employers/:employerId/contacts - Create a new contact for an employer (requires workers.manage permission)
-  app.post("/api/employers/:employerId/contacts", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/employers/:employerId/contacts", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { employerId } = req.params;
       const parsed = insertContactSchema.extend({ 
@@ -85,7 +85,7 @@ export function registerEmployerContactRoutes(
   });
 
   // GET /api/employer-contacts/:id - Get a single employer contact (requires workers.view or workers.manage permission)
-  app.get("/api/employer-contacts/:id", requireAuth, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/employer-contacts/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const employerContact = await storage.employerContacts.get(id);
@@ -102,7 +102,7 @@ export function registerEmployerContactRoutes(
   });
 
   // PATCH /api/employer-contacts/:id - Update an employer contact (requires workers.manage permission)
-  app.patch("/api/employer-contacts/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.patch("/api/employer-contacts/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const { contactTypeId, email, nameComponents } = req.body;
@@ -172,7 +172,7 @@ export function registerEmployerContactRoutes(
   });
 
   // DELETE /api/employer-contacts/:id - Delete an employer contact (requires workers.manage permission)
-  app.delete("/api/employer-contacts/:id", requireAuth, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/employer-contacts/:id", requireAuth, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.employerContacts.delete(id);

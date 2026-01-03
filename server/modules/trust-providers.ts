@@ -12,7 +12,7 @@ export function registerTrustProvidersRoutes(
   const trustProvidersComponent = requireComponent("trust.providers");
 
   // GET /api/trust/providers - Get all trust providers (requires workers.view permission)
-  app.get("/api/trust/providers", requireAuth, trustProvidersComponent, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/trust/providers", requireAuth, trustProvidersComponent, requirePermission("staff"), async (req, res) => {
     try {
       const providers = await storage.trustProviders.getAllTrustProviders();
       res.json(providers);
@@ -22,7 +22,7 @@ export function registerTrustProvidersRoutes(
   });
 
   // GET /api/trust/provider/:id - Get a specific trust provider (requires workers.view permission)
-  app.get("/api/trust/provider/:id", requireAuth, trustProvidersComponent, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/trust/provider/:id", requireAuth, trustProvidersComponent, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const provider = await storage.trustProviders.getTrustProvider(id);
@@ -39,7 +39,7 @@ export function registerTrustProvidersRoutes(
   });
 
   // POST /api/trust/providers - Create a new trust provider (requires workers.manage permission)
-  app.post("/api/trust/providers", requireAuth, trustProvidersComponent, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/trust/providers", requireAuth, trustProvidersComponent, requirePermission("staff"), async (req, res) => {
     try {
       const parsed = insertTrustProviderSchema.safeParse(req.body);
       
@@ -55,7 +55,7 @@ export function registerTrustProvidersRoutes(
   });
 
   // PATCH /api/trust/provider/:id - Update a trust provider (requires workers.manage permission)
-  app.patch("/api/trust/provider/:id", requireAuth, trustProvidersComponent, requirePermission("workers.manage"), async (req, res) => {
+  app.patch("/api/trust/provider/:id", requireAuth, trustProvidersComponent, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -87,7 +87,7 @@ export function registerTrustProvidersRoutes(
   });
 
   // DELETE /api/trust/provider/:id - Delete a trust provider (requires workers.manage permission)
-  app.delete("/api/trust/provider/:id", requireAuth, trustProvidersComponent, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/trust/provider/:id", requireAuth, trustProvidersComponent, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.trustProviders.deleteTrustProvider(id);

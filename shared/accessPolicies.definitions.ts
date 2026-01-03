@@ -42,9 +42,6 @@ defineRoutePolicy(
 
 // --- Worker Management ---
 
-permissionPolicy('workers.view', 'workers.view', 'View Workers', 'Requires workers.view permission');
-permissionPolicy('workers.manage', 'workers.manage', 'Manage Workers', 'Requires workers.manage permission');
-
 // Route-level policy for individual worker pages (staff or worker owner)
 // This is used as a route guard; entity-level checks use worker.view
 defineRoutePolicy(
@@ -247,11 +244,10 @@ defineRoutePolicy(
 defineRoutePolicy(
   'files.upload',
   'Upload Files',
-  'Requires files.upload permission or appropriate entity manage permission',
+  'Requires files.upload permission or staff permission',
   [
     { authenticated: true, permission: 'files.upload' },
-    { authenticated: true, permission: 'workers.manage' },
-    { authenticated: true, permission: 'employers.manage' },
+    { authenticated: true, permission: 'staff' },
   ]
 );
 

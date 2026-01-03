@@ -18,7 +18,7 @@ export function registerWorkerStewardAssignmentRoutes(
 ) {
   const stewardComponent = requireComponent("worker.steward");
 
-  app.get("/api/steward-assignments", requireAuth, stewardComponent, requireAccess('workers.view'), async (req, res) => {
+  app.get("/api/steward-assignments", requireAuth, stewardComponent, requireAccess('staff'), async (req, res) => {
     try {
       const assignments = await storage.workerStewardAssignments.getAllAssignments();
       res.json(assignments);
@@ -28,7 +28,7 @@ export function registerWorkerStewardAssignmentRoutes(
     }
   });
 
-  app.get("/api/workers/:workerId/steward-assignments", requireAuth, requireAccess('workers.manage'), async (req, res) => {
+  app.get("/api/workers/:workerId/steward-assignments", requireAuth, requireAccess('staff'), async (req, res) => {
     try {
       const { workerId } = req.params;
       const assignments = await storage.workerStewardAssignments.getAssignmentsByWorkerId(workerId);
@@ -61,7 +61,7 @@ export function registerWorkerStewardAssignmentRoutes(
     }
   });
 
-  app.post("/api/workers/:workerId/steward-assignments", requireAuth, requireAccess('workers.manage'), async (req, res) => {
+  app.post("/api/workers/:workerId/steward-assignments", requireAuth, requireAccess('staff'), async (req, res) => {
     try {
       const { workerId } = req.params;
       const validated = insertWorkerStewardAssignmentSchema.parse({
@@ -90,7 +90,7 @@ export function registerWorkerStewardAssignmentRoutes(
     }
   });
 
-  app.patch("/api/workers/:workerId/steward-assignments/:id", requireAuth, requireAccess('workers.manage'), async (req, res) => {
+  app.patch("/api/workers/:workerId/steward-assignments/:id", requireAuth, requireAccess('staff'), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -111,7 +111,7 @@ export function registerWorkerStewardAssignmentRoutes(
     }
   });
 
-  app.delete("/api/workers/:workerId/steward-assignments/:id", requireAuth, requireAccess('workers.manage'), async (req, res) => {
+  app.delete("/api/workers/:workerId/steward-assignments/:id", requireAuth, requireAccess('staff'), async (req, res) => {
     try {
       const { id } = req.params;
       

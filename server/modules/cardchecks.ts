@@ -42,7 +42,7 @@ export function registerCardchecksRoutes(
     }
   });
 
-  app.post("/api/workers/:workerId/cardchecks", requireAuth, cardcheckComponent, requirePermission("workers.manage"), async (req, res) => {
+  app.post("/api/workers/:workerId/cardchecks", requireAuth, cardcheckComponent, requirePermission("staff"), async (req, res) => {
     try {
       const { workerId } = req.params;
       
@@ -71,7 +71,7 @@ export function registerCardchecksRoutes(
     }
   });
 
-  app.patch("/api/cardcheck/:id", requireAuth, cardcheckComponent, requirePermission("workers.manage"), async (req, res) => {
+  app.patch("/api/cardcheck/:id", requireAuth, cardcheckComponent, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -109,7 +109,7 @@ export function registerCardchecksRoutes(
     }
   });
 
-  app.delete("/api/cardcheck/:id", requireAuth, cardcheckComponent, requirePermission("workers.manage"), async (req, res) => {
+  app.delete("/api/cardcheck/:id", requireAuth, cardcheckComponent, requirePermission("staff"), async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -126,7 +126,7 @@ export function registerCardchecksRoutes(
     }
   });
 
-  app.get("/api/cardchecks/status-summary", requireAuth, cardcheckComponent, requirePermission("workers.view"), async (req, res) => {
+  app.get("/api/cardchecks/status-summary", requireAuth, cardcheckComponent, requirePermission("staff"), async (req, res) => {
     try {
       const summary = await storage.cardchecks.getCardcheckStatusSummary();
       res.json(summary);
