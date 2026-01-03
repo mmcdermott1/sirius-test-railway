@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Employer routes (protected with authentication and permissions)
   
   // GET /api/employers - Get all employers (requires employersView policy)
-  app.get("/api/employers", requireAuth, requireAccess('employers.view'), async (req, res) => {
+  app.get("/api/employers", requireAuth, requireAccess('staff'), async (req, res) => {
     try {
       const includeInactive = req.query.includeInactive === 'true';
       const allEmployers = await storage.employers.getAllEmployers();

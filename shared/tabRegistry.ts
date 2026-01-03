@@ -161,13 +161,13 @@ export const workerTabTree: HierarchicalTab[] = [
  * Employer entity tab tree
  */
 export const employerTabTree: HierarchicalTab[] = [
-  { id: 'details', label: 'Details', hrefTemplate: '/employers/{id}', permission: 'employers.view' },
+  { id: 'details', label: 'Details', hrefTemplate: '/employers/{id}', permission: 'staff' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/employers/{id}/edit', permission: 'employers.edit' },
-  { id: 'workers', label: 'Workers', hrefTemplate: '/employers/{id}/workers', permission: 'employers.view' },
-  { id: 'contacts', label: 'Contacts', hrefTemplate: '/employers/{id}/contacts', permission: 'employers.view' },
-  { id: 'policy-history', label: 'Policy History', hrefTemplate: '/employers/{id}/policy-history', permission: 'employers.view' },
-  { id: 'wizards', label: 'Wizards', hrefTemplate: '/employers/{id}/wizards', permission: 'employers.view' },
-  { id: 'logs', label: 'Logs', hrefTemplate: '/employers/{id}/logs', permission: 'employers.view' },
+  { id: 'workers', label: 'Workers', hrefTemplate: '/employers/{id}/workers', permission: 'staff' },
+  { id: 'contacts', label: 'Contacts', hrefTemplate: '/employers/{id}/contacts', permission: 'staff' },
+  { id: 'policy-history', label: 'Policy History', hrefTemplate: '/employers/{id}/policy-history', permission: 'staff' },
+  { id: 'wizards', label: 'Wizards', hrefTemplate: '/employers/{id}/wizards', permission: 'staff' },
+  { id: 'logs', label: 'Logs', hrefTemplate: '/employers/{id}/logs', permission: 'staff' },
   { 
     id: 'accounting', label: 'Accounting', hrefTemplate: '/employers/{id}/ledger/accounts', permission: 'ledger.staff|ledger.employer', component: 'ledger',
     children: [
@@ -177,12 +177,12 @@ export const employerTabTree: HierarchicalTab[] = [
     ]
   },
   { 
-    id: 'union', label: 'Union', hrefTemplate: '/employers/{id}/union/stewards', permission: 'employers.view', component: 'worker.steward', termKey: 'union',
+    id: 'union', label: 'Union', hrefTemplate: '/employers/{id}/union/stewards', permission: 'staff', component: 'worker.steward', termKey: 'union',
     children: [
-      { id: 'stewards', label: 'Stewards', hrefTemplate: '/employers/{id}/union/stewards', permission: 'employers.view', component: 'worker.steward', termKey: 'steward', termPlural: true },
+      { id: 'stewards', label: 'Stewards', hrefTemplate: '/employers/{id}/union/stewards', permission: 'staff', component: 'worker.steward', termKey: 'steward', termPlural: true },
     ]
   },
-  { id: 'dispatch', label: 'Dispatch', hrefTemplate: '/employers/{id}/dispatch', permission: 'employers.view', component: 'dispatch' },
+  { id: 'dispatch', label: 'Dispatch', hrefTemplate: '/employers/{id}/dispatch', permission: 'staff', component: 'dispatch' },
 ];
 
 /**
@@ -303,7 +303,7 @@ export const workerHoursTabTree: HierarchicalTab[] = [
  * Employer contact entity tab tree
  */
 export const employerContactTabTree: HierarchicalTab[] = [
-  { id: 'view', label: 'View', hrefTemplate: '/employer-contacts/{id}', permission: 'employers.view' },
+  { id: 'view', label: 'View', hrefTemplate: '/employer-contacts/{id}', permission: 'staff' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/employer-contacts/{id}/edit', permission: 'employers.edit' },
   { id: 'name', label: 'Name', hrefTemplate: '/employer-contacts/{id}/name', permission: 'employers.edit' },
   { id: 'email', label: 'Email', hrefTemplate: '/employer-contacts/{id}/email', permission: 'employers.edit' },

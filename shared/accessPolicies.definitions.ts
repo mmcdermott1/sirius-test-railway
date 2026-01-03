@@ -56,8 +56,6 @@ defineRoutePolicy(
 
 // --- Employer Management ---
 
-permissionPolicy('employers.view', 'employers.view', 'View Employers', 'Requires employers.view permission');
-
 // Route-level policy for viewing employer pages (staff or employer contact)
 defineRoutePolicy(
   'employersView',
