@@ -24,8 +24,8 @@ const policy = definePolicy({
     if (await ctx.hasPermission('worker')) {
       const userWorker = await ctx.getUserWorker();
       if (userWorker) {
-        const employmentHistory = await ctx.storage.workerHistory?.getByWorkerId?.(userWorker.id);
-        if (employmentHistory?.some((eh: any) => eh.employerId === ctx.entityId)) {
+        const workerHours = await ctx.storage.workerHours?.getWorkerHours?.(userWorker.id);
+        if (workerHours?.some((wh: any) => wh.employerId === ctx.entityId)) {
           return { granted: true, reason: 'Has employment history at this employer' };
         }
       }
