@@ -247,6 +247,43 @@ export async function checkAccess(
 }
 
 /**
+ * Check access inline within a route handler, using the request context
+ * 
+ * @param req - The Express request object
+ * @param policyId - The ID of the policy to evaluate
+ * @param entityId - Optional entity ID for entity-level checks
+ * @param entityData - Optional entity data for virtual entity checks
+ */
+export async function checkAccessInline(
+  req: Request,
+  policyId: string,
+  entityId?: string,
+  entityData?: Record<string, any>
+): Promise<{ granted: boolean; reason?: string }> {
+  if (!storage || !componentChecker || !fullStorage) {
+    throw new Error('Access control not initialized');
+  }
+
+  const context = await buildContext(req);
+
+  const result = await evaluatePolicy(
+    context.user,
+    policyId,
+    fullStorage,
+    storage,
+    componentChecker,
+    entityId,
+    undefined, // entityType - use policy's default
+    { entityData }
+  );
+
+  return {
+    granted: result.granted,
+    reason: result.reason,
+  };
+}
+
+/**
  * Options for requireAccess when using an options object
  */
 export interface RequireAccessOptions {
