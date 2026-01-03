@@ -9,7 +9,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { AccessResult, buildCacheKey, accessPolicyRegistry, AccessPolicy } from '@shared/accessPolicies';
+import { AccessResult, buildCacheKey, accessPolicyRegistry, AccessPolicy, AccessRule, AccessCondition } from '@shared/accessPolicies';
 import { getPolicy as getModularPolicy } from '@shared/access-policies';
 import { createPolicyContext } from './policy-context';
 import { logger } from '../logger';
@@ -392,6 +392,132 @@ export function getAccessStorage(): AccessControlStorage | null {
 export type { AccessPolicy };
 
 /**
+ * Evaluate a single AccessCondition
+ * Returns { passed: boolean, reason: string }
+ */
+async function evaluateCondition(
+  condition: AccessCondition,
+  ctx: ReturnType<typeof createPolicyContext>,
+  accessStorage: AccessControlStorage,
+  checkComponent: ComponentChecker
+): Promise<{ passed: boolean; reason: string }> {
+  // Check authenticated requirement
+  if (condition.authenticated === true) {
+    if (!ctx.user) {
+      return { passed: false, reason: 'Authentication required' };
+    }
+  }
+  
+  // Check single permission requirement
+  if (condition.permission) {
+    const hasPermission = await ctx.hasPermission(condition.permission);
+    if (!hasPermission) {
+      return { passed: false, reason: `Missing permission: ${condition.permission}` };
+    }
+  }
+  
+  // Check any permission (OR)
+  if (condition.anyPermission && condition.anyPermission.length > 0) {
+    let hasAny = false;
+    for (const perm of condition.anyPermission) {
+      if (await ctx.hasPermission(perm)) {
+        hasAny = true;
+        break;
+      }
+    }
+    if (!hasAny) {
+      return { passed: false, reason: `Missing any of permissions: ${condition.anyPermission.join(', ')}` };
+    }
+  }
+  
+  // Check all permissions (AND)
+  if (condition.allPermissions && condition.allPermissions.length > 0) {
+    for (const perm of condition.allPermissions) {
+      if (!(await ctx.hasPermission(perm))) {
+        return { passed: false, reason: `Missing permission: ${perm}` };
+      }
+    }
+  }
+  
+  // Check component requirement
+  if (condition.component) {
+    const componentEnabled = await checkComponent(condition.component);
+    if (!componentEnabled) {
+      return { passed: false, reason: `Component not enabled: ${condition.component}` };
+    }
+  }
+  
+  // Check delegated policy
+  if (condition.policy) {
+    const policyPassed = await ctx.checkPolicy(condition.policy, ctx.entityId);
+    if (!policyPassed) {
+      return { passed: false, reason: `Delegated policy failed: ${condition.policy}` };
+    }
+  }
+  
+  return { passed: true, reason: 'Condition passed' };
+}
+
+/**
+ * Evaluate an AccessRule (which can be a condition, OR group, or AND group)
+ */
+async function evaluateRule(
+  rule: AccessRule,
+  ctx: ReturnType<typeof createPolicyContext>,
+  accessStorage: AccessControlStorage,
+  checkComponent: ComponentChecker
+): Promise<{ passed: boolean; reason: string }> {
+  // Check if it's an OR group
+  if ('any' in rule) {
+    for (const condition of rule.any) {
+      const result = await evaluateCondition(condition, ctx, accessStorage, checkComponent);
+      if (result.passed) {
+        return { passed: true, reason: 'Any condition passed' };
+      }
+    }
+    return { passed: false, reason: 'No conditions in any group passed' };
+  }
+  
+  // Check if it's an AND group
+  if ('all' in rule) {
+    for (const condition of rule.all) {
+      const result = await evaluateCondition(condition, ctx, accessStorage, checkComponent);
+      if (!result.passed) {
+        return result;
+      }
+    }
+    return { passed: true, reason: 'All conditions passed' };
+  }
+  
+  // It's a simple condition
+  return evaluateCondition(rule as AccessCondition, ctx, accessStorage, checkComponent);
+}
+
+/**
+ * Evaluate declarative rules for policies without custom evaluate functions.
+ * Rules are evaluated with OR logic (any rule passing grants access).
+ * Within each rule, all conditions must pass (AND logic).
+ */
+async function evaluateDeclarativeRules(
+  rules: AccessRule[],
+  ctx: ReturnType<typeof createPolicyContext>,
+  accessStorage: AccessControlStorage,
+  checkComponent: ComponentChecker
+): Promise<{ granted: boolean; reason: string }> {
+  let lastDenialReason = 'No rules matched';
+  
+  for (const rule of rules) {
+    const result = await evaluateRule(rule, ctx, accessStorage, checkComponent);
+    if (result.passed) {
+      return { granted: true, reason: result.reason };
+    }
+    lastDenialReason = result.reason;
+  }
+  
+  return { granted: false, reason: lastDenialReason };
+}
+
+/**
  * Evaluate a modular policy (from shared/access-policies/)
  * 
  * Modular policies have their own evaluate functions that receive a PolicyContext
@@ -513,16 +639,28 @@ async function evaluateModularPolicy(
     },
   });
   
-  // Execute the policy's evaluate function
+  // Execute the policy's evaluate function, or fallback to declarative rules
   try {
-    if (!policy.evaluate) {
+    let policyResult: { granted: boolean; reason: string };
+    
+    if (policy.evaluate) {
+      // Use custom evaluate function
+      const evalResult = await policy.evaluate(ctx);
+      policyResult = { 
+        granted: evalResult.granted, 
+        reason: evalResult.reason || (evalResult.granted ? 'Access granted' : 'Access denied')
+      };
+    } else if (policy.rules && policy.rules.length > 0) {
+      // Fallback: evaluate declarative rules (OR between rules, AND within each rule)
+      policyResult = await evaluateDeclarativeRules(policy.rules, ctx, accessStorage, checkComponent);
+    } else {
+      // No evaluate function and no rules - deny by default
       return {
         granted: false,
-        reason: `Policy ${policyId} has no evaluate function`,
+        reason: `Policy ${policyId} has no evaluate function or rules`,
         evaluatedAt: Date.now(),
       };
     }
-    const policyResult = await policy.evaluate(ctx);
     const result: AccessResult = {
       granted: policyResult.granted,
       reason: policyResult.reason,
