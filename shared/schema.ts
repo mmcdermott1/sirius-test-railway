@@ -80,6 +80,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   lastLogin: timestamp("last_login"),
+  data: jsonb("data"),
 });
 
 export const roles = pgTable("roles", {

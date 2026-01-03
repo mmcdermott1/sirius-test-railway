@@ -324,6 +324,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           lastLogin: users.lastLogin,
+          data: users.data,
         })
         .from(userRoles)
         .innerJoin(users, eq(userRoles.userId, users.id))
@@ -451,6 +452,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           lastLogin: users.lastLogin,
+          data: users.data,
         })
         .from(users)
         .innerJoin(userRoles, eq(users.id, userRoles.userId))
