@@ -82,36 +82,35 @@ export interface TabAccessResult {
  * Worker entity tab tree
  * 
  * Policy Notes:
- * - 'worker' policy: Grants access to staff OR worker viewing their own record (default for most tabs)
- * - 'worker.self' policy: Specifically for tabs where worker self-access is the primary use case
+ * - 'worker.view' policy: Grants access to staff OR worker viewing their own record (default for most tabs)
  * - permission-based: Staff-only tabs that workers cannot access even for their own record
  */
 export const workerTabTree: HierarchicalTab[] = [
-  { id: 'details', label: 'Details', hrefTemplate: '/workers/{id}', policyId: 'worker' },
+  { id: 'details', label: 'Details', hrefTemplate: '/workers/{id}', policyId: 'worker.view' },
   { 
-    id: 'identity', label: 'Identity', hrefTemplate: '/workers/{id}/name', policyId: 'worker',
+    id: 'identity', label: 'Identity', hrefTemplate: '/workers/{id}/name', policyId: 'worker.view',
     children: [
-      { id: 'name', label: 'Name', hrefTemplate: '/workers/{id}/name', policyId: 'worker' },
+      { id: 'name', label: 'Name', hrefTemplate: '/workers/{id}/name', policyId: 'worker.view' },
       { id: 'ids', label: 'IDs', hrefTemplate: '/workers/{id}/ids', permission: 'staff' },
-      { id: 'birth-date', label: 'Birth Date', hrefTemplate: '/workers/{id}/birth-date', policyId: 'worker' },
-      { id: 'gender', label: 'Gender', hrefTemplate: '/workers/{id}/gender', policyId: 'worker' },
-      { id: 'work-status', label: 'Work Status', hrefTemplate: '/workers/{id}/work-status', policyId: 'worker' },
+      { id: 'birth-date', label: 'Birth Date', hrefTemplate: '/workers/{id}/birth-date', policyId: 'worker.view' },
+      { id: 'gender', label: 'Gender', hrefTemplate: '/workers/{id}/gender', policyId: 'worker.view' },
+      { id: 'work-status', label: 'Work Status', hrefTemplate: '/workers/{id}/work-status', policyId: 'worker.view' },
       { id: 'user', label: 'User', hrefTemplate: '/workers/{id}/user', permission: 'staff' },
-      { id: 'bans', label: 'Bans', hrefTemplate: '/workers/{id}/bans', policyId: 'worker', component: 'dispatch' },
+      { id: 'bans', label: 'Bans', hrefTemplate: '/workers/{id}/bans', policyId: 'worker.view', component: 'dispatch' },
     ]
   },
   { 
-    id: 'contact', label: 'Contact', hrefTemplate: '/workers/{id}/email', policyId: 'worker',
+    id: 'contact', label: 'Contact', hrefTemplate: '/workers/{id}/email', policyId: 'worker.view',
     children: [
-      { id: 'email', label: 'Email', hrefTemplate: '/workers/{id}/email', policyId: 'worker' },
-      { id: 'addresses', label: 'Addresses', hrefTemplate: '/workers/{id}/addresses', policyId: 'worker' },
-      { id: 'phone-numbers', label: 'Phone Numbers', hrefTemplate: '/workers/{id}/phone-numbers', policyId: 'worker' },
+      { id: 'email', label: 'Email', hrefTemplate: '/workers/{id}/email', policyId: 'worker.view' },
+      { id: 'addresses', label: 'Addresses', hrefTemplate: '/workers/{id}/addresses', policyId: 'worker.view' },
+      { id: 'phone-numbers', label: 'Phone Numbers', hrefTemplate: '/workers/{id}/phone-numbers', policyId: 'worker.view' },
     ]
   },
   { 
-    id: 'comm', label: 'Comm', hrefTemplate: '/workers/{id}/comm/history', policyId: 'worker',
+    id: 'comm', label: 'Comm', hrefTemplate: '/workers/{id}/comm/history', policyId: 'worker.view',
     children: [
-      { id: 'comm-history', label: 'History', hrefTemplate: '/workers/{id}/comm/history', policyId: 'worker' },
+      { id: 'comm-history', label: 'History', hrefTemplate: '/workers/{id}/comm/history', policyId: 'worker.view' },
       { id: 'send-sms', label: 'Send SMS', hrefTemplate: '/workers/{id}/comm/send-sms', permission: 'workers.comm' },
       { id: 'send-email', label: 'Send Email', hrefTemplate: '/workers/{id}/comm/send-email', permission: 'workers.comm' },
       { id: 'send-postal', label: 'Send Postal', hrefTemplate: '/workers/{id}/comm/send-postal', permission: 'workers.comm' },
@@ -119,37 +118,37 @@ export const workerTabTree: HierarchicalTab[] = [
     ]
   },
   { 
-    id: 'employment', label: 'Employment', hrefTemplate: '/workers/{id}/employment/current', policyId: 'worker',
+    id: 'employment', label: 'Employment', hrefTemplate: '/workers/{id}/employment/current', policyId: 'worker.view',
     children: [
-      { id: 'current', label: 'Current', hrefTemplate: '/workers/{id}/employment/current', policyId: 'worker' },
-      { id: 'history', label: 'History', hrefTemplate: '/workers/{id}/employment/history', policyId: 'worker' },
-      { id: 'monthly', label: 'Monthly', hrefTemplate: '/workers/{id}/employment/monthly', policyId: 'worker' },
-      { id: 'daily', label: 'Daily', hrefTemplate: '/workers/{id}/employment/daily', policyId: 'worker' },
+      { id: 'current', label: 'Current', hrefTemplate: '/workers/{id}/employment/current', policyId: 'worker.view' },
+      { id: 'history', label: 'History', hrefTemplate: '/workers/{id}/employment/history', policyId: 'worker.view' },
+      { id: 'monthly', label: 'Monthly', hrefTemplate: '/workers/{id}/employment/monthly', policyId: 'worker.view' },
+      { id: 'daily', label: 'Daily', hrefTemplate: '/workers/{id}/employment/daily', policyId: 'worker.view' },
     ]
   },
   { 
-    id: 'benefits', label: 'Benefits', hrefTemplate: '/workers/{id}/benefits/history', policyId: 'worker',
+    id: 'benefits', label: 'Benefits', hrefTemplate: '/workers/{id}/benefits/history', policyId: 'worker.view',
     children: [
-      { id: 'benefits-history', label: 'History', hrefTemplate: '/workers/{id}/benefits/history', policyId: 'worker' },
-      { id: 'benefits-eligibility', label: 'Eligibility', hrefTemplate: '/workers/{id}/benefits/eligibility', policyId: 'worker' },
+      { id: 'benefits-history', label: 'History', hrefTemplate: '/workers/{id}/benefits/history', policyId: 'worker.view' },
+      { id: 'benefits-eligibility', label: 'Eligibility', hrefTemplate: '/workers/{id}/benefits/eligibility', policyId: 'worker.view' },
       { id: 'benefits-scan', label: 'Scan', hrefTemplate: '/workers/{id}/benefits/scan', permission: 'staff' },
     ]
   },
   { 
-    id: 'union', label: 'Union', hrefTemplate: '/workers/{id}/union/cardchecks', policyId: 'worker', component: 'cardcheck|bargainingunits|worker.steward', termKey: 'union',
+    id: 'union', label: 'Union', hrefTemplate: '/workers/{id}/union/cardchecks', policyId: 'worker.view', component: 'cardcheck|bargainingunits|worker.steward', termKey: 'union',
     children: [
-      { id: 'cardchecks', label: 'Cardchecks', hrefTemplate: '/workers/{id}/union/cardchecks', policyId: 'worker', component: 'cardcheck' },
-      { id: 'bargaining-unit', label: 'Bargaining Unit', hrefTemplate: '/workers/{id}/union/bargaining-unit', policyId: 'worker', component: 'bargainingunits' },
-      { id: 'steward', label: 'Steward', hrefTemplate: '/workers/{id}/union/steward', policyId: 'worker', component: 'worker.steward', termKey: 'steward' },
-      { id: 'representatives', label: 'Representatives', hrefTemplate: '/workers/{id}/union/representatives', policyId: 'worker', component: 'worker.steward' },
+      { id: 'cardchecks', label: 'Cardchecks', hrefTemplate: '/workers/{id}/union/cardchecks', policyId: 'worker.view', component: 'cardcheck' },
+      { id: 'bargaining-unit', label: 'Bargaining Unit', hrefTemplate: '/workers/{id}/union/bargaining-unit', policyId: 'worker.view', component: 'bargainingunits' },
+      { id: 'steward', label: 'Steward', hrefTemplate: '/workers/{id}/union/steward', policyId: 'worker.view', component: 'worker.steward', termKey: 'steward' },
+      { id: 'representatives', label: 'Representatives', hrefTemplate: '/workers/{id}/union/representatives', policyId: 'worker.view', component: 'worker.steward' },
     ]
   },
   { 
-    id: 'dispatch', label: 'Dispatch', hrefTemplate: '/workers/{id}/dispatch/status', policyId: 'worker', component: 'dispatch',
+    id: 'dispatch', label: 'Dispatch', hrefTemplate: '/workers/{id}/dispatch/status', policyId: 'worker.view', component: 'dispatch',
     children: [
-      { id: 'dispatch-status', label: 'Status', hrefTemplate: '/workers/{id}/dispatch/status', policyId: 'worker', component: 'dispatch' },
-      { id: 'dispatch-dnc', label: 'Do Not Call', hrefTemplate: '/workers/{id}/dispatch/do-not-call', policyId: 'worker', component: 'dispatch.dnc' },
-      { id: 'dispatch-hfe', label: 'Hold for Employer', hrefTemplate: '/workers/{id}/dispatch/hold-for-employer', policyId: 'worker', component: 'dispatch.hfe' },
+      { id: 'dispatch-status', label: 'Status', hrefTemplate: '/workers/{id}/dispatch/status', policyId: 'worker.view', component: 'dispatch' },
+      { id: 'dispatch-dnc', label: 'Do Not Call', hrefTemplate: '/workers/{id}/dispatch/do-not-call', policyId: 'worker.view', component: 'dispatch.dnc' },
+      { id: 'dispatch-hfe', label: 'Hold for Employer', hrefTemplate: '/workers/{id}/dispatch/hold-for-employer', policyId: 'worker.view', component: 'dispatch.hfe' },
     ]
   },
   { id: 'accounting', label: 'Accounting', hrefTemplate: '/workers/{id}/ledger/accounts', permission: 'ledger.view', component: 'ledger' },
