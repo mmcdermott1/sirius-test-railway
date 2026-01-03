@@ -122,8 +122,8 @@ export function registerOptionsRoutes(
 
   // Employer Contact Type routes
 
-  // GET /api/employer-contact-types - Get all employer contact types (requires admin permission)
-  app.get("/api/employer-contact-types", requireAccess('admin'), async (req, res) => {
+  // GET /api/employer-contact-types - Get all employer contact types (available to all authenticated users)
+  app.get("/api/employer-contact-types", requireAccess('authenticated'), async (req, res) => {
     try {
       const contactTypes = await storage.options.employerContactTypes.getAll();
       res.json(contactTypes);
@@ -132,8 +132,8 @@ export function registerOptionsRoutes(
     }
   });
 
-  // GET /api/employer-contact-types/:id - Get a specific employer contact type (requires admin permission)
-  app.get("/api/employer-contact-types/:id", requireAccess('admin'), async (req, res) => {
+  // GET /api/employer-contact-types/:id - Get a specific employer contact type (available to all authenticated users)
+  app.get("/api/employer-contact-types/:id", requireAccess('authenticated'), async (req, res) => {
     try {
       const { id } = req.params;
       const contactType = await storage.options.employerContactTypes.get(id);
