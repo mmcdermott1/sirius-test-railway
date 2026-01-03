@@ -100,9 +100,9 @@ export const workerTabTree: HierarchicalTab[] = [
     ]
   },
   { 
-    id: 'contact', label: 'Contact', hrefTemplate: '/workers/{id}/email', policyId: 'worker.view',
+    id: 'contact', label: 'Contact', hrefTemplate: '/workers/{id}/addresses', policyId: 'worker.view',
     children: [
-      { id: 'email', label: 'Email', hrefTemplate: '/workers/{id}/email', policyId: 'worker.view' },
+      { id: 'email', label: 'Email', hrefTemplate: '/workers/{id}/email', permission: 'staff' },
       { id: 'addresses', label: 'Addresses', hrefTemplate: '/workers/{id}/addresses', policyId: 'worker.view' },
       { id: 'phone-numbers', label: 'Phone Numbers', hrefTemplate: '/workers/{id}/phone-numbers', policyId: 'worker.view' },
     ]
