@@ -45,13 +45,6 @@ defineRoutePolicy(
 permissionPolicy('workers.view', 'workers.view', 'View Workers', 'Requires workers.view permission');
 permissionPolicy('workers.manage', 'workers.manage', 'Manage Workers', 'Requires workers.manage permission');
 
-defineRoutePolicy(
-  'workers.viewOrManage',
-  'View or Manage Workers',
-  'Requires either workers.view or workers.manage permission',
-  [{ authenticated: true, anyPermission: ['workers.view', 'workers.manage'] }]
-);
-
 // Route-level policy for individual worker pages (staff or worker owner)
 // This is used as a route guard; entity-level checks use worker.view
 defineRoutePolicy(
@@ -67,18 +60,6 @@ defineRoutePolicy(
 // --- Employer Management ---
 
 permissionPolicy('employers.view', 'employers.view', 'View Employers', 'Requires employers.view permission');
-permissionPolicy('employers.manage', 'employers.manage', 'Manage Employers', 'Requires employers.manage permission');
-
-// Route-level policy for employer portal access (staff or employer contact)
-defineRoutePolicy(
-  'employerUser',
-  'Employer Portal Access',
-  'Requires staff permission or employer permission with employer association',
-  [
-    { authenticated: true, permission: 'staff' },
-    { authenticated: true, permission: 'employer', linkage: 'employerAssociation' },
-  ]
-);
 
 // Route-level policy for viewing employer pages (staff or employer contact)
 defineRoutePolicy(
@@ -90,11 +71,6 @@ defineRoutePolicy(
     { authenticated: true, permission: 'employer', linkage: 'employerAssociation' },
   ]
 );
-
-// --- Benefits Management ---
-
-permissionPolicy('benefits.view', 'benefits.view', 'View Benefits', 'Requires benefits.view permission');
-permissionPolicy('benefits.manage', 'benefits.manage', 'Manage Benefits', 'Requires benefits.manage permission');
 
 // --- Masquerade ---
 
@@ -129,25 +105,9 @@ defineRoutePolicy(
   [{ authenticated: true, component: 'ledger.stripe', permission: 'admin' }]
 );
 
-// Alias for backward compatibility with client code
-defineRoutePolicy(
-  'ledgerStripeAdmin',
-  'Ledger Stripe Administration (Alias)',
-  'Requires admin permission and ledger.stripe component',
-  [{ authenticated: true, component: 'ledger.stripe', permission: 'admin' }]
-);
-
 defineRoutePolicy(
   'ledger.stripe.employer',
   'Ledger Stripe Employer Access',
-  'Requires ledger.stripe component and either ledger.staff or ledger.employer permission',
-  [{ authenticated: true, component: 'ledger.stripe', anyPermission: ['ledger.staff', 'ledger.employer'] }]
-);
-
-// Alias for backward compatibility with client code
-defineRoutePolicy(
-  'ledgerStripeEmployer',
-  'Ledger Stripe Employer Access (Alias)',
   'Requires ledger.stripe component and either ledger.staff or ledger.employer permission',
   [{ authenticated: true, component: 'ledger.stripe', anyPermission: ['ledger.staff', 'ledger.employer'] }]
 );
@@ -161,25 +121,9 @@ defineRoutePolicy(
   [{ authenticated: true, component: 'employer.login', permission: 'employer.usermanage' }]
 );
 
-// Alias for backward compatibility with client code
-defineRoutePolicy(
-  'employerUserManage',
-  'Employer User Management (Alias)',
-  'Requires employer.login component and employer.usermanage permission',
-  [{ authenticated: true, component: 'employer.login', permission: 'employer.usermanage' }]
-);
-
 defineRoutePolicy(
   'trustProvider.userManage',
   'Trust Provider User Management',
-  'Requires trust.providers.login component and trustprovider.usermanage permission',
-  [{ authenticated: true, component: 'trust.providers.login', permission: 'trustprovider.usermanage' }]
-);
-
-// Alias for backward compatibility with client code
-defineRoutePolicy(
-  'trustProviderUserManage',
-  'Trust Provider User Management (Alias)',
   'Requires trust.providers.login component and trustprovider.usermanage permission',
   [{ authenticated: true, component: 'trust.providers.login', permission: 'trustprovider.usermanage' }]
 );
@@ -206,17 +150,6 @@ defineEntityPolicy(
   ]
 );
 
-defineEntityPolicy(
-  'worker.edit',
-  'Edit Worker',
-  'Edit a specific worker record',
-  'worker',
-  [
-    // Only staff with workers.manage can edit
-    { permission: 'workers.manage' },
-  ]
-);
-
 // --- Employer Entity Policies ---
 
 defineEntityPolicy(
@@ -231,45 +164,6 @@ defineEntityPolicy(
     { permission: 'employer', linkage: 'employerAssociation' },
     // Worker with employment history at this employer
     { permission: 'worker', linkage: 'workerEmploymentHistory' },
-  ]
-);
-
-defineEntityPolicy(
-  'employer.edit',
-  'Edit Employer',
-  'Edit a specific employer record',
-  'employer',
-  [
-    // Staff with employers.manage can edit any employer
-    { permission: 'employers.manage' },
-    // Employer contact with employer.usermanage permission
-    { all: [
-      { permission: 'employer.usermanage' },
-      { linkage: 'employerAssociation' },
-    ]},
-  ]
-);
-
-// --- Provider Entity Policies ---
-
-defineEntityPolicy(
-  'provider.view',
-  'View Provider',
-  'View a specific trust provider record',
-  'provider',
-  [
-    { permission: 'staff' },
-    { permission: 'trustprovider', linkage: 'providerAssociation' },
-  ]
-);
-
-defineEntityPolicy(
-  'provider.edit',
-  'Edit Provider',
-  'Edit a specific trust provider record',
-  'provider',
-  [
-    { permission: 'benefits.manage' },
   ]
 );
 
@@ -368,38 +262,14 @@ defineRoutePolicy(
   [{ authenticated: true, component: 'dispatch', permission: 'dispatch.view' }]
 );
 
-defineRoutePolicy(
-  'dispatch.manage',
-  'Manage Dispatch',
-  'Requires dispatch.manage permission',
-  [{ authenticated: true, component: 'dispatch', permission: 'dispatch.manage' }]
-);
-
 // ============================================================================
 // EVENTS POLICIES
 // ============================================================================
 
 permissionPolicy('events.view', 'events.view', 'View Events', 'Requires events.view permission');
-permissionPolicy('events.manage', 'events.manage', 'Manage Events', 'Requires events.manage permission');
 
 // ============================================================================
 // POLICY/COVERAGE MANAGEMENT
 // ============================================================================
 
 permissionPolicy('policies.view', 'policies.view', 'View Policies', 'Requires policies.view permission');
-permissionPolicy('policies.manage', 'policies.manage', 'Manage Policies', 'Requires policies.manage permission');
-
-// ============================================================================
-// SETTINGS & ADMIN
-// ============================================================================
-
-permissionPolicy('settings.manage', 'settings.manage', 'Manage Settings', 'Requires settings.manage permission');
-permissionPolicy('wizards.manage', 'wizards.manage', 'Manage Wizards', 'Requires wizards.manage permission');
-permissionPolicy('terminology.manage', 'terminology.manage', 'Manage Terminology', 'Requires terminology.manage permission');
-
-// ============================================================================
-// ALERTS
-// ============================================================================
-
-permissionPolicy('alerts.view', 'alerts.view', 'View Alerts', 'Requires alerts.view permission');
-permissionPolicy('alerts.manage', 'alerts.manage', 'Manage Alerts', 'Requires alerts.manage permission');
