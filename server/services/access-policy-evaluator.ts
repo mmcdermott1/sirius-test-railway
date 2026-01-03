@@ -369,8 +369,7 @@ async function evaluateDelegatingLinkage(
     
     // Determine which worker policy to check based on original policy
     // If evaluating cardcheck.edit, check worker.edit; if cardcheck.view, check worker.view
-    const workerPolicyId = ctx.entityType === 'cardcheck' ? 
-      (accessPolicyRegistry.get('cardcheck.edit') ? 'worker.edit' : 'worker.view') : 'worker.view';
+    const workerPolicyId = ctx.policyId === 'cardcheck.edit' ? 'worker.edit' : 'worker.view';
     
     // Recursively evaluate worker policy
     const workerResult = await evaluatePolicyInternal(
@@ -466,6 +465,7 @@ type ComponentChecker = (componentId: string) => Promise<boolean>;
  */
 interface EvaluationContext {
   user: User;
+  policyId: string;
   entityType?: PolicyEntityType;
   entityId?: string;
   storage: any;
@@ -632,6 +632,7 @@ async function evaluatePolicyInternal(
   // Build evaluation context with explicit entityType
   const ctx: EvaluationContext = {
     user,
+    policyId,
     entityType: entityTypeOverride,
     entityId,
     storage,
@@ -743,6 +744,7 @@ export async function evaluatePolicy(
   // Build evaluation context
   const ctx: EvaluationContext = {
     user: user!,
+    policyId,
     entityType: effectiveEntityType,
     entityId,
     storage,
