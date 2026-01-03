@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { TerminologyProvider } from "@/contexts/TerminologyContext";
+import { PageTitleProvider } from "@/contexts/PageTitleContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -2218,8 +2219,10 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <TerminologyProvider>
-            <Toaster />
-            <Router />
+            <PageTitleProvider>
+              <Toaster />
+              <Router />
+            </PageTitleProvider>
           </TerminologyProvider>
         </AuthProvider>
       </TooltipProvider>
