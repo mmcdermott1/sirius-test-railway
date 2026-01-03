@@ -21,21 +21,21 @@ import {
 
 defineRoutePolicy(
   'authenticated',
-  'Authenticated Users',
+  'authenticated',
   'Requires user to be authenticated',
   [{ authenticated: true }]
 );
 
 defineRoutePolicy(
   'admin',
-  'Admin Access',
+  'admin',
   'Requires admin permission',
   [{ authenticated: true, permission: 'admin' }]
 );
 
 defineRoutePolicy(
   'staff',
-  'Staff Access',
+  'staff',
   'Requires staff permission',
   [{ authenticated: true, permission: 'staff' }]
 );
@@ -46,7 +46,7 @@ defineRoutePolicy(
 // This is used as a route guard; entity-level checks use worker.view
 defineRoutePolicy(
   'worker',
-  'Worker Access',
+  'worker',
   'Requires staff permission or worker permission with matching worker',
   [
     { authenticated: true, permission: 'staff' },
@@ -58,7 +58,7 @@ defineRoutePolicy(
 
 defineRoutePolicy(
   'masquerade',
-  'Masquerade',
+  'masquerade',
   'Requires masquerade or admin permission',
   [{ authenticated: true, anyPermission: ['masquerade', 'admin'] }]
 );
@@ -67,7 +67,7 @@ defineRoutePolicy(
 
 defineRoutePolicy(
   'ledger.staff',
-  'Ledger Staff Access',
+  'ledger.staff',
   'Requires ledger component and ledger.staff permission',
   [{ authenticated: true, component: 'ledger', permission: 'ledger.staff' }]
 );
@@ -75,14 +75,14 @@ defineRoutePolicy(
 
 defineRoutePolicy(
   'ledger.stripe.admin',
-  'Ledger Stripe Administration',
+  'ledger.stripe.admin',
   'Requires admin permission and ledger.stripe component',
   [{ authenticated: true, component: 'ledger.stripe', permission: 'admin' }]
 );
 
 defineRoutePolicy(
   'ledger.stripe.employer',
-  'Ledger Stripe Employer Access',
+  'ledger.stripe.employer',
   'Requires ledger.stripe component and either ledger.staff or ledger.employer permission',
   [{ authenticated: true, component: 'ledger.stripe', anyPermission: ['ledger.staff', 'ledger.employer'] }]
 );
@@ -91,14 +91,14 @@ defineRoutePolicy(
 
 defineRoutePolicy(
   'employer.userManage',
-  'Employer User Management',
+  'employer.userManage',
   'Requires employer.login component and employer.usermanage permission',
   [{ authenticated: true, component: 'employer.login', permission: 'employer.usermanage' }]
 );
 
 defineRoutePolicy(
   'trustProvider.userManage',
-  'Trust Provider User Management',
+  'trustProvider.userManage',
   'Requires trust.providers.login component and trustprovider.usermanage permission',
   [{ authenticated: true, component: 'trust.providers.login', permission: 'trustprovider.usermanage' }]
 );
@@ -112,7 +112,7 @@ defineRoutePolicy(
 
 defineEntityPolicy(
   'worker.view',
-  'View Worker',
+  'worker.view',
   'View a specific worker record',
   'worker',
   [
@@ -129,7 +129,7 @@ defineEntityPolicy(
 
 defineEntityPolicy(
   'employer.view',
-  'View Employer',
+  'employer.view',
   'View a specific employer record',
   'employer',
   [
@@ -146,7 +146,7 @@ defineEntityPolicy(
 
 defineEntityPolicy(
   'file.read',
-  'Read File',
+  'file.read',
   'Read/download a specific file',
   'file',
   [
@@ -161,7 +161,7 @@ defineEntityPolicy(
 
 defineEntityPolicy(
   'file.update',
-  'Update File',
+  'file.update',
   'Update file metadata',
   'file',
   [
@@ -174,7 +174,7 @@ defineEntityPolicy(
 
 defineEntityPolicy(
   'file.delete',
-  'Delete File',
+  'file.delete',
   'Delete a file',
   'file',
   [
@@ -192,7 +192,7 @@ defineEntityPolicy(
 
 defineRoutePolicy(
   'worker.self',
-  'Worker Self Access',
+  'worker.self',
   'Requires staff permission, or worker permission with matching worker',
   [
     { permission: 'staff' },
@@ -207,7 +207,7 @@ defineRoutePolicy(
 
 defineRoutePolicy(
   'files.upload',
-  'Upload Files',
+  'files.upload',
   'Requires files.upload permission or staff permission',
   [
     { authenticated: true, permission: 'files.upload' },
@@ -221,7 +221,7 @@ defineRoutePolicy(
 
 defineRoutePolicy(
   'dispatch.view',
-  'View Dispatch',
+  'dispatch.view',
   'Requires dispatch.view permission',
   [{ authenticated: true, component: 'dispatch', permission: 'dispatch.view' }]
 );
