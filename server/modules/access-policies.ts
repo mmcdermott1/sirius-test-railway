@@ -2,6 +2,11 @@ import type { Express } from 'express';
 import { requireAuth, requireAccess, buildContext, checkAccess, getComponentChecker, getAccessStorage } from '../accessControl';
 import { accessPolicyRegistry } from '@shared/accessPolicies';
 import { 
+  getPolicy as getModularPolicy, 
+  getAllPolicies as getAllModularPolicies,
+  getPoliciesByScope as getModularPoliciesByScope
+} from '@shared/access-policies/index';
+import { 
   TabEntityType, 
   TabAccessResult, 
   getTabsForEntity,
@@ -76,8 +81,25 @@ export function registerAccessPolicyRoutes(app: Express) {
       const { policyId } = req.params;
       const { entityId } = req.query;
       
-      // Get the policy by ID
-      const policy = accessPolicyRegistry.get(policyId);
+      // Get the policy by ID - check both declarative and modular registries
+      let policy = accessPolicyRegistry.get(policyId);
+      let isModular = false;
+      
+      if (!policy) {
+        // Check modular policy registry
+        const modularPolicy = getModularPolicy(policyId);
+        if (modularPolicy) {
+          policy = {
+            id: modularPolicy.id,
+            name: modularPolicy.id,
+            description: modularPolicy.description || '',
+            scope: modularPolicy.scope,
+            entityType: modularPolicy.entityType,
+            rules: modularPolicy.rules || [],
+          };
+          isModular = true;
+        }
+      }
       
       if (!policy) {
         return res.status(404).json({ 
