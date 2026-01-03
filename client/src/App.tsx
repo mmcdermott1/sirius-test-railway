@@ -423,7 +423,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/work-status">
-        <ProtectedRoute policy="worker.view">
+        <ProtectedRoute permission="staff">
           <AuthenticatedLayout>
             <WorkerWorkStatus />
           </AuthenticatedLayout>
