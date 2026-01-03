@@ -69,7 +69,7 @@ export function registerWorkerDispatchHfeRoutes(
       if (!entry) {
         return res.status(404).json({ error: "HFE entry not found" });
       }
-      (req as any).hfeEntry = entry;
+      (req as any).hfeEntry = Object.freeze({ ...entry });
       next();
     } catch (error) {
       console.error("Error fetching HFE entry:", error);
@@ -115,7 +115,7 @@ export function registerWorkerDispatchHfeRoutes(
       if (!entry) {
         return res.status(404).json({ error: "HFE entry not found" });
       }
-      (req as any).hfeEntry = entry;
+      (req as any).hfeEntry = Object.freeze({ ...entry });
       next();
     } catch (error) {
       console.error("Error fetching HFE entry:", error);
@@ -145,7 +145,7 @@ export function registerWorkerDispatchHfeRoutes(
       if (!entry) {
         return res.status(404).json({ error: "HFE entry not found" });
       }
-      (req as any).hfeEntry = entry;
+      (req as any).hfeEntry = Object.freeze({ ...entry });
       next();
     } catch (error) {
       console.error("Error fetching HFE entry:", error);

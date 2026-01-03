@@ -59,11 +59,10 @@ import { registerEventsRoutes } from "./modules/events";
 import { registerDispatchJobsRoutes } from "./modules/dispatch-jobs";
 import { registerDispatchesRoutes } from "./modules/dispatches";
 import workerDispatchStatusRouter from "./modules/worker-dispatch-status";
-import workerDispatchDncRouter from "./modules/worker-dispatch-dnc";
+import { registerWorkerDispatchDncRoutes } from "./modules/worker-dispatch-dnc";
 import { registerWorkerDispatchHfeRoutes } from "./modules/worker-dispatch-hfe";
 import workerBansRouter from "./modules/worker-bans";
 import { createWorkerDispatchStatusStorage } from "./storage/worker-dispatch-status";
-import { createWorkerDispatchDncStorage } from "./storage/worker-dispatch-dnc";
 import { requireComponent } from "./modules/components";
 import { registerWorkerStewardAssignmentRoutes } from "./modules/worker-steward-assignments";
 import { registerBtuCsgRoutes } from "./modules/sitespecific-btu-csg";
@@ -1023,7 +1022,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dispatch components and storage
   const dispatchComponent = requireComponent("dispatch");
   const dispatchStatusStorage = createWorkerDispatchStatusStorage();
-  const dispatchDncStorage = createWorkerDispatchDncStorage();
 
   // Worker-accessible dispatch status route (worker.view policy)
   app.get("/api/worker-dispatch-status/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
@@ -1036,25 +1034,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Worker-accessible dispatch DNC route (worker.view policy)
-  app.get("/api/worker-dispatch-dnc/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
-    try {
-      const records = await dispatchDncStorage.getByWorker(req.params.workerId);
-      res.json(records);
-    } catch (error) {
-      console.error("Error fetching worker DNC records:", error);
-      res.status(500).json({ error: "Failed to fetch worker DNC records" });
-    }
-  });
+  // Register worker dispatch DNC routes (handles all access control internally)
+  registerWorkerDispatchDncRoutes(app, requireAuth, requireAccess);
 
   // Register worker dispatch HFE routes (handles all access control internally)
   registerWorkerDispatchHfeRoutes(app, requireAuth, requireAccess);
 
   // Register worker dispatch status admin routes
   app.use("/api/worker-dispatch-status", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchStatusRouter);
-
-  // Register worker dispatch DNC admin routes
-  app.use("/api/worker-dispatch-dnc", requireAuth, dispatchComponent, requirePermission("staff"), workerDispatchDncRouter);
 
   // Worker-accessible ban routes (worker.view policy - workers can view their own bans)
   app.get("/api/worker-bans/worker/:workerId", requireAuth, dispatchComponent, requireAccess('worker.view', req => req.params.workerId), async (req, res) => {
