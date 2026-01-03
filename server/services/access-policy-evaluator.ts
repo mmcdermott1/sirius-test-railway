@@ -3,6 +3,10 @@
  * 
  * Single evaluation engine for both route-level and entity-level access checks.
  * Supports caching for entity-level checks.
+ * 
+ * Supports both:
+ * - Modular policies (shared/access-policies/) with custom evaluate functions
+ * - Declarative policies (shared/accessPolicies.ts) with rule-based evaluation
  */
 
 import { 
@@ -17,6 +21,9 @@ import {
   accessPolicyRegistry,
   policyRequiresEntityContext,
 } from '@shared/accessPolicies';
+import { getPolicy as getModularPolicy, hasPolicy as hasModularPolicy } from '@shared/access-policies';
+import type { PolicyDefinition, PolicyContext } from '@shared/access-policies';
+import { createPolicyContext } from './policy-context';
 import { logger } from '../logger';
 import type { User } from '@shared/schema';
 
@@ -854,6 +861,167 @@ async function evaluateRule(
 }
 
 /**
+ * Evaluate a modular policy (from shared/access-policies/)
+ * 
+ * Modular policies have their own evaluate functions that receive a PolicyContext
+ * with injected utilities for permission checking, entity loading, and policy delegation.
+ */
+async function evaluateModularPolicy(
+  user: User | null,
+  policyId: string,
+  storage: any,
+  accessStorage: AccessControlStorage,
+  checkComponent: ComponentChecker,
+  entityId?: string,
+  options: { skipCache?: boolean; entityData?: Record<string, any>; evaluationStack?: Set<string> } = {}
+): Promise<AccessResult> {
+  const policy = getModularPolicy(policyId);
+  if (!policy) {
+    return {
+      granted: false,
+      reason: `Modular policy not found: ${policyId}`,
+      evaluatedAt: Date.now(),
+    };
+  }
+  
+  // Check cache (same logic as declarative policies)
+  const shouldUseCache = !options.skipCache && !options.entityData;
+  const cacheKey = shouldUseCache && user ? buildCacheKey(user.id, policyId, entityId) : null;
+  if (cacheKey) {
+    const cached = accessCache.get(cacheKey);
+    if (cached) {
+      logger.debug(`Modular policy cache hit`, { 
+        service: SERVICE, 
+        userId: user?.id, 
+        policyId, 
+        entityId,
+        granted: cached.granted 
+      });
+      return cached;
+    }
+  }
+  
+  // Require authentication for modular policies unless explicitly public
+  if (!user) {
+    return {
+      granted: false,
+      reason: 'Authentication required',
+      evaluatedAt: Date.now(),
+    };
+  }
+  
+  // Check component requirement for ALL users (feature flag must be enabled)
+  if (policy.component) {
+    const componentEnabled = await checkComponent(policy.component);
+    if (!componentEnabled) {
+      const result: AccessResult = {
+        granted: false,
+        reason: `Component ${policy.component} not enabled`,
+        evaluatedAt: Date.now(),
+      };
+      if (cacheKey) accessCache.set(cacheKey, result);
+      return result;
+    }
+  }
+  
+  // Check if user is admin (bypass permission/entity checks after component check)
+  const isAdmin = await accessStorage.hasPermission(user.id, 'admin');
+  if (isAdmin) {
+    const result: AccessResult = {
+      granted: true,
+      reason: 'Admin bypass',
+      evaluatedAt: Date.now(),
+    };
+    if (cacheKey) accessCache.set(cacheKey, result);
+    return result;
+  }
+  
+  // Track evaluation stack for recursion protection
+  const evaluationStack = options.evaluationStack || new Set<string>();
+  const evaluationKey = `${policyId}:${entityId || ''}:${JSON.stringify(options.entityData || {})}`;
+  
+  if (evaluationStack.has(evaluationKey)) {
+    logger.warn(`Policy evaluation recursion detected`, { 
+      service: SERVICE, 
+      policyId, 
+      entityId,
+      evaluationKey 
+    });
+    return {
+      granted: false,
+      reason: 'Policy evaluation recursion detected',
+      evaluatedAt: Date.now(),
+    };
+  }
+  
+  evaluationStack.add(evaluationKey);
+  
+  // Create policy context with injected utilities
+  const ctx = createPolicyContext({
+    user,
+    entityId,
+    entityData: options.entityData,
+    storage,
+    accessStorage,
+    checkComponent,
+    evaluatePolicy: async (delegatePolicyId: string, delegateEntityId?: string, delegateEntityData?: Record<string, any>) => {
+      const result = await evaluatePolicy(
+        user,
+        delegatePolicyId,
+        storage,
+        accessStorage,
+        checkComponent,
+        delegateEntityId,
+        undefined,
+        { 
+          entityData: delegateEntityData,
+          evaluationStack, // Pass the stack for recursion detection
+        }
+      );
+      return result.granted;
+    },
+  });
+  
+  // Execute the policy's evaluate function
+  try {
+    const policyResult = await policy.evaluate(ctx);
+    const result: AccessResult = {
+      granted: policyResult.granted,
+      reason: policyResult.reason,
+      evaluatedAt: Date.now(),
+    };
+    
+    if (cacheKey) accessCache.set(cacheKey, result);
+    
+    logger.debug(`Modular policy evaluated`, { 
+      service: SERVICE, 
+      userId: user.id, 
+      policyId, 
+      entityId,
+      granted: result.granted,
+      reason: result.reason
+    });
+    
+    return result;
+  } catch (error) {
+    logger.error(`Error evaluating modular policy ${policyId}`, { 
+      service: SERVICE, 
+      error: (error as Error).message,
+      userId: user.id,
+      entityId
+    });
+    return {
+      granted: false,
+      reason: `Policy evaluation error: ${(error as Error).message}`,
+      evaluatedAt: Date.now(),
+    };
+  } finally {
+    // Clean up evaluation stack to avoid false recursion detection on subsequent calls
+    evaluationStack.delete(evaluationKey);
+  }
+}
+
+/**
  * Internal policy evaluation that supports explicit entityType override
  * Used for delegation where we need to evaluate a policy for a different entity type
  */
@@ -937,7 +1105,20 @@ export async function evaluatePolicy(
   entityType?: string,
   options: { skipCache?: boolean; entityData?: Record<string, any> } = {}
 ): Promise<AccessResult> {
-  // Get policy
+  // Check for modular policy first (new architecture)
+  if (hasModularPolicy(policyId)) {
+    return evaluateModularPolicy(
+      user, 
+      policyId, 
+      storage, 
+      accessStorage, 
+      checkComponent, 
+      entityId, 
+      options
+    );
+  }
+  
+  // Fall back to declarative policy evaluation
   const policy = accessPolicyRegistry.get(policyId);
   if (!policy) {
     return {

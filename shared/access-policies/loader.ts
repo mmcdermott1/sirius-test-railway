@@ -1,0 +1,43 @@
+/**
+ * Policy Loader
+ * 
+ * Imports all policy files to register them with the policy registry.
+ * This file should be imported once during server startup.
+ */
+
+import './core/authenticated';
+import './core/admin';
+import './core/staff';
+import './core/masquerade';
+import './core/trust-provider-user-manage';
+
+import './ledger/staff';
+import './ledger/stripe-admin';
+import './ledger/stripe-employer';
+
+import './employer/user-manage';
+import './employer/view';
+import './employer/mine';
+
+import './worker/view';
+import './worker/edit';
+import './worker/mine';
+
+import './cardcheck/view';
+import './cardcheck/edit';
+
+import './esig/view';
+import './esig/edit';
+
+import './file/upload';
+import './file/read';
+import './file/update';
+import './file/delete';
+
+import './contact/view';
+import './contact/edit';
+
+import './dispatch/dnc/view';
+import './dispatch/dnc/edit';
+
+export { getAllPolicies, getPolicy, hasPolicy } from './index';

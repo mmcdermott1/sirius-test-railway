@@ -22,7 +22,10 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
     const session = req.session as any;
     const { dbUser } = await getEffectiveUser(session, replitUserId);
     ```
--   **Access Control**: Centralized, declarative role-based access control. Entity-based access policies with server-side LRU caching. Components can define their own permissions and policies via `ComponentDefinition`, which are automatically registered when the component is enabled. Policy references allow composite rules (e.g., `staff OR (permission AND another-policy)`) with cycle detection.
+-   **Access Control**: Hybrid declarative/imperative role-based access control. Entity-based access policies with server-side LRU caching. Components can define their own permissions and policies via `ComponentDefinition`, which are automatically registered when the component is enabled. Policy references allow composite rules (e.g., `staff OR (permission AND another-policy)`) with cycle detection.
+    -   **Modular Policy Architecture**: Policies can be defined as individual files under `shared/access-policies/` with custom `evaluate` functions receiving a `PolicyContext` for permission checking, entity loading, and policy delegation. File paths mirror policy IDs (e.g., `worker.dispatch.dnc.view` → `dispatch/dnc/view.ts`).
+    -   **PolicyContext**: Injected utilities for policy handlers: `hasPermission()`, `loadEntity()`, `checkPolicy()`, `isComponentEnabled()`, `getUserContact()`, `getUserWorker()`.
+    -   **Virtual Entity Support**: For create operations (no entityId yet), pass `entityData` to policies. For updates, merge existing entity with proposed changes before evaluation.
 -   **Logging**: Winston logging with a PostgreSQL backend for audit trails.
 -   **Data Storage**: PostgreSQL (Neon Database) managed with Drizzle ORM.
 -   **Object Storage**: Replit Object Storage (Google Cloud Storage backend) for persistent file storage.
