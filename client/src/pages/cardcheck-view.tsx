@@ -162,7 +162,7 @@ export default function CardcheckViewPage() {
         description: "Cardcheck deleted successfully.",
       });
       if (cardcheck?.workerId) {
-        setLocation(`/workers/${cardcheck.workerId}/cardchecks`);
+        setLocation(`/workers/${cardcheck.workerId}/union/cardchecks`);
       } else {
         setLocation("/workers");
       }
@@ -265,7 +265,7 @@ export default function CardcheckViewPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
             {cardcheck.workerId && (
-              <Link href={`/workers/${cardcheck.workerId}/cardchecks`}>
+              <Link href={`/workers/${cardcheck.workerId}/union/cardchecks`}>
                 <Button variant="ghost" size="icon" data-testid="button-back">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
@@ -313,11 +313,6 @@ export default function CardcheckViewPage() {
                       </p>
                     </div>
                   )}
-                  <Link href={`/workers/${worker.id}`}>
-                    <Button variant="outline" size="sm" className="mt-2">
-                      View Worker
-                    </Button>
-                  </Link>
                 </div>
               ) : (
                 <p className="text-muted-foreground">Loading worker info...</p>
