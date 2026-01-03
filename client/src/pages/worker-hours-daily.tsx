@@ -94,7 +94,7 @@ function WorkerHoursContent() {
 
   // Fetch all employers
   const { data: employers = [] } = useQuery<Employer[]>({
-    queryKey: ["/api/employers"],
+    queryKey: ["/api/employers/lookup"],
   });
 
   // Fetch employment statuses

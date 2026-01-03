@@ -37,7 +37,7 @@ function DispatchDoNotCallContent() {
   });
 
   const { data: employers = [] } = useQuery<Employer[]>({
-    queryKey: ["/api/employers"],
+    queryKey: ["/api/employers/lookup"],
   });
 
   const createMutation = useMutation({

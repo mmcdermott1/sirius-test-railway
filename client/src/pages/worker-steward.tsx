@@ -64,7 +64,7 @@ function StewardAssignmentsSection() {
   });
 
   const { data: employers = [] } = useQuery<Employer[]>({
-    queryKey: ["/api/employers"],
+    queryKey: ["/api/employers/lookup"],
   });
 
   const { data: bargainingUnits = [] } = useQuery<BargainingUnit[]>({

@@ -587,6 +587,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Employer routes (protected with authentication and permissions)
   
+  // GET /api/employers/lookup - Get employer names for dropdowns (all authenticated users)
+  // Returns minimal data (id + name) for use in dropdowns throughout the app
+  app.get("/api/employers/lookup", requireAuth, async (req, res) => {
+    try {
+      const allEmployers = await storage.employers.getAllEmployers();
+      // Return only active employers with minimal fields (id + name)
+      const lookup = allEmployers
+        .filter(emp => emp.isActive)
+        .map(emp => ({ id: emp.id, name: emp.name }));
+      res.json(lookup);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch employer lookup" });
+    }
+  });
+
   // GET /api/employers - Get all employers (requires staff permission)
   app.get("/api/employers", requireAuth, requireAccess('staff'), async (req, res) => {
     try {
