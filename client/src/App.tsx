@@ -327,7 +327,7 @@ function Router() {
       </Route>
 
       <Route path="/workers/:id/comm/history">
-        <ProtectedRoute policy="worker.view">
+        <ProtectedRoute permission="staff">
           <AuthenticatedLayout>
             <WorkerCommHistory />
           </AuthenticatedLayout>
