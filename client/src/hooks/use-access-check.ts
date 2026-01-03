@@ -47,10 +47,10 @@ export function useAccessCheck(
   const enabled = options.enabled !== false && hasValidEntityId && !!user;
 
   const query = useQuery<AccessCheckResult>({
-    // Only include entityId in queryKey when it's valid to prevent bad cache entries
+    // Use 'policy' param name to match server API, and only include entityId when valid
     queryKey: hasValidEntityId 
-      ? ['/api/access/check', { policyId, entityId }]
-      : ['/api/access/check', { policyId, entityId: '__disabled__' }],
+      ? ['/api/access/check', { policy: policyId, entityId }]
+      : ['/api/access/check', { policy: policyId, entityId: '__disabled__' }],
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes - matches server cache TTL
     gcTime: 10 * 60 * 1000, // 10 minutes
