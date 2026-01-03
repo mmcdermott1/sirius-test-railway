@@ -191,7 +191,7 @@ export function initializePermissions(): void {
       module: 'core'
     },
     {
-      key: 'employer.usermanage',
+      key: 'employer.manage',
       description: 'Manage user accounts for employer contacts',
       module: 'core'
     },

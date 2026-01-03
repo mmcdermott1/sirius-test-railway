@@ -2851,12 +2851,12 @@
       },
       {
         "roleId": "d9e68151-64ea-49b5-953f-51325edb72dd",
-        "permissionKey": "employer.usermanage",
+        "permissionKey": "employer.manage",
         "assignedAt": "2025-11-10T14:26:01.487Z"
       },
       {
         "roleId": "c1d07544-e08c-49a3-8d3f-318e080754f2",
-        "permissionKey": "employer.usermanage",
+        "permissionKey": "employer.manage",
         "assignedAt": "2025-11-10T14:26:08.252Z"
       }
     ],
