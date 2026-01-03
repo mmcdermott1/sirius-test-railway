@@ -15,7 +15,7 @@ import './ledger/staff';
 import './ledger/stripe-admin';
 import './ledger/stripe-employer';
 
-import './employer/user-manage';
+import './employer/manage';
 import './employer/view';
 import './employer/mine';
 

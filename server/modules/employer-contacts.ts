@@ -189,7 +189,7 @@ export function registerEmployerContactRoutes(
   });
 
   // GET /api/employer-contacts/:contactId/user - Get user linked to employer contact
-  app.get("/api/employer-contacts/:contactId/user", requireAccess('employer.userManage'), async (req, res) => {
+  app.get("/api/employer-contacts/:contactId/user", requireAccess('employer.manage'), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -255,7 +255,7 @@ export function registerEmployerContactRoutes(
   });
 
   // POST /api/employer-contacts/:contactId/user - Create or update user linked to employer contact
-  app.post("/api/employer-contacts/:contactId/user", requireAccess('employer.userManage'), async (req, res) => {
+  app.post("/api/employer-contacts/:contactId/user", requireAccess('employer.manage'), async (req, res) => {
     try {
       const { contactId } = req.params;
       
@@ -391,7 +391,7 @@ export function registerEmployerContactRoutes(
   });
 
   // POST /api/employer-contacts/user-status - Batch fetch user account status for multiple employer contacts
-  app.post("/api/employer-contacts/user-status", requireAuth, requireAccess('employer.userManage'), async (req, res) => {
+  app.post("/api/employer-contacts/user-status", requireAuth, requireAccess('employer.manage'), async (req, res) => {
     try {
       // Validate request body with Zod
       const requestSchema = z.object({

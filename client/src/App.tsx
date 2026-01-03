@@ -881,7 +881,7 @@ function Router() {
       </Route>
 
       <Route path="/employer-contacts/:id/user">
-        <ProtectedRoute policy="employer.userManage">
+        <ProtectedRoute policy="employer.manage">
           <AuthenticatedLayout>
             <EmployerContactUser />
           </AuthenticatedLayout>
