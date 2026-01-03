@@ -160,6 +160,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userPermissions = await storage.users.getUserPermissions(dbUser.id);
       const enabledComponents = await getEnabledComponentIds();
       
+      // Get user's associated worker if they have one
+      let workerId: string | null = null;
+      if (dbUser.email) {
+        const worker = await storage.workers.getWorkerByContactEmail(dbUser.email);
+        if (worker) {
+          workerId = worker.id;
+        }
+      }
+      
       res.json({
         user: { 
           id: dbUser.id, 
@@ -167,7 +176,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: dbUser.firstName,
           lastName: dbUser.lastName,
           profileImageUrl: dbUser.profileImageUrl,
-          isActive: dbUser.isActive 
+          isActive: dbUser.isActive,
+          workerId: workerId
         },
         permissions: userPermissions.map(p => p.key),
         components: enabledComponents,

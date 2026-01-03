@@ -177,6 +177,19 @@ export default function Header() {
                   </Button>
                 </Link>
 
+                {hasPermission("worker") && user?.workerId && (
+                  <Link href={`/workers/${user.workerId}`} onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location === `/workers/${user.workerId}` ? "default" : "ghost"}
+                      className="w-full justify-start"
+                      data-testid="mobile-nav-my-worker"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      My Worker
+                    </Button>
+                  </Link>
+                )}
+
                 {staffPolicy?.access?.granted && (
                   <>
                     <div className="text-sm font-medium text-muted-foreground px-4 py-2">Workers</div>
@@ -533,6 +546,19 @@ export default function Header() {
                 Home
               </Button>
             </Link>
+
+            {hasPermission("worker") && user?.workerId && (
+              <Link href={`/workers/${user.workerId}`}>
+                <Button
+                  variant={location === `/workers/${user.workerId}` ? "default" : "ghost"}
+                  size="sm"
+                  data-testid="nav-my-worker"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  My Worker
+                </Button>
+              </Link>
+            )}
 
             {staffPolicy?.access?.granted && (
               <DropdownMenu>
