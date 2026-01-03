@@ -535,7 +535,7 @@ function Router() {
       </Route>
 
       <Route path="/cardchecks/:id">
-        <ProtectedRoute permission="staff" component="cardcheck">
+        <ProtectedRoute component="cardcheck">
           <AuthenticatedLayout>
             <CardcheckViewPage />
           </AuthenticatedLayout>

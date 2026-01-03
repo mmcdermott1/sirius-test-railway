@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
-import { Loader2, ArrowLeft, User, FileText, Calendar, CheckCircle, XCircle, Clock, Square, CheckSquare, DollarSign } from "lucide-react";
+import { Loader2, ArrowLeft, User, FileText, Calendar, CheckCircle, XCircle, Clock, Square, CheckSquare, DollarSign, Shield } from "lucide-react";
 import { Cardcheck, CardcheckDefinition, Worker, Contact, BargainingUnit } from "@shared/schema";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccessCheck } from "@/hooks/use-access-check";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,13 @@ export default function CardcheckViewPage() {
     queryKey: ["/api/bargaining-units", cardcheck?.bargainingUnitId],
     enabled: hasComponent("bargainingunits") && !!cardcheck?.bargainingUnitId,
   });
+
+  // Check worker.edit access for the cardcheck's worker
+  const { canAccess: hasEditAccess, isLoading: isAccessLoading } = useAccessCheck(
+    'worker.edit',
+    cardcheck?.workerId,
+    { enabled: !!cardcheck?.workerId }
+  );
 
   const handleSignSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/cardcheck", id] });
@@ -186,6 +194,39 @@ export default function CardcheckViewPage() {
             <p className="text-destructive">Cardcheck not found.</p>
             <Link href="/workers">
               <Button variant="outline" className="mt-4">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Workers
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Check access to view/edit this cardcheck (worker.edit on the associated worker)
+  if (isAccessLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasEditAccess) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground mb-4">
+              You don't have permission to view this cardcheck.
+            </p>
+            <Link href="/workers">
+              <Button variant="outline">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Workers
               </Button>
