@@ -258,7 +258,7 @@ export function permissionPolicy(
     id,
     name || `Requires ${permission}`,
     description || `Requires the ${permission} permission`,
-    [{ authenticated: true, permission }]
+    [{ permission }]
   );
 }
 

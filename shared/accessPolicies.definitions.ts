@@ -30,14 +30,14 @@ defineRoutePolicy(
   'admin',
   'admin',
   'Requires admin permission',
-  [{ authenticated: true, permission: 'admin' }]
+  [{ permission: 'admin' }]
 );
 
 defineRoutePolicy(
   'staff',
   'staff',
   'Requires staff permission',
-  [{ authenticated: true, permission: 'staff' }]
+  [{ permission: 'staff' }]
 );
 
 // --- Masquerade ---
@@ -46,7 +46,7 @@ defineRoutePolicy(
   'masquerade',
   'masquerade',
   'Requires masquerade or admin permission',
-  [{ authenticated: true, anyPermission: ['masquerade', 'admin'] }]
+  [{ anyPermission: ['masquerade', 'admin'] }]
 );
 
 // --- Ledger ---
@@ -55,7 +55,7 @@ defineRoutePolicy(
   'ledger.staff',
   'ledger.staff',
   'Requires ledger component and ledger.staff permission',
-  [{ authenticated: true, component: 'ledger', permission: 'ledger.staff' }]
+  [{ component: 'ledger', permission: 'ledger.staff' }]
 );
 
 
@@ -63,14 +63,14 @@ defineRoutePolicy(
   'ledger.stripe.admin',
   'ledger.stripe.admin',
   'Requires admin permission and ledger.stripe component',
-  [{ authenticated: true, component: 'ledger.stripe', permission: 'admin' }]
+  [{ component: 'ledger.stripe', permission: 'admin' }]
 );
 
 defineRoutePolicy(
   'ledger.stripe.employer',
   'ledger.stripe.employer',
   'Requires ledger.stripe component and either ledger.staff or ledger.employer permission',
-  [{ authenticated: true, component: 'ledger.stripe', anyPermission: ['ledger.staff', 'ledger.employer'] }]
+  [{ component: 'ledger.stripe', anyPermission: ['ledger.staff', 'ledger.employer'] }]
 );
 
 // --- User Management ---
@@ -79,14 +79,14 @@ defineRoutePolicy(
   'employer.userManage',
   'employer.userManage',
   'Requires employer.login component and employer.usermanage permission',
-  [{ authenticated: true, component: 'employer.login', permission: 'employer.usermanage' }]
+  [{ component: 'employer.login', permission: 'employer.usermanage' }]
 );
 
 defineRoutePolicy(
   'trustProvider.userManage',
   'trustProvider.userManage',
   'Requires trust.providers.login component and trustprovider.usermanage permission',
-  [{ authenticated: true, component: 'trust.providers.login', permission: 'trustprovider.usermanage' }]
+  [{ component: 'trust.providers.login', permission: 'trustprovider.usermanage' }]
 );
 
 // ============================================================================
@@ -316,8 +316,8 @@ defineRoutePolicy(
   'files.upload',
   'Requires files.upload permission or staff permission',
   [
-    { authenticated: true, permission: 'files.upload' },
-    { authenticated: true, permission: 'staff' },
+    { permission: 'files.upload' },
+    { permission: 'staff' },
   ]
 );
 
