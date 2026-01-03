@@ -40,7 +40,7 @@ export function registerContactPostalRoutes(
 ) {
   
   // GET /api/contacts/:contactId/addresses - Get all addresses for a contact
-  // Uses worker.view policy for worker contacts, staff policy for non-worker contacts (employer contacts, etc.)
+  // Uses worker.view policy for worker contacts, employer.manage for employer contacts, staff policy for others
   app.get("/api/contacts/:contactId/addresses", requireAuth, async (req, res, next) => {
     if (!requireAccess) return next();
     
@@ -50,10 +50,17 @@ export function registerContactPostalRoutes(
     if (worker) {
       // Worker contact - use worker.view policy with worker ID
       return requireAccess('worker.view', () => worker.id)(req, res, next);
-    } else {
-      // Non-worker contact (employer contact, etc.) - require staff permission
-      return requireAccess('staff')(req, res, next);
     }
+    
+    // Check if this contact belongs to an employer contact
+    const employerContacts = await storage.employerContacts.listByContactId(req.params.contactId);
+    if (employerContacts && employerContacts.length > 0) {
+      // Employer contact - use employer.manage policy with employer ID
+      return requireAccess('employer.manage', () => employerContacts[0].employerId)(req, res, next);
+    }
+    
+    // Other contact types - require staff permission
+    return requireAccess('staff')(req, res, next);
   }, async (req, res) => {
     try {
       const { contactId } = req.params;

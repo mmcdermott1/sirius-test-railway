@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'contact.edit',
-  description: 'Edit a specific contact record (staff or workers editing their own contact)',
+  description: 'Edit a specific contact record (staff, workers editing their own contact, or employers editing their employer contacts)',
   scope: 'entity',
   entityType: 'contact',
   
@@ -17,6 +17,24 @@ const policy = definePolicy({
         const worker = await ctx.storage.workers?.get?.(userWorker.id);
         if (worker?.contactId === ctx.entityId) {
           return { granted: true, reason: 'Contact belongs to owned worker' };
+        }
+      }
+    }
+    
+    // Check employer contact access with employer.manage permission
+    if (await ctx.hasPermission('employer.manage')) {
+      const userContact = await ctx.getUserContact();
+      if (userContact) {
+        // Get employer contacts for the current user
+        const userEmployerContacts = await ctx.storage.employerContacts?.getByContactId?.(userContact.id);
+        if (userEmployerContacts?.length > 0) {
+          // Check if the target contact belongs to the same employer(s)
+          for (const ec of userEmployerContacts) {
+            const empContacts = await ctx.storage.employerContacts?.listByEmployer?.(ec.employerId);
+            if (empContacts?.some((c: any) => c.contactId === ctx.entityId)) {
+              return { granted: true, reason: 'Employer contact with manage permission' };
+            }
+          }
         }
       }
     }
