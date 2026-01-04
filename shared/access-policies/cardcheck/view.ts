@@ -9,7 +9,7 @@ const policy = definePolicy({
   
   describeRequirements: () => [
     { permission: 'staff' },
-    { attribute: 'has view access to associated worker' }
+    { policy: 'worker.view' }
   ],
   
   async evaluate(ctx: PolicyContext) {
