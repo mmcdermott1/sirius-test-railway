@@ -594,6 +594,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Employer routes (protected with authentication and permissions)
   
+  // GET /api/my-employers - Get employers associated with current user's contact
+  // Returns employers where the user's contact is linked as an employer contact
+  // No permission required beyond auth - users only see their own associated employers
+  app.get("/api/my-employers", requireAuth, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user?.email) {
+        res.json([]);
+        return;
+      }
+      
+      // Find the contact matching the user's email
+      const contact = await storage.contacts?.getContactByEmail?.(user.email);
+      if (!contact) {
+        res.json([]);
+        return;
+      }
+      
+      // Find all employer contacts for this contact
+      const employerContactRecords = await storage.employerContacts.listByContactId(contact.id);
+      
+      // Get unique employer IDs
+      const employerIds = Array.from(new Set(employerContactRecords.map(ec => ec.employerId)));
+      
+      // Fetch employer details
+      const employers = await Promise.all(
+        employerIds.map(id => storage.employers.getEmployer(id))
+      );
+      
+      // Filter out nulls and inactive employers, return minimal data
+      const activeEmployers = employers
+        .filter((emp): emp is NonNullable<typeof emp> => emp !== null && emp !== undefined && emp.isActive)
+        .map(emp => ({ id: emp.id, name: emp.name }));
+      
+      res.json(activeEmployers);
+    } catch (error) {
+      console.error("Failed to fetch user employers:", error);
+      res.status(500).json({ message: "Failed to fetch user employers" });
+    }
+  });
+
   // GET /api/employers/lookup - Get employer names for dropdowns (all authenticated users)
   // Returns minimal data (id + name) for use in dropdowns throughout the app
   app.get("/api/employers/lookup", requireAuth, async (req, res) => {

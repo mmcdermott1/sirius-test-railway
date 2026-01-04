@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTerm } from "@/contexts/TerminologyContext";
+import { useMyEmployers } from "@/hooks/useMyEmployers";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import {
@@ -81,6 +82,9 @@ export default function Header() {
     queryKey: ["/api/access/policies/staff"],
     staleTime: 30000,
   });
+
+  // Get employers associated with the current user's contact
+  const { employers: myEmployers, hasSingleEmployer, hasMultipleEmployers } = useMyEmployers();
 
   const handleLogout = async () => {
     try {
@@ -188,6 +192,37 @@ export default function Header() {
                       My Worker
                     </Button>
                   </Link>
+                )}
+
+                {hasSingleEmployer && (
+                  <Link href={`/employers/${myEmployers[0].id}`} onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant={location === `/employers/${myEmployers[0].id}` ? "default" : "ghost"}
+                      className="w-full justify-start"
+                      data-testid="mobile-nav-my-employer"
+                    >
+                      <Building2 className="h-4 w-4 mr-2" />
+                      My Employer
+                    </Button>
+                  </Link>
+                )}
+
+                {hasMultipleEmployers && (
+                  <>
+                    <div className="text-sm font-medium text-muted-foreground px-4 py-2">My Employers</div>
+                    {myEmployers.map((employer) => (
+                      <Link key={employer.id} href={`/employers/${employer.id}`} onClick={() => setMobileMenuOpen(false)}>
+                        <Button
+                          variant={location === `/employers/${employer.id}` ? "default" : "ghost"}
+                          className="w-full justify-start pl-8"
+                          data-testid={`mobile-nav-my-employer-${employer.id}`}
+                        >
+                          <Building2 className="h-4 w-4 mr-2" />
+                          {employer.name}
+                        </Button>
+                      </Link>
+                    ))}
+                  </>
                 )}
 
                 {staffPolicy?.access?.granted && (
@@ -558,6 +593,47 @@ export default function Header() {
                   My Worker
                 </Button>
               </Link>
+            )}
+
+            {hasSingleEmployer && (
+              <Link href={`/employers/${myEmployers[0].id}`}>
+                <Button
+                  variant={location === `/employers/${myEmployers[0].id}` ? "default" : "ghost"}
+                  size="sm"
+                  data-testid="nav-my-employer"
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  My Employer
+                </Button>
+              </Link>
+            )}
+
+            {hasMultipleEmployers && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={myEmployers.some(e => location === `/employers/${e.id}`) ? "default" : "ghost"}
+                    size="sm"
+                    data-testid="nav-my-employer"
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    My Employer
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {myEmployers.map((employer) => (
+                    <DropdownMenuItem key={employer.id} asChild>
+                      <Link href={`/employers/${employer.id}`} className="w-full">
+                        <div className="flex items-center cursor-pointer" data-testid={`menu-my-employer-${employer.id}`}>
+                          <Building2 className="h-4 w-4 mr-2" />
+                          {employer.name}
+                        </div>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {staffPolicy?.access?.granted && (
