@@ -1,14 +1,14 @@
-import { definePolicy, registerPolicy, type PolicyContext } from '../index';
+import { definePolicy, registerPolicy, type PolicyContext } from '../../index';
 
 const policy = definePolicy({
-  id: 'provider.ledger',
+  id: 'trust.provider.ledger',
   description: 'Access provider financial records',
   scope: 'entity',
   component: 'ledger',
   
   describeRequirements: () => [
     { permission: 'staff' },
-    { all: [{ permission: 'provider.ledger' }, { attribute: 'associated with provider' }] }
+    { all: [{ permission: 'trust.provider.ledger' }, { attribute: 'associated with provider' }] }
   ],
   
   async evaluate(ctx: PolicyContext) {
@@ -16,7 +16,7 @@ const policy = definePolicy({
       return { granted: true, reason: 'Staff access' };
     }
     
-    if (await ctx.hasPermission('provider.ledger')) {
+    if (await ctx.hasPermission('trust.provider.ledger')) {
       const userContact = await ctx.getUserContact();
       if (userContact) {
         const providerContacts = await ctx.storage.trustProviderContacts?.getByContactId?.(userContact.id);

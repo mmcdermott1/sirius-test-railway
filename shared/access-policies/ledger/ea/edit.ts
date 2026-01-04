@@ -26,7 +26,7 @@ async function evaluateLedgerEaAccess(ctx: PolicyContext): Promise<{ granted: bo
       break;
     case 'provider':
     case 'trust_provider':
-      policyId = 'provider.ledger';
+      policyId = 'trust.provider.ledger';
       break;
     default:
       return { granted: false, reason: `Unsupported entity type: ${entityType}` };
@@ -46,7 +46,7 @@ const policy = definePolicy({
     { permission: 'staff' },
     { policy: 'employer.ledger', attribute: 'for employer entity accounts' },
     { policy: 'worker.ledger', attribute: 'for worker entity accounts' },
-    { policy: 'provider.ledger', attribute: 'for provider entity accounts' }
+    { policy: 'trust.provider.ledger', attribute: 'for provider entity accounts' }
   ],
   
   evaluate: evaluateLedgerEaAccess,

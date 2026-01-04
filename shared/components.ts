@@ -202,7 +202,7 @@ export const componentRegistry: ComponentDefinition[] = [
         description: "Provider level access"
       },
       {
-        key: "provider.ledger",
+        key: "trust.provider.ledger",
         description: "Access to provider ledger functionality for provider users"
       }
     ]
