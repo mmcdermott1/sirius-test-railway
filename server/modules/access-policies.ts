@@ -61,14 +61,22 @@ export function registerAccessPolicyRoutes(app: Express) {
       }
 
       // Format policies for frontend display
-      const policyList = policies.map(policy => ({
-        id: policy.id,
-        name: policy.id,
-        description: policy.description || '',
-        scope: policy.scope,
-        entityType: policy.entityType,
-        requirements: policy.rules || [],
-      }));
+      const policyList = policies.map(policy => {
+        // Use describeRequirements if available (for custom evaluate functions)
+        // Otherwise fall back to declarative rules
+        const requirements = policy.describeRequirements 
+          ? policy.describeRequirements() 
+          : (policy.rules || []);
+        
+        return {
+          id: policy.id,
+          name: policy.id,
+          description: policy.description || '',
+          scope: policy.scope,
+          entityType: policy.entityType,
+          requirements,
+        };
+      });
       
       res.json(policyList);
     } catch (error) {
