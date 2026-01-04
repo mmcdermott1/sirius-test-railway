@@ -5,7 +5,7 @@ const policy = definePolicy({
   description: 'Manage trust provider user accounts',
   scope: 'route',
   component: 'trust.providers.login',
-  rules: [{ component: 'trust.providers.login', permission: 'trustprovider.usermanage' }],
+  rules: [{ permission: 'trustprovider.usermanage' }],
 });
 
 registerPolicy(policy);
