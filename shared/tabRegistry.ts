@@ -265,20 +265,20 @@ export const dispatchJobTypeTabTree: HierarchicalTab[] = [
  * Ledger account entity tab tree (staff-only admin pages)
  */
 export const ledgerAccountTabTree: HierarchicalTab[] = [
-  { id: 'view', label: 'View', hrefTemplate: '/ledger/account/{id}', policyId: 'staff', component: 'ledger' },
-  { id: 'edit', label: 'Edit', hrefTemplate: '/ledger/account/{id}/edit', policyId: 'staff', component: 'ledger' },
-  { id: 'payments', label: 'Payments', hrefTemplate: '/ledger/account/{id}/payments', policyId: 'staff', component: 'ledger' },
-  { id: 'transactions', label: 'Transactions', hrefTemplate: '/ledger/account/{id}/transactions', policyId: 'staff', component: 'ledger' },
-  { id: 'participants', label: 'Participants', hrefTemplate: '/ledger/account/{id}/participants', policyId: 'staff', component: 'ledger' },
-  { id: 'settings', label: 'Settings', hrefTemplate: '/ledger/account/{id}/settings', policyId: 'staff', component: 'ledger' },
+  { id: 'view', label: 'View', hrefTemplate: '/ledger/accounts/{id}', policyId: 'staff', component: 'ledger' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/ledger/accounts/{id}/edit', policyId: 'staff', component: 'ledger' },
+  { id: 'payments', label: 'Payments', hrefTemplate: '/ledger/accounts/{id}/payments', policyId: 'staff', component: 'ledger' },
+  { id: 'transactions', label: 'Transactions', hrefTemplate: '/ledger/accounts/{id}/transactions', policyId: 'staff', component: 'ledger' },
+  { id: 'participants', label: 'Participants', hrefTemplate: '/ledger/accounts/{id}/participants', policyId: 'staff', component: 'ledger' },
+  { id: 'settings', label: 'Settings', hrefTemplate: '/ledger/accounts/{id}/settings', policyId: 'staff', component: 'ledger' },
 ];
 
 /**
  * Ledger payment entity tab tree (staff-only admin pages)
  */
 export const ledgerPaymentTabTree: HierarchicalTab[] = [
-  { id: 'view', label: 'View', hrefTemplate: '/ledger/payment/{id}', policyId: 'staff', component: 'ledger' },
-  { id: 'edit', label: 'Edit', hrefTemplate: '/ledger/payment/{id}/edit', policyId: 'staff', component: 'ledger' },
+  { id: 'view', label: 'View', hrefTemplate: '/ledger/payments/{id}', policyId: 'staff', component: 'ledger' },
+  { id: 'edit', label: 'Edit', hrefTemplate: '/ledger/payments/{id}/edit', policyId: 'staff', component: 'ledger' },
 ];
 
 /**
