@@ -5,6 +5,11 @@ const policy = definePolicy({
   description: 'Requires staff permission, OR both employer.manage permission and employer.mine policy',
   scope: 'route',
   
+  describeRequirements: () => [
+    { permission: 'staff' },
+    { all: [{ permission: 'employer.manage' }, { attribute: 'associated with employer' }] }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     if (await ctx.hasPermission('staff')) {
       return { granted: true, reason: 'Staff access' };

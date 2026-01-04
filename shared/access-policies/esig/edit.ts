@@ -6,6 +6,11 @@ const policy = definePolicy({
   scope: 'entity',
   entityType: 'esig',
   
+  describeRequirements: () => [
+    { permission: 'staff' },
+    { attribute: 'has edit access to associated document' }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     if (await ctx.hasPermission('staff')) {
       return { granted: true, reason: 'Staff access' };

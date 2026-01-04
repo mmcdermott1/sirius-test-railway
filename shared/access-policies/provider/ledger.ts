@@ -6,6 +6,11 @@ const policy = definePolicy({
   scope: 'entity',
   component: 'ledger',
   
+  describeRequirements: () => [
+    { permission: 'staff' },
+    { all: [{ permission: 'provider.ledger' }, { attribute: 'associated with provider' }] }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     if (await ctx.hasPermission('staff')) {
       return { granted: true, reason: 'Staff access' };

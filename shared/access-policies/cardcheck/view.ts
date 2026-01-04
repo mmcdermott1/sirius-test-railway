@@ -6,6 +6,11 @@ const policy = definePolicy({
   scope: 'entity',
   entityType: 'cardcheck',
   
+  describeRequirements: () => [
+    { permission: 'staff' },
+    { attribute: 'has view access to associated worker' }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     if (await ctx.hasPermission('staff')) {
       return { granted: true, reason: 'Staff access' };

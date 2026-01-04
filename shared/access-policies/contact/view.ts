@@ -6,6 +6,13 @@ const policy = definePolicy({
   scope: 'entity',
   entityType: 'contact',
   
+  describeRequirements: () => [
+    { permission: 'staff' },
+    { all: [{ permission: 'worker' }, { attribute: 'contact belongs to owned worker' }] },
+    { all: [{ permission: 'trustprovider' }, { attribute: 'associated with provider using this contact' }] },
+    { all: [{ permission: 'employer' }, { attribute: 'employer association to this contact' }] }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     if (await ctx.hasPermission('staff')) {
       return { granted: true, reason: 'Staff access' };

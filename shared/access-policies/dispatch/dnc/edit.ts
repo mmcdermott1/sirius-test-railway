@@ -7,6 +7,12 @@ const policy = definePolicy({
   entityType: 'worker.dispatch.dnc',
   component: 'dispatch.dnc',
   
+  describeRequirements: () => [
+    { permission: 'staff' },
+    { all: [{ permission: 'worker' }, { attribute: 'owns this DNC record (worker-type only)' }] },
+    { all: [{ permission: 'employer' }, { attribute: 'associated with employer for this DNC (employer-type only)' }] }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     if (!await ctx.isComponentEnabled('dispatch.dnc')) {
       return { granted: false, reason: 'dispatch.dnc component not enabled' };

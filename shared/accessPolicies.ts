@@ -62,6 +62,13 @@ export interface AccessCondition {
    * All predicates must pass (AND). Requires entity loader to be registered for the entity type.
    */
   attributes?: AttributePredicate[];
+  
+  /**
+   * Simple attribute description for custom policy requirements.
+   * Used by describeRequirements() to explain non-permission-based checks
+   * (e.g., "associated with employer", "owns this worker record").
+   */
+  attribute?: string;
 }
 
 /**

@@ -26,6 +26,8 @@ export interface AccessCondition {
   component?: string;
   policy?: string;
   attributes?: AttributePredicate[];
+  /** Simple attribute description for custom policy requirements (e.g., "associated with employer") */
+  attribute?: string;
 }
 
 /**

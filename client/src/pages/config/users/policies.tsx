@@ -58,6 +58,11 @@ function formatConditionParts(condition: AccessCondition): ConditionPart[] {
     parts.push({ text: `Attributes: ${attrTexts.join(', ')}`, type: 'attribute' });
   }
   
+  // Handle simple attribute string (from describeRequirements)
+  if (condition.attribute) {
+    parts.push({ text: condition.attribute, type: 'attribute' });
+  }
+  
   if (parts.length === 0) {
     return [{ text: 'No specific requirements', type: 'unknown' }];
   }

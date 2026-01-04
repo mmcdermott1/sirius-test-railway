@@ -6,6 +6,12 @@ const policy = definePolicy({
   scope: 'entity',
   entityType: 'file',
   
+  describeRequirements: () => [
+    { attribute: 'uploaded this file' },
+    { permission: 'files.delete' },
+    { attribute: 'has edit access to associated entity' }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     const file = await ctx.loadEntity('file', ctx.entityId!);
     if (!file) {

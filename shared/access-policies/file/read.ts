@@ -6,6 +6,13 @@ const policy = definePolicy({
   scope: 'entity',
   entityType: 'file',
   
+  describeRequirements: () => [
+    { attribute: 'uploaded this file' },
+    { permission: 'staff' },
+    { permission: 'files.read-private' },
+    { attribute: 'has view access to associated entity' }
+  ],
+  
   async evaluate(ctx: PolicyContext) {
     const file = await ctx.loadEntity('file', ctx.entityId!);
     if (!file) {
