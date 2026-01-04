@@ -97,6 +97,14 @@ export interface PolicyDefinition {
    * Takes precedence over rules if both are defined
    */
   evaluate?: (ctx: PolicyContext) => Promise<PolicyResult>;
+  
+  /**
+   * Describe the requirements for policies with custom evaluate functions.
+   * Returns AccessRule[] in the same format as declarative rules, allowing
+   * the UI to display consistent requirement descriptions.
+   * Only needed for policies with evaluate() that want to show requirements.
+   */
+  describeRequirements?: () => AccessRule[];
 }
 
 /**
