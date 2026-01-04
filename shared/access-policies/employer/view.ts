@@ -8,7 +8,7 @@ const policy = definePolicy({
   
   describeRequirements: () => [
     { permission: 'staff' },
-    { all: [{ permission: 'employer' }, { attribute: 'associated with employer' }] },
+    { policy: 'employer.mine' },
     { all: [{ permission: 'worker' }, { attribute: 'has employment history at employer' }] }
   ],
   
@@ -17,14 +17,8 @@ const policy = definePolicy({
       return { granted: true, reason: 'Staff access' };
     }
     
-    if (await ctx.hasPermission('employer')) {
-      const userContact = await ctx.getUserContact();
-      if (userContact) {
-        const employerContacts = await ctx.storage.employerContacts?.listByEmployer?.(ctx.entityId);
-        if (employerContacts?.some((ec: any) => ec.contactId === userContact.id)) {
-          return { granted: true, reason: 'Associated with this employer' };
-        }
-      }
+    if (await ctx.checkPolicy('employer.mine')) {
+      return { granted: true, reason: 'Associated with this employer' };
     }
     
     if (await ctx.hasPermission('worker')) {
