@@ -163,7 +163,17 @@ export const componentRegistry: ComponentDefinition[] = [
     name: "Trust Provider Login",
     description: "Ability for trust provider contacts to log in",
     enabledByDefault: false,
-    category: "authentication"
+    category: "authentication",
+    permissions: [
+      {
+        key: "provider",
+        description: "Provider level access"
+      },
+      {
+        key: "provider.ledger",
+        description: "Access to provider ledger functionality for provider users"
+      }
+    ]
   },
   {
     id: "trust.providers",
