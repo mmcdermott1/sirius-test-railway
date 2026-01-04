@@ -140,10 +140,7 @@ export default function PoliciesPage() {
     return policies
       .filter(policy => {
         if (!lowerFilter) return true;
-        return (
-          policy.id.toLowerCase().includes(lowerFilter) ||
-          (policy.description && policy.description.toLowerCase().includes(lowerFilter))
-        );
+        return policy.id.toLowerCase().includes(lowerFilter);
       })
       .sort((a, b) => a.id.localeCompare(b.id));
   }, [policies, filterText]);
