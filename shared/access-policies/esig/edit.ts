@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'esig.edit',
-  description: 'Edit a specific esig record (delegates based on doc_type)',
+  description: 'Edit electronic signatures',
   scope: 'entity',
   entityType: 'esig',
   

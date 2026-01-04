@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'cardcheck.edit',
-  description: 'Edit a specific cardcheck record (delegates to worker.mine)',
+  description: 'Edit cardcheck records',
   scope: 'entity',
   entityType: 'cardcheck',
   component: 'cardcheck',
