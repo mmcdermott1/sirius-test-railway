@@ -136,7 +136,7 @@ export default function PoliciesPage() {
   const [filterText, setFilterText] = useState('');
   
   const { data: policies = [], isLoading } = useQuery<Policy[]>({
-    queryKey: ["/api/access/policies"],
+    queryKey: ["/api/access/policies?enabledOnly=true"],
   });
 
   const filteredAndSortedPolicies = useMemo(() => {
