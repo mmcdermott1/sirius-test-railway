@@ -38,7 +38,7 @@ async function evaluateLedgerEaAccess(ctx: PolicyContext): Promise<{ granted: bo
 
 const policy = definePolicy({
   id: 'ledger.ea.edit',
-  description: 'Edit ledger entity assignments - requires staff OR appropriate entity ledger policy',
+  description: 'Edit entity accounts',
   scope: 'entity',
   component: 'ledger',
   

@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy } from '../index';
 
 const policy = definePolicy({
   id: 'ledger.stripe.employer',
-  description: 'Access to employer Stripe ledger - requires staff permission OR (employer.ledger permission AND employer.mine policy)',
+  description: 'Access employer Stripe payments',
   scope: 'entity',
   component: 'ledger.stripe',
   rules: [

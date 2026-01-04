@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'provider.ledger',
-  description: 'Access to provider ledger - requires staff permission OR (provider.ledger permission AND user is associated with the provider)',
+  description: 'Access provider financial records',
   scope: 'entity',
   component: 'ledger',
   
