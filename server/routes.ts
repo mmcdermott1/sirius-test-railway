@@ -599,14 +599,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // No permission required beyond auth - users only see their own associated employers
   app.get("/api/my-employers", requireAuth, async (req, res) => {
     try {
+      // Use getEffectiveUser to support masquerade
       const user = (req as any).user;
-      if (!user?.email) {
+      const replitUserId = user?.claims?.sub;
+      const session = req.session as any;
+      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      
+      if (!dbUser?.email) {
         res.json([]);
         return;
       }
       
-      // Find the contact matching the user's email
-      const contact = await storage.contacts?.getContactByEmail?.(user.email);
+      // Find the contact matching the effective user's email
+      const contact = await storage.contacts?.getContactByEmail?.(dbUser.email);
       if (!contact) {
         res.json([]);
         return;
