@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'file.delete',
-  description: 'Delete a file',
+  description: 'Delete files',
   scope: 'entity',
   entityType: 'file',
   

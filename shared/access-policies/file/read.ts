@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'file.read',
-  description: 'Read/download a specific file',
+  description: 'Download files',
   scope: 'entity',
   entityType: 'file',
   

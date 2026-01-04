@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy } from '../index';
 
 const policy = definePolicy({
   id: 'files.upload',
-  description: 'Requires files.upload permission or staff permission',
+  description: 'Upload files',
   scope: 'route',
   rules: [
     { permission: 'files.upload' },

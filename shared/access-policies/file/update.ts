@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'file.update',
-  description: 'Update file metadata',
+  description: 'Update file details',
   scope: 'entity',
   entityType: 'file',
   

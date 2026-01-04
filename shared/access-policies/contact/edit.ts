@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'contact.edit',
-  description: 'Edit a specific contact record (staff, workers editing their own contact, or employers editing their employer contacts)',
+  description: 'Edit contact information',
   scope: 'entity',
   entityType: 'contact',
   
