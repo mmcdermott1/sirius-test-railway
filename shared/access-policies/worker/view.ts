@@ -8,7 +8,7 @@ const policy = definePolicy({
   
   describeRequirements: () => [
     { permission: 'staff' },
-    { all: [{ permission: 'worker' }, { attribute: 'owns this worker record' }] },
+    { policy: 'worker.mine' },
     { all: [{ permission: 'trustprovider' }, { attribute: 'benefit provider for this worker' }] }
   ],
   
@@ -17,11 +17,8 @@ const policy = definePolicy({
       return { granted: true, reason: 'Staff access' };
     }
     
-    if (await ctx.hasPermission('worker')) {
-      const userWorker = await ctx.getUserWorker();
-      if (userWorker && userWorker.id === ctx.entityId) {
-        return { granted: true, reason: 'Owns this worker record' };
-      }
+    if (await ctx.checkPolicy('worker.mine')) {
+      return { granted: true, reason: 'Owns this worker record' };
     }
     
     if (await ctx.hasPermission('trustprovider')) {
