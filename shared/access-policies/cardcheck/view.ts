@@ -5,6 +5,7 @@ const policy = definePolicy({
   description: 'View a specific cardcheck record (delegates to worker.view)',
   scope: 'entity',
   entityType: 'cardcheck',
+  component: 'cardcheck',
   
   describeRequirements: () => [
     { permission: 'staff' },

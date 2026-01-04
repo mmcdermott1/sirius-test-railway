@@ -5,6 +5,7 @@ const policy = definePolicy({
   description: 'Edit a specific cardcheck record (delegates to worker.mine)',
   scope: 'entity',
   entityType: 'cardcheck',
+  component: 'cardcheck',
   
   describeRequirements: () => [
     { permission: 'staff' },
