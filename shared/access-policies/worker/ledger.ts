@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy } from '../index';
 
 const policy = definePolicy({
   id: 'worker.ledger',
-  description: 'Access to worker ledger - requires staff permission OR (worker.ledger permission AND worker.mine policy)',
+  description: 'Access worker financial records',
   scope: 'entity',
   component: 'ledger',
   rules: [

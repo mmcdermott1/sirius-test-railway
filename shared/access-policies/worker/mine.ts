@@ -2,7 +2,7 @@ import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
 const policy = definePolicy({
   id: 'worker.mine',
-  description: 'Access own worker record (identical criteria to worker.edit)',
+  description: 'Access your own worker record',
   scope: 'entity',
   entityType: 'worker',
   
