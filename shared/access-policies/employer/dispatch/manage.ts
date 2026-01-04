@@ -9,7 +9,7 @@ const policy = definePolicy({
   
   describeRequirements: () => [
     { permission: 'staff' },
-    { all: [{ permission: 'employer.dispatch.manage' }, { attribute: 'associated with employer' }] }
+    { all: [{ permission: 'employer.dispatch.manage' }, { policy: 'employer.mine' }] }
   ],
   
   async evaluate(ctx: PolicyContext) {
@@ -17,14 +17,8 @@ const policy = definePolicy({
       return { granted: true, reason: 'Staff access' };
     }
     
-    if (await ctx.hasPermission('employer.dispatch.manage')) {
-      const userContact = await ctx.getUserContact();
-      if (userContact) {
-        const employerContacts = await ctx.storage.employerContacts?.listByEmployer?.(ctx.entityId);
-        if (employerContacts?.some((ec: any) => ec.contactId === userContact.id)) {
-          return { granted: true, reason: 'Employer dispatch manage access for associated employer' };
-        }
-      }
+    if (await ctx.hasPermission('employer.dispatch.manage') && await ctx.checkPolicy('employer.mine')) {
+      return { granted: true, reason: 'Employer dispatch manage access for associated employer' };
     }
     
     return { granted: false, reason: 'No dispatch manage access for this employer' };
