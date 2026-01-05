@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "createdAt": "2026-01-05T20:55:41.340Z",
+  "createdAt": "2026-01-05T21:11:49.832Z",
   "tables": {
     "optionsGender": [
       {
@@ -465,6 +465,81 @@
         "gender": "0832c557-85ae-4e31-9739-4a5f05e81fce",
         "genderNota": null,
         "genderCalc": null
+      },
+      {
+        "id": "6d84d3f6-592f-4e71-923d-476d67da1455",
+        "title": null,
+        "given": "Michael",
+        "middle": null,
+        "family": "Mcdonald",
+        "generational": null,
+        "credentials": null,
+        "displayName": "Michael McDonald",
+        "email": "manager@riverside.com",
+        "birthDate": null,
+        "gender": null,
+        "genderNota": null,
+        "genderCalc": null
+      },
+      {
+        "id": "contact-emp-airport-mgr",
+        "title": null,
+        "given": "Sarah",
+        "middle": null,
+        "family": "Johnson",
+        "generational": null,
+        "credentials": null,
+        "displayName": "Sarah Johnson",
+        "email": "sarah.johnson@airportinn.example.com",
+        "birthDate": null,
+        "gender": null,
+        "genderNota": null,
+        "genderCalc": null
+      },
+      {
+        "id": "contact-emp-airport-loc",
+        "title": null,
+        "given": "Mike",
+        "middle": null,
+        "family": "Thompson",
+        "generational": null,
+        "credentials": null,
+        "displayName": "Mike Thompson",
+        "email": "mike.thompson@airportinn.example.com",
+        "birthDate": null,
+        "gender": null,
+        "genderNota": null,
+        "genderCalc": null
+      },
+      {
+        "id": "contact-emp-downtown-mgr",
+        "title": null,
+        "given": "Lisa",
+        "middle": null,
+        "family": "Garcia",
+        "generational": null,
+        "credentials": null,
+        "displayName": "Lisa Garcia",
+        "email": "lisa.garcia@downtownsuites.example.com",
+        "birthDate": null,
+        "gender": null,
+        "genderNota": null,
+        "genderCalc": null
+      },
+      {
+        "id": "contact-emp-downtown-loc",
+        "title": null,
+        "given": "Robert",
+        "middle": null,
+        "family": "Kim",
+        "generational": null,
+        "credentials": null,
+        "displayName": "Robert Kim",
+        "email": "robert.kim@downtownsuites.example.com",
+        "birthDate": null,
+        "gender": null,
+        "genderNota": null,
+        "genderCalc": null
       }
     ],
     "phoneNumbers": [
@@ -656,7 +731,297 @@
         "createdAt": "2026-01-05T19:44:27.845Z"
       }
     ],
-    "contactPostal": [],
+    "contactPostal": [
+      {
+        "id": "13620f37-a7e1-40f6-a444-0d9e4e1e0da1",
+        "contactId": "contact-w013",
+        "friendlyName": null,
+        "street": "48 Elwyn Avenue Carnegie",
+        "city": "PA",
+        "state": "PA",
+        "postalCode": "15106",
+        "country": "United States",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:00:02.066Z"
+      },
+      {
+        "id": "addr-w001",
+        "contactId": "contact-w001",
+        "friendlyName": "Home",
+        "street": "1234 Sunset Blvd",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90028",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w002",
+        "contactId": "contact-w002",
+        "friendlyName": "Home",
+        "street": "5678 Hollywood Blvd",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90028",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w003",
+        "contactId": "contact-w003",
+        "friendlyName": "Home",
+        "street": "910 Venice Beach Rd",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90291",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w004",
+        "contactId": "contact-w004",
+        "friendlyName": "Home",
+        "street": "222 Beverly Dr",
+        "city": "Beverly Hills",
+        "state": "CA",
+        "postalCode": "90210",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w005",
+        "contactId": "contact-w005",
+        "friendlyName": "Home",
+        "street": "333 Wilshire Blvd",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90010",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w006",
+        "contactId": "contact-w006",
+        "friendlyName": "Home",
+        "street": "444 Santa Monica Blvd",
+        "city": "Santa Monica",
+        "state": "CA",
+        "postalCode": "90401",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w007",
+        "contactId": "contact-w007",
+        "friendlyName": "Home",
+        "street": "555 Melrose Ave",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90038",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w008",
+        "contactId": "contact-w008",
+        "friendlyName": "Home",
+        "street": "666 La Brea Ave",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90036",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w009",
+        "contactId": "contact-w009",
+        "friendlyName": "Home",
+        "street": "777 Fairfax Ave",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90036",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w010",
+        "contactId": "contact-w010",
+        "friendlyName": "Home",
+        "street": "888 Vine St",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90038",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w011",
+        "contactId": "contact-w011",
+        "friendlyName": "Home",
+        "street": "999 Rodeo Dr",
+        "city": "Beverly Hills",
+        "state": "CA",
+        "postalCode": "90210",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w012",
+        "contactId": "contact-w012",
+        "friendlyName": "Home",
+        "street": "1010 Pacific Coast Hwy",
+        "city": "Malibu",
+        "state": "CA",
+        "postalCode": "90265",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w013",
+        "contactId": "contact-w013",
+        "friendlyName": "Home",
+        "street": "1111 Olympic Blvd",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90015",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w014",
+        "contactId": "contact-w014",
+        "friendlyName": "Home",
+        "street": "1212 Figueroa St",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90015",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-w015",
+        "contactId": "contact-w015",
+        "friendlyName": "Home",
+        "street": "1313 Grand Ave",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90015",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      },
+      {
+        "id": "addr-gary",
+        "contactId": "a0b2928b-3616-4d24-8508-294ade894a99",
+        "friendlyName": "Home",
+        "street": "1414 Spring St",
+        "city": "Los Angeles",
+        "state": "CA",
+        "postalCode": "90012",
+        "country": "USA",
+        "isPrimary": true,
+        "isActive": true,
+        "validationResponse": null,
+        "latitude": null,
+        "longitude": null,
+        "accuracy": null,
+        "createdAt": "2026-01-05T21:11:05.476Z"
+      }
+    ],
     "employers": [
       {
         "id": "6d293842-87e4-4667-a14b-3763f057a636",
@@ -686,7 +1051,38 @@
         "denormPolicyId": null
       }
     ],
-    "employerContacts": [],
+    "employerContacts": [
+      {
+        "id": "9f9170a4-010d-4acf-91ff-8c24cf96a67a",
+        "employerId": "6d293842-87e4-4667-a14b-3763f057a636",
+        "contactId": "6d84d3f6-592f-4e71-923d-476d67da1455",
+        "contactTypeId": "83233ec8-8de1-4da7-ac42-c303c0e22c3e"
+      },
+      {
+        "id": "ec-airport-mgr",
+        "employerId": "emp-airport-inn",
+        "contactId": "contact-emp-airport-mgr",
+        "contactTypeId": "83233ec8-8de1-4da7-ac42-c303c0e22c3e"
+      },
+      {
+        "id": "ec-airport-loc",
+        "employerId": "emp-airport-inn",
+        "contactId": "contact-emp-airport-loc",
+        "contactTypeId": "5d4efab1-e5b0-4880-8d48-3c94a0ca21e0"
+      },
+      {
+        "id": "ec-downtown-mgr",
+        "employerId": "emp-downtown-suites",
+        "contactId": "contact-emp-downtown-mgr",
+        "contactTypeId": "83233ec8-8de1-4da7-ac42-c303c0e22c3e"
+      },
+      {
+        "id": "ec-downtown-loc",
+        "employerId": "emp-downtown-suites",
+        "contactId": "contact-emp-downtown-loc",
+        "contactTypeId": "5d4efab1-e5b0-4880-8d48-3c94a0ca21e0"
+      }
+    ],
     "workers": [
       {
         "id": "worker-w001",
@@ -851,7 +1247,28 @@
         "bargainingUnitId": null
       }
     ],
-    "workerBans": [],
+    "workerBans": [
+      {
+        "id": "327ed2a4-78d7-4e30-93c8-ec3e2fe50fce",
+        "workerId": "worker-w004",
+        "type": "dispatch",
+        "startDate": "2026-01-05T00:00:00.000Z",
+        "endDate": "2027-01-01T00:00:00.000Z",
+        "active": true,
+        "message": null,
+        "data": null
+      },
+      {
+        "id": "ban-noah-diaz",
+        "workerId": "worker-w014",
+        "type": "general",
+        "startDate": "2025-01-01T00:00:00.000Z",
+        "endDate": null,
+        "active": true,
+        "message": "Demo banned worker",
+        "data": null
+      }
+    ],
     "workerHours": [
       {
         "id": "3426d916-4287-40dc-b403-ba5c0fcf207d",
@@ -1710,12 +2127,6 @@
         "seniorityDate": "2024-01-01T00:00:00.000Z"
       },
       {
-        "id": "c15a806f-9ba4-48a6-9016-817c6c2bb169",
-        "workerId": "worker-w003",
-        "status": "not_available",
-        "seniorityDate": "2023-01-01T00:00:00.000Z"
-      },
-      {
         "id": "c324c63f-543c-4508-95c6-59604719606b",
         "workerId": "worker-w004",
         "status": "available",
@@ -1738,12 +2149,6 @@
         "workerId": "worker-w007",
         "status": "available",
         "seniorityDate": "2020-01-01T00:00:00.000Z"
-      },
-      {
-        "id": "2ed0e451-52e4-45bd-8847-5a345c1f2571",
-        "workerId": "worker-w008",
-        "status": "not_available",
-        "seniorityDate": "2023-01-01T00:00:00.000Z"
       },
       {
         "id": "b9d9fa03-2c32-4e16-8e72-1460f864a05b",
@@ -1770,12 +2175,6 @@
         "seniorityDate": "2020-01-01T00:00:00.000Z"
       },
       {
-        "id": "0af17a57-d1c9-4277-bc50-8ea877283594",
-        "workerId": "worker-w013",
-        "status": "not_available",
-        "seniorityDate": "2020-01-01T00:00:00.000Z"
-      },
-      {
         "id": "2e57b00e-0332-4b55-b890-16026010bd8b",
         "workerId": "worker-w014",
         "status": "available",
@@ -1786,10 +2185,72 @@
         "workerId": "worker-w015",
         "status": "available",
         "seniorityDate": "2020-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "c15a806f-9ba4-48a6-9016-817c6c2bb169",
+        "workerId": "worker-w003",
+        "status": "not_available",
+        "seniorityDate": "2023-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "2ed0e451-52e4-45bd-8847-5a345c1f2571",
+        "workerId": "worker-w008",
+        "status": "not_available",
+        "seniorityDate": "2023-01-01T00:00:00.000Z"
+      },
+      {
+        "id": "0af17a57-d1c9-4277-bc50-8ea877283594",
+        "workerId": "worker-w013",
+        "status": "not_available",
+        "seniorityDate": "2020-01-01T00:00:00.000Z"
       }
     ],
-    "workerDispatchDnc": [],
-    "workerDispatchHfe": [],
+    "workerDispatchDnc": [
+      {
+        "id": "bb991521-4164-4e54-b39c-fabfc9a7f52f",
+        "workerId": "worker-w002",
+        "employerId": "6d293842-87e4-4667-a14b-3763f057a636",
+        "type": "employer",
+        "data": null,
+        "message": null
+      },
+      {
+        "id": "dnc-carlos-riverside",
+        "workerId": "worker-w002",
+        "employerId": "6d293842-87e4-4667-a14b-3763f057a636",
+        "type": "employer",
+        "data": null,
+        "message": "Do not call for this employer"
+      },
+      {
+        "id": "dnc-jordan-downtown",
+        "workerId": "worker-w010",
+        "employerId": "emp-downtown-suites",
+        "type": "employer",
+        "data": null,
+        "message": "Do not call for this employer"
+      }
+    ],
+    "workerDispatchHfe": [
+      {
+        "id": "39cf993d-f1b4-4029-9aae-2e653ca9e32c",
+        "workerId": "worker-w001",
+        "employerId": "6d293842-87e4-4667-a14b-3763f057a636",
+        "holdUntil": "2026-06-06"
+      },
+      {
+        "id": "hfe-kevin-downtown",
+        "workerId": "worker-w006",
+        "employerId": "emp-downtown-suites",
+        "holdUntil": "2026-12-31"
+      },
+      {
+        "id": "hfe-grace-airport",
+        "workerId": "worker-w011",
+        "employerId": "emp-airport-inn",
+        "holdUntil": "2026-12-31"
+      }
+    ],
     "dispatchJobs": [
       {
         "id": "3d707ff9-b349-4895-b8f8-90c3d4b0e4e9",
