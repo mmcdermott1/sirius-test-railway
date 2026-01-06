@@ -195,7 +195,13 @@ export const componentRegistry: ComponentDefinition[] = [
     name: "Worker Skills",
     description: "Management of worker skills and qualifications",
     enabledByDefault: false,
-    category: "core"
+    category: "core",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/worker/skills/schema.ts",
+      tables: ["options_skills"]
+    }
   },
   {
     id: "trust.providers.login",
