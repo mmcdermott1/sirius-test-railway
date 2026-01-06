@@ -638,6 +638,10 @@ export {
   insertOptionsSkillsSchema,
   type OptionsSkill,
   type InsertOptionsSkill,
+  workerSkills,
+  insertWorkerSkillsSchema,
+  type WorkerSkill,
+  type InsertWorkerSkill,
 } from "./schema/worker/skills/schema";
 
 // Zod schemas for validation

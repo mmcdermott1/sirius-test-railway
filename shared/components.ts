@@ -200,7 +200,7 @@ export const componentRegistry: ComponentDefinition[] = [
     schemaManifest: {
       version: 1,
       schemaPath: "./shared/schema/worker/skills/schema.ts",
-      tables: ["options_skills"]
+      tables: ["options_skills", "worker_skills"]
     }
   },
   {
