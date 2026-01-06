@@ -1651,7 +1651,7 @@ function Router() {
       </Route>
 
       <Route path="/dispatch/jobs">
-        <ProtectedRoute permission="admin" component="dispatch">
+        <ProtectedRoute policy="staff" component="dispatch">
           <AuthenticatedLayout>
             <DispatchJobsPage />
           </AuthenticatedLayout>
@@ -1659,7 +1659,7 @@ function Router() {
       </Route>
 
       <Route path="/dispatch/job/new">
-        <ProtectedRoute permission="admin" component="dispatch">
+        <ProtectedRoute policy="staff" component="dispatch">
           <AuthenticatedLayout>
             <DispatchJobNewPage />
           </AuthenticatedLayout>
