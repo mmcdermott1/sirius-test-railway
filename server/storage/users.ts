@@ -58,6 +58,7 @@ export interface UserStorage {
   
   // Role-Permission assignment operations
   assignPermissionToRole(assignment: AssignPermission): Promise<RolePermission>;
+  assignPermissionsToRoleBulk(roleId: string, permissionKeys: string[]): Promise<RolePermission[]>;
   unassignPermissionFromRole(roleId: string, permissionKey: string): Promise<boolean>;
   getRolePermissions(roleId: string): Promise<PermissionDefinition[]>;
   getRolesWithPermission(permissionKey: string): Promise<Role[]>;
@@ -359,6 +360,47 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
         .values(assignment)
         .returning();
       return rolePermission;
+    },
+
+    async assignPermissionsToRoleBulk(roleId: string, permissionKeys: string[]): Promise<RolePermission[]> {
+      if (permissionKeys.length === 0) {
+        return [];
+      }
+
+      // Deduplicate incoming permission keys
+      const uniqueKeys = Array.from(new Set(permissionKeys));
+
+      // Validate all permissions exist in registry
+      const invalidKeys = uniqueKeys.filter(key => !permissionRegistry.exists(key));
+      if (invalidKeys.length > 0) {
+        throw new Error(`Permissions do not exist in the registry: ${invalidKeys.join(', ')}`);
+      }
+
+      // Get existing permissions for this role to avoid duplicates
+      const existing = await db
+        .select({ permissionKey: rolePermissions.permissionKey })
+        .from(rolePermissions)
+        .where(eq(rolePermissions.roleId, roleId));
+      
+      const existingKeys = new Set(existing.map(e => e.permissionKey));
+      const newKeys = uniqueKeys.filter(key => !existingKeys.has(key));
+
+      if (newKeys.length === 0) {
+        return [];
+      }
+
+      // Insert all new permissions at once
+      const values = newKeys.map(permissionKey => ({
+        roleId,
+        permissionKey,
+      }));
+
+      const result = await db
+        .insert(rolePermissions)
+        .values(values)
+        .returning();
+
+      return result;
     },
 
     async unassignPermissionFromRole(roleId: string, permissionKey: string): Promise<boolean> {

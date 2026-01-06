@@ -394,6 +394,31 @@ export function registerUserRoutes(
     }
   });
 
+  // POST /api/admin/roles/:roleId/permissions/bulk - Bulk assign permissions to role (admin only)
+  app.post("/api/admin/roles/:roleId/permissions/bulk", requireAccess('admin'), async (req, res) => {
+    try {
+      const { roleId } = req.params;
+      const { permissionKeys } = req.body;
+      
+      if (!Array.isArray(permissionKeys) || permissionKeys.length === 0) {
+        return res.status(400).json({ message: "permissionKeys must be a non-empty array" });
+      }
+      
+      const assignments = await storage.users.assignPermissionsToRoleBulk(roleId, permissionKeys);
+      clearAccessCache(); // Invalidate policy cache when permissions change
+      res.status(201).json({ 
+        message: `${assignments.length} permission(s) assigned successfully`,
+        assignments 
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("does not exist in the registry")) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to assign permissions" });
+      }
+    }
+  });
+
   // DELETE /api/admin/roles/:roleId/permissions/:permissionKey - Unassign permission from role (admin only)
   app.delete("/api/admin/roles/:roleId/permissions/:permissionKey", requireAccess('admin'), async (req, res) => {
     try {
