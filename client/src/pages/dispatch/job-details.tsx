@@ -1,11 +1,24 @@
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { DispatchJobLayout, useDispatchJobLayout } from "@/components/layouts/DispatchJobLayout";
 import {
   Briefcase, Truck, HardHat, Wrench, Clock, Calendar,
   ClipboardList, Package, MapPin, Users,
   type LucideIcon
 } from "lucide-react";
+import { renderIcon } from "@/components/ui/icon-picker";
+import type { OptionsSkill } from "@shared/schema";
+
+interface ComponentConfig {
+  id: string;
+  enabled: boolean;
+}
+
+interface JobData {
+  requiredSkills?: string[];
+}
 
 const iconMap: Record<string, LucideIcon> = {
   Briefcase, Truck, HardHat, Wrench, Clock, Calendar,
@@ -14,6 +27,22 @@ const iconMap: Record<string, LucideIcon> = {
 
 function DispatchJobDetailsContent() {
   const { job } = useDispatchJobLayout();
+  const jobData = job.data as JobData | null;
+
+  const { data: componentConfigs = [] } = useQuery<ComponentConfig[]>({
+    queryKey: ["/api/components/config"],
+  });
+
+  const skillsComponentEnabled = componentConfigs.some(
+    (c) => c.id === "worker.skills" && c.enabled
+  );
+
+  const { data: skills = [] } = useQuery<OptionsSkill[]>({
+    queryKey: ["/api/options/skills"],
+    enabled: skillsComponentEnabled && !!jobData?.requiredSkills?.length,
+  });
+
+  const requiredSkills = jobData?.requiredSkills || [];
 
   const JobTypeIcon = job.jobType?.data && typeof job.jobType.data === 'object' && 'icon' in job.jobType.data
     ? iconMap[job.jobType.data.icon as string] || Briefcase
@@ -64,6 +93,29 @@ function DispatchJobDetailsContent() {
             <p className="text-foreground whitespace-pre-wrap" data-testid="text-description">
               {job.description}
             </p>
+          </div>
+        )}
+        {skillsComponentEnabled && requiredSkills.length > 0 && (
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Required Skills</h3>
+            <div className="flex flex-wrap gap-2" data-testid="skills-list">
+              {requiredSkills.map((skillId) => {
+                const skill = skills.find((s) => s.id === skillId);
+                if (!skill) return null;
+                const skillData = skill.data as { icon?: string } | null;
+                return (
+                  <Badge
+                    key={skillId}
+                    variant="secondary"
+                    className="gap-1"
+                    data-testid={`badge-skill-${skillId}`}
+                  >
+                    {skillData?.icon && renderIcon(skillData.icon, "h-3 w-3")}
+                    {skill.name}
+                  </Badge>
+                );
+              })}
+            </div>
           </div>
         )}
       </CardContent>
