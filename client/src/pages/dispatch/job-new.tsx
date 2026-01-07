@@ -34,7 +34,7 @@ import { dispatchJobStatusEnum, type Employer, type DispatchJobType, type Option
 import { renderIcon } from "@/components/ui/icon-picker";
 
 interface ComponentConfig {
-  id: string;
+  componentId: string;
   enabled: boolean;
 }
 
@@ -67,7 +67,7 @@ export default function DispatchJobNewPage() {
   });
 
   const skillsComponentEnabled = componentConfigs.some(
-    (c) => c.id === "worker.skills" && c.enabled
+    (c) => c.componentId === "worker.skills" && c.enabled
   );
 
   const { data: skills = [] } = useQuery<OptionsSkill[]>({
