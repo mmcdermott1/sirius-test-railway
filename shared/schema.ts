@@ -633,6 +633,17 @@ export {
   type InsertBtuEmployerMap,
 } from "./schema/sitespecific/btu/schema";
 
+export {
+  optionsSkills,
+  insertOptionsSkillsSchema,
+  type OptionsSkill,
+  type InsertOptionsSkill,
+  workerSkills,
+  insertWorkerSkillsSchema,
+  type WorkerSkill,
+  type InsertWorkerSkill,
+} from "./schema/worker/skills/schema";
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

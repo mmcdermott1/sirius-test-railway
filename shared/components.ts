@@ -142,6 +142,13 @@ export const componentRegistry: ComponentDefinition[] = [
     }
   },
   {
+    id: "sitespecific.hta",
+    name: "HTA Customization",
+    description: "Custom functionality for Hospitality Training Academy",
+    enabledByDefault: false,
+    category: "site-specific"
+  },
+  {
     id: "employer.login",
     name: "Employer Login",
     description: "Ability for employers to log in",
@@ -189,6 +196,19 @@ export const componentRegistry: ComponentDefinition[] = [
         description: "Access to shop steward functionality for workers"
       }
     ]
+  },
+  {
+    id: "worker.skills",
+    name: "Worker Skills",
+    description: "Management of worker skills and qualifications",
+    enabledByDefault: false,
+    category: "core",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/worker/skills/schema.ts",
+      tables: ["options_skills", "worker_skills"]
+    }
   },
   {
     id: "trust.providers.login",

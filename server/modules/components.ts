@@ -22,7 +22,6 @@ type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Respo
 
 /**
  * Get the configuration state for all components
- * Uses isComponentEnabled which includes hierarchical parent checking
  */
 async function getComponentConfigs(): Promise<ComponentConfig[]> {
   if (!isCacheInitialized()) {
@@ -46,7 +45,6 @@ async function getComponentConfigs(): Promise<ComponentConfig[]> {
 
 /**
  * Get all enabled component IDs
- * Returns only components that are fully enabled (including parent checks)
  * Uses in-memory cache for performance
  */
 export async function getEnabledComponentIds(): Promise<string[]> {
@@ -58,7 +56,6 @@ export async function getEnabledComponentIds(): Promise<string[]> {
 
 /**
  * Check if a component is enabled
- * Also checks that all parent components are enabled (hierarchical check)
  * Uses in-memory cache for performance
  */
 export async function isComponentEnabled(componentId: string): Promise<boolean> {
@@ -179,9 +176,8 @@ export function registerComponentRoutes(
       res.json({
         componentId,
         enabled: effectiveEnabled,
-        requestedState: enabled,
         managesSchema: component.managesSchema || false,
-        message: `Component ${enabled ? 'enabled' : 'disabled'} successfully${effectiveEnabled !== enabled ? ' (but disabled due to parent component)' : ''}`
+        message: `Component ${enabled ? 'enabled' : 'disabled'} successfully`
       });
     } catch (error) {
       console.error("Failed to update component configuration:", error);
