@@ -45,7 +45,6 @@ const formSchema = z.object({
   jobTypeId: z.string().min(1, "Job type is required"),
   status: z.enum(dispatchJobStatusEnum),
   startDate: z.string().min(1, "Start date is required"),
-  workerCount: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -85,16 +84,17 @@ export default function DispatchJobNewPage() {
       jobTypeId: "",
       status: "draft",
       startDate: format(new Date(), "yyyy-MM-dd"),
-      workerCount: "",
     },
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const workerCountNum = data.workerCount ? parseInt(data.workerCount, 10) : null;
       return apiRequest("POST", "/api/dispatch-jobs", {
-        ...data,
+        title: data.title,
+        description: data.description,
+        employerId: data.employerId,
         jobTypeId: data.jobTypeId || null,
+        status: data.status,
         startDate: new Date(data.startDate).toISOString(),
         data: selectedSkills.length > 0 ? { requiredSkills: selectedSkills } : undefined,
       });
