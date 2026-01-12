@@ -20,6 +20,7 @@ import {
 } from "../shared/schema";
 import { workerDispatchDnc } from "../shared/schema/dispatch/dnc-schema";
 import { workerDispatchHfe } from "../shared/schema/dispatch/hfe-schema";
+import { optionsSkills, workerSkills } from "../shared/schema/worker/skills/schema";
 import { sql } from "drizzle-orm";
 import * as fs from "fs";
 import * as path from "path";
@@ -35,6 +36,7 @@ interface DemoSnapshot {
     optionsWorkerWs: any[];
     optionsDispatchJobType: any[];
     optionsEmployerContactType: any[];
+    optionsSkills: any[];
     contacts: any[];
     phoneNumbers: any[];
     contactPostal: any[];
@@ -43,6 +45,7 @@ interface DemoSnapshot {
     workers: any[];
     workerBans: any[];
     workerHours: any[];
+    workerSkills: any[];
     workerDispatchStatus: any[];
     workerDispatchDnc: any[];
     workerDispatchHfe: any[];
@@ -121,6 +124,7 @@ async function resetDemo(): Promise<void> {
         worker_dispatch_status,
         worker_dispatch_dnc,
         worker_dispatch_hfe,
+        worker_skills,
         worker_hours,
         worker_bans,
         workers,
@@ -129,6 +133,7 @@ async function resetDemo(): Promise<void> {
         contact_postal,
         contact_phone,
         contacts,
+        options_skills,
         options_dispatch_job_type,
         options_worker_ws,
         options_employment_status,
@@ -169,6 +174,11 @@ async function resetDemo(): Promise<void> {
     if (snapshot.tables.optionsEmployerContactType?.length > 0) {
       await db.insert(optionsEmployerContactType).values(snapshot.tables.optionsEmployerContactType);
       console.log(`  - Inserted ${snapshot.tables.optionsEmployerContactType.length} options_employer_contact_type records`);
+    }
+
+    if (snapshot.tables.optionsSkills?.length > 0) {
+      await db.insert(optionsSkills).values(snapshot.tables.optionsSkills);
+      console.log(`  - Inserted ${snapshot.tables.optionsSkills.length} options_skills records`);
     }
 
     if (snapshot.tables.contacts.length > 0) {
@@ -212,6 +222,11 @@ async function resetDemo(): Promise<void> {
     if (snapshot.tables.workerHours.length > 0) {
       await db.insert(workerHours).values(snapshot.tables.workerHours);
       console.log(`  - Inserted ${snapshot.tables.workerHours.length} worker_hours records`);
+    }
+
+    if (snapshot.tables.workerSkills?.length > 0) {
+      await db.insert(workerSkills).values(snapshot.tables.workerSkills);
+      console.log(`  - Inserted ${snapshot.tables.workerSkills.length} worker_skills records`);
     }
 
     if (snapshot.tables.workerDispatchStatus.length > 0) {
