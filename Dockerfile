@@ -27,11 +27,11 @@ COPY --from=builder /app/dist ./dist
 COPY shared ./shared
 
 ENV NODE_ENV=production
-ENV PORT=5000
 
-EXPOSE 5000
+# Flight Control provides PORT via environment variable (typically 3000)
+# The app reads process.env.PORT to bind to the correct port
+EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/api/health || exit 1
-
+# Health check uses the PORT env var - Flight Control handles this externally
+# so we can remove the internal healthcheck and let the load balancer do it
 CMD ["npm", "start"]
