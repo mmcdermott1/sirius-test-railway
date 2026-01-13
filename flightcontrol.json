@@ -19,11 +19,11 @@
           "memory": 1,
           "minInstances": 1,
           "maxInstances": 3,
-          "port": 8080,
+          "port": 5000,
           "healthCheckPath": "/api/health",
           "envVariables": {
             "NODE_ENV": "production",
-            "PORT": "8080"
+            "PORT": "5000"
           }
         }
       ]
@@ -46,11 +46,11 @@
           "memory": 0.5,
           "minInstances": 1,
           "maxInstances": 1,
-          "port": 8080,
+          "port": 5000,
           "healthCheckPath": "/api/health",
           "envVariables": {
             "NODE_ENV": "production",
-            "PORT": "8080"
+            "PORT": "5000"
           }
         }
       ]
