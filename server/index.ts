@@ -4,7 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { initializePermissions } from "@shared/permissions";
 import { addressValidationService } from "./services/address-validation";
 import { logger } from "./logger";
-import { setupAuth } from "./replitAuth";
+import { setupAuth } from "./auth";
 import { initAccessControl } from "./services/access-policy-evaluator";
 import { storage } from "./storage";
 import { captureRequestContext } from "./middleware/request-context";
@@ -13,7 +13,7 @@ import { loadComponentCache } from "./services/component-cache";
 import { syncComponentPermissions } from "./services/component-permissions";
 import { runMigrations } from "../scripts/migrate";
 import { initializeWebSocket } from "./services/websocket";
-import { getSession } from "./replitAuth";
+import { getSession } from "./auth";
 
 // Import charge plugins module to trigger registration
 // Note: Individual plugins are registered in ./charge-plugins/index.ts

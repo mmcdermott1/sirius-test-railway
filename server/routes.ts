@@ -72,7 +72,7 @@ import { requireAccess } from "./services/access-policy-evaluator";
 import { addressValidationService } from "./services/address-validation";
 import { phoneValidationService } from "./services/phone-validation";
 import { serviceRegistry } from "./services/service-registry";
-import { isAuthenticated } from "./replitAuth";
+import { isAuthenticated } from "./auth";
 
 // Authentication middleware
 const requireAuth = isAuthenticated;
@@ -104,6 +104,25 @@ const requirePermission = (permissionKey: string) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for load balancers and monitoring
+  app.get("/api/health", async (req, res) => {
+    try {
+      const healthCheck = {
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || "development",
+      };
+      res.status(200).json(healthCheck);
+    } catch (error) {
+      res.status(503).json({
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
   // Unauthorized route for failed logins
   app.get("/unauthorized", (req, res) => {
     res.status(401).send(`

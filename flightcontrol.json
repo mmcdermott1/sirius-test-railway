@@ -1,0 +1,59 @@
+{
+  "$schema": "https://app.flightcontrol.dev/schema.json",
+  "environments": [
+    {
+      "id": "production",
+      "name": "Production",
+      "region": "us-east-1",
+      "source": {
+        "branch": "main"
+      },
+      "services": [
+        {
+          "id": "sirius-app",
+          "name": "Sirius Application",
+          "type": "fargate",
+          "buildType": "docker",
+          "dockerfilePath": "Dockerfile",
+          "cpu": 0.5,
+          "memory": 1,
+          "minInstances": 1,
+          "maxInstances": 3,
+          "port": 8080,
+          "healthCheckPath": "/api/health",
+          "envVariables": {
+            "NODE_ENV": "production",
+            "PORT": "8080"
+          }
+        }
+      ]
+    },
+    {
+      "id": "staging",
+      "name": "Staging",
+      "region": "us-east-1",
+      "source": {
+        "branch": "develop"
+      },
+      "services": [
+        {
+          "id": "sirius-app-staging",
+          "name": "Sirius Application (Staging)",
+          "type": "fargate",
+          "buildType": "docker",
+          "dockerfilePath": "Dockerfile",
+          "cpu": 0.25,
+          "memory": 0.5,
+          "minInstances": 1,
+          "maxInstances": 1,
+          "port": 8080,
+          "healthCheckPath": "/api/health",
+          "envVariables": {
+            "NODE_ENV": "production",
+            "PORT": "8080"
+          }
+        }
+      ]
+    }
+  ]
+}
