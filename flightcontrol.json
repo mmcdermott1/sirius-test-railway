@@ -4,7 +4,7 @@
     {
       "id": "production",
       "name": "Production",
-      "region": "us-east-1",
+      "region": "us-east-2",
       "source": {
         "branch": "main"
       },
@@ -30,7 +30,7 @@
     {
       "id": "staging",
       "name": "Staging",
-      "region": "us-east-1",
+      "region": "us-east-2",
       "source": {
         "branch": "develop"
       },
