@@ -1,4 +1,6 @@
-import { db } from "../db";
+import { createNoopValidator } from './utils/validation';
+import { getClient } from './transaction-context';
+import type { db } from './db';
 import { workers, contacts, workerDispatchEligDenorm, type EligibilityPluginConfig, type JobTypeData } from "@shared/schema";
 import { sql, eq, and, exists, notExists, or, ilike } from "drizzle-orm";
 import { logger } from "../logger";
@@ -8,7 +10,12 @@ import {
   type EligibilityQueryContext 
 } from "../services/dispatch-elig-plugin-registry";
 import { createDispatchJobStorage } from "./dispatch-jobs";
-import { createOptionsStorage } from "./options";
+import { createUnifiedOptionsStorage } from "./unified-options";
+
+/**
+ * Stub validator - add validation logic here when needed
+ */
+export const validate = createNoopValidator();
 
 export interface EligibleWorker {
   id: string;
@@ -52,8 +59,9 @@ interface QueryBuildResult {
 }
 
 async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorkersFilters): Promise<QueryBuildResult | null> {
+  const client = getClient();
   const jobStorage = createDispatchJobStorage();
-  const optionsStorage = createOptionsStorage();
+  const unifiedOptionsStorage = createUnifiedOptionsStorage();
 
   const job = await jobStorage.getWithRelations(jobId);
   if (!job) {
@@ -73,7 +81,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
   let enabledPluginConfigs: EligibilityPluginConfig[] = [];
   
   if (job.jobTypeId) {
-    const jobType = await optionsStorage.dispatchJobTypes.get(job.jobTypeId);
+    const jobType = await unifiedOptionsStorage.get("dispatch-job-type", job.jobTypeId);
     if (jobType?.data) {
       const jobTypeData = jobType.data as JobTypeData;
       enabledPluginConfigs = (jobTypeData.eligibility || []).filter((p: EligibilityPluginConfig) => p.enabled);
@@ -110,7 +118,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
     })),
   });
 
-  const baseQuery = db
+  const baseQuery = client
     .select({
       id: workers.id,
       siriusId: workers.siriusId,
@@ -123,7 +131,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
   const whereConditions = appliedConditions.flatMap(({ condition }) => {
     switch (condition.type) {
       case "exists": {
-        const subquery = db
+        const subquery = client
           .select({ one: sql`1` })
           .from(workerDispatchEligDenorm)
           .where(and(
@@ -135,7 +143,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
       }
       
       case "not_exists": {
-        const subquery = db
+        const subquery = client
           .select({ one: sql`1` })
           .from(workerDispatchEligDenorm)
           .where(and(
@@ -147,7 +155,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
       }
       
       case "exists_or_none": {
-        const valueSubquery = db
+        const valueSubquery = client
           .select({ one: sql`1` })
           .from(workerDispatchEligDenorm)
           .where(and(
@@ -155,7 +163,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
             eq(workerDispatchEligDenorm.category, condition.category),
             eq(workerDispatchEligDenorm.value, condition.value)
           ));
-        const categorySubquery = db
+        const categorySubquery = client
           .select({ one: sql`1` })
           .from(workerDispatchEligDenorm)
           .where(and(
@@ -169,7 +177,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
       }
       
       case "not_exists_category": {
-        const categorySubquery = db
+        const categorySubquery = client
           .select({ one: sql`1` })
           .from(workerDispatchEligDenorm)
           .where(and(
@@ -185,7 +193,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
           return [];
         }
         return valuesToCheck.map(value => {
-          const subquery = db
+          const subquery = client
             .select({ one: sql`1` })
             .from(workerDispatchEligDenorm)
             .where(and(
@@ -226,6 +234,7 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
 export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersStorage {
   return {
     async getEligibleWorkersForJob(jobId: string, limit = 100, offset = 0, filters?: EligibleWorkersFilters): Promise<EligibleWorkersResult> {
+      const client = getClient();
       const result = await buildEligibleWorkersQuery(jobId, filters);
       if (!result) {
         return { workers: [], total: 0, appliedConditions: [] };
@@ -233,7 +242,7 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
 
       const { finalQuery, appliedConditions } = result;
 
-      const countResult = await db
+      const countResult = await client
         .select({ count: sql<number>`count(*)::int` })
         .from(
           finalQuery.as("eligible_workers")

@@ -38,6 +38,7 @@ const WorkerIDs = lazy(() => import("@/pages/worker-ids"));
 const WorkerBirthDate = lazy(() => import("@/pages/worker-birth-date"));
 const WorkerGender = lazy(() => import("@/pages/worker-gender"));
 const WorkerWorkStatus = lazy(() => import("@/pages/worker-work-status"));
+const WorkerMemberStatus = lazy(() => import("@/pages/worker-member-status"));
 const WorkerUserPage = lazy(() => import("@/pages/worker-user"));
 const WorkerBargainingUnit = lazy(() => import("@/pages/worker-bargaining-unit"));
 const WorkerSteward = lazy(() => import("@/pages/worker-steward"));
@@ -47,6 +48,9 @@ const WorkerDispatchDoNotCall = lazy(() => import("@/pages/workers/dispatch-do-n
 const WorkerDispatchHoldForEmployer = lazy(() => import("@/pages/workers/dispatch-hold-for-employer"));
 const WorkerBans = lazy(() => import("@/pages/workers/bans"));
 const WorkerSkills = lazy(() => import("@/pages/worker-skills"));
+const WorkerCertifications = lazy(() => import("@/pages/worker-certifications"));
+const WorkerCertificationView = lazy(() => import("@/pages/worker-certification-view"));
+const WorkerRatings = lazy(() => import("@/pages/worker-ratings"));
 const WorkerLedgerAccounts = lazy(() => import("@/pages/worker-ledger-accounts"));
 const Stewards = lazy(() => import("@/pages/stewards"));
 const WorkerBenefitsHistory = lazy(() => import("@/pages/worker-benefits-history"));
@@ -163,16 +167,8 @@ const FloodEventsPage = lazy(() => import("@/pages/flood-events"));
 const FloodEventsConfigPage = lazy(() => import("@/pages/flood-events-config"));
 const PostalAddressesConfigPage = lazy(() => import("@/pages/config/addresses"));
 const PhoneNumbersConfigPage = lazy(() => import("@/pages/config/phone-numbers"));
-const GenderOptionsPage = lazy(() => import("@/pages/config/gender-options"));
-const WorkerIDTypesPage = lazy(() => import("@/pages/config/worker-id-types"));
-const WorkerWorkStatusesPage = lazy(() => import("@/pages/config/worker-work-statuses"));
-const SkillOptionsPage = lazy(() => import("@/pages/config/skill-options"));
+const DynamicOptionsPage = lazy(() => import("@/pages/config/options"));
 const StewardSettingsPage = lazy(() => import("@/pages/config/steward-settings"));
-const EmploymentStatusesPage = lazy(() => import("@/pages/config/employment-statuses"));
-const TrustBenefitTypesPage = lazy(() => import("@/pages/config/trust-benefit-types"));
-const EmployerContactTypesPage = lazy(() => import("@/pages/config/employer-contact-types"));
-const EmployerTypesPage = lazy(() => import("@/pages/config/employer-types"));
-const ProviderContactTypesPage = lazy(() => import("@/pages/config/provider-contact-types"));
 const EventTypesPage = lazy(() => import("@/pages/config/event-types"));
 const DispatchJobTypesPage = lazy(() => import("@/pages/config/dispatch-job-types"));
 const DispatchJobTypeViewPage = lazy(() => import("@/pages/config/dispatch-job-type-view"));
@@ -180,6 +176,15 @@ const DispatchJobTypeEditPage = lazy(() => import("@/pages/config/dispatch-job-t
 const DispatchJobTypeDeletePage = lazy(() => import("@/pages/config/dispatch-job-type-delete"));
 const DispatchJobTypePluginsPage = lazy(() => import("@/pages/config/dispatch-job-type-plugins"));
 const DispatchDncConfigPage = lazy(() => import("@/pages/config/dispatch-dnc"));
+const EdlsSettingsPage = lazy(() => import("@/pages/config/edls/settings"));
+const EdlsTasksPage = lazy(() => import("@/pages/config/edls/tasks"));
+const WsBundlesPage = lazy(() => import("@/pages/config/ws/bundles"));
+const WsClientsPage = lazy(() => import("@/pages/config/ws/clients"));
+const WsClientSettingsPage = lazy(() => import("@/pages/config/ws/client-settings"));
+const WsClientCredentialsPage = lazy(() => import("@/pages/config/ws/client-credentials"));
+const WsClientIpRulesPage = lazy(() => import("@/pages/config/ws/client-ip-rules"));
+const WsClientTestPage = lazy(() => import("@/pages/config/ws/client-test"));
+const WsClientLogsPage = lazy(() => import("@/pages/config/ws/client-logs"));
 const WorkerBanConfigPage = lazy(() => import("@/pages/config/workers-ban"));
 const DispatchJobsPage = lazy(() => import("@/pages/dispatch/jobs"));
 const DispatchJobDetailsPage = lazy(() => import("@/pages/dispatch/job-details"));
@@ -236,6 +241,12 @@ const BtuCsgViewPage = lazy(() => import("@/pages/sitespecific/btu/csg-view"));
 const BtuCsgEditPage = lazy(() => import("@/pages/sitespecific/btu/csg-edit"));
 const BtuCsgNewPage = lazy(() => import("@/pages/sitespecific/btu/csg-new"));
 const BtuEmployerMapListPage = lazy(() => import("@/pages/sitespecific/btu/employer-map-list"));
+const EdlsSheetsPage = lazy(() => import("@/pages/edls/sheets"));
+const EdlsSheetDetailsPage = lazy(() => import("@/pages/edls/sheet-details"));
+const EdlsSheetAssignmentsPage = lazy(() => import("@/pages/edls/sheet-assignments"));
+const EdlsSheetManagePage = lazy(() => import("@/pages/edls/sheet-manage"));
+const EdlsSheetEditPage = lazy(() => import("@/pages/edls/sheet-edit"));
+const EdlsSheetLogsPage = lazy(() => import("@/pages/edls/sheet-logs"));
 
 // Loading fallback component
 function PageLoader() {
@@ -432,6 +443,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/workers/:id/member-status">
+        <ProtectedRoute tabId="member-status" entityType="worker">
+          <AuthenticatedLayout>
+            <WorkerMemberStatus />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/workers/:id/user">
         <ProtectedRoute tabId="user" entityType="worker">
           <AuthenticatedLayout>
@@ -452,6 +471,38 @@ function Router() {
         <ProtectedRoute tabId="skills" entityType="worker">
           <AuthenticatedLayout>
             <WorkerSkills />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/certifications">
+        <ProtectedRoute tabId="certifications" entityType="worker">
+          <AuthenticatedLayout>
+            <WorkerCertifications />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/worker-certification/:id">
+        <ProtectedRoute component="worker.certifications">
+          <AuthenticatedLayout>
+            <WorkerCertificationView />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/worker-certification/:id/edit">
+        <ProtectedRoute component="worker.certifications" permission="staff">
+          <AuthenticatedLayout>
+            <WorkerCertificationView defaultTab="edit" />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/ratings">
+        <ProtectedRoute tabId="ratings" entityType="worker">
+          <AuthenticatedLayout>
+            <WorkerRatings />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -1508,51 +1559,11 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/config/gender-options">
+      <Route path="/config/options/:type">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
-              <GenderOptionsPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/config/worker-id-types">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <WorkerIDTypesPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/config/worker-work-statuses">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <WorkerWorkStatusesPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/config/skill-options">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <SkillOptionsPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/config/employment-statuses">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <EmploymentStatusesPage />
+              <DynamicOptionsPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
@@ -1563,36 +1574,6 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <StewardSettingsPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/config/trust-benefit-types">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <TrustBenefitTypesPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/config/employer-contact-types">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <EmployerContactTypesPage />
-            </ConfigurationLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/config/employer-types">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <EmployerTypesPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
@@ -1660,6 +1641,86 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/config/edls/settings">
+        <ProtectedRoute permission="admin" component="edls">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <EdlsSettingsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/edls/tasks">
+        <ProtectedRoute permission="admin" component="edls">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <EdlsTasksPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/bundles">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <WsBundlesPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/clients/:id/logs">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WsClientLogsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/clients/:id/test">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WsClientTestPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/clients/:id/ip-rules">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WsClientIpRulesPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/clients/:id/credentials">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WsClientCredentialsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/clients/:id">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WsClientSettingsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/clients">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <WsClientsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/config/workers/ban">
         <ProtectedRoute permission="admin" component="worker.ban">
           <AuthenticatedLayout>
@@ -1718,12 +1779,50 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/config/provider-contact-types">
-        <ProtectedRoute permission="admin">
+      <Route path="/edls/sheets">
+        <ProtectedRoute policy="edls.any" component="edls">
           <AuthenticatedLayout>
-            <ConfigurationLayout>
-              <ProviderContactTypesPage />
-            </ConfigurationLayout>
+            <EdlsSheetsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/edls/sheet/:id">
+        <ProtectedRoute tabId="details" entityType="edls_sheet">
+          <AuthenticatedLayout>
+            <EdlsSheetDetailsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/edls/sheet/:id/assignments">
+        <ProtectedRoute tabId="assignments" entityType="edls_sheet">
+          <AuthenticatedLayout>
+            <EdlsSheetAssignmentsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/edls/sheet/:id/manage">
+        <ProtectedRoute tabId="manage" entityType="edls_sheet">
+          <AuthenticatedLayout>
+            <EdlsSheetManagePage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/edls/sheet/:id/edit">
+        <ProtectedRoute tabId="edit" entityType="edls_sheet">
+          <AuthenticatedLayout>
+            <EdlsSheetEditPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/edls/sheet/:id/logs">
+        <ProtectedRoute tabId="logs" entityType="edls_sheet">
+          <AuthenticatedLayout>
+            <EdlsSheetLogsPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

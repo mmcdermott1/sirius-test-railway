@@ -66,7 +66,7 @@ function DispatchJobEditContent() {
   });
 
   const { data: jobTypes = [] } = useQuery<DispatchJobType[]>({
-    queryKey: ["/api/dispatch-job-types"],
+    queryKey: ["/api/options/dispatch-job-type"],
   });
 
   const { data: componentConfigs = [] } = useQuery<ComponentConfig[]>({
@@ -78,7 +78,7 @@ function DispatchJobEditContent() {
   );
 
   const { data: skills = [] } = useQuery<OptionsSkill[]>({
-    queryKey: ["/api/options/skills"],
+    queryKey: ["/api/options/skill"],
     enabled: skillsComponentEnabled,
   });
 

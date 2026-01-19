@@ -4,16 +4,16 @@ import { setupVite, serveStatic, log } from "./vite";
 import { initializePermissions } from "@shared/permissions";
 import { addressValidationService } from "./services/address-validation";
 import { logger } from "./logger";
-import { setupAuth } from "./replitAuth";
-import { initAccessControl } from "./services/access-policy-evaluator";
+import { setupAuth } from "./auth";
+import { initAccessControl, registerEntityLoader } from "./services/access-policy-evaluator";
 import { storage } from "./storage";
 import { captureRequestContext } from "./middleware/request-context";
-import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler, deleteExpiredFloodEventsHandler, deleteExpiredHfeHandler, sweepExpiredBanEligHandler, syncBanActiveStatusHandler } from "./cron";
+import { registerCronJob, bootstrapCronJobs, cronScheduler, deleteExpiredReportsHandler, deleteOldCronLogsHandler, processWmbBatchHandler, deleteExpiredFloodEventsHandler, deleteExpiredHfeHandler, sweepExpiredBanEligHandler, workerBanActiveScanHandler, workerCertificationActiveScanHandler, logCleanupHandler } from "./cron";
 import { loadComponentCache } from "./services/component-cache";
 import { syncComponentPermissions } from "./services/component-permissions";
 import { runMigrations } from "../scripts/migrate";
 import { initializeWebSocket } from "./services/websocket";
-import { getSession } from "./replitAuth";
+import { getSession } from "./auth";
 
 // Import charge plugins module to trigger registration
 // Note: Individual plugins are registered in ./charge-plugins/index.ts
@@ -138,9 +138,6 @@ app.use((req, res, next) => {
       hasPermission: async (userId: string, permissionKey: string) => {
         return storage.users.userHasPermission(userId, permissionKey);
       },
-      getUserByReplitId: async (replitUserId: string) => {
-        return storage.users.getUserByReplitId(replitUserId);
-      },
       getUser: async (userId: string) => {
         return storage.users.getUser(userId);
       },
@@ -151,6 +148,12 @@ app.use((req, res, next) => {
     isComponentEnabled
   );
   logger.info("Access control system initialized", { source: "startup" });
+  
+  // Register entity loaders for policies that use cacheKeyFields
+  registerEntityLoader('edls_sheet', async (id: string, injectedStorage: any) => {
+    const sheet = await injectedStorage.edlsSheets?.get?.(id);
+    return sheet || null;
+  });
   
   // Initialize address validation service (loads or creates config)
   await addressValidationService.getConfig();
@@ -202,7 +205,9 @@ app.use((req, res, next) => {
   registerCronJob('delete-expired-flood-events', deleteExpiredFloodEventsHandler);
   registerCronJob('delete-expired-hfe', deleteExpiredHfeHandler);
   registerCronJob('sweep-expired-ban-elig', sweepExpiredBanEligHandler);
-  registerCronJob('sync-ban-active-status', syncBanActiveStatusHandler);
+  registerCronJob('worker-ban-active-scan', workerBanActiveScanHandler);
+  registerCronJob('worker-certification-active-scan', workerCertificationActiveScanHandler);
+  registerCronJob('log-cleanup', logCleanupHandler);
   logger.info("Cron job handlers registered", { source: "startup" });
 
   // Register flood events
@@ -220,9 +225,9 @@ app.use((req, res, next) => {
   await bootstrapCronJobs();
   logger.info("Default cron jobs bootstrapped", { source: "startup" });
 
-  // Setup Replit Auth
+  // Setup multi-provider auth
   await setupAuth(app);
-  logger.info("Replit Auth initialized", { source: "startup" });
+  logger.info("Authentication system initialized", { source: "startup" });
 
   // Setup request context middleware (captures user and IP for logging)
   app.use(captureRequestContext);
