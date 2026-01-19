@@ -11,6 +11,7 @@ import type {
 } from "./types";
 import type { AuthProviderType } from "@shared/schema";
 import { logger } from "../logger";
+import { loadProvider } from "./provider-loader";
 
 const getStorage = () => require("../storage").storage;
 
@@ -118,8 +119,7 @@ export async function setupAuth(app: Express): Promise<void> {
     }
 
     try {
-      const providerModule = await import(`./providers/${providerConfig.type}`);
-      const provider: AuthProvider = providerModule.createProvider(providerConfig);
+      const provider: AuthProvider = await loadProvider(providerConfig);
 
       await provider.setup(app);
       providerRegistry.register(provider);
