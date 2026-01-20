@@ -1,0 +1,661 @@
+@timestamp,@message
+2026-01-20 19:24:58.979,Hello from Docker!
+2026-01-20 19:24:58.979,This message shows that your installation appears to be working correctly.
+2026-01-20 19:24:58.979,"To generate this message, Docker took the following steps:"
+2026-01-20 19:24:58.979, 1. The Docker client contacted the Docker daemon.
+2026-01-20 19:24:58.979," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 19:24:58.979,    (amd64)
+2026-01-20 19:24:58.979, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 19:24:58.979,    executable that produces the output you are currently reading.
+2026-01-20 19:24:58.979," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 19:24:58.979,    to your terminal.
+2026-01-20 19:24:58.979,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 19:24:58.979, $ docker run -it ubuntu bash
+2026-01-20 19:24:58.979,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 19:24:58.979, https://hub.docker.com/
+2026-01-20 19:24:58.979,"For more examples and ideas, visit:"
+2026-01-20 19:24:58.979, https://docs.docker.com/get-started/
+2026-01-20 19:23:16.907,Hello from Docker!
+2026-01-20 19:23:16.907,This message shows that your installation appears to be working correctly.
+2026-01-20 19:23:16.907,"To generate this message, Docker took the following steps:"
+2026-01-20 19:23:16.907, 1. The Docker client contacted the Docker daemon.
+2026-01-20 19:23:16.907," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 19:23:16.907,    (amd64)
+2026-01-20 19:23:16.907, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 19:23:16.907,    executable that produces the output you are currently reading.
+2026-01-20 19:23:16.907," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 19:23:16.907,    to your terminal.
+2026-01-20 19:23:16.907,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 19:23:16.907, $ docker run -it ubuntu bash
+2026-01-20 19:23:16.907,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 19:23:16.907, https://hub.docker.com/
+2026-01-20 19:23:16.907,"For more examples and ideas, visit:"
+2026-01-20 19:23:16.907, https://docs.docker.com/get-started/
+2026-01-20 19:21:06.204,Hello from Docker!
+2026-01-20 19:21:06.204,This message shows that your installation appears to be working correctly.
+2026-01-20 19:21:06.204,"To generate this message, Docker took the following steps:"
+2026-01-20 19:21:06.204, 1. The Docker client contacted the Docker daemon.
+2026-01-20 19:21:06.204," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 19:21:06.204,    (amd64)
+2026-01-20 19:21:06.204, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 19:21:06.204,    executable that produces the output you are currently reading.
+2026-01-20 19:21:06.204," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 19:21:06.204,    to your terminal.
+2026-01-20 19:21:06.204,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 19:21:06.204, $ docker run -it ubuntu bash
+2026-01-20 19:21:06.204,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 19:21:06.204, https://hub.docker.com/
+2026-01-20 19:21:06.204,"For more examples and ideas, visit:"
+2026-01-20 19:21:06.204, https://docs.docker.com/get-started/
+2026-01-20 19:19:01.993,Hello from Docker!
+2026-01-20 19:19:01.993,This message shows that your installation appears to be working correctly.
+2026-01-20 19:19:01.993,"To generate this message, Docker took the following steps:"
+2026-01-20 19:19:01.993, 1. The Docker client contacted the Docker daemon.
+2026-01-20 19:19:01.993," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 19:19:01.993,    (amd64)
+2026-01-20 19:19:01.993, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 19:19:01.993,    executable that produces the output you are currently reading.
+2026-01-20 19:19:01.993," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 19:19:01.993,    to your terminal.
+2026-01-20 19:19:01.993,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 19:19:01.993, $ docker run -it ubuntu bash
+2026-01-20 19:19:01.993,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 19:19:01.993, https://hub.docker.com/
+2026-01-20 19:19:01.993,"For more examples and ideas, visit:"
+2026-01-20 19:19:01.993, https://docs.docker.com/get-started/
+2026-01-20 19:17:14.829,Hello from Docker!
+2026-01-20 19:17:14.829,This message shows that your installation appears to be working correctly.
+2026-01-20 19:17:14.829,"To generate this message, Docker took the following steps:"
+2026-01-20 19:17:14.829, 1. The Docker client contacted the Docker daemon.
+2026-01-20 19:17:14.829," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 19:17:14.829,    (amd64)
+2026-01-20 19:17:14.829, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 19:17:14.829,    executable that produces the output you are currently reading.
+2026-01-20 19:17:14.829," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 19:17:14.829,    to your terminal.
+2026-01-20 19:17:14.829,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 19:17:14.829, $ docker run -it ubuntu bash
+2026-01-20 19:17:14.829,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 19:17:14.829, https://hub.docker.com/
+2026-01-20 19:17:14.829,"For more examples and ideas, visit:"
+2026-01-20 19:17:14.829, https://docs.docker.com/get-started/
+2026-01-20 19:16:51.692,npm notice
+2026-01-20 19:16:51.692,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 19:16:51.692,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 19:16:51.692,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 19:16:51.692,npm notice
+2026-01-20 19:16:51.622,ErrorEvent {
+2026-01-20 19:16:51.622,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:16:51.622,    _events: [Object: null prototype] {
+2026-01-20 19:16:51.622,      error: [Function: onError] {
+2026-01-20 19:16:51.622,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:16:51.622,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:16:51.622,"      },"
+2026-01-20 19:16:51.622,      message: [Function: onMessage] {
+2026-01-20 19:16:51.622,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:16:51.622,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:16:51.622,"      },"
+2026-01-20 19:16:51.622,      close: [Function: onClose] {
+2026-01-20 19:16:51.622,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:16:51.622,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:16:51.622,"      },"
+2026-01-20 19:16:51.622,      open: [Function: onOpen] {
+2026-01-20 19:16:51.622,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:16:51.622,        [Symbol(kListener)]: [Function: handleWebSocketOpen]
+2026-01-20 19:16:51.622,      }
+2026-01-20 19:16:51.622,"    },"
+2026-01-20 19:16:51.622,"    _eventsCount: 4,"
+2026-01-20 19:16:51.622,"    _maxListeners: undefined,"
+2026-01-20 19:16:51.622,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:16:51.622,"    _closeCode: 1006,"
+2026-01-20 19:16:51.622,"    _closeFrameReceived: false,"
+2026-01-20 19:16:51.622,"    _closeFrameSent: false,"
+2026-01-20 19:16:51.622,"    _closeMessage: Buffer(0) [Uint8Array] [],"
+2026-01-20 19:16:51.622,"    _closeTimer: null,"
+2026-01-20 19:16:51.622,"    _errorEmitted: true,"
+2026-01-20 19:16:51.622,"    _extensions: {},"
+2026-01-20 19:16:51.622,"    _paused: false,"
+2026-01-20 19:16:51.622,"    _protocol: '',"
+2026-01-20 19:16:51.622,"    _readyState: 3,"
+2026-01-20 19:16:51.622,"    _receiver: null,"
+2026-01-20 19:16:51.622,"    _sender: null,"
+2026-01-20 19:16:51.622,"    _socket: null,"
+2026-01-20 19:16:51.622,"    _bufferedAmount: 0,"
+2026-01-20 19:16:51.622,"    _isServer: false,"
+2026-01-20 19:16:51.622,"    _redirects: 0,"
+2026-01-20 19:16:51.622,"    _autoPong: true,"
+2026-01-20 19:16:51.622,"    _url: 'wss://helium/v2',"
+2026-01-20 19:16:51.622,"    _req: null,"
+2026-01-20 19:16:51.622,    [Symbol(kCapture)]: false
+2026-01-20 19:16:51.622,"  },"
+2026-01-20 19:16:51.622,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:16:51.622,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:16:51.622,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:16:51.622,"    errno: -3008,"
+2026-01-20 19:16:51.622,"    code: 'ENOTFOUND',"
+2026-01-20 19:16:51.622,"    syscall: 'getaddrinfo',"
+2026-01-20 19:16:51.622,    hostname: 'helium'
+2026-01-20 19:16:51.622,"  },"
+2026-01-20 19:16:51.622,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:16:51.622,}
+2026-01-20 19:16:51.622,Node.js v18.20.5
+2026-01-20 19:16:51.619,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 19:16:51.619,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 19:16:51.619,                                                                         ^
+2026-01-20 19:16:51.615,Failed to load address validation config: ErrorEvent {
+2026-01-20 19:16:51.615,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:16:51.615,    _events: [Object: null prototype] {
+2026-01-20 19:16:51.615,"      error: [Function],"
+2026-01-20 19:16:51.615,"      message: [Function],"
+2026-01-20 19:16:51.615,"      close: [Function],"
+2026-01-20 19:16:51.615,      open: [Function]
+2026-01-20 19:16:51.615,"    },"
+2026-01-20 19:16:51.615,"    _eventsCount: 4,"
+2026-01-20 19:16:51.615,"    _maxListeners: undefined,"
+2026-01-20 19:16:51.615,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:16:51.615,"    _closeCode: 1006,"
+2026-01-20 19:16:51.615,"    _closeFrameReceived: false,"
+2026-01-20 19:16:51.615,"    _closeFrameSent: false,"
+2026-01-20 19:16:51.615,"    _closeMessage: <Buffer >,"
+2026-01-20 19:16:51.615,"    _closeTimer: null,"
+2026-01-20 19:16:51.615,"    _errorEmitted: true,"
+2026-01-20 19:16:51.615,"    _extensions: {},"
+2026-01-20 19:16:51.615,"    _paused: false,"
+2026-01-20 19:16:51.615,"    _protocol: '',"
+2026-01-20 19:16:51.615,"    _readyState: 3,"
+2026-01-20 19:16:51.615,"    _receiver: null,"
+2026-01-20 19:16:51.615,"    _sender: null,"
+2026-01-20 19:16:51.615,"    _socket: null,"
+2026-01-20 19:16:51.615,"    _bufferedAmount: 0,"
+2026-01-20 19:16:51.615,"    _isServer: false,"
+2026-01-20 19:16:51.615,"    _redirects: 0,"
+2026-01-20 19:16:51.615,"    _autoPong: true,"
+2026-01-20 19:16:51.615,"    _url: 'wss://helium/v2',"
+2026-01-20 19:16:51.615,"    _req: null,"
+2026-01-20 19:16:51.615,    [Symbol(kCapture)]: false
+2026-01-20 19:16:51.615,"  },"
+2026-01-20 19:16:51.615,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:16:51.615,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:16:51.615,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:16:51.615,"    errno: -3008,"
+2026-01-20 19:16:51.615,"    code: 'ENOTFOUND',"
+2026-01-20 19:16:51.615,"    syscall: 'getaddrinfo',"
+2026-01-20 19:16:51.615,    hostname: 'helium'
+2026-01-20 19:16:51.615,"  },"
+2026-01-20 19:16:51.615,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:16:51.615,}
+2026-01-20 19:16:51.615,"07:16:51 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 19:16:51.532,"07:16:51 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 19:16:51.532,"07:16:51 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 19:16:51.529,"07:16:51 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:16:51.528,"07:16:51 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:16:51.522,"07:16:51 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 19:16:51.516,"07:16:51 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 19:16:51.515,"07:16:51 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 19:16:48.025,> rest-express@1.0.0 start
+2026-01-20 19:16:48.025,> NODE_ENV=production node dist/index.js
+2026-01-20 19:16:47.310,npm warn config production Use `--omit=dev` instead.
+2026-01-20 19:15:33.132,npm notice
+2026-01-20 19:15:33.132,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 19:15:33.132,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 19:15:33.132,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 19:15:33.132,npm notice
+2026-01-20 19:15:33.086,ErrorEvent {
+2026-01-20 19:15:33.086,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:15:33.086,    _events: [Object: null prototype] {
+2026-01-20 19:15:33.086,      error: [Function: onError] {
+2026-01-20 19:15:33.086,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:15:33.086,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:15:33.086,"      },"
+2026-01-20 19:15:33.086,      message: [Function: onMessage] {
+2026-01-20 19:15:33.086,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:15:33.086,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:15:33.086,"      },"
+2026-01-20 19:15:33.086,      close: [Function: onClose] {
+2026-01-20 19:15:33.086,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:15:33.086,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:15:33.086,"      },"
+2026-01-20 19:15:33.086,      open: [Function: onOpen] {
+2026-01-20 19:15:33.086,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:15:33.086,        [Symbol(kListener)]: [Function: handleWebSocketOpen]
+2026-01-20 19:15:33.086,      }
+2026-01-20 19:15:33.086,"    },"
+2026-01-20 19:15:33.086,"    _eventsCount: 4,"
+2026-01-20 19:15:33.086,"    _maxListeners: undefined,"
+2026-01-20 19:15:33.086,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:15:33.086,"    _closeCode: 1006,"
+2026-01-20 19:15:33.086,"    _closeFrameReceived: false,"
+2026-01-20 19:15:33.086,"    _closeFrameSent: false,"
+2026-01-20 19:15:33.086,"    _closeMessage: Buffer(0) [Uint8Array] [],"
+2026-01-20 19:15:33.086,"    _closeTimer: null,"
+2026-01-20 19:15:33.086,"    _errorEmitted: true,"
+2026-01-20 19:15:33.086,"    _extensions: {},"
+2026-01-20 19:15:33.086,"    _paused: false,"
+2026-01-20 19:15:33.086,"    _protocol: '',"
+2026-01-20 19:15:33.086,"    _readyState: 3,"
+2026-01-20 19:15:33.086,"    _receiver: null,"
+2026-01-20 19:15:33.086,"    _sender: null,"
+2026-01-20 19:15:33.086,"    _socket: null,"
+2026-01-20 19:15:33.086,"    _bufferedAmount: 0,"
+2026-01-20 19:15:33.086,"    _isServer: false,"
+2026-01-20 19:15:33.086,"    _redirects: 0,"
+2026-01-20 19:15:33.086,"    _autoPong: true,"
+2026-01-20 19:15:33.086,"    _url: 'wss://helium/v2',"
+2026-01-20 19:15:33.086,"    _req: null,"
+2026-01-20 19:15:33.086,    [Symbol(kCapture)]: false
+2026-01-20 19:15:33.086,"  },"
+2026-01-20 19:15:33.086,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:15:33.086,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:15:33.086,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:15:33.086,"    errno: -3008,"
+2026-01-20 19:15:33.086,"    code: 'ENOTFOUND',"
+2026-01-20 19:15:33.086,"    syscall: 'getaddrinfo',"
+2026-01-20 19:15:33.086,    hostname: 'helium'
+2026-01-20 19:15:33.086,"  },"
+2026-01-20 19:15:33.086,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:15:33.086,}
+2026-01-20 19:15:33.086,Node.js v18.20.5
+2026-01-20 19:15:33.082,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 19:15:33.082,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 19:15:33.082,                                                                         ^
+2026-01-20 19:15:33.078,Failed to load address validation config: ErrorEvent {
+2026-01-20 19:15:33.078,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:15:33.078,    _events: [Object: null prototype] {
+2026-01-20 19:15:33.078,"      error: [Function],"
+2026-01-20 19:15:33.078,"      message: [Function],"
+2026-01-20 19:15:33.078,"      close: [Function],"
+2026-01-20 19:15:33.078,      open: [Function]
+2026-01-20 19:15:33.078,"    },"
+2026-01-20 19:15:33.078,"    _eventsCount: 4,"
+2026-01-20 19:15:33.078,"    _maxListeners: undefined,"
+2026-01-20 19:15:33.078,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:15:33.078,"    _closeCode: 1006,"
+2026-01-20 19:15:33.078,"    _closeFrameReceived: false,"
+2026-01-20 19:15:33.078,"    _closeFrameSent: false,"
+2026-01-20 19:15:33.078,"    _closeMessage: <Buffer >,"
+2026-01-20 19:15:33.078,"    _closeTimer: null,"
+2026-01-20 19:15:33.078,"    _errorEmitted: true,"
+2026-01-20 19:15:33.078,"    _extensions: {},"
+2026-01-20 19:15:33.078,"    _paused: false,"
+2026-01-20 19:15:33.078,"    _protocol: '',"
+2026-01-20 19:15:33.078,"    _readyState: 3,"
+2026-01-20 19:15:33.078,"    _receiver: null,"
+2026-01-20 19:15:33.078,"    _sender: null,"
+2026-01-20 19:15:33.078,"    _socket: null,"
+2026-01-20 19:15:33.078,"    _bufferedAmount: 0,"
+2026-01-20 19:15:33.078,"    _isServer: false,"
+2026-01-20 19:15:33.078,"    _redirects: 0,"
+2026-01-20 19:15:33.078,"    _autoPong: true,"
+2026-01-20 19:15:33.078,"    _url: 'wss://helium/v2',"
+2026-01-20 19:15:33.078,"    _req: null,"
+2026-01-20 19:15:33.078,    [Symbol(kCapture)]: false
+2026-01-20 19:15:33.078,"  },"
+2026-01-20 19:15:33.078,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:15:33.078,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:15:33.078,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:15:33.078,"    errno: -3008,"
+2026-01-20 19:15:33.078,"    code: 'ENOTFOUND',"
+2026-01-20 19:15:33.078,"    syscall: 'getaddrinfo',"
+2026-01-20 19:15:33.078,    hostname: 'helium'
+2026-01-20 19:15:33.078,"  },"
+2026-01-20 19:15:33.078,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:15:33.078,}
+2026-01-20 19:15:33.078,"07:15:33 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 19:15:32.967,"07:15:32 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 19:15:32.967,"07:15:32 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 19:15:32.964,"07:15:32 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:15:32.964,"07:15:32 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:15:32.954,"07:15:32 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 19:15:32.954,"07:15:32 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 19:15:32.953,"07:15:32 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 19:15:29.664,> rest-express@1.0.0 start
+2026-01-20 19:15:29.664,> NODE_ENV=production node dist/index.js
+2026-01-20 19:15:28.878,npm warn config production Use `--omit=dev` instead.
+2026-01-20 19:14:22.295,npm notice
+2026-01-20 19:14:22.295,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 19:14:22.295,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 19:14:22.295,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 19:14:22.295,npm notice
+2026-01-20 19:14:22.278,ErrorEvent {
+2026-01-20 19:14:22.278,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:14:22.278,    _events: [Object: null prototype] {
+2026-01-20 19:14:22.278,      error: [Function: onError] {
+2026-01-20 19:14:22.278,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:14:22.278,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:14:22.278,"      },"
+2026-01-20 19:14:22.278,      message: [Function: onMessage] {
+2026-01-20 19:14:22.278,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:14:22.278,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:14:22.278,"      },"
+2026-01-20 19:14:22.278,      close: [Function: onClose] {
+2026-01-20 19:14:22.278,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:14:22.278,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:14:22.278,"      },"
+2026-01-20 19:14:22.278,      open: [Function: onOpen] {
+2026-01-20 19:14:22.278,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:14:22.278,        [Symbol(kListener)]: [Function: handleWebSocketOpen]
+2026-01-20 19:14:22.278,      }
+2026-01-20 19:14:22.278,"    },"
+2026-01-20 19:14:22.278,"    _eventsCount: 4,"
+2026-01-20 19:14:22.278,"    _maxListeners: undefined,"
+2026-01-20 19:14:22.278,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:14:22.278,"    _closeCode: 1006,"
+2026-01-20 19:14:22.278,"    _closeFrameReceived: false,"
+2026-01-20 19:14:22.278,"    _closeFrameSent: false,"
+2026-01-20 19:14:22.278,"    _closeMessage: Buffer(0) [Uint8Array] [],"
+2026-01-20 19:14:22.278,"    _closeTimer: null,"
+2026-01-20 19:14:22.278,"    _errorEmitted: true,"
+2026-01-20 19:14:22.278,"    _extensions: {},"
+2026-01-20 19:14:22.278,"    _paused: false,"
+2026-01-20 19:14:22.278,"    _protocol: '',"
+2026-01-20 19:14:22.278,"    _readyState: 3,"
+2026-01-20 19:14:22.278,"    _receiver: null,"
+2026-01-20 19:14:22.278,"    _sender: null,"
+2026-01-20 19:14:22.278,"    _socket: null,"
+2026-01-20 19:14:22.278,"    _bufferedAmount: 0,"
+2026-01-20 19:14:22.278,"    _isServer: false,"
+2026-01-20 19:14:22.278,"    _redirects: 0,"
+2026-01-20 19:14:22.278,"    _autoPong: true,"
+2026-01-20 19:14:22.278,"    _url: 'wss://helium/v2',"
+2026-01-20 19:14:22.278,"    _req: null,"
+2026-01-20 19:14:22.278,    [Symbol(kCapture)]: false
+2026-01-20 19:14:22.278,"  },"
+2026-01-20 19:14:22.278,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:14:22.278,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:14:22.278,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:14:22.278,"    errno: -3008,"
+2026-01-20 19:14:22.278,"    code: 'ENOTFOUND',"
+2026-01-20 19:14:22.278,"    syscall: 'getaddrinfo',"
+2026-01-20 19:14:22.278,    hostname: 'helium'
+2026-01-20 19:14:22.278,"  },"
+2026-01-20 19:14:22.278,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:14:22.278,}
+2026-01-20 19:14:22.278,Node.js v18.20.5
+2026-01-20 19:14:22.274,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 19:14:22.274,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 19:14:22.274,                                                                         ^
+2026-01-20 19:14:22.233,"07:14:22 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 19:14:22.232,Failed to load address validation config: ErrorEvent {
+2026-01-20 19:14:22.232,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:14:22.232,    _events: [Object: null prototype] {
+2026-01-20 19:14:22.232,"      error: [Function],"
+2026-01-20 19:14:22.232,"      message: [Function],"
+2026-01-20 19:14:22.232,"      close: [Function],"
+2026-01-20 19:14:22.232,      open: [Function]
+2026-01-20 19:14:22.232,"    },"
+2026-01-20 19:14:22.232,"    _eventsCount: 4,"
+2026-01-20 19:14:22.232,"    _maxListeners: undefined,"
+2026-01-20 19:14:22.232,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:14:22.232,"    _closeCode: 1006,"
+2026-01-20 19:14:22.232,"    _closeFrameReceived: false,"
+2026-01-20 19:14:22.232,"    _closeFrameSent: false,"
+2026-01-20 19:14:22.232,"    _closeMessage: <Buffer >,"
+2026-01-20 19:14:22.232,"    _closeTimer: null,"
+2026-01-20 19:14:22.232,"    _errorEmitted: true,"
+2026-01-20 19:14:22.232,"    _extensions: {},"
+2026-01-20 19:14:22.232,"    _paused: false,"
+2026-01-20 19:14:22.232,"    _protocol: '',"
+2026-01-20 19:14:22.232,"    _readyState: 3,"
+2026-01-20 19:14:22.232,"    _receiver: null,"
+2026-01-20 19:14:22.232,"    _sender: null,"
+2026-01-20 19:14:22.232,"    _socket: null,"
+2026-01-20 19:14:22.232,"    _bufferedAmount: 0,"
+2026-01-20 19:14:22.232,"    _isServer: false,"
+2026-01-20 19:14:22.232,"    _redirects: 0,"
+2026-01-20 19:14:22.232,"    _autoPong: true,"
+2026-01-20 19:14:22.232,"    _url: 'wss://helium/v2',"
+2026-01-20 19:14:22.232,"    _req: null,"
+2026-01-20 19:14:22.232,    [Symbol(kCapture)]: false
+2026-01-20 19:14:22.232,"  },"
+2026-01-20 19:14:22.232,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:14:22.232,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:14:22.232,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:14:22.232,"    errno: -3008,"
+2026-01-20 19:14:22.232,"    code: 'ENOTFOUND',"
+2026-01-20 19:14:22.232,"    syscall: 'getaddrinfo',"
+2026-01-20 19:14:22.232,    hostname: 'helium'
+2026-01-20 19:14:22.232,"  },"
+2026-01-20 19:14:22.232,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:14:22.232,}
+2026-01-20 19:14:22.179,"07:14:22 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 19:14:22.179,"07:14:22 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 19:14:22.175,"07:14:22 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:14:22.175,"07:14:22 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:14:22.104,"07:14:22 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 19:14:22.104,"07:14:22 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 19:14:22.103,"07:14:22 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 19:14:18.578,> rest-express@1.0.0 start
+2026-01-20 19:14:18.578,> NODE_ENV=production node dist/index.js
+2026-01-20 19:14:17.707,npm warn config production Use `--omit=dev` instead.
+2026-01-20 19:13:06.569,npm notice
+2026-01-20 19:13:06.569,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 19:13:06.569,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 19:13:06.569,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 19:13:06.569,npm notice
+2026-01-20 19:13:06.551,ErrorEvent {
+2026-01-20 19:13:06.551,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:13:06.551,    _events: [Object: null prototype] {
+2026-01-20 19:13:06.551,      error: [Function: onError] {
+2026-01-20 19:13:06.551,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:13:06.551,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:13:06.551,"      },"
+2026-01-20 19:13:06.551,      message: [Function: onMessage] {
+2026-01-20 19:13:06.551,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:13:06.551,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:13:06.551,"      },"
+2026-01-20 19:13:06.551,      close: [Function: onClose] {
+2026-01-20 19:13:06.551,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:13:06.551,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:13:06.551,"      },"
+2026-01-20 19:13:06.551,      open: [Function: onOpen] {
+2026-01-20 19:13:06.551,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:13:06.551,        [Symbol(kListener)]: [Function: handleWebSocketOpen]
+2026-01-20 19:13:06.551,      }
+2026-01-20 19:13:06.551,"    },"
+2026-01-20 19:13:06.551,"    _eventsCount: 4,"
+2026-01-20 19:13:06.551,"    _maxListeners: undefined,"
+2026-01-20 19:13:06.551,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:13:06.551,"    _closeCode: 1006,"
+2026-01-20 19:13:06.551,"    _closeFrameReceived: false,"
+2026-01-20 19:13:06.551,"    _closeFrameSent: false,"
+2026-01-20 19:13:06.551,"    _closeMessage: Buffer(0) [Uint8Array] [],"
+2026-01-20 19:13:06.551,"    _closeTimer: null,"
+2026-01-20 19:13:06.551,"    _errorEmitted: true,"
+2026-01-20 19:13:06.551,"    _extensions: {},"
+2026-01-20 19:13:06.551,"    _paused: false,"
+2026-01-20 19:13:06.551,"    _protocol: '',"
+2026-01-20 19:13:06.551,"    _readyState: 3,"
+2026-01-20 19:13:06.551,"    _receiver: null,"
+2026-01-20 19:13:06.551,"    _sender: null,"
+2026-01-20 19:13:06.551,"    _socket: null,"
+2026-01-20 19:13:06.551,"    _bufferedAmount: 0,"
+2026-01-20 19:13:06.551,"    _isServer: false,"
+2026-01-20 19:13:06.551,"    _redirects: 0,"
+2026-01-20 19:13:06.551,"    _autoPong: true,"
+2026-01-20 19:13:06.551,"    _url: 'wss://helium/v2',"
+2026-01-20 19:13:06.551,"    _req: null,"
+2026-01-20 19:13:06.551,    [Symbol(kCapture)]: false
+2026-01-20 19:13:06.551,"  },"
+2026-01-20 19:13:06.551,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:13:06.551,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:13:06.551,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:13:06.551,"    errno: -3008,"
+2026-01-20 19:13:06.551,"    code: 'ENOTFOUND',"
+2026-01-20 19:13:06.551,"    syscall: 'getaddrinfo',"
+2026-01-20 19:13:06.551,    hostname: 'helium'
+2026-01-20 19:13:06.551,"  },"
+2026-01-20 19:13:06.551,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:13:06.551,}
+2026-01-20 19:13:06.551,Node.js v18.20.5
+2026-01-20 19:13:06.548,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 19:13:06.548,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 19:13:06.548,                                                                         ^
+2026-01-20 19:13:06.542,"07:13:06 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 19:13:06.541,Failed to load address validation config: ErrorEvent {
+2026-01-20 19:13:06.541,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:13:06.541,    _events: [Object: null prototype] {
+2026-01-20 19:13:06.541,"      error: [Function],"
+2026-01-20 19:13:06.541,"      message: [Function],"
+2026-01-20 19:13:06.541,"      close: [Function],"
+2026-01-20 19:13:06.541,      open: [Function]
+2026-01-20 19:13:06.541,"    },"
+2026-01-20 19:13:06.541,"    _eventsCount: 4,"
+2026-01-20 19:13:06.541,"    _maxListeners: undefined,"
+2026-01-20 19:13:06.541,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:13:06.541,"    _closeCode: 1006,"
+2026-01-20 19:13:06.541,"    _closeFrameReceived: false,"
+2026-01-20 19:13:06.541,"    _closeFrameSent: false,"
+2026-01-20 19:13:06.541,"    _closeMessage: <Buffer >,"
+2026-01-20 19:13:06.541,"    _closeTimer: null,"
+2026-01-20 19:13:06.541,"    _errorEmitted: true,"
+2026-01-20 19:13:06.541,"    _extensions: {},"
+2026-01-20 19:13:06.541,"    _paused: false,"
+2026-01-20 19:13:06.541,"    _protocol: '',"
+2026-01-20 19:13:06.541,"    _readyState: 3,"
+2026-01-20 19:13:06.541,"    _receiver: null,"
+2026-01-20 19:13:06.541,"    _sender: null,"
+2026-01-20 19:13:06.541,"    _socket: null,"
+2026-01-20 19:13:06.541,"    _bufferedAmount: 0,"
+2026-01-20 19:13:06.541,"    _isServer: false,"
+2026-01-20 19:13:06.541,"    _redirects: 0,"
+2026-01-20 19:13:06.541,"    _autoPong: true,"
+2026-01-20 19:13:06.541,"    _url: 'wss://helium/v2',"
+2026-01-20 19:13:06.541,"    _req: null,"
+2026-01-20 19:13:06.541,    [Symbol(kCapture)]: false
+2026-01-20 19:13:06.541,"  },"
+2026-01-20 19:13:06.541,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:13:06.541,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:13:06.541,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:13:06.541,"    errno: -3008,"
+2026-01-20 19:13:06.541,"    code: 'ENOTFOUND',"
+2026-01-20 19:13:06.541,"    syscall: 'getaddrinfo',"
+2026-01-20 19:13:06.541,    hostname: 'helium'
+2026-01-20 19:13:06.541,"  },"
+2026-01-20 19:13:06.541,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:13:06.541,}
+2026-01-20 19:13:06.448,"07:13:06 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 19:13:06.448,"07:13:06 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 19:13:06.446,"07:13:06 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:13:06.446,"07:13:06 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:13:06.372,"07:13:06 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 19:13:06.371,"07:13:06 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 19:13:06.369,"07:13:06 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 19:13:02.579,> rest-express@1.0.0 start
+2026-01-20 19:13:02.579,> NODE_ENV=production node dist/index.js
+2026-01-20 19:13:00.885,npm warn config production Use `--omit=dev` instead.
+2026-01-20 19:11:22.877,npm notice
+2026-01-20 19:11:22.877,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 19:11:22.877,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 19:11:22.877,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 19:11:22.877,npm notice
+2026-01-20 19:11:22.860,ErrorEvent {
+2026-01-20 19:11:22.860,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:11:22.860,    _events: [Object: null prototype] {
+2026-01-20 19:11:22.860,      error: [Function: onError] {
+2026-01-20 19:11:22.860,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:11:22.860,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:11:22.860,"      },"
+2026-01-20 19:11:22.860,      message: [Function: onMessage] {
+2026-01-20 19:11:22.860,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:11:22.860,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:11:22.860,"      },"
+2026-01-20 19:11:22.860,      close: [Function: onClose] {
+2026-01-20 19:11:22.860,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:11:22.860,        [Symbol(kListener)]: [Function (anonymous)]
+2026-01-20 19:11:22.860,"      },"
+2026-01-20 19:11:22.860,      open: [Function: onOpen] {
+2026-01-20 19:11:22.860,"        [Symbol(kIsForOnEventAttribute)]: false,"
+2026-01-20 19:11:22.860,        [Symbol(kListener)]: [Function: handleWebSocketOpen]
+2026-01-20 19:11:22.860,      }
+2026-01-20 19:11:22.860,"    },"
+2026-01-20 19:11:22.860,"    _eventsCount: 4,"
+2026-01-20 19:11:22.860,"    _maxListeners: undefined,"
+2026-01-20 19:11:22.860,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:11:22.860,"    _closeCode: 1006,"
+2026-01-20 19:11:22.860,"    _closeFrameReceived: false,"
+2026-01-20 19:11:22.860,"    _closeFrameSent: false,"
+2026-01-20 19:11:22.860,"    _closeMessage: Buffer(0) [Uint8Array] [],"
+2026-01-20 19:11:22.860,"    _closeTimer: null,"
+2026-01-20 19:11:22.860,"    _errorEmitted: true,"
+2026-01-20 19:11:22.860,"    _extensions: {},"
+2026-01-20 19:11:22.860,"    _paused: false,"
+2026-01-20 19:11:22.860,"    _protocol: '',"
+2026-01-20 19:11:22.860,"    _readyState: 3,"
+2026-01-20 19:11:22.860,"    _receiver: null,"
+2026-01-20 19:11:22.860,"    _sender: null,"
+2026-01-20 19:11:22.860,"    _socket: null,"
+2026-01-20 19:11:22.860,"    _bufferedAmount: 0,"
+2026-01-20 19:11:22.860,"    _isServer: false,"
+2026-01-20 19:11:22.860,"    _redirects: 0,"
+2026-01-20 19:11:22.860,"    _autoPong: true,"
+2026-01-20 19:11:22.860,"    _url: 'wss://helium/v2',"
+2026-01-20 19:11:22.860,"    _req: null,"
+2026-01-20 19:11:22.860,    [Symbol(kCapture)]: false
+2026-01-20 19:11:22.860,"  },"
+2026-01-20 19:11:22.860,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:11:22.860,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:11:22.860,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:11:22.860,"    errno: -3008,"
+2026-01-20 19:11:22.860,"    code: 'ENOTFOUND',"
+2026-01-20 19:11:22.860,"    syscall: 'getaddrinfo',"
+2026-01-20 19:11:22.860,    hostname: 'helium'
+2026-01-20 19:11:22.860,"  },"
+2026-01-20 19:11:22.860,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:11:22.860,}
+2026-01-20 19:11:22.860,Node.js v18.20.5
+2026-01-20 19:11:22.857,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 19:11:22.857,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 19:11:22.857,                                                                         ^
+2026-01-20 19:11:22.849,Failed to load address validation config: ErrorEvent {
+2026-01-20 19:11:22.849,  [Symbol(kTarget)]: WebSocket {
+2026-01-20 19:11:22.849,    _events: [Object: null prototype] {
+2026-01-20 19:11:22.849,"      error: [Function],"
+2026-01-20 19:11:22.849,"      message: [Function],"
+2026-01-20 19:11:22.849,"      close: [Function],"
+2026-01-20 19:11:22.849,      open: [Function]
+2026-01-20 19:11:22.849,"    },"
+2026-01-20 19:11:22.849,"    _eventsCount: 4,"
+2026-01-20 19:11:22.849,"    _maxListeners: undefined,"
+2026-01-20 19:11:22.849,"    _binaryType: 'arraybuffer',"
+2026-01-20 19:11:22.849,"    _closeCode: 1006,"
+2026-01-20 19:11:22.849,"    _closeFrameReceived: false,"
+2026-01-20 19:11:22.849,"    _closeFrameSent: false,"
+2026-01-20 19:11:22.849,"    _closeMessage: <Buffer >,"
+2026-01-20 19:11:22.849,"    _closeTimer: null,"
+2026-01-20 19:11:22.849,"    _errorEmitted: true,"
+2026-01-20 19:11:22.849,"    _extensions: {},"
+2026-01-20 19:11:22.849,"    _paused: false,"
+2026-01-20 19:11:22.849,"    _protocol: '',"
+2026-01-20 19:11:22.849,"    _readyState: 3,"
+2026-01-20 19:11:22.849,"    _receiver: null,"
+2026-01-20 19:11:22.849,"    _sender: null,"
+2026-01-20 19:11:22.849,"    _socket: null,"
+2026-01-20 19:11:22.849,"    _bufferedAmount: 0,"
+2026-01-20 19:11:22.849,"    _isServer: false,"
+2026-01-20 19:11:22.849,"    _redirects: 0,"
+2026-01-20 19:11:22.849,"    _autoPong: true,"
+2026-01-20 19:11:22.849,"    _url: 'wss://helium/v2',"
+2026-01-20 19:11:22.849,"    _req: null,"
+2026-01-20 19:11:22.849,    [Symbol(kCapture)]: false
+2026-01-20 19:11:22.849,"  },"
+2026-01-20 19:11:22.849,"  [Symbol(kType)]: 'error',"
+2026-01-20 19:11:22.849,  [Symbol(kError)]: Error: getaddrinfo ENOTFOUND helium
+2026-01-20 19:11:22.849,      at GetAddrInfoReqWrap.onlookup [as oncomplete] (node:dns:107:26) {
+2026-01-20 19:11:22.849,"    errno: -3008,"
+2026-01-20 19:11:22.849,"    code: 'ENOTFOUND',"
+2026-01-20 19:11:22.849,"    syscall: 'getaddrinfo',"
+2026-01-20 19:11:22.849,    hostname: 'helium'
+2026-01-20 19:11:22.849,"  },"
+2026-01-20 19:11:22.849,  [Symbol(kMessage)]: 'getaddrinfo ENOTFOUND helium'
+2026-01-20 19:11:22.849,}
+2026-01-20 19:11:22.849,"07:11:22 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 19:11:22.763,"07:11:22 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 19:11:22.762,"07:11:22 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 19:11:22.759,"07:11:22 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:11:22.759,"07:11:22 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 19:11:22.752,"07:11:22 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 19:11:22.752,"07:11:22 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 19:11:22.750,"07:11:22 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 19:11:18.986,> rest-express@1.0.0 start
+2026-01-20 19:11:18.986,> NODE_ENV=production node dist/index.js
+2026-01-20 19:11:18.175,npm warn config production Use `--omit=dev` instead.
