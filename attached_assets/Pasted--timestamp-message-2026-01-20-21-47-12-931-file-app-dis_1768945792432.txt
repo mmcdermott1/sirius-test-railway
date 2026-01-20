@@ -1,0 +1,427 @@
+@timestamp,@message
+2026-01-20 21:47:12.931,file:///app/dist/index.js:29457
+2026-01-20 21:47:12.931,"      throw new Error(""SESSION_SECRET environment variable is required in production"");"
+2026-01-20 21:47:12.931,            ^
+2026-01-20 21:47:12.931,Error: SESSION_SECRET environment variable is required in production
+2026-01-20 21:47:12.931,    at getSession (file:///app/dist/index.js:29457:13)
+2026-01-20 21:47:12.931,    at setupReplitAuth (file:///app/dist/index.js:29589:12)
+2026-01-20 21:47:12.931,    at setupAuth (file:///app/dist/index.js:29829:9)
+2026-01-20 21:47:12.931,    at file:///app/dist/index.js:41751:9
+2026-01-20 21:47:12.931,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:47:12.931,Node.js v20.18.1
+2026-01-20 21:47:12.926,"09:47:12 PM [app] INFO: Cron job bootstrap completed {""service"":""cron-bootstrap"",""created"":0,""skipped"":7,""errors"":0,""total"":7}"
+2026-01-20 21:47:12.926,"09:47:12 PM [startup] INFO: Default cron jobs bootstrapped {""service"":""sirius""}"
+2026-01-20 21:47:12.896,"09:47:12 PM [startup] INFO: Flood configs loaded from variables {""service"":""sirius""}"
+2026-01-20 21:47:12.896,"09:47:12 PM [log-notifier] INFO: Log notifier initialized {""service"":""sirius""}"
+2026-01-20 21:47:12.896,"09:47:12 PM [app] INFO: Bootstrapping default cron jobs {""service"":""cron-bootstrap""}"
+2026-01-20 21:47:12.891,"09:47:12 PM [app] INFO: Registered flood event: bookmark {""service"":""flood-registry"",""threshold"":1000,""windowSeconds"":360}"
+2026-01-20 21:47:12.891,"09:47:12 PM [startup] INFO: Flood events registered {""service"":""sirius""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [startup] INFO: Worker ban notifications initialized {""service"":""sirius""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [app] INFO: Registered cron job: delete-expired-reports {""service"":""cron-registry""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [app] INFO: Registered cron job: delete-old-cron-logs {""service"":""cron-registry""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [app] INFO: Registered cron job: process-wmb-batch {""service"":""cron-registry""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [app] INFO: Registered cron job: delete-expired-flood-events {""service"":""cron-registry""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [app] INFO: Registered cron job: delete-expired-hfe {""service"":""cron-registry""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [app] INFO: Registered cron job: sweep-expired-ban-elig {""service"":""cron-registry""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [app] INFO: Registered cron job: sync-ban-active-status {""service"":""cron-registry""}"
+2026-01-20 21:47:12.890,"09:47:12 PM [startup] INFO: Cron job handlers registered {""service"":""sirius""}"
+2026-01-20 21:47:12.889,"09:47:12 PM [app] INFO: Dispatch eligibility plugins registered {""service"":""dispatch-elig-plugins"",""plugins"":[""dispatch_ban"",""dispatch_dnc"",""dispatch_hfe"",""dispatch_skill"",""dispatch_status""]}"
+2026-01-20 21:47:12.889,"09:47:12 PM [startup] INFO: Dispatch eligibility system initialized {""service"":""sirius""}"
+2026-01-20 21:47:12.889,"09:47:12 PM [app] INFO: Worker ban notifications initialized {""service"":""worker-ban-notifications""}"
+2026-01-20 21:47:12.888,"09:47:12 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_hfe {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:47:12.888,"09:47:12 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_skill {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:47:12.888,"09:47:12 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_status {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:47:12.887,"09:47:12 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_ban {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:47:12.887,"09:47:12 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_dnc {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:47:12.886,"09:47:12 PM [startup] INFO: Component cache initialized {""service"":""sirius""}"
+2026-01-20 21:47:12.886,"09:47:12 PM [startup] INFO: Component permissions synced {""service"":""sirius""}"
+2026-01-20 21:47:12.876,"09:47:12 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:47:12.772,"09:47:12 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:47:12.772,"09:47:12 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:47:12.769,"09:47:12 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:47:12.769,"09:47:12 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:47:12.762,"09:47:12 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:47:12.693,"09:47:12 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:47:12.692,"09:47:12 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:47:09.706,> rest-express@1.0.0 start
+2026-01-20 21:47:09.706,> NODE_ENV=production node dist/index.js
+2026-01-20 21:47:09.615,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:47:09.370,npm notice
+2026-01-20 21:47:09.370,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:47:09.370,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:47:09.370,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:47:09.370,npm notice
+2026-01-20 21:47:09.353,[✓] Changes applied
+2026-01-20 21:47:08.951,[2K[1G[✓] Pulling schema from database...
+2026-01-20 21:47:08.919,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:47:08.791,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:47:08.663,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:47:08.535,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:47:08.407,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:47:08.279,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:47:08.151,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:47:08.023,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:47:07.895,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:47:07.767,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:47:07.639,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:47:07.511,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:47:07.383,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:47:07.255,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:47:07.127,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:47:06.999,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:47:06.871,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:47:06.743,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:47:06.615,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:47:06.487,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:47:06.359,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:47:06.230,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:47:06.102,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:47:05.972,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:47:05.801,[⣷] Pulling schema from database...
+2026-01-20 21:47:05.303,Using 'pg' driver for database querying
+2026-01-20 21:47:04.370,Reading config file '/app/drizzle.config.ts'
+2026-01-20 21:47:04.369,"No config path provided, using default 'drizzle.config.ts'"
+2026-01-20 21:47:03.599,> rest-express@1.0.0 db:push
+2026-01-20 21:47:03.599,> drizzle-kit push
+2026-01-20 21:47:02.908,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:45:58.195,file:///app/dist/index.js:29457
+2026-01-20 21:45:58.195,"      throw new Error(""SESSION_SECRET environment variable is required in production"");"
+2026-01-20 21:45:58.195,            ^
+2026-01-20 21:45:58.195,Error: SESSION_SECRET environment variable is required in production
+2026-01-20 21:45:58.195,    at getSession (file:///app/dist/index.js:29457:13)
+2026-01-20 21:45:58.195,    at setupReplitAuth (file:///app/dist/index.js:29589:12)
+2026-01-20 21:45:58.195,    at setupAuth (file:///app/dist/index.js:29829:9)
+2026-01-20 21:45:58.195,    at file:///app/dist/index.js:41751:9
+2026-01-20 21:45:58.195,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:45:58.195,Node.js v20.18.1
+2026-01-20 21:45:58.189,"09:45:58 PM [app] INFO: Cron job bootstrap completed {""service"":""cron-bootstrap"",""created"":0,""skipped"":7,""errors"":0,""total"":7}"
+2026-01-20 21:45:58.189,"09:45:58 PM [startup] INFO: Default cron jobs bootstrapped {""service"":""sirius""}"
+2026-01-20 21:45:58.154,"09:45:58 PM [app] INFO: Bootstrapping default cron jobs {""service"":""cron-bootstrap""}"
+2026-01-20 21:45:58.153,"09:45:58 PM [startup] INFO: Flood configs loaded from variables {""service"":""sirius""}"
+2026-01-20 21:45:58.153,"09:45:58 PM [log-notifier] INFO: Log notifier initialized {""service"":""sirius""}"
+2026-01-20 21:45:58.148,"09:45:58 PM [startup] INFO: Flood events registered {""service"":""sirius""}"
+2026-01-20 21:45:58.147,"09:45:58 PM [app] INFO: Registered cron job: sweep-expired-ban-elig {""service"":""cron-registry""}"
+2026-01-20 21:45:58.147,"09:45:58 PM [app] INFO: Registered cron job: sync-ban-active-status {""service"":""cron-registry""}"
+2026-01-20 21:45:58.147,"09:45:58 PM [startup] INFO: Cron job handlers registered {""service"":""sirius""}"
+2026-01-20 21:45:58.147,"09:45:58 PM [app] INFO: Registered flood event: bookmark {""service"":""flood-registry"",""threshold"":1000,""windowSeconds"":360}"
+2026-01-20 21:45:58.146,"09:45:58 PM [startup] INFO: Dispatch eligibility system initialized {""service"":""sirius""}"
+2026-01-20 21:45:58.146,"09:45:58 PM [app] INFO: Worker ban notifications initialized {""service"":""worker-ban-notifications""}"
+2026-01-20 21:45:58.146,"09:45:58 PM [startup] INFO: Worker ban notifications initialized {""service"":""sirius""}"
+2026-01-20 21:45:58.146,"09:45:58 PM [app] INFO: Registered cron job: delete-expired-reports {""service"":""cron-registry""}"
+2026-01-20 21:45:58.146,"09:45:58 PM [app] INFO: Registered cron job: delete-old-cron-logs {""service"":""cron-registry""}"
+2026-01-20 21:45:58.146,"09:45:58 PM [app] INFO: Registered cron job: process-wmb-batch {""service"":""cron-registry""}"
+2026-01-20 21:45:58.146,"09:45:58 PM [app] INFO: Registered cron job: delete-expired-flood-events {""service"":""cron-registry""}"
+2026-01-20 21:45:58.146,"09:45:58 PM [app] INFO: Registered cron job: delete-expired-hfe {""service"":""cron-registry""}"
+2026-01-20 21:45:58.145,"09:45:58 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_skill {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:45:58.145,"09:45:58 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_status {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:45:58.145,"09:45:58 PM [app] INFO: Dispatch eligibility plugins registered {""service"":""dispatch-elig-plugins"",""plugins"":[""dispatch_ban"",""dispatch_dnc"",""dispatch_hfe"",""dispatch_skill"",""dispatch_status""]}"
+2026-01-20 21:45:58.144,"09:45:58 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_dnc {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:45:58.144,"09:45:58 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_hfe {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:45:58.143,"09:45:58 PM [startup] INFO: Component permissions synced {""service"":""sirius""}"
+2026-01-20 21:45:58.143,"09:45:58 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_ban {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:45:58.142,"09:45:58 PM [startup] INFO: Component cache initialized {""service"":""sirius""}"
+2026-01-20 21:45:58.096,"09:45:58 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:45:57.959,"09:45:57 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:45:57.958,"09:45:57 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:45:57.955,"09:45:57 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:45:57.955,"09:45:57 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:45:57.948,"09:45:57 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:45:57.948,"09:45:57 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:45:57.947,"09:45:57 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:45:54.893,> rest-express@1.0.0 start
+2026-01-20 21:45:54.893,> NODE_ENV=production node dist/index.js
+2026-01-20 21:45:54.847,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:45:54.554,npm notice
+2026-01-20 21:45:54.554,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:45:54.554,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:45:54.554,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:45:54.554,npm notice
+2026-01-20 21:45:54.533,[✓] Changes applied
+2026-01-20 21:45:54.052,[2K[1G[✓] Pulling schema from database...
+2026-01-20 21:45:54.039,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:45:53.911,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:45:53.784,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:45:53.656,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:45:53.528,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:45:53.400,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:45:53.271,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:45:53.143,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:45:53.015,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:45:52.887,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:45:52.759,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:45:52.631,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:45:52.503,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:45:52.373,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:45:52.245,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:45:52.118,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:45:51.989,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:45:51.861,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:45:51.733,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:45:51.605,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:45:51.477,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:45:51.349,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:45:51.221,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:45:51.093,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:45:50.965,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:45:50.836,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:45:50.661,[⣷] Pulling schema from database...
+2026-01-20 21:45:50.168,Using 'pg' driver for database querying
+2026-01-20 21:45:49.260,Reading config file '/app/drizzle.config.ts'
+2026-01-20 21:45:49.259,"No config path provided, using default 'drizzle.config.ts'"
+2026-01-20 21:45:48.539,> rest-express@1.0.0 db:push
+2026-01-20 21:45:48.539,> drizzle-kit push
+2026-01-20 21:45:47.777,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:44:46.235,file:///app/dist/index.js:29457
+2026-01-20 21:44:46.235,"      throw new Error(""SESSION_SECRET environment variable is required in production"");"
+2026-01-20 21:44:46.235,            ^
+2026-01-20 21:44:46.235,Error: SESSION_SECRET environment variable is required in production
+2026-01-20 21:44:46.235,    at getSession (file:///app/dist/index.js:29457:13)
+2026-01-20 21:44:46.235,    at setupReplitAuth (file:///app/dist/index.js:29589:12)
+2026-01-20 21:44:46.235,    at setupAuth (file:///app/dist/index.js:29829:9)
+2026-01-20 21:44:46.235,    at file:///app/dist/index.js:41751:9
+2026-01-20 21:44:46.235,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:44:46.235,Node.js v20.18.1
+2026-01-20 21:44:46.230,"09:44:46 PM [startup] INFO: Default cron jobs bootstrapped {""service"":""sirius""}"
+2026-01-20 21:44:46.229,"09:44:46 PM [app] INFO: Cron job bootstrap completed {""service"":""cron-bootstrap"",""created"":0,""skipped"":7,""errors"":0,""total"":7}"
+2026-01-20 21:44:46.175,"09:44:46 PM [log-notifier] INFO: Log notifier initialized {""service"":""sirius""}"
+2026-01-20 21:44:46.175,"09:44:46 PM [app] INFO: Bootstrapping default cron jobs {""service"":""cron-bootstrap""}"
+2026-01-20 21:44:46.174,"09:44:46 PM [startup] INFO: Flood configs loaded from variables {""service"":""sirius""}"
+2026-01-20 21:44:46.170,"09:44:46 PM [startup] INFO: Flood events registered {""service"":""sirius""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [app] INFO: Registered cron job: delete-old-cron-logs {""service"":""cron-registry""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [app] INFO: Registered cron job: process-wmb-batch {""service"":""cron-registry""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [app] INFO: Registered cron job: delete-expired-flood-events {""service"":""cron-registry""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [app] INFO: Registered cron job: delete-expired-hfe {""service"":""cron-registry""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [app] INFO: Registered cron job: sweep-expired-ban-elig {""service"":""cron-registry""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [app] INFO: Registered cron job: sync-ban-active-status {""service"":""cron-registry""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [startup] INFO: Cron job handlers registered {""service"":""sirius""}"
+2026-01-20 21:44:46.169,"09:44:46 PM [app] INFO: Registered flood event: bookmark {""service"":""flood-registry"",""threshold"":1000,""windowSeconds"":360}"
+2026-01-20 21:44:46.168,"09:44:46 PM [startup] INFO: Dispatch eligibility system initialized {""service"":""sirius""}"
+2026-01-20 21:44:46.168,"09:44:46 PM [app] INFO: Worker ban notifications initialized {""service"":""worker-ban-notifications""}"
+2026-01-20 21:44:46.168,"09:44:46 PM [startup] INFO: Worker ban notifications initialized {""service"":""sirius""}"
+2026-01-20 21:44:46.168,"09:44:46 PM [app] INFO: Registered cron job: delete-expired-reports {""service"":""cron-registry""}"
+2026-01-20 21:44:46.167,"09:44:46 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_hfe {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:44:46.167,"09:44:46 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_skill {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:44:46.167,"09:44:46 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_status {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:44:46.167,"09:44:46 PM [app] INFO: Dispatch eligibility plugins registered {""service"":""dispatch-elig-plugins"",""plugins"":[""dispatch_ban"",""dispatch_dnc"",""dispatch_hfe"",""dispatch_skill"",""dispatch_status""]}"
+2026-01-20 21:44:46.166,"09:44:46 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_ban {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:44:46.166,"09:44:46 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_dnc {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:44:46.165,"09:44:46 PM [startup] INFO: Component cache initialized {""service"":""sirius""}"
+2026-01-20 21:44:46.165,"09:44:46 PM [startup] INFO: Component permissions synced {""service"":""sirius""}"
+2026-01-20 21:44:46.156,"09:44:46 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:44:46.050,"09:44:46 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:44:46.050,"09:44:46 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:44:46.047,"09:44:46 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:44:46.047,"09:44:46 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:44:46.041,"09:44:46 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:44:46.041,"09:44:46 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:44:46.040,"09:44:46 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:44:43.024,> rest-express@1.0.0 start
+2026-01-20 21:44:43.024,> NODE_ENV=production node dist/index.js
+2026-01-20 21:44:42.935,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:44:42.657,npm notice
+2026-01-20 21:44:42.657,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:44:42.657,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:44:42.657,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:44:42.657,npm notice
+2026-01-20 21:44:42.637,[✓] Changes applied
+2026-01-20 21:44:42.288,[2K[1G[✓] Pulling schema from database...
+2026-01-20 21:44:42.262,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:44:42.134,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:44:42.006,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:44:41.878,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:44:41.750,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:44:41.621,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:44:41.493,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:44:41.366,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:44:41.237,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:44:41.109,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:44:40.982,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:44:40.854,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:44:40.725,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:44:40.597,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:44:40.468,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:44:40.340,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:44:40.212,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:44:40.084,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:44:39.955,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:44:39.827,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:44:39.699,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:44:39.571,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:44:39.443,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:44:39.315,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:44:39.187,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:44:39.059,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:44:38.931,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:44:38.753,[⣷] Pulling schema from database...
+2026-01-20 21:44:38.257,Using 'pg' driver for database querying
+2026-01-20 21:44:37.260,"No config path provided, using default 'drizzle.config.ts'"
+2026-01-20 21:44:37.260,Reading config file '/app/drizzle.config.ts'
+2026-01-20 21:44:36.644,> rest-express@1.0.0 db:push
+2026-01-20 21:44:36.644,> drizzle-kit push
+2026-01-20 21:44:35.973,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:43:22.522,file:///app/dist/index.js:29457
+2026-01-20 21:43:22.522,"      throw new Error(""SESSION_SECRET environment variable is required in production"");"
+2026-01-20 21:43:22.522,            ^
+2026-01-20 21:43:22.522,Error: SESSION_SECRET environment variable is required in production
+2026-01-20 21:43:22.522,    at getSession (file:///app/dist/index.js:29457:13)
+2026-01-20 21:43:22.522,    at setupReplitAuth (file:///app/dist/index.js:29589:12)
+2026-01-20 21:43:22.522,    at setupAuth (file:///app/dist/index.js:29829:9)
+2026-01-20 21:43:22.522,    at file:///app/dist/index.js:41751:9
+2026-01-20 21:43:22.522,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:43:22.522,Node.js v20.18.1
+2026-01-20 21:43:22.516,"09:43:22 PM [app] INFO: Cron job bootstrap completed {""service"":""cron-bootstrap"",""created"":0,""skipped"":7,""errors"":0,""total"":7}"
+2026-01-20 21:43:22.516,"09:43:22 PM [startup] INFO: Default cron jobs bootstrapped {""service"":""sirius""}"
+2026-01-20 21:43:22.484,"09:43:22 PM [log-notifier] INFO: Log notifier initialized {""service"":""sirius""}"
+2026-01-20 21:43:22.484,"09:43:22 PM [app] INFO: Bootstrapping default cron jobs {""service"":""cron-bootstrap""}"
+2026-01-20 21:43:22.483,"09:43:22 PM [startup] INFO: Flood configs loaded from variables {""service"":""sirius""}"
+2026-01-20 21:43:22.478,"09:43:22 PM [startup] INFO: Flood events registered {""service"":""sirius""}"
+2026-01-20 21:43:22.477,"09:43:22 PM [app] INFO: Registered flood event: bookmark {""service"":""flood-registry"",""threshold"":1000,""windowSeconds"":360}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Worker ban notifications initialized {""service"":""worker-ban-notifications""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [startup] INFO: Worker ban notifications initialized {""service"":""sirius""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Registered cron job: delete-expired-reports {""service"":""cron-registry""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Registered cron job: delete-old-cron-logs {""service"":""cron-registry""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Registered cron job: process-wmb-batch {""service"":""cron-registry""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Registered cron job: delete-expired-flood-events {""service"":""cron-registry""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Registered cron job: delete-expired-hfe {""service"":""cron-registry""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Registered cron job: sweep-expired-ban-elig {""service"":""cron-registry""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [app] INFO: Registered cron job: sync-ban-active-status {""service"":""cron-registry""}"
+2026-01-20 21:43:22.476,"09:43:22 PM [startup] INFO: Cron job handlers registered {""service"":""sirius""}"
+2026-01-20 21:43:22.475,"09:43:22 PM [app] INFO: Dispatch eligibility plugins registered {""service"":""dispatch-elig-plugins"",""plugins"":[""dispatch_ban"",""dispatch_dnc"",""dispatch_hfe"",""dispatch_skill"",""dispatch_status""]}"
+2026-01-20 21:43:22.475,"09:43:22 PM [startup] INFO: Dispatch eligibility system initialized {""service"":""sirius""}"
+2026-01-20 21:43:22.474,"09:43:22 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_hfe {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:43:22.474,"09:43:22 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_skill {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:43:22.474,"09:43:22 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_status {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:43:22.473,"09:43:22 PM [startup] INFO: Component permissions synced {""service"":""sirius""}"
+2026-01-20 21:43:22.473,"09:43:22 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_ban {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:43:22.473,"09:43:22 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_dnc {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:43:22.472,"09:43:22 PM [startup] INFO: Component cache initialized {""service"":""sirius""}"
+2026-01-20 21:43:22.463,"09:43:22 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:43:22.357,"09:43:22 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:43:22.357,"09:43:22 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:43:22.354,"09:43:22 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:43:22.354,"09:43:22 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:43:22.347,"09:43:22 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:43:22.347,"09:43:22 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:43:22.346,"09:43:22 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:43:19.144,> rest-express@1.0.0 start
+2026-01-20 21:43:19.144,> NODE_ENV=production node dist/index.js
+2026-01-20 21:43:19.060,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:43:18.769,npm notice
+2026-01-20 21:43:18.769,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:43:18.769,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:43:18.769,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:43:18.769,npm notice
+2026-01-20 21:43:18.753,[✓] Changes applied
+2026-01-20 21:43:18.233,[2K[1G[✓] Pulling schema from database...
+2026-01-20 21:43:18.111,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:43:17.983,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:43:17.854,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:43:17.727,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:43:17.598,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:43:17.471,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:43:17.342,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:43:17.213,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:43:17.086,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:43:16.957,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:43:16.830,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:43:16.701,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:43:16.573,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:43:16.444,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:43:16.316,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:43:16.187,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:43:16.059,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:43:15.930,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:43:15.802,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:43:15.674,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:43:15.546,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:43:15.418,[2K[1G[⣷] Pulling schema from database...
+2026-01-20 21:43:15.289,[2K[1G[⣽] Pulling schema from database...
+2026-01-20 21:43:15.161,[2K[1G[⣻] Pulling schema from database...
+2026-01-20 21:43:15.033,[2K[1G[⢿] Pulling schema from database...
+2026-01-20 21:43:14.905,[2K[1G[⡿] Pulling schema from database...
+2026-01-20 21:43:14.777,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:43:14.649,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:43:14.552,[⣷] Pulling schema from database...
+2026-01-20 21:43:14.045,Using 'pg' driver for database querying
+2026-01-20 21:43:13.150,Reading config file '/app/drizzle.config.ts'
+2026-01-20 21:43:13.149,"No config path provided, using default 'drizzle.config.ts'"
+2026-01-20 21:43:12.358,> rest-express@1.0.0 db:push
+2026-01-20 21:43:12.358,> drizzle-kit push
+2026-01-20 21:43:11.656,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:42:21.412,file:///app/dist/index.js:29457
+2026-01-20 21:42:21.412,"      throw new Error(""SESSION_SECRET environment variable is required in production"");"
+2026-01-20 21:42:21.412,            ^
+2026-01-20 21:42:21.412,Error: SESSION_SECRET environment variable is required in production
+2026-01-20 21:42:21.412,    at getSession (file:///app/dist/index.js:29457:13)
+2026-01-20 21:42:21.412,    at setupReplitAuth (file:///app/dist/index.js:29589:12)
+2026-01-20 21:42:21.412,    at setupAuth (file:///app/dist/index.js:29829:9)
+2026-01-20 21:42:21.412,    at file:///app/dist/index.js:41751:9
+2026-01-20 21:42:21.412,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:42:21.412,Node.js v20.18.1
+2026-01-20 21:42:21.406,"09:42:21 PM [app] INFO: Created default cron job: sync-ban-active-status {""service"":""cron-bootstrap"",""jobName"":""sync-ban-active-status"",""schedule"":""0 6 * * *"",""isEnabled"":true}"
+2026-01-20 21:42:21.406,"09:42:21 PM [app] INFO: Cron job bootstrap completed {""service"":""cron-bootstrap"",""created"":7,""skipped"":0,""errors"":0,""total"":7}"
+2026-01-20 21:42:21.406,"09:42:21 PM [startup] INFO: Default cron jobs bootstrapped {""service"":""sirius""}"
+2026-01-20 21:42:21.396,"09:42:21 PM [app] INFO: Created default cron job: sweep-expired-ban-elig {""service"":""cron-bootstrap"",""jobName"":""sweep-expired-ban-elig"",""schedule"":""0 5 * * *"",""isEnabled"":true}"
+2026-01-20 21:42:21.383,"09:42:21 PM [app] INFO: Created default cron job: delete-expired-hfe {""service"":""cron-bootstrap"",""jobName"":""delete-expired-hfe"",""schedule"":""0 4 * * *"",""isEnabled"":true}"
+2026-01-20 21:42:21.360,"09:42:21 PM [app] INFO: Created default cron job: delete-expired-flood-events {""service"":""cron-bootstrap"",""jobName"":""delete-expired-flood-events"",""schedule"":""0 * * * *"",""isEnabled"":true}"
+2026-01-20 21:42:21.328,"09:42:21 PM [app] INFO: Created default cron job: process-wmb-batch {""service"":""cron-bootstrap"",""jobName"":""process-wmb-batch"",""schedule"":""*/5 * * * *"",""isEnabled"":false}"
+2026-01-20 21:42:21.299,"09:42:21 PM [app] INFO: Created default cron job: delete-old-cron-logs {""service"":""cron-bootstrap"",""jobName"":""delete-old-cron-logs"",""schedule"":""0 3 * * *"",""isEnabled"":true}"
+2026-01-20 21:42:21.274,"09:42:21 PM [app] INFO: Created default cron job: delete-expired-reports {""service"":""cron-bootstrap"",""jobName"":""delete-expired-reports"",""schedule"":""0 2 * * *"",""isEnabled"":true}"
+2026-01-20 21:42:21.261,"09:42:21 PM [startup] INFO: Flood configs loaded from variables {""service"":""sirius""}"
+2026-01-20 21:42:21.261,"09:42:21 PM [log-notifier] INFO: Log notifier initialized {""service"":""sirius""}"
+2026-01-20 21:42:21.261,"09:42:21 PM [app] INFO: Bootstrapping default cron jobs {""service"":""cron-bootstrap""}"
+2026-01-20 21:42:21.256,"09:42:21 PM [startup] INFO: Cron job handlers registered {""service"":""sirius""}"
+2026-01-20 21:42:21.256,"09:42:21 PM [app] INFO: Registered flood event: bookmark {""service"":""flood-registry"",""threshold"":1000,""windowSeconds"":360}"
+2026-01-20 21:42:21.256,"09:42:21 PM [startup] INFO: Flood events registered {""service"":""sirius""}"
+2026-01-20 21:42:21.255,"09:42:21 PM [app] INFO: Registered cron job: delete-expired-reports {""service"":""cron-registry""}"
+2026-01-20 21:42:21.255,"09:42:21 PM [app] INFO: Registered cron job: delete-old-cron-logs {""service"":""cron-registry""}"
+2026-01-20 21:42:21.255,"09:42:21 PM [app] INFO: Registered cron job: process-wmb-batch {""service"":""cron-registry""}"
+2026-01-20 21:42:21.255,"09:42:21 PM [app] INFO: Registered cron job: delete-expired-flood-events {""service"":""cron-registry""}"
+2026-01-20 21:42:21.255,"09:42:21 PM [app] INFO: Registered cron job: delete-expired-hfe {""service"":""cron-registry""}"
+2026-01-20 21:42:21.255,"09:42:21 PM [app] INFO: Registered cron job: sweep-expired-ban-elig {""service"":""cron-registry""}"
+2026-01-20 21:42:21.255,"09:42:21 PM [app] INFO: Registered cron job: sync-ban-active-status {""service"":""cron-registry""}"
+2026-01-20 21:42:21.254,"09:42:21 PM [app] INFO: Dispatch eligibility plugins registered {""service"":""dispatch-elig-plugins"",""plugins"":[""dispatch_ban"",""dispatch_dnc"",""dispatch_hfe"",""dispatch_skill"",""dispatch_status""]}"
+2026-01-20 21:42:21.254,"09:42:21 PM [startup] INFO: Dispatch eligibility system initialized {""service"":""sirius""}"
+2026-01-20 21:42:21.254,"09:42:21 PM [app] INFO: Worker ban notifications initialized {""service"":""worker-ban-notifications""}"
+2026-01-20 21:42:21.254,"09:42:21 PM [startup] INFO: Worker ban notifications initialized {""service"":""sirius""}"
+2026-01-20 21:42:21.253,"09:42:21 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_hfe {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:42:21.253,"09:42:21 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_skill {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:42:21.253,"09:42:21 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_status {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:42:21.252,"09:42:21 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_dnc {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:42:21.246,"09:42:21 PM [startup] INFO: Component permissions synced {""service"":""sirius""}"
+2026-01-20 21:42:21.246,"09:42:21 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_ban {""service"":""dispatch-elig-registry""}"
+2026-01-20 21:42:21.245,"09:42:21 PM [startup] INFO: Component cache initialized {""service"":""sirius""}"
+2026-01-20 21:42:21.241,"09:42:21 PM [storage] INFO: Storage operation: variables.create {""service"":""sirius"",""module"":""variables"",""operation"":""create"",""entity_id"":""migrations_version"",""description"":""Created variable \""migrations_version\"""",""meta"":{""args"":[{""name"":""migrations_version"",""value"":1}],""after"":{""id"":""95bb30b6-3a7a-40ec-a2c0-059feca2e5e8"",""name"":""migrations_version"",""value"":1}}}"
+2026-01-20 21:42:21.240,"09:42:21 PM [startup] INFO: Database migrations completed {""service"":""sirius"",""ran"":1,""skipped"":0}"
+2026-01-20 21:42:21.239,"09:42:21 PM [app] INFO: Migration 1 completed successfully {""service"":""migration-runner"",""version"":1,""name"":""component_cache""}"
+2026-01-20 21:42:21.030,"09:42:21 PM [app] INFO: Running migration 1: component_cache {""service"":""migration-runner"",""version"":1,""name"":""component_cache""}"
+2026-01-20 21:42:21.029,"09:42:21 PM [app] INFO: Starting migrations {""service"":""migration-runner"",""currentVersion"":0,""pendingCount"":1}"
+2026-01-20 21:42:21.022,"09:42:21 PM [storage] INFO: Storage operation: variables.create {""service"":""sirius"",""module"":""variables"",""operation"":""create"",""entity_id"":""address_validation_config"",""description"":""Created variable \""address_validation_config\"""",""meta"":{""args"":[{""name"":""address_validation_config"",""value"":{""mode"":""local"",""local"":{""enabled"":true,""countries"":[""US""],""strictValidation"":true},""google"":{""enabled"":false,""apiKeyName"":""GOOGLE_MAPS_API_KEY"",""components"":{""country"":true,""administrative_area_level_1"":true,""postal_code"":true}},""fallback"":{""useLocalOnGoogleFailure"":true,""logValidationAttempts"":true}}}],""after"":{""id"":""0ac4f2c3-0212-4f31-b667-24212a4be6a8"",""name"":""address_validation_config"",""value"":{""mode"":""local"",""local"":{""enabled"":true,""countries"":[""US""],""strictValidation"":true},""google"":{""enabled"":false,""apiKeyName"":""GOOGLE_MAPS_API_KEY"",""components"":{""country"":true,""postal_code"":true,""administrative_area_level_1"":true}},""fallback"":{""logValidationAttempts"":true,""useLocalOnGoogleFailure"":true}}}}}"
+2026-01-20 21:42:21.018,"09:42:21 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:42:21.017,Address validation configuration initialized with default settings
+2026-01-20 21:42:20.895,"09:42:20 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:42:20.895,"09:42:20 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:42:20.892,"09:42:20 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:42:20.892,"09:42:20 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:42:20.885,"09:42:20 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:42:20.884,"09:42:20 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:42:20.814,"09:42:20 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:42:17.908,> rest-express@1.0.0 start
+2026-01-20 21:42:17.908,> NODE_ENV=production node dist/index.js
+2026-01-20 21:42:17.814,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:42:17.573,npm notice
+2026-01-20 21:42:17.573,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:42:17.573,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:42:17.573,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:42:17.573,npm notice
+2026-01-20 21:42:17.555,[✓] Changes applied
+2026-01-20 21:42:15.954,[2K[1G[✓] Pulling schema from database...
+2026-01-20 21:42:15.911,[2K[1G[⣟] Pulling schema from database...
+2026-01-20 21:42:15.784,[2K[1G[⣯] Pulling schema from database...
+2026-01-20 21:42:15.691,[⣷] Pulling schema from database...
+2026-01-20 21:42:15.212,Using 'pg' driver for database querying
+2026-01-20 21:42:14.318,Reading config file '/app/drizzle.config.ts'
+2026-01-20 21:42:14.317,"No config path provided, using default 'drizzle.config.ts'"
+2026-01-20 21:42:13.688,> rest-express@1.0.0 db:push
+2026-01-20 21:42:13.688,> drizzle-kit push
+2026-01-20 21:42:12.996,npm warn config production Use `--omit=dev` instead.
