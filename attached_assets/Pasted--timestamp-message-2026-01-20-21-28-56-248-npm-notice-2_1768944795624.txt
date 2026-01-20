@@ -1,0 +1,577 @@
+@timestamp,@message
+2026-01-20 21:28:56.248,npm notice
+2026-01-20 21:28:56.248,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:28:56.248,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:28:56.248,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:28:56.248,npm notice
+2026-01-20 21:28:56.212,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 21:28:56.212,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 21:28:56.212,                                                                         ^
+2026-01-20 21:28:56.212,"error: relation ""variables"" does not exist"
+2026-01-20 21:28:56.212,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:28:56.212,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:28:56.212,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:28:56.212,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:28:56.212,    at async getCurrentVersion (file:///app/dist/index.js:38101:20)
+2026-01-20 21:28:56.212,    at async runMigrations (file:///app/dist/index.js:38122:26)
+2026-01-20 21:28:56.212,    at async file:///app/dist/index.js:41712:27 {
+2026-01-20 21:28:56.212,"  length: 108,"
+2026-01-20 21:28:56.212,"  severity: 'ERROR',"
+2026-01-20 21:28:56.212,"  code: '42P01',"
+2026-01-20 21:28:56.212,"  detail: undefined,"
+2026-01-20 21:28:56.212,"  hint: undefined,"
+2026-01-20 21:28:56.212,"  position: '35',"
+2026-01-20 21:28:56.212,"  internalPosition: undefined,"
+2026-01-20 21:28:56.212,"  internalQuery: undefined,"
+2026-01-20 21:28:56.212,"  where: undefined,"
+2026-01-20 21:28:56.212,"  schema: undefined,"
+2026-01-20 21:28:56.212,"  table: undefined,"
+2026-01-20 21:28:56.212,"  column: undefined,"
+2026-01-20 21:28:56.212,"  dataType: undefined,"
+2026-01-20 21:28:56.212,"  constraint: undefined,"
+2026-01-20 21:28:56.212,"  file: 'parse_relation.c',"
+2026-01-20 21:28:56.212,"  line: '1449',"
+2026-01-20 21:28:56.212,  routine: 'parserOpenTable'
+2026-01-20 21:28:56.212,}
+2026-01-20 21:28:56.212,Node.js v20.18.1
+2026-01-20 21:28:56.140,"09:28:56 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:28:56.139,"Failed to load address validation config: error: relation ""variables"" does not exist"
+2026-01-20 21:28:56.139,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:28:56.139,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:28:56.139,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:28:56.139,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:28:56.139,    at async AddressValidationService.loadConfig (file:///app/dist/index.js:23910:25)
+2026-01-20 21:28:56.139,    at async AddressValidationService.getConfig (file:///app/dist/index.js:23904:7)
+2026-01-20 21:28:56.139,    at async file:///app/dist/index.js:41710:3 {
+2026-01-20 21:28:56.139,"  length: 108,"
+2026-01-20 21:28:56.139,"  severity: 'ERROR',"
+2026-01-20 21:28:56.139,"  code: '42P01',"
+2026-01-20 21:28:56.139,"  detail: undefined,"
+2026-01-20 21:28:56.139,"  hint: undefined,"
+2026-01-20 21:28:56.139,"  position: '35',"
+2026-01-20 21:28:56.139,"  internalPosition: undefined,"
+2026-01-20 21:28:56.139,"  internalQuery: undefined,"
+2026-01-20 21:28:56.139,"  where: undefined,"
+2026-01-20 21:28:56.139,"  schema: undefined,"
+2026-01-20 21:28:56.139,"  table: undefined,"
+2026-01-20 21:28:56.139,"  column: undefined,"
+2026-01-20 21:28:56.139,"  dataType: undefined,"
+2026-01-20 21:28:56.139,"  constraint: undefined,"
+2026-01-20 21:28:56.139,"  file: 'parse_relation.c',"
+2026-01-20 21:28:56.139,"  line: '1449',"
+2026-01-20 21:28:56.139,  routine: 'parserOpenTable'
+2026-01-20 21:28:56.139,}
+2026-01-20 21:28:56.007,"09:28:56 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:28:56.007,"09:28:56 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:28:56.003,"09:28:56 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:28:56.002,"09:28:56 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:28:55.929,"09:28:55 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:28:55.929,"09:28:55 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:28:55.927,"09:28:55 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:28:50.615,> rest-express@1.0.0 start
+2026-01-20 21:28:50.615,> NODE_ENV=production node dist/index.js
+2026-01-20 21:28:49.427,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:27:46.502,npm notice
+2026-01-20 21:27:46.502,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:27:46.502,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:27:46.502,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:27:46.502,npm notice
+2026-01-20 21:27:46.487,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 21:27:46.487,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 21:27:46.487,                                                                         ^
+2026-01-20 21:27:46.487,"error: relation ""variables"" does not exist"
+2026-01-20 21:27:46.487,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:27:46.487,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:27:46.487,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:27:46.487,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:27:46.487,    at async getCurrentVersion (file:///app/dist/index.js:38101:20)
+2026-01-20 21:27:46.487,    at async runMigrations (file:///app/dist/index.js:38122:26)
+2026-01-20 21:27:46.487,    at async file:///app/dist/index.js:41712:27 {
+2026-01-20 21:27:46.487,"  length: 108,"
+2026-01-20 21:27:46.487,"  severity: 'ERROR',"
+2026-01-20 21:27:46.487,"  code: '42P01',"
+2026-01-20 21:27:46.487,"  detail: undefined,"
+2026-01-20 21:27:46.487,"  hint: undefined,"
+2026-01-20 21:27:46.487,"  position: '35',"
+2026-01-20 21:27:46.487,"  internalPosition: undefined,"
+2026-01-20 21:27:46.487,"  internalQuery: undefined,"
+2026-01-20 21:27:46.487,"  where: undefined,"
+2026-01-20 21:27:46.487,"  schema: undefined,"
+2026-01-20 21:27:46.487,"  table: undefined,"
+2026-01-20 21:27:46.487,"  column: undefined,"
+2026-01-20 21:27:46.487,"  dataType: undefined,"
+2026-01-20 21:27:46.487,"  constraint: undefined,"
+2026-01-20 21:27:46.487,"  file: 'parse_relation.c',"
+2026-01-20 21:27:46.487,"  line: '1449',"
+2026-01-20 21:27:46.487,  routine: 'parserOpenTable'
+2026-01-20 21:27:46.487,}
+2026-01-20 21:27:46.487,Node.js v20.18.1
+2026-01-20 21:27:46.456,"09:27:46 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:27:46.423,"  position: '35',"
+2026-01-20 21:27:46.423,"  internalPosition: undefined,"
+2026-01-20 21:27:46.423,"  internalQuery: undefined,"
+2026-01-20 21:27:46.423,"  where: undefined,"
+2026-01-20 21:27:46.423,"  schema: undefined,"
+2026-01-20 21:27:46.423,"  table: undefined,"
+2026-01-20 21:27:46.423,"  column: undefined,"
+2026-01-20 21:27:46.423,"  dataType: undefined,"
+2026-01-20 21:27:46.423,"  constraint: undefined,"
+2026-01-20 21:27:46.423,"  file: 'parse_relation.c',"
+2026-01-20 21:27:46.423,"  line: '1449',"
+2026-01-20 21:27:46.423,  routine: 'parserOpenTable'
+2026-01-20 21:27:46.423,}
+2026-01-20 21:27:46.422,"Failed to load address validation config: error: relation ""variables"" does not exist"
+2026-01-20 21:27:46.422,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:27:46.422,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:27:46.422,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:27:46.422,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:27:46.422,    at async AddressValidationService.loadConfig (file:///app/dist/index.js:23910:25)
+2026-01-20 21:27:46.422,    at async AddressValidationService.getConfig (file:///app/dist/index.js:23904:7)
+2026-01-20 21:27:46.422,    at async file:///app/dist/index.js:41710:3 {
+2026-01-20 21:27:46.422,"  length: 108,"
+2026-01-20 21:27:46.422,"  severity: 'ERROR',"
+2026-01-20 21:27:46.422,"  code: '42P01',"
+2026-01-20 21:27:46.422,"  detail: undefined,"
+2026-01-20 21:27:46.422,"  hint: undefined,"
+2026-01-20 21:27:46.299,"09:27:46 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:27:46.299,"09:27:46 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:27:46.296,"09:27:46 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:27:46.296,"09:27:46 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:27:46.283,"09:27:46 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:27:46.283,"09:27:46 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:27:46.282,"09:27:46 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:27:42.967,> rest-express@1.0.0 start
+2026-01-20 21:27:42.967,> NODE_ENV=production node dist/index.js
+2026-01-20 21:27:42.302,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:26:08.593,npm notice
+2026-01-20 21:26:08.593,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:26:08.593,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:26:08.593,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:26:08.593,npm notice
+2026-01-20 21:26:08.576,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 21:26:08.576,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 21:26:08.576,                                                                         ^
+2026-01-20 21:26:08.576,"error: relation ""variables"" does not exist"
+2026-01-20 21:26:08.576,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:26:08.576,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:26:08.576,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:26:08.576,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:26:08.576,    at async getCurrentVersion (file:///app/dist/index.js:38101:20)
+2026-01-20 21:26:08.576,    at async runMigrations (file:///app/dist/index.js:38122:26)
+2026-01-20 21:26:08.576,    at async file:///app/dist/index.js:41712:27 {
+2026-01-20 21:26:08.576,"  length: 108,"
+2026-01-20 21:26:08.576,"  severity: 'ERROR',"
+2026-01-20 21:26:08.576,"  code: '42P01',"
+2026-01-20 21:26:08.576,"  detail: undefined,"
+2026-01-20 21:26:08.576,"  hint: undefined,"
+2026-01-20 21:26:08.576,"  position: '35',"
+2026-01-20 21:26:08.576,"  internalPosition: undefined,"
+2026-01-20 21:26:08.576,"  internalQuery: undefined,"
+2026-01-20 21:26:08.576,"  where: undefined,"
+2026-01-20 21:26:08.576,"  schema: undefined,"
+2026-01-20 21:26:08.576,"  table: undefined,"
+2026-01-20 21:26:08.576,"  column: undefined,"
+2026-01-20 21:26:08.576,"  dataType: undefined,"
+2026-01-20 21:26:08.576,"  constraint: undefined,"
+2026-01-20 21:26:08.576,"  file: 'parse_relation.c',"
+2026-01-20 21:26:08.576,"  line: '1449',"
+2026-01-20 21:26:08.576,  routine: 'parserOpenTable'
+2026-01-20 21:26:08.576,}
+2026-01-20 21:26:08.576,Node.js v20.18.1
+2026-01-20 21:26:08.551,"09:26:08 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:26:08.550,"Failed to load address validation config: error: relation ""variables"" does not exist"
+2026-01-20 21:26:08.550,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:26:08.550,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:26:08.550,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:26:08.550,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:26:08.550,    at async AddressValidationService.loadConfig (file:///app/dist/index.js:23910:25)
+2026-01-20 21:26:08.550,    at async AddressValidationService.getConfig (file:///app/dist/index.js:23904:7)
+2026-01-20 21:26:08.550,    at async file:///app/dist/index.js:41710:3 {
+2026-01-20 21:26:08.550,"  length: 108,"
+2026-01-20 21:26:08.550,"  severity: 'ERROR',"
+2026-01-20 21:26:08.550,"  code: '42P01',"
+2026-01-20 21:26:08.550,"  detail: undefined,"
+2026-01-20 21:26:08.550,"  hint: undefined,"
+2026-01-20 21:26:08.550,"  position: '35',"
+2026-01-20 21:26:08.550,"  internalPosition: undefined,"
+2026-01-20 21:26:08.550,"  internalQuery: undefined,"
+2026-01-20 21:26:08.550,"  where: undefined,"
+2026-01-20 21:26:08.550,"  schema: undefined,"
+2026-01-20 21:26:08.550,"  table: undefined,"
+2026-01-20 21:26:08.550,"  column: undefined,"
+2026-01-20 21:26:08.550,"  dataType: undefined,"
+2026-01-20 21:26:08.550,"  constraint: undefined,"
+2026-01-20 21:26:08.550,"  file: 'parse_relation.c',"
+2026-01-20 21:26:08.550,"  line: '1449',"
+2026-01-20 21:26:08.550,  routine: 'parserOpenTable'
+2026-01-20 21:26:08.550,}
+2026-01-20 21:26:08.447,"09:26:08 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:26:08.446,"09:26:08 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:26:08.374,"09:26:08 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:26:08.374,"09:26:08 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:26:08.367,"09:26:08 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:26:08.366,"09:26:08 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:26:08.364,"09:26:08 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:26:04.350,> rest-express@1.0.0 start
+2026-01-20 21:26:04.350,> NODE_ENV=production node dist/index.js
+2026-01-20 21:26:03.551,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:24:05.197,npm notice
+2026-01-20 21:24:05.197,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:24:05.197,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:24:05.197,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:24:05.197,npm notice
+2026-01-20 21:24:05.181,file:///app/node_modules/@neondatabase/serverless/index.mjs:1345
+2026-01-20 21:24:05.181,"o?t(o):n(u)},""cb""),s=new r(function(o,u){n=o,t=u}).catch(o=>{throw Error.captureStackTrace("
+2026-01-20 21:24:05.181,                                                                         ^
+2026-01-20 21:24:05.181,"error: relation ""variables"" does not exist"
+2026-01-20 21:24:05.181,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:24:05.181,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:24:05.181,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:24:05.181,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:24:05.181,    at async getCurrentVersion (file:///app/dist/index.js:38101:20)
+2026-01-20 21:24:05.181,    at async runMigrations (file:///app/dist/index.js:38122:26)
+2026-01-20 21:24:05.181,    at async file:///app/dist/index.js:41712:27 {
+2026-01-20 21:24:05.181,"  length: 108,"
+2026-01-20 21:24:05.181,"  severity: 'ERROR',"
+2026-01-20 21:24:05.181,"  code: '42P01',"
+2026-01-20 21:24:05.181,"  detail: undefined,"
+2026-01-20 21:24:05.181,"  hint: undefined,"
+2026-01-20 21:24:05.181,"  position: '35',"
+2026-01-20 21:24:05.181,"  internalPosition: undefined,"
+2026-01-20 21:24:05.181,"  internalQuery: undefined,"
+2026-01-20 21:24:05.181,"  where: undefined,"
+2026-01-20 21:24:05.181,"  schema: undefined,"
+2026-01-20 21:24:05.181,"  table: undefined,"
+2026-01-20 21:24:05.181,"  column: undefined,"
+2026-01-20 21:24:05.181,"  dataType: undefined,"
+2026-01-20 21:24:05.181,"  constraint: undefined,"
+2026-01-20 21:24:05.181,"  file: 'parse_relation.c',"
+2026-01-20 21:24:05.181,"  line: '1449',"
+2026-01-20 21:24:05.181,  routine: 'parserOpenTable'
+2026-01-20 21:24:05.181,}
+2026-01-20 21:24:05.181,Node.js v20.18.1
+2026-01-20 21:24:05.148,"09:24:05 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:24:05.147,"Failed to load address validation config: error: relation ""variables"" does not exist"
+2026-01-20 21:24:05.147,    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+2026-01-20 21:24:05.147,    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-20 21:24:05.147,    at async NeonPreparedQuery.execute (file:///app/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+2026-01-20 21:24:05.147,    at async Object.getByName (file:///app/dist/index.js:1714:26)
+2026-01-20 21:24:05.147,    at async AddressValidationService.loadConfig (file:///app/dist/index.js:23910:25)
+2026-01-20 21:24:05.147,    at async AddressValidationService.getConfig (file:///app/dist/index.js:23904:7)
+2026-01-20 21:24:05.147,    at async file:///app/dist/index.js:41710:3 {
+2026-01-20 21:24:05.147,"  length: 108,"
+2026-01-20 21:24:05.147,"  severity: 'ERROR',"
+2026-01-20 21:24:05.147,"  code: '42P01',"
+2026-01-20 21:24:05.147,"  detail: undefined,"
+2026-01-20 21:24:05.147,"  hint: undefined,"
+2026-01-20 21:24:05.147,"  position: '35',"
+2026-01-20 21:24:05.147,"  internalPosition: undefined,"
+2026-01-20 21:24:05.147,"  internalQuery: undefined,"
+2026-01-20 21:24:05.147,"  where: undefined,"
+2026-01-20 21:24:05.147,"  schema: undefined,"
+2026-01-20 21:24:05.147,"  table: undefined,"
+2026-01-20 21:24:05.147,"  column: undefined,"
+2026-01-20 21:24:05.147,"  dataType: undefined,"
+2026-01-20 21:24:05.147,"  constraint: undefined,"
+2026-01-20 21:24:05.147,"  file: 'parse_relation.c',"
+2026-01-20 21:24:05.147,"  line: '1449',"
+2026-01-20 21:24:05.147,  routine: 'parserOpenTable'
+2026-01-20 21:24:05.147,}
+2026-01-20 21:24:04.558,"09:24:04 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:24:04.558,"09:24:04 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:24:04.554,"09:24:04 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:24:04.554,"09:24:04 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:24:04.546,"09:24:04 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:24:04.484,"09:24:04 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:24:04.483,"09:24:04 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:23:59.752,> rest-express@1.0.0 start
+2026-01-20 21:23:59.752,> NODE_ENV=production node dist/index.js
+2026-01-20 21:23:59.065,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:21:27.022,Hello from Docker!
+2026-01-20 21:21:27.022,This message shows that your installation appears to be working correctly.
+2026-01-20 21:21:27.022,"To generate this message, Docker took the following steps:"
+2026-01-20 21:21:27.022, 1. The Docker client contacted the Docker daemon.
+2026-01-20 21:21:27.022," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 21:21:27.022,    (amd64)
+2026-01-20 21:21:27.022, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 21:21:27.022,    executable that produces the output you are currently reading.
+2026-01-20 21:21:27.022," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 21:21:27.022,    to your terminal.
+2026-01-20 21:21:27.022,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 21:21:27.022, $ docker run -it ubuntu bash
+2026-01-20 21:21:27.022,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 21:21:27.022, https://hub.docker.com/
+2026-01-20 21:21:27.022,"For more examples and ideas, visit:"
+2026-01-20 21:21:27.022, https://docs.docker.com/get-started/
+2026-01-20 21:20:07.207,Hello from Docker!
+2026-01-20 21:20:07.207,This message shows that your installation appears to be working correctly.
+2026-01-20 21:20:07.207,"To generate this message, Docker took the following steps:"
+2026-01-20 21:20:07.207, 1. The Docker client contacted the Docker daemon.
+2026-01-20 21:20:07.207," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 21:20:07.207,    (amd64)
+2026-01-20 21:20:07.207, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 21:20:07.207,    executable that produces the output you are currently reading.
+2026-01-20 21:20:07.207," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 21:20:07.207,    to your terminal.
+2026-01-20 21:20:07.207,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 21:20:07.207, $ docker run -it ubuntu bash
+2026-01-20 21:20:07.207,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 21:20:07.207, https://hub.docker.com/
+2026-01-20 21:20:07.207,"For more examples and ideas, visit:"
+2026-01-20 21:20:07.207, https://docs.docker.com/get-started/
+2026-01-20 21:17:40.995,Hello from Docker!
+2026-01-20 21:17:40.995,This message shows that your installation appears to be working correctly.
+2026-01-20 21:17:40.995,"To generate this message, Docker took the following steps:"
+2026-01-20 21:17:40.995, 1. The Docker client contacted the Docker daemon.
+2026-01-20 21:17:40.995," 2. The Docker daemon pulled the ""hello-world"" image from the Docker Hub."
+2026-01-20 21:17:40.995,    (amd64)
+2026-01-20 21:17:40.995, 3. The Docker daemon created a new container from that image which runs the
+2026-01-20 21:17:40.995,    executable that produces the output you are currently reading.
+2026-01-20 21:17:40.995," 4. The Docker daemon streamed that output to the Docker client, which sent it"
+2026-01-20 21:17:40.995,    to your terminal.
+2026-01-20 21:17:40.995,"To try something more ambitious, you can run an Ubuntu container with:"
+2026-01-20 21:17:40.995, $ docker run -it ubuntu bash
+2026-01-20 21:17:40.995,"Share images, automate workflows, and more with a free Docker ID:"
+2026-01-20 21:17:40.995, https://hub.docker.com/
+2026-01-20 21:17:40.995,"For more examples and ideas, visit:"
+2026-01-20 21:17:40.995, https://docs.docker.com/get-started/
+2026-01-20 21:16:59.841,npm notice
+2026-01-20 21:16:59.841,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:16:59.841,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:16:59.841,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:16:59.841,npm notice
+2026-01-20 21:16:59.784,node:internal/url:806
+2026-01-20 21:16:59.784,"    const href = bindingUrl.parse(input, base, raiseException);"
+2026-01-20 21:16:59.784,                            ^
+2026-01-20 21:16:59.784,TypeError: Invalid URL
+2026-01-20 21:16:59.784,    at new URL (node:internal/url:806:29)
+2026-01-20 21:16:59.784,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:16:59.784,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:16:59.784,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:16:59.784,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:16:59.784,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:16:59.784,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:16:59.784,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:16:59.784,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:16:59.784,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:16:59.784,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:16:59.784,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:16:59.784,}
+2026-01-20 21:16:59.784,Node.js v20.18.1
+2026-01-20 21:16:59.771,Failed to load address validation config: TypeError: Invalid URL
+2026-01-20 21:16:59.771,    at new URL (node:internal/url:806:29)
+2026-01-20 21:16:59.771,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:16:59.771,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:16:59.771,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:16:59.771,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:16:59.771,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:16:59.771,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:16:59.771,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:16:59.771,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:16:59.771,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:16:59.771,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:16:59.771,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:16:59.771,}
+2026-01-20 21:16:59.771,"09:16:59 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:16:59.759,"09:16:59 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:16:59.758,"09:16:59 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:16:59.755,"09:16:59 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:16:59.755,"09:16:59 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:16:59.747,"09:16:59 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:16:59.747,"09:16:59 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:16:59.745,"09:16:59 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:16:56.141,> rest-express@1.0.0 start
+2026-01-20 21:16:56.141,> NODE_ENV=production node dist/index.js
+2026-01-20 21:16:55.447,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:15:13.259,npm notice
+2026-01-20 21:15:13.259,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:15:13.259,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:15:13.259,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:15:13.259,npm notice
+2026-01-20 21:15:13.243,Node.js v20.18.1
+2026-01-20 21:15:13.242,node:internal/url:806
+2026-01-20 21:15:13.242,"    const href = bindingUrl.parse(input, base, raiseException);"
+2026-01-20 21:15:13.242,                            ^
+2026-01-20 21:15:13.242,TypeError: Invalid URL
+2026-01-20 21:15:13.242,    at new URL (node:internal/url:806:29)
+2026-01-20 21:15:13.242,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:15:13.242,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:15:13.242,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:15:13.242,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:15:13.242,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:15:13.242,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:15:13.242,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:15:13.242,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:15:13.242,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:15:13.242,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:15:13.242,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:15:13.242,}
+2026-01-20 21:15:13.240,"09:15:13 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:15:13.239,Failed to load address validation config: TypeError: Invalid URL
+2026-01-20 21:15:13.239,    at new URL (node:internal/url:806:29)
+2026-01-20 21:15:13.239,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:15:13.239,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:15:13.239,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:15:13.239,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:15:13.239,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:15:13.239,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:15:13.239,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:15:13.239,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:15:13.239,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:15:13.239,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:15:13.239,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:15:13.239,}
+2026-01-20 21:15:13.232,"09:15:13 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:15:13.231,"09:15:13 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:15:13.227,"09:15:13 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:15:13.227,"09:15:13 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:15:13.142,"09:15:13 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:15:13.141,"09:15:13 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:15:13.139,"09:15:13 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:15:09.239,> rest-express@1.0.0 start
+2026-01-20 21:15:09.239,> NODE_ENV=production node dist/index.js
+2026-01-20 21:15:08.480,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:13:53.674,npm notice
+2026-01-20 21:13:53.674,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:13:53.674,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:13:53.674,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:13:53.674,npm notice
+2026-01-20 21:13:53.653,node:internal/url:806
+2026-01-20 21:13:53.653,"    const href = bindingUrl.parse(input, base, raiseException);"
+2026-01-20 21:13:53.653,                            ^
+2026-01-20 21:13:53.653,TypeError: Invalid URL
+2026-01-20 21:13:53.653,    at new URL (node:internal/url:806:29)
+2026-01-20 21:13:53.653,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:13:53.653,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:13:53.653,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:13:53.653,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:13:53.653,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:13:53.653,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:13:53.653,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:13:53.653,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:13:53.653,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:13:53.653,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:13:53.653,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:13:53.653,}
+2026-01-20 21:13:53.653,Node.js v20.18.1
+2026-01-20 21:13:53.650,"09:13:53 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:13:53.649,Failed to load address validation config: TypeError: Invalid URL
+2026-01-20 21:13:53.649,    at new URL (node:internal/url:806:29)
+2026-01-20 21:13:53.649,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:13:53.649,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:13:53.649,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:13:53.649,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:13:53.649,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:13:53.649,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:13:53.649,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:13:53.649,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:13:53.649,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:13:53.649,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:13:53.649,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:13:53.649,}
+2026-01-20 21:13:53.587,"09:13:53 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:13:53.586,"09:13:53 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:13:53.583,"09:13:53 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:13:53.583,"09:13:53 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:13:53.575,"09:13:53 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:13:53.575,"09:13:53 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:13:53.574,"09:13:53 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:13:49.584,> rest-express@1.0.0 start
+2026-01-20 21:13:49.584,> NODE_ENV=production node dist/index.js
+2026-01-20 21:13:48.776,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:12:47.127,npm notice
+2026-01-20 21:12:47.127,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:12:47.127,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:12:47.127,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:12:47.127,npm notice
+2026-01-20 21:12:47.111,node:internal/url:806
+2026-01-20 21:12:47.111,"    const href = bindingUrl.parse(input, base, raiseException);"
+2026-01-20 21:12:47.111,                            ^
+2026-01-20 21:12:47.111,TypeError: Invalid URL
+2026-01-20 21:12:47.111,    at new URL (node:internal/url:806:29)
+2026-01-20 21:12:47.111,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:12:47.111,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:12:47.111,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:12:47.111,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:12:47.111,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:12:47.111,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:12:47.111,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:12:47.111,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:12:47.111,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:12:47.111,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:12:47.111,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:12:47.111,}
+2026-01-20 21:12:47.111,Node.js v20.18.1
+2026-01-20 21:12:47.108,Failed to load address validation config: TypeError: Invalid URL
+2026-01-20 21:12:47.108,    at new URL (node:internal/url:806:29)
+2026-01-20 21:12:47.108,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:12:47.108,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:12:47.108,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:12:47.108,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:12:47.108,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:12:47.108,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:12:47.108,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:12:47.108,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:12:47.108,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:12:47.108,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:12:47.108,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:12:47.108,}
+2026-01-20 21:12:47.108,"09:12:47 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:12:47.100,"09:12:47 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:12:47.100,"09:12:47 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:12:47.097,"09:12:47 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:12:47.097,"09:12:47 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:12:47.089,"09:12:47 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:12:47.089,"09:12:47 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:12:47.088,"09:12:47 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:12:43.090,> rest-express@1.0.0 start
+2026-01-20 21:12:43.090,> NODE_ENV=production node dist/index.js
+2026-01-20 21:12:42.382,npm warn config production Use `--omit=dev` instead.
+2026-01-20 21:11:02.454,npm notice
+2026-01-20 21:11:02.454,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2026-01-20 21:11:02.454,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2026-01-20 21:11:02.454,npm notice To update run: npm install -g npm@11.7.0
+2026-01-20 21:11:02.454,npm notice
+2026-01-20 21:11:02.412,node:internal/url:806
+2026-01-20 21:11:02.412,"    const href = bindingUrl.parse(input, base, raiseException);"
+2026-01-20 21:11:02.412,                            ^
+2026-01-20 21:11:02.412,TypeError: Invalid URL
+2026-01-20 21:11:02.412,    at new URL (node:internal/url:806:29)
+2026-01-20 21:11:02.412,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:11:02.412,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:11:02.412,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:11:02.412,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:11:02.412,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:11:02.412,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:11:02.412,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:11:02.412,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:11:02.412,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:11:02.412,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:11:02.412,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:11:02.412,}
+2026-01-20 21:11:02.412,Node.js v20.18.1
+2026-01-20 21:11:02.403,"09:11:02 PM [startup] INFO: Address validation service initialized {""service"":""sirius""}"
+2026-01-20 21:11:02.401,Failed to load address validation config: TypeError: Invalid URL
+2026-01-20 21:11:02.401,    at new URL (node:internal/url:806:29)
+2026-01-20 21:11:02.401,    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+2026-01-20 21:11:02.401,    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+2026-01-20 21:11:02.401,    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+2026-01-20 21:11:02.401,    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+2026-01-20 21:11:02.401,    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+2026-01-20 21:11:02.401,    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+2026-01-20 21:11:02.401,    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+2026-01-20 21:11:02.401,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+2026-01-20 21:11:02.401,    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+2026-01-20 21:11:02.401,"  code: 'ERR_INVALID_URL',"
+2026-01-20 21:11:02.401,"  input: ""psql%20'postgresql://neondb_owner:npg_Ux2VLgnWf7Nz@ep-purple-poetry-ahtb7jg4-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'"""
+2026-01-20 21:11:02.401,}
+2026-01-20 21:11:02.374,"09:11:02 PM [startup] INFO: Access control system initialized {""service"":""sirius""}"
+2026-01-20 21:11:02.372,"09:11:02 PM [startup] INFO: Permission system initialized with core permissions {""service"":""sirius""}"
+2026-01-20 21:11:02.359,"09:11:02 PM [app] INFO: Registered eligibility plugin: work-status {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:11:02.359,"09:11:02 PM [app] INFO: Registered eligibility plugin: manual {""service"":""eligibility-plugin-registry""}"
+2026-01-20 21:11:02.335,"09:11:02 PM [app] INFO: Registered charge plugin: btu-steward-attendance {""service"":""charge-plugin-registry"",""triggers"":[""participant_saved""],""requiredComponent"":""sitespecific.btu""}"
+2026-01-20 21:11:02.334,"09:11:02 PM [app] INFO: Registered charge plugin: payment-simple-allocation {""service"":""charge-plugin-registry"",""triggers"":[""payment_saved""]}"
+2026-01-20 21:11:02.333,"09:11:02 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {""service"":""charge-plugin-registry"",""triggers"":[""wmb_saved""],""requiredComponent"":""sitespecific.gbhet.legal""}"
+2026-01-20 21:10:58.233,> rest-express@1.0.0 start
+2026-01-20 21:10:58.233,> NODE_ENV=production node dist/index.js
+2026-01-20 21:10:57.541,npm warn config production Use `--omit=dev` instead.
