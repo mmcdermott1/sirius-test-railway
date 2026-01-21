@@ -33,10 +33,12 @@ export async function captureRequestContext(req: Request, res: Response, next: N
     context.userId = user.dbUser.id;
     context.userEmail = user.dbUser.email;
   } else if (user?.claims?.sub) {
-    // Fallback: If dbUser wasn't attached during deserialization, fetch it now
+    // Fallback: If dbUser wasn't attached during deserialization, fetch it now via auth_identity
     try {
-      const replitUserId = user.claims.sub;
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
+      const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
+      const dbUser = identity ? await storage.users.getUser(identity.userId) : null;
       
       if (dbUser) {
         context.userId = dbUser.id;

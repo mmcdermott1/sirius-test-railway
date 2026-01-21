@@ -85,11 +85,12 @@ const requirePermission = (permissionKey: string) => {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    // Get database user ID from Replit user ID, respecting masquerade
-    const replitUserId = user.claims.sub;
+    // Get database user ID from external ID, respecting masquerade
+    const externalId = user.claims.sub;
+    const providerType = user.providerType || "replit";
     const session = req.session as any;
     const { getEffectiveUser } = await import("./modules/masquerade");
-    const { dbUser } = await getEffectiveUser(session, replitUserId);
+    const { dbUser } = await getEffectiveUser(session, externalId, providerType);
     if (!dbUser) {
       return res.status(401).json({ message: "User not found" });
     }
@@ -167,11 +168,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/user", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
       
       // Get effective user (handles masquerading)
-      const { dbUser, originalUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser, originalUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser) {
         return res.status(404).json({ message: "User not found" });
@@ -622,9 +624,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Use getEffectiveUser to support masquerade
       const user = (req as any).user;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser?.email) {
         res.json([]);

@@ -97,12 +97,14 @@ export function registerEsigsRoutes(
   app.post("/api/esigs", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      const replitUserId = user?.claims?.sub;
-      if (!replitUserId) {
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
+      if (!externalId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
+      const dbUser = identity ? await storage.users.getUser(identity.userId) : null;
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
       }
@@ -130,13 +132,15 @@ export function registerEsigsRoutes(
   app.post("/api/esigs/upload-document", requireAuth, upload.single("file"), async (req, res) => {
     try {
       const user = req.user as any;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       
-      if (!replitUserId) {
+      if (!externalId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      const dbUser = await storage.users.getUserByReplitId(replitUserId);
+      const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
+      const dbUser = identity ? await storage.users.getUser(identity.userId) : null;
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
       }

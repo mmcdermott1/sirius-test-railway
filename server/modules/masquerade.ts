@@ -3,16 +3,29 @@ import { storage } from "../storage";
 import { requireAccess } from "../services/access-policy-evaluator";
 import { storageLogger } from "../logger";
 import { getRequestContext } from "../middleware/request-context";
+import type { AuthProviderType } from "@shared/schema";
 
 // Type for middleware functions
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 
 /**
+ * Helper function to look up a user by their external ID and provider type
+ * Uses auth_identities table for the lookup
+ */
+async function getUserByExternalId(externalId: string, providerType: AuthProviderType = "replit") {
+  const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
+  if (!identity) {
+    return null;
+  }
+  return storage.users.getUser(identity.userId);
+}
+
+/**
  * Helper function to get the effective user (masqueraded or original)
  * and masquerade information from a session
  */
-export async function getEffectiveUser(session: any, replitUserId: string) {
+export async function getEffectiveUser(session: any, externalId: string, providerType: AuthProviderType = "replit") {
   let dbUser;
   let originalUser = null;
   
@@ -27,8 +40,8 @@ export async function getEffectiveUser(session: any, replitUserId: string) {
         session.save((err: any) => err ? reject(err) : resolve(undefined));
       });
       
-      // Fall back to the original user
-      dbUser = await storage.users.getUserByReplitId(replitUserId);
+      // Fall back to the original user via auth_identity
+      dbUser = await getUserByExternalId(externalId, providerType);
       if (!dbUser) {
         return { dbUser: null, originalUser: null };
       }
@@ -39,8 +52,8 @@ export async function getEffectiveUser(session: any, replitUserId: string) {
       }
     }
   } else {
-    // Not masquerading - get user by Replit ID
-    dbUser = await storage.users.getUserByReplitId(replitUserId);
+    // Not masquerading - get user via auth_identity
+    dbUser = await getUserByExternalId(externalId, providerType);
     if (!dbUser) {
       return { dbUser: null, originalUser: null };
     }
@@ -62,15 +75,16 @@ export function registerMasqueradeRoutes(
     try {
       const { userId } = req.body;
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
       
       if (!userId) {
         return res.status(400).json({ message: "User ID is required" });
       }
       
-      // Get the original user
-      const originalUser = await storage.users.getUserByReplitId(replitUserId);
+      // Get the original user via auth_identity
+      const originalUser = await getUserByExternalId(externalId, providerType);
       if (!originalUser) {
         return res.status(404).json({ message: "Original user not found" });
       }
@@ -260,10 +274,11 @@ export function registerMasqueradeRoutes(
   app.get("/api/auth/masquerade/recent", requireAccess('masquerade'), async (req, res) => {
     try {
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       
-      // Get the user making the request (not masqueraded)
-      const currentUser = await storage.users.getUserByReplitId(replitUserId);
+      // Get the user making the request (not masqueraded) via auth_identity
+      const currentUser = await getUserByExternalId(externalId, providerType);
       if (!currentUser) {
         return res.status(404).json({ message: "User not found" });
       }

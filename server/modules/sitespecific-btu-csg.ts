@@ -64,9 +64,10 @@ export function registerBtuCsgRoutes(
       };
 
       const user = (req as any).user;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser?.email) {
         return res.json(prefillData);

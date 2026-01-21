@@ -19,7 +19,7 @@ export interface AccessControlStorage {
   hasPermission(userId: string, permissionKey: string): Promise<boolean>;
   getUserPermissions(userId: string): Promise<string[]>;
   getUser(userId: string): Promise<User | undefined>;
-  getUserByReplitId(replitId: string): Promise<User | undefined>;
+  getByProviderAndExternalId(providerType: string, externalId: string): Promise<{ userId: string } | null>;
 }
 
 /**

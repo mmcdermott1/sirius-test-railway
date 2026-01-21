@@ -17,9 +17,10 @@ export function registerBookmarkRoutes(
   app.get("/api/bookmarks", requireAccess('staff'), async (req, res) => {
     try {
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -36,9 +37,10 @@ export function registerBookmarkRoutes(
   app.get("/api/bookmarks/enriched", requireAccess('staff'), async (req, res) => {
     try {
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -61,9 +63,10 @@ export function registerBookmarkRoutes(
       }
 
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -80,9 +83,10 @@ export function registerBookmarkRoutes(
   app.post("/api/bookmarks", requireAccess('staff'), async (req, res) => {
     try {
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -126,9 +130,10 @@ export function registerBookmarkRoutes(
     try {
       const { id } = req.params;
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
@@ -165,9 +170,10 @@ export function registerBookmarkRoutes(
       }
 
       const user = req.user as any;
-      const replitUserId = user.claims.sub;
+      const externalId = user.claims.sub;
+      const providerType = user.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });

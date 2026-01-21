@@ -800,9 +800,10 @@ export function registerCommRoutes(
   app.get("/api/alerts/unread-count", requireAuth, async (req, res) => {
     try {
       const user = (req as any).user;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -820,9 +821,10 @@ export function registerCommRoutes(
   app.get("/api/alerts", requireAuth, async (req, res) => {
     try {
       const user = (req as any).user;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -849,9 +851,10 @@ export function registerCommRoutes(
   app.get("/api/alerts/:id", requireAuth, async (req, res) => {
     try {
       const user = (req as any).user;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -880,9 +883,10 @@ export function registerCommRoutes(
   app.patch("/api/alerts/:id/read", requireAuth, async (req, res) => {
     try {
       const user = (req as any).user;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -909,9 +913,10 @@ export function registerCommRoutes(
   app.patch("/api/alerts/mark-all-read", requireAuth, async (req, res) => {
     try {
       const user = (req as any).user;
-      const replitUserId = user?.claims?.sub;
+      const externalId = user?.claims?.sub;
+      const providerType = user?.providerType || "replit";
       const session = req.session as any;
-      const { dbUser } = await getEffectiveUser(session, replitUserId);
+      const { dbUser } = await getEffectiveUser(session, externalId, providerType);
       
       if (!dbUser?.id) {
         return res.status(401).json({ message: "User not authenticated" });

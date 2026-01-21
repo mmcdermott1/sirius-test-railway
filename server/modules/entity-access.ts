@@ -111,8 +111,9 @@ export function registerEntityAccessModule(app: Express, storage: any): void {
         hasPermission: async (userId: string, permissionKey: string) => {
           return storage.users.userHasPermission(userId, permissionKey);
         },
-        getUserByReplitId: async (replitUserId: string) => {
-          return storage.users.getUserByReplitId(replitUserId);
+        getByProviderAndExternalId: async (providerType: string, externalId: string) => {
+          const identity = await storage.authIdentities.getByProviderAndExternalId(providerType as any, externalId);
+          return identity ? { userId: identity.userId } : null;
         },
         getUser: async (userId: string) => {
           return storage.users.getUser(userId);

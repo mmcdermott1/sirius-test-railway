@@ -23,12 +23,14 @@ import { createUserContactSyncService } from "../services/user-contact-sync";
 export interface UserStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
+  /** @deprecated Use storage.authIdentities.getByProviderAndExternalId instead */
   getUserByReplitId(replitUserId: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   updateUserLastLogin(id: string): Promise<User | undefined>;
+  /** @deprecated Use storage.authIdentities.create instead */
   linkReplitAccount(userId: string, replitUserId: string, userData: Partial<UpsertUser>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
