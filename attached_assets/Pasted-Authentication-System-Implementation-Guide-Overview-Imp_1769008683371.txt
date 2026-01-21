@@ -1,0 +1,184 @@
+Authentication System Implementation Guide
+Overview
+Implement a multi-provider authentication system using Passport.js with Replit Auth as the default provider. Users are stored in a users table, and authentication identities are stored separately in auth_identities to support linking multiple auth methods to one account.
+
+1. Database Schema
+Create these tables in shared/schema.ts:
+
+// Auth provider types
+export const authProviderTypeEnum = pgEnum("auth_provider_type", [
+  "replit",
+  "saml", 
+  "oauth",
+  "local",
+]);
+// Users table
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  profileImageUrl: text("profile_image_url"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+// Auth identities - links external auth providers to users
+export const authIdentities = pgTable("auth_identities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  providerType: authProviderTypeEnum("provider_type").notNull(),
+  externalId: text("external_id").notNull(), // The "sub" claim from OIDC
+  email: text("email"),
+  displayName: text("display_name"),
+  profileImageUrl: text("profile_image_url"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+}, (table) => [
+  index("idx_auth_identities_user").on(table.userId),
+  uniqueIndex("idx_auth_identities_provider_external_unique").on(table.providerType, table.externalId),
+]);
+2. Install Dependencies
+npm install passport express-session connect-pg-simple openid-client
+3. Session Configuration
+Use PostgreSQL for session storage:
+
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+const pgStore = connectPg(session);
+const sessionStore = new pgStore({
+  conString: process.env.DATABASE_URL,
+  createTableIfMissing: true,
+  tableName: "session",
+});
+app.use(session({
+  store: sessionStore,
+  secret: process.env.SESSION_SECRET || "your-secret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  },
+}));
+4. Replit Auth Provider
+Create server/auth/providers/replit.ts:
+
+import * as client from "openid-client";
+import passport from "passport";
+const ISSUER_URL = "https://replit.com/oidc";
+const CLIENT_ID = process.env.REPL_ID!;
+// Discover OIDC configuration
+const oidcConfig = await client.discovery(new URL(ISSUER_URL), CLIENT_ID);
+// In the verify callback:
+async function verifyCallback(tokens, done) {
+  const claims = tokens.claims();
+  const externalId = claims.sub;
+  const email = claims.email;
+  // 1. Look for existing auth_identity
+  let identity = await storage.authIdentities.getByProviderAndExternalId("replit", externalId);
+  if (identity) {
+    // User exists - verify they're active, update last_used_at
+    const user = await storage.users.getUser(identity.userId);
+    if (!user?.isActive) return done(null, false);
+    
+    await storage.authIdentities.updateLastUsed(identity.id);
+    return done(null, { claims, dbUser: user, providerType: "replit" });
+  }
+  // 2. No identity - try to link by email (for pre-provisioned users)
+  const existingUser = await storage.users.getByEmail(email);
+  if (existingUser?.isActive) {
+    // Create auth_identity linking this Replit account to existing user
+    await storage.authIdentities.create({
+      userId: existingUser.id,
+      providerType: "replit",
+      externalId,
+      email,
+      displayName: `${claims.first_name} ${claims.last_name}`.trim(),
+      profileImageUrl: claims.profile_image_url,
+    });
+    return done(null, { claims, dbUser: existingUser, providerType: "replit" });
+  }
+  // 3. No match - deny access (or create new user if open registration)
+  return done(null, false);
+}
+5. Auth Routes
+// Login - redirects to Replit
+app.get("/api/login", (req, res) => {
+  const domain = req.get("host");
+  const redirectUri = `https://${domain}/api/callback`;
+  
+  const authUrl = client.buildAuthorizationUrl(oidcConfig, {
+    redirect_uri: redirectUri,
+    scope: "openid email profile offline_access",
+    state: Buffer.from(JSON.stringify({ provider: "replit" })).toString("base64"),
+  });
+  
+  res.redirect(authUrl.href);
+});
+// Callback - handles OAuth response
+app.get("/api/callback", passport.authenticate("replit", {
+  successRedirect: "/",
+  failureRedirect: "/login?error=access_denied",
+}));
+// Logout
+app.get("/api/logout", (req, res) => {
+  req.logout(() => {
+    req.session.destroy(() => {
+      res.redirect("/");
+    });
+  });
+});
+// Get current user
+app.get("/api/auth/user", (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  res.json(req.user.dbUser);
+});
+6. Passport Serialization
+passport.serializeUser((user, done) => {
+  done(null, user); // Store full user object in session
+});
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+7. Helper Function for Route Handlers
+Create a helper to resolve the database user from session:
+
+export async function resolveDbUser(sessionUser) {
+  if (!sessionUser) return null;
+  
+  // Return cached dbUser if available
+  if (sessionUser.dbUser) return sessionUser.dbUser;
+  
+  // Otherwise look up by auth_identity
+  const identity = await storage.authIdentities.getByProviderAndExternalId(
+    sessionUser.providerType,
+    sessionUser.claims.sub
+  );
+  
+  if (!identity) return null;
+  return await storage.users.getUser(identity.userId);
+}
+8. Protect Routes
+function requireAuth(req, res, next) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  next();
+}
+app.get("/api/protected", requireAuth, async (req, res) => {
+  const user = await resolveDbUser(req.user);
+  // ... handle request
+});
+Key Design Decisions
+Separate auth_identities table - Allows one user to link multiple auth methods (Replit + SAML, etc.)
+Pre-provisioned users - Admins can create user accounts by email, and when that person logs in via Replit, their account is automatically linked
+isActive check - Inactive users are denied login even with valid credentials
+PostgreSQL sessions - Persist across server restarts, can be queried/managed
+These instructions cover the core authentication flow. The SAML/OAuth providers follow a similar pattern with their respective libraries.
