@@ -1,18 +1,30 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogIn } from 'lucide-react';
+import { Loader2, LogIn, Cloud } from 'lucide-react';
+
+interface AuthProviders {
+  providers: {
+    replit: boolean;
+    saml: boolean;
+    cognito: boolean;
+  };
+}
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { login, isAuthenticated, isLoading } = useAuth();
 
-  // Redirect if already authenticated
+  const { data: authProviders, isLoading: providersLoading } = useQuery<AuthProviders>({
+    queryKey: ['/api/auth/providers'],
+    retry: false,
+  });
+
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      // Check if there's a saved redirect path
       const redirectTo = sessionStorage.getItem('redirectAfterLogin');
       if (redirectTo) {
         sessionStorage.removeItem('redirectAfterLogin');
@@ -22,6 +34,14 @@ export default function LoginPage() {
       }
     }
   }, [isAuthenticated, isLoading, setLocation]);
+
+  const handleCognitoLogin = () => {
+    window.location.href = '/api/auth/cognito';
+  };
+
+  const handleSamlLogin = () => {
+    window.location.href = '/api/saml/login';
+  };
 
   if (isLoading) {
     return (
@@ -34,6 +54,10 @@ export default function LoginPage() {
     );
   }
 
+  const hasMultipleProviders = authProviders && 
+    [authProviders.providers.replit, authProviders.providers.cognito, authProviders.providers.saml]
+      .filter(Boolean).length > 1;
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <Card className="w-full max-w-md">
@@ -45,19 +69,62 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold">Welcome to Sirius</CardTitle>
           <CardDescription>
-            Sign in with your Replit account to access the worker management system
+            Sign in to access the worker management system
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button 
-            onClick={login} 
-            className="w-full" 
-            size="lg"
-            data-testid="button-login"
-          >
-            <LogIn className="mr-2 h-5 w-5" />
-            Sign in with Replit
-          </Button>
+          {authProviders?.providers.cognito && (
+            <Button 
+              onClick={handleCognitoLogin} 
+              className="w-full" 
+              size="lg"
+              data-testid="button-login-cognito"
+            >
+              <Cloud className="mr-2 h-5 w-5" />
+              Sign in with AWS
+            </Button>
+          )}
+
+          {authProviders?.providers.replit && (
+            <Button 
+              onClick={login} 
+              className="w-full" 
+              size="lg"
+              variant={authProviders?.providers.cognito ? "outline" : "default"}
+              data-testid="button-login"
+            >
+              <LogIn className="mr-2 h-5 w-5" />
+              Sign in with Replit
+            </Button>
+          )}
+
+          {authProviders?.providers.saml && (
+            <Button 
+              onClick={handleSamlLogin} 
+              className="w-full" 
+              size="lg"
+              variant="outline"
+              data-testid="button-login-saml"
+            >
+              <LogIn className="mr-2 h-5 w-5" />
+              Sign in with SSO
+            </Button>
+          )}
+
+          {providersLoading && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">Loading login options...</span>
+            </div>
+          )}
+
+          {!providersLoading && !authProviders?.providers.replit && !authProviders?.providers.cognito && !authProviders?.providers.saml && (
+            <div className="p-4 bg-destructive/10 rounded-lg">
+              <p className="text-sm text-destructive text-center">
+                No authentication providers are configured. Please contact your administrator.
+              </p>
+            </div>
+          )}
 
           <div className="mt-4 p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground text-center">
