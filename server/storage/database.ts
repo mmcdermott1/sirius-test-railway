@@ -38,6 +38,7 @@ import { type BtuEmployerMapStorage, createBtuEmployerMapStorage, btuEmployerMap
 import { type WorkerBanStorage, createWorkerBanStorage, workerBanLoggingConfig } from "./worker-bans";
 import { type WorkerDispatchDncStorage, createWorkerDispatchDncStorage, workerDispatchDncLoggingConfig } from "./worker-dispatch-dnc";
 import { type WorkerSkillStorage, createWorkerSkillStorage, workerSkillLoggingConfig } from "./worker-skills";
+import { type AuthIdentityStorage, createAuthIdentityStorage } from "./auth-identities";
 import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logging";
 import { db } from "../db";
 import { optionsEmploymentStatus, employers, workers, contacts } from "@shared/schema";
@@ -87,6 +88,7 @@ export interface IStorage {
   workerBans: WorkerBanStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
   workerSkills: WorkerSkillStorage;
+  authIdentities: AuthIdentityStorage;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -133,6 +135,7 @@ export class DatabaseStorage implements IStorage {
   workerBans: WorkerBanStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
   workerSkills: WorkerSkillStorage;
+  authIdentities: AuthIdentityStorage;
 
   constructor() {
     this.variables = withStorageLogging(createVariableStorage(), variableLoggingConfig);
@@ -242,6 +245,7 @@ export class DatabaseStorage implements IStorage {
     this.workerBans = withStorageLogging(createWorkerBanStorage(), workerBanLoggingConfig);
     this.workerDispatchDnc = withStorageLogging(createWorkerDispatchDncStorage(), workerDispatchDncLoggingConfig);
     this.workerSkills = withStorageLogging(createWorkerSkillStorage(), workerSkillLoggingConfig);
+    this.authIdentities = createAuthIdentityStorage();
   }
 }
 

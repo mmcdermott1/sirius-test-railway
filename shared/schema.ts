@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, pgEnum, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer, unique, serial, index, numeric } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer, unique, serial, index, numeric, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -82,6 +82,42 @@ export const users = pgTable("users", {
   lastLogin: timestamp("last_login"),
   data: jsonb("data"),
 });
+
+// Auth provider types for multi-provider authentication
+export const authProviderTypeEnum = pgEnum("auth_provider_type", [
+  "replit",
+  "saml",
+  "oauth",
+  "local",
+]);
+
+// Auth identities - links external auth providers to users
+export const authIdentities = pgTable("auth_identities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  providerType: authProviderTypeEnum("provider_type").notNull(),
+  externalId: text("external_id").notNull(),
+  email: text("email"),
+  displayName: text("display_name"),
+  profileImageUrl: text("profile_image_url"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+}, (table) => [
+  index("idx_auth_identities_user").on(table.userId),
+  uniqueIndex("idx_auth_identities_provider_external_unique").on(table.providerType, table.externalId),
+]);
+
+export const insertAuthIdentitySchema = createInsertSchema(authIdentities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type AuthProviderType = (typeof authProviderTypeEnum.enumValues)[number];
+export type InsertAuthIdentity = z.infer<typeof insertAuthIdentitySchema>;
+export type AuthIdentity = typeof authIdentities.$inferSelect;
 
 export const roles = pgTable("roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
