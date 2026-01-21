@@ -77,27 +77,33 @@ function updateUserSession(
 
 async function checkUserAccess(
   claims: any,
-): Promise<{ allowed: boolean; user?: any }> {
-  const replitUserId = claims["sub"];
+): Promise<{ allowed: boolean; user?: any; providerType?: string }> {
+  const externalId = claims["sub"];
   const email = claims["email"];
+  const providerType = "replit" as const;
   
-  console.log("Replit Auth attempt:", {
-    replitId: replitUserId,
-    email: email,
+  logger.info("Replit Auth attempt:", {
+    source: "auth",
+    externalId,
+    email,
     firstName: claims["first_name"],
     lastName: claims["last_name"],
   });
   
-  let user = await storage.users.getUserByReplitId(replitUserId);
+  // 1. Look for existing auth_identity
+  const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
   
-  if (user) {
-    console.log("Found existing linked account:", user.id);
-    
-    if (!user.isActive) {
-      console.log("User account is inactive:", user.id);
+  if (identity) {
+    // User exists via identity - verify they're active, update last_used_at
+    const user = await storage.users.getUser(identity.userId);
+    if (!user?.isActive) {
+      logger.warn("User account is inactive:", { source: "auth", userId: identity.userId });
       return { allowed: false };
     }
     
+    await storage.authIdentities.updateLastUsed(identity.id);
+    
+    // Update user profile from claims
     const updatedUser = await storage.users.updateUser(user.id, {
       email: email,
       firstName: claims["first_name"],
@@ -105,97 +111,92 @@ async function checkUserAccess(
       profileImageUrl: claims["profile_image_url"],
     });
     
-    if (!updatedUser) {
-      return { allowed: false };
-    }
-    
     await storage.users.updateUserLastLogin(user.id);
     
-    const userName = updatedUser.firstName && updatedUser.lastName
+    const userName = updatedUser?.firstName && updatedUser?.lastName
       ? `${updatedUser.firstName} ${updatedUser.lastName}`
-      : updatedUser.email;
-    const logData = {
-      userId: user.id,
-      email: updatedUser.email,
-      userName,
-      replitUserId: replitUserId,
-    };
+      : updatedUser?.email || email;
+    
     setImmediate(() => {
       const context = getRequestContext();
       storageLogger.info("Authentication event: login", {
         module: "auth",
         operation: "login",
-        entity_id: logData.userId,
-        description: `User logged in: ${logData.userName}`,
-        user_id: logData.userId,
-        user_email: logData.email,
+        entity_id: user.id,
+        description: `User logged in: ${userName}`,
+        user_id: user.id,
+        user_email: email,
         ip_address: context?.ipAddress,
         meta: {
-          userId: logData.userId,
-          email: logData.email,
-          replitUserId: logData.replitUserId,
+          userId: user.id,
+          email,
+          providerType,
+          externalId,
         },
       });
     });
     
-    return { allowed: true, user: updatedUser };
+    return { allowed: true, user: updatedUser || user, providerType };
   }
   
-  user = await storage.users.getUserByEmail(email);
+  // 2. No identity - try to link by email (for pre-provisioned users)
+  const existingUser = await storage.users.getUserByEmail(email);
   
-  if (!user) {
-    console.log("No provisioned account found for email:", email);
+  if (!existingUser) {
+    logger.warn("No provisioned account found for email:", { source: "auth", email });
     return { allowed: false };
   }
   
-  if (!user.isActive) {
-    console.log("User account is inactive:", user.id);
+  if (!existingUser.isActive) {
+    logger.warn("User account is inactive:", { source: "auth", userId: existingUser.id });
     return { allowed: false };
   }
   
-  console.log("Linking Replit account to provisioned user:", user.id);
-  const linkedUser = await storage.users.linkReplitAccount(user.id, replitUserId, {
+  // Create auth_identity linking this Replit account to existing user
+  await storage.authIdentities.create({
+    userId: existingUser.id,
+    providerType,
+    externalId,
+    email,
+    displayName: `${claims["first_name"] || ""} ${claims["last_name"] || ""}`.trim() || null,
+    profileImageUrl: claims["profile_image_url"],
+  });
+  
+  // Update user profile from claims
+  const updatedUser = await storage.users.updateUser(existingUser.id, {
     email: email,
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
   });
   
-  if (!linkedUser) {
-    return { allowed: false };
-  }
+  await storage.users.updateUserLastLogin(existingUser.id);
   
-  await storage.users.updateUserLastLogin(user.id);
+  const userName = updatedUser?.firstName && updatedUser?.lastName
+    ? `${updatedUser.firstName} ${updatedUser.lastName}`
+    : updatedUser?.email || email;
   
-  const userName = linkedUser.firstName && linkedUser.lastName
-    ? `${linkedUser.firstName} ${linkedUser.lastName}`
-    : linkedUser.email;
-  const logData = {
-    userId: user.id,
-    email: linkedUser.email,
-    userName,
-    replitUserId: replitUserId,
-  };
   setImmediate(() => {
     const context = getRequestContext();
     storageLogger.info("Authentication event: login", {
       module: "auth",
       operation: "login",
-      entity_id: logData.userId,
-      description: `User logged in (account linked): ${logData.userName}`,
-      user_id: logData.userId,
-      user_email: logData.email,
+      entity_id: existingUser.id,
+      description: `User logged in (account linked): ${userName}`,
+      user_id: existingUser.id,
+      user_email: email,
       ip_address: context?.ipAddress,
       meta: {
-        userId: logData.userId,
-        email: logData.email,
-        replitUserId: logData.replitUserId,
+        userId: existingUser.id,
+        email,
+        providerType,
+        externalId,
         accountLinked: true,
       },
     });
   });
   
-  return { allowed: true, user: linkedUser };
+  return { allowed: true, user: updatedUser || existingUser, providerType };
 }
 
 export async function setupReplitAuth(app: Express) {
@@ -245,6 +246,7 @@ export async function setupReplitAuth(app: Express) {
     }
     
     user.dbUser = accessCheck.user;
+    user.providerType = accessCheck.providerType || "replit";
     
     verified(null, user);
   };
@@ -273,10 +275,16 @@ export async function setupReplitAuth(app: Express) {
     const sessionUser = user as any;
     if (sessionUser.claims?.sub && !sessionUser.dbUser) {
       try {
-        const replitUserId = sessionUser.claims.sub;
-        const dbUser = await storage.users.getUserByReplitId(replitUserId);
-        if (dbUser) {
-          sessionUser.dbUser = dbUser;
+        const externalId = sessionUser.claims.sub;
+        const providerType = sessionUser.providerType || "replit";
+        
+        // Look up user via auth_identity
+        const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
+        if (identity) {
+          const dbUser = await storage.users.getUser(identity.userId);
+          if (dbUser) {
+            sessionUser.dbUser = dbUser;
+          }
         }
       } catch (error) {
         logger.error('Failed to rehydrate dbUser during deserialization', { error });
