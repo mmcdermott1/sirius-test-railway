@@ -14,13 +14,18 @@ The frontend uses React 18 with TypeScript, Vite, Shadcn/ui (built on Radix UI),
 ## Technical Implementations
 -   **Frontend**: Wouter for routing, TanStack Query for server state, React Hook Form with Zod for forms. Pages are lazy-loaded.
 -   **Backend**: Express.js with TypeScript, RESTful API, and a feature-based module structure.
--   **Authentication**: Replit Auth (OAuth via OpenID Connect) with PostgreSQL-based session management.
+-   **Authentication**: Identity-based multi-provider auth architecture supporting Replit OIDC, SAML, OAuth, and local providers.
+    -   **auth_identities Table**: Links external identity providers to users. Schema: `provider_type` (enum: replit, saml, oauth, local), `external_id` (provider's user ID), `user_id` (FK to users).
+    -   **Provider Flow**: Login via provider → checkUserAccess() finds/creates auth_identity → links to existing user by email or creates new user → stores providerType in session.
+    -   **Storage Layer**: `storage.authIdentities.getByProviderAndExternalId(providerType, externalId)` for lookups.
+    -   **Current Provider**: Replit OIDC (requires REPL_ID env var). For AWS/external deployments, configure SAML or OAuth provider.
 -   **Masquerade Support**: Admins can masquerade as other users. Backend endpoints that access user-specific data MUST use `getEffectiveUser()` from `server/modules/masquerade.ts` to get the correct user context (masqueraded or original). Pattern:
     ```typescript
     const user = (req as any).user;
-    const replitUserId = user?.claims?.sub;
+    const externalId = user?.claims?.sub;
+    const providerType = user?.providerType || "replit";
     const session = req.session as any;
-    const { dbUser } = await getEffectiveUser(session, replitUserId);
+    const { dbUser } = await getEffectiveUser(session, externalId);
     ```
 -   **Access Control**: Modular policy architecture with entity-based access policies and server-side LRU caching. Components can define their own permissions and policies via `ComponentDefinition`, which are automatically registered when the component is enabled. Policy references allow composite rules (e.g., `staff OR (permission AND another-policy)`) with cycle detection.
     -   **Modular Policy Architecture**: All 21 core policies are defined as individual files under `shared/access-policies/` with custom `evaluate` functions receiving a `PolicyContext`. Modular policies are checked first; declarative policies serve as fallback for component-defined policies. File paths mirror policy IDs (e.g., `worker.dispatch.dnc.view` → `dispatch/dnc/view.ts`). Policies are loaded via `shared/access-policies/loader.ts` at server startup.
