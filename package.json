@@ -12,6 +12,7 @@
     "db:push:component": "tsx scripts/db-push-component.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.972.0",
     "@aws-sdk/client-s3": "^3.928.0",
     "@aws-sdk/s3-request-presigner": "^3.928.0",
     "@google-cloud/storage": "^7.17.3",
@@ -63,6 +64,7 @@
     "@types/passport-oauth2": "^1.8.0",
     "@types/pdfmake": "^0.2.12",
     "@types/qrcode.react": "^1.0.5",
+    "amazon-cognito-identity-js": "^6.3.16",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

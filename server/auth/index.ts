@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { setupReplitAuth, isAuthenticated as replitIsAuthenticated, getSession as replitGetSession } from "./replit";
 import { setupSamlAuth, isSamlConfigured } from "./saml";
-import { setupGoogleAuth, isGoogleConfigured } from "./google";
+import { setupCognitoAuth, isCognitoConfigured } from "./cognito";
 import type { AuthProviderType } from "@shared/schema";
 import { logger } from "../logger";
 
@@ -11,7 +11,7 @@ export function getAuthProvider(): AuthProvider {
   if (isSamlConfigured()) {
     return "saml";
   }
-  if (isGoogleConfigured()) {
+  if (isCognitoConfigured()) {
     return "oauth";
   }
   if (process.env.REPL_ID) {
@@ -34,9 +34,9 @@ export async function setupAuth(app: Express): Promise<void> {
     providers.push("saml");
   }
   
-  const googleConfigured = await setupGoogleAuth(app);
-  if (googleConfigured) {
-    providers.push("google");
+  const cognitoConfigured = await setupCognitoAuth(app);
+  if (cognitoConfigured) {
+    providers.push("cognito");
   }
   
   if (providers.length > 1) {
@@ -51,7 +51,7 @@ export async function setupAuth(app: Express): Promise<void> {
       providers: {
         replit: !!process.env.REPL_ID,
         saml: samlConfigured,
-        google: googleConfigured,
+        cognito: cognitoConfigured,
       },
     });
   });
