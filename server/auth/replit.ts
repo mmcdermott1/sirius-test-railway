@@ -32,6 +32,71 @@ const getOidcConfig = memoize(
   { maxAge: 3600 * 1000 }
 );
 
+export async function getReplitLogoutUrl(req: Request): Promise<string | null> {
+  if (!process.env.REPL_ID) {
+    return null;
+  }
+  
+  try {
+    const config = await getOidcConfig();
+    return client.buildEndSessionUrl(config, {
+      client_id: process.env.REPL_ID!,
+      post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+    }).href;
+  } catch (error) {
+    logger.error("Failed to build Replit logout URL", { source: "auth", error });
+    return null;
+  }
+}
+
+export async function logLogoutEvent(req: Request): Promise<void> {
+  const user = req.user as any;
+  const session = req.session as any;
+  
+  if (!user?.claims?.sub) {
+    return;
+  }
+  
+  try {
+    const externalId = user.claims.sub;
+    const providerType = user.providerType || "replit";
+    const wasMasquerading = !!session?.masqueradeUserId;
+    
+    let dbUser;
+    if (session?.masqueradeUserId) {
+      dbUser = await storage.users.getUser(session.masqueradeUserId);
+    } else {
+      const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
+      if (identity) {
+        dbUser = await storage.users.getUser(identity.userId);
+      }
+    }
+    
+    if (dbUser) {
+      const name = dbUser.firstName && dbUser.lastName 
+        ? `${dbUser.firstName} ${dbUser.lastName}` 
+        : dbUser.email;
+      const context = getRequestContext();
+      storageLogger.info("Authentication event: logout", {
+        module: "auth",
+        operation: "logout",
+        entity_id: dbUser.id,
+        description: `User logged out: ${name}`,
+        user_id: dbUser.id,
+        user_email: dbUser.email,
+        ip_address: context?.ipAddress,
+        meta: {
+          userId: dbUser.id,
+          email: dbUser.email,
+          wasMasquerading,
+        },
+      });
+    }
+  } catch (error) {
+    console.error("Error capturing logout user info:", error);
+  }
+}
+
 export function getSession() {
   if (!process.env.SESSION_SECRET) {
     if (process.env.NODE_ENV === 'production') {
@@ -222,10 +287,6 @@ export async function setupReplitAuth(app: Express) {
     app.get("/api/callback", (_req, res) => {
       res.status(503).json({ message: "Authentication not configured." });
     });
-    app.get("/api/logout", (_req, res) => {
-      res.redirect("/");
-    });
-    
     return;
   }
 
@@ -314,74 +375,6 @@ export async function setupReplitAuth(app: Express) {
     });
   });
 
-  app.get("/api/logout", async (req, res) => {
-    const user = req.user as any;
-    const session = req.session as any;
-    let logData: { userId?: string; email?: string; firstName?: string; lastName?: string; wasMasquerading?: boolean } | null = null;
-    
-    if (user?.claims?.sub) {
-      try {
-        const externalId = user.claims.sub;
-        const providerType = user.providerType || "replit";
-        const wasMasquerading = !!session.masqueradeUserId;
-        
-        let dbUser;
-        if (session.masqueradeUserId) {
-          dbUser = await storage.users.getUser(session.masqueradeUserId);
-        } else {
-          // Look up user via auth_identity
-          const identity = await storage.authIdentities.getByProviderAndExternalId(providerType, externalId);
-          if (identity) {
-            dbUser = await storage.users.getUser(identity.userId);
-          }
-        }
-        
-        if (dbUser) {
-          logData = {
-            userId: dbUser.id,
-            email: dbUser.email,
-            firstName: dbUser.firstName || undefined,
-            lastName: dbUser.lastName || undefined,
-            wasMasquerading,
-          };
-        }
-      } catch (error) {
-        console.error("Error capturing logout user info:", error);
-      }
-    }
-    
-    req.logout(() => {
-      if (logData) {
-        setImmediate(() => {
-          const name = logData!.firstName && logData!.lastName 
-            ? `${logData!.firstName} ${logData!.lastName}` 
-            : logData!.email;
-          const context = getRequestContext();
-          storageLogger.info("Authentication event: logout", {
-            module: "auth",
-            operation: "logout",
-            entity_id: logData!.userId,
-            description: `User logged out: ${name}`,
-            user_id: logData!.userId,
-            user_email: logData!.email,
-            ip_address: context?.ipAddress,
-            meta: {
-              userId: logData!.userId,
-              email: logData!.email,
-              wasMasquerading: logData!.wasMasquerading,
-            },
-          });
-        });
-      }
-      
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
-    });
-  });
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
