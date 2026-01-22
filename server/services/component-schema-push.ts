@@ -27,8 +27,17 @@ export async function pushComponentSchema(componentId: string): Promise<void> {
       
       const createSql = generateCreateTableSql(tableSchema, tableName);
       console.log(`Creating table ${tableName}...`);
-      await db.execute(drizzleSql.raw(createSql));
-      console.log(`Table ${tableName} created successfully.`);
+      console.log(`SQL: ${createSql}`);
+      
+      try {
+        await db.execute(drizzleSql.raw(createSql));
+        console.log(`Table ${tableName} created successfully.`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Failed to create table ${tableName}: ${errorMessage}`);
+        console.error(`SQL was: ${createSql}`);
+        throw new Error(`Failed to create table ${tableName}: ${errorMessage}`);
+      }
     } else {
       console.log(`Table ${tableName} already exists, skipping.`);
     }
@@ -110,12 +119,40 @@ function getSqlType(col: any): string {
   if (columnType?.includes("PgBoolean")) {
     return "BOOLEAN";
   }
+  if (columnType?.includes("PgJsonb")) {
+    return "JSONB";
+  }
+  if (columnType?.includes("PgJson")) {
+    return "JSON";
+  }
+  if (columnType?.includes("PgUUID")) {
+    return "UUID";
+  }
+  if (columnType?.includes("PgDate")) {
+    return "DATE";
+  }
+  if (columnType?.includes("PgTime")) {
+    return "TIME";
+  }
+  if (columnType?.includes("PgNumeric") || columnType?.includes("PgDecimal")) {
+    return "NUMERIC";
+  }
+  if (columnType?.includes("PgReal") || columnType?.includes("PgDoublePrecision")) {
+    return "DOUBLE PRECISION";
+  }
+  if (columnType?.includes("PgBigInt") || columnType?.includes("PgBigSerial")) {
+    return "BIGINT";
+  }
+  if (columnType?.includes("PgSmallInt") || columnType?.includes("PgSmallSerial")) {
+    return "SMALLINT";
+  }
   
   const dataType = col.dataType;
   if (dataType === "string") return "TEXT";
   if (dataType === "number") return "INTEGER";
   if (dataType === "boolean") return "BOOLEAN";
   if (dataType === "date") return "TIMESTAMP";
+  if (dataType === "json") return "JSONB";
   
   return "TEXT";
 }
