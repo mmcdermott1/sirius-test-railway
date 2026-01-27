@@ -4,7 +4,7 @@ import { dispatchBanPlugin, backfillDispatchBanEligibility } from "./ban";
 import { dispatchDncPlugin } from "./dnc";
 import { dispatchHfePlugin } from "./hfe";
 import { dispatchSkillPlugin, backfillDispatchSkillEligibility } from "./skill";
-import { dispatchStatusPlugin } from "./status";
+import { dispatchStatusPlugin, backfillDispatchStatusEligibility } from "./status";
 import { dispatchWsPlugin, backfillDispatchWsEligibility } from "./ws";
 
 /**
@@ -83,6 +83,24 @@ export async function initializeDispatchEligSystem(): Promise<void> {
     }
   } catch (error) {
     logger.error("Failed to backfill work status eligibility during startup", {
+      service: "dispatch-elig-plugins",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Backfill eligibility data for existing worker dispatch statuses (availability)
+  // This ensures pre-existing dispatch statuses are accounted for in eligibility checks
+  try {
+    const result = await backfillDispatchStatusEligibility();
+    if (result.workersProcessed > 0) {
+      logger.info("Dispatch status eligibility backfill completed during startup", {
+        service: "dispatch-elig-plugins",
+        workersProcessed: result.workersProcessed,
+        entriesCreated: result.entriesCreated,
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to backfill dispatch status eligibility during startup", {
       service: "dispatch-elig-plugins",
       error: error instanceof Error ? error.message : String(error),
     });
