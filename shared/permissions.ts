@@ -170,6 +170,11 @@ export function initializePermissions(): void {
       description: 'View user accounts and profiles',
       module: 'core'
     },
+    {
+      key: 'workers.comm',
+      description: 'Access worker communication features (SMS, email, postal, in-app)',
+      module: 'core'
+    },
   ];
 
   permissionRegistry.registerMany(corePermissions);
