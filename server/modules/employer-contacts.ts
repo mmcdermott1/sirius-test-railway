@@ -377,7 +377,11 @@ export function registerEmployerContactRoutes(
       }
       
       // Remove optional roles that are no longer selected
+      // Include auto-assigned employer role in desired roles to prevent removal
       const allDesiredRoleIds = [...requiredRoleIds, ...optionalRoleIds];
+      if (employerRole) {
+        allDesiredRoleIds.push(employerRole.id);
+      }
       for (const roleId of currentRoleIds) {
         if (!allDesiredRoleIds.includes(roleId)) {
           // Only remove if it's not a required role

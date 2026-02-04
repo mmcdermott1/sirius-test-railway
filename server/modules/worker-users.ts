@@ -218,7 +218,11 @@ export function registerWorkerUsersRoutes(
       }
       
       // Remove optional roles that are no longer selected
+      // Include auto-assigned worker role in desired roles to prevent removal
       const allDesiredRoleIds = [...requiredRoleIds, ...optionalRoleIds];
+      if (workerRole) {
+        allDesiredRoleIds.push(workerRole.id);
+      }
       for (const roleId of currentRoleIds) {
         // Only remove if it's an allowed optional role (not required, not a role outside our scope)
         if (allowedOptionalRoleIds.includes(roleId) && !allDesiredRoleIds.includes(roleId)) {
