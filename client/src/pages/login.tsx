@@ -76,7 +76,7 @@ export default function LoginPage() {
               <LogIn className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Sirius</CardTitle>
+          <CardTitle className="text-2xl font-bold">SIRIUS PREVIEW ENVIRONMENT YO!</CardTitle>
           <CardDescription>
             Sign in to access the worker management system
           </CardDescription>
