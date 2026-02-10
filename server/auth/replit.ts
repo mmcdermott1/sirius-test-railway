@@ -5,6 +5,7 @@ import session from "express-session";
 import type { Express, RequestHandler, Request } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import { randomBytes } from "crypto";
 import { storage } from "../storage";
 import { storageLogger, logger } from "../logger";
 import { getRequestContext } from "../middleware/request-context";
@@ -103,8 +104,7 @@ export function getSession() {
       throw new Error('SESSION_SECRET environment variable is required in production');
     }
     if (process.env.MOCK_AUTH) {
-      const crypto = require('crypto');
-      process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+      process.env.SESSION_SECRET = randomBytes(32).toString('hex');
       console.warn('Preview environment: auto-generated SESSION_SECRET');
     } else {
       console.warn('WARNING: Using fallback SESSION_SECRET for development. Set SESSION_SECRET in production!');
