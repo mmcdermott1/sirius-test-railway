@@ -390,6 +390,19 @@ export const componentRegistry: ComponentDefinition[] = [
     category: "dispatch"
   },
   {
+    id: "dispatch.eba",
+    name: "Employed but Available",
+    description: "Tracks workers who are employed but available for dispatch",
+    enabledByDefault: false,
+    category: "dispatch",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/eba-schema.ts",
+      tables: ["worker_dispatch_eba"]
+    }
+  },
+  {
     id: "debug",
     name: "Debug",
     description: "Debug tools and developer utilities",
