@@ -99,10 +99,16 @@ export async function logLogoutEvent(req: Request): Promise<void> {
 
 export function getSession() {
   if (!process.env.SESSION_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !process.env.MOCK_AUTH) {
       throw new Error('SESSION_SECRET environment variable is required in production');
     }
-    console.warn('WARNING: Using fallback SESSION_SECRET for development. Set SESSION_SECRET in production!');
+    if (process.env.MOCK_AUTH) {
+      const crypto = require('crypto');
+      process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+      console.warn('Preview environment: auto-generated SESSION_SECRET');
+    } else {
+      console.warn('WARNING: Using fallback SESSION_SECRET for development. Set SESSION_SECRET in production!');
+    }
   }
   
   const sessionTtl = 7 * 24 * 60 * 60 * 1000;
