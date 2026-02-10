@@ -25,7 +25,8 @@
           "port": 3000,
           "healthCheckPath": "/api/health",
           "envVariables": {
-            "NODE_ENV": "production"
+            "NODE_ENV": "production",
+            "PORT": "3000"
           }
         }
       ]
@@ -50,7 +51,8 @@
           "port": 3000,
           "healthCheckPath": "/api/health",
           "envVariables": {
-            "NODE_ENV": "production"
+            "NODE_ENV": "production",
+            "PORT": "3000"
           }
         }
       ]
@@ -79,7 +81,8 @@
           "healthCheckPath": "/api/health",
           "envVariables": {
             "NODE_ENV": "production",
-            "MOCK_AUTH": "true"
+            "MOCK_AUTH": "true",
+            "PORT": "3000"
           }
         }
       ]
