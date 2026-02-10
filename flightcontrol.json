@@ -22,10 +22,11 @@
           "memory": 1,
           "minInstances": 1,
           "maxInstances": 3,
-          "port": 5000,
+          "port": 3000,
           "healthCheckPath": "/api/health",
           "envVariables": {
-            "NODE_ENV": "production"
+            "NODE_ENV": "production",
+            "PORT": "3000"
           }
         }
       ]
@@ -47,10 +48,11 @@
           "memory": 0.5,
           "minInstances": 1,
           "maxInstances": 1,
-          "port": 5000,
+          "port": 3000,
           "healthCheckPath": "/api/health",
           "envVariables": {
-            "NODE_ENV": "production"
+            "NODE_ENV": "production",
+            "PORT": "3000"
           }
         }
       ]
@@ -75,11 +77,12 @@
           "memory": 0.5,
           "minInstances": 1,
           "maxInstances": 1,
-          "port": 5000,
+          "port": 3000,
           "healthCheckPath": "/api/health",
           "envVariables": {
             "NODE_ENV": "production",
-            "MOCK_AUTH": "true"
+            "MOCK_AUTH": "true",
+            "PORT": "3000"
           }
         }
       ]
