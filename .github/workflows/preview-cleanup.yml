@@ -1,0 +1,46 @@
+name: Cleanup Preview Database
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup-neon-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Neon Branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          # Sanitize branch name (same logic as provision script)
+          BRANCH_NAME="${{ github.head_ref }}"
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9-_]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g' | cut -c1-63)
+          NEON_BRANCH_NAME="preview-${SANITIZED_BRANCH}"
+          
+          echo "🔍 Looking for Neon branch: ${NEON_BRANCH_NAME}"
+          
+          # Get list of branches
+          BRANCHES_RESPONSE=$(curl -s -X GET \
+            "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches" \
+            -H "Authorization: Bearer ${NEON_API_KEY}" \
+            -H "Content-Type: application/json")
+          
+          # Find the branch ID
+          BRANCH_ID=$(echo "$BRANCHES_RESPONSE" | jq -r ".branches[] | select(.name == \"${NEON_BRANCH_NAME}\") | .id")
+          
+          if [ -z "$BRANCH_ID" ] || [ "$BRANCH_ID" == "null" ]; then
+            echo "⚠️ Branch ${NEON_BRANCH_NAME} not found, nothing to delete"
+            exit 0
+          fi
+          
+          echo "🗑️ Deleting branch: ${NEON_BRANCH_NAME} (ID: ${BRANCH_ID})"
+          
+          # Delete the branch
+          DELETE_RESPONSE=$(curl -s -X DELETE \
+            "https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}/branches/${BRANCH_ID}" \
+            -H "Authorization: Bearer ${NEON_API_KEY}" \
+            -H "Content-Type: application/json")
+          
+          echo "✅ Deleted Neon branch: ${NEON_BRANCH_NAME}"
+          echo "Response: $DELETE_RESPONSE"
