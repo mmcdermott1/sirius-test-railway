@@ -119,9 +119,7 @@ export default function Header() {
     return user.email || "User";
   };
 
-  const isPreview = window.location.hostname.includes('preview') || 
-    window.location.hostname.includes('pr-') ||
-    new URLSearchParams(window.location.search).has('preview');
+  const isPreview = true;
 
   return (
     <header className="border-b bg-white dark:bg-gray-950 dark:border-gray-800">

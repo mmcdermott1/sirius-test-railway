@@ -58,9 +58,7 @@ export default function LoginPage() {
     [authProviders.providers.replit, authProviders.providers.cognito, authProviders.providers.saml]
       .filter(Boolean).length > 1;
 
-  const isPreview = window.location.hostname.includes('preview') || 
-    window.location.hostname.includes('pr-') ||
-    new URLSearchParams(window.location.search).has('preview');
+  const isPreview = true;
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
