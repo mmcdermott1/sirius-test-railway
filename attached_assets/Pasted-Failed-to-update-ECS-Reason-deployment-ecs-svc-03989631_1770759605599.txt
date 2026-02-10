@@ -1,0 +1,91 @@
+Failed to update ECS
+
+Reason: (deployment ecs-svc/0398963179245227963) deployment failed: tasks failed to start.
+
+Ensure 1) your configured health check path of '/api/health' on port 3000 is returning a 2xx or 3xx status code, 2) your server is binding to host of 0.0.0.0 instead of localhost, and 3) you have sufficient CPU & memory. Healthcheck timeout can also be adjusted in service config.
+
+3 tasks (3106afa1a45f470e995c55b1f8f8ba42, 482e494fb36b4f79bbdaa24467447409, 81f5f634b349454d9057a7734a7a0b97): Essential container in task exited (exit code 1)
+
+4:34:34 PM npm warn config production Use `--omit=dev` instead.
+4:34:36 PM > rest-express@1.0.0 start:preview
+4:34:36 PM > NODE_ENV=production node dist/scripts/start-preview.js
+4:34:38 PM ============================================================
+4:34:38 PM PREVIEW ENVIRONMENT STARTUP
+4:34:38 PM ============================================================
+4:34:38 PM 🚀 Neon Preview Database Provisioning (Runtime)
+4:34:38 PM 📌 Git Branch: feature/newest
+4:34:38 PM 🔍 Looking for Neon branch: preview-feature-newest
+4:34:38 PM ✅ Found existing branch: preview-feature-newest (ID: br-wandering-wildflower-ahhhp902)
+4:34:38 PM 🔗 Connection endpoint: ep-fancy-rice-ah3zva6f.c-3.us-east-1.aws.neon.tech
+4:34:38 PM 📊 Database: neondb
+4:34:38 PM ✨ Preview database provisioning complete!
+4:34:38 PM 📊 DATABASE_URL set to preview branch
+4:34:38 PM 🌿 Branch: preview-feature-newest
+4:34:38 PM ============================================================
+4:34:38 PM 🚀 Starting application...
+4:34:46 PM 09:34:46 PM [app] INFO: Registered charge plugin: gbhet-legal-benefit {"service":"charge-plugin-registry","triggers":["wmb_saved"],"requiredComponent":"sitespecific.gbhet.legal"}
+4:34:46 PM 09:34:46 PM [app] INFO: Registered charge plugin: payment-simple-allocation {"service":"charge-plugin-registry","triggers":["payment_saved"]}
+4:34:46 PM 09:34:46 PM [app] INFO: Registered charge plugin: btu-steward-attendance {"service":"charge-plugin-registry","triggers":["participant_saved"],"requiredComponent":"sitespecific.btu"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered eligibility plugin: work-status {"service":"eligibility-plugin-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered eligibility plugin: manual {"service":"eligibility-plugin-registry"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Permission system initialized with core permissions {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Access control system initialized {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Address validation service initialized {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Component cache initialized {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [app] INFO: Component permissions registered {"service":"component-permissions","count":1}
+4:34:47 PM 09:34:47 PM [startup] INFO: Component permissions synced {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_ban {"service":"dispatch-elig-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_dnc {"service":"dispatch-elig-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_hfe {"service":"dispatch-elig-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_skill {"service":"dispatch-elig-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Dispatch eligibility plugin registered: dispatch_status {"service":"dispatch-elig-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Dispatch eligibility plugins registered {"service":"dispatch-elig-plugins","plugins":["dispatch_ban","dispatch_dnc","dispatch_hfe","dispatch_skill","dispatch_status"]}
+4:34:47 PM 09:34:47 PM [startup] INFO: Dispatch eligibility system initialized {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [app] INFO: Worker ban notifications initialized {"service":"worker-ban-notifications"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Worker ban notifications initialized {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered cron job: delete-expired-reports {"service":"cron-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered cron job: delete-old-cron-logs {"service":"cron-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered cron job: process-wmb-batch {"service":"cron-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered cron job: delete-expired-flood-events {"service":"cron-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered cron job: delete-expired-hfe {"service":"cron-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered cron job: sweep-expired-ban-elig {"service":"cron-registry"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered cron job: sync-ban-active-status {"service":"cron-registry"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Cron job handlers registered {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [app] INFO: Registered flood event: bookmark {"service":"flood-registry","threshold":1000,"windowSeconds":360}
+4:34:47 PM 09:34:47 PM [startup] INFO: Flood events registered {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Flood configs loaded from variables {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [log-notifier] INFO: Log notifier initialized {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [app] INFO: Bootstrapping default cron jobs {"service":"cron-bootstrap"}
+4:34:47 PM 09:34:47 PM [app] INFO: Cron job bootstrap completed {"service":"cron-bootstrap","created":0,"skipped":7,"errors":0,"total":7}
+4:34:47 PM 09:34:47 PM [startup] INFO: Default cron jobs bootstrapped {"service":"sirius"}
+4:34:47 PM Preview environment: auto-generated SESSION_SECRET
+4:34:47 PM 09:34:47 PM [auth] WARN: REPL_ID not set - Replit OIDC auth will not be available. Configure an alternative auth provider for non-Replit environments. {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [auth] INFO: SAML auth not configured - missing environment variables {"service":"sirius","required":["SAML_ENTRY_POINT","SAML_ISSUER","SAML_CALLBACK_URL","SAML_IDP_CERT"]}
+4:34:47 PM 09:34:47 PM [auth] INFO: AWS Cognito not configured - missing environment variables {"service":"sirius","required":["COGNITO_USER_POOL_ID","COGNITO_CLIENT_ID","COGNITO_CLIENT_SECRET","COGNITO_DOMAIN","COGNITO_CALLBACK_URL"]}
+4:34:47 PM 09:34:47 PM [startup] INFO: Replit Auth initialized {"service":"sirius"}
+4:34:47 PM 09:34:47 PM [startup] INFO: Entity access module registered {"service":"sirius"}
+4:34:48 PM 09:34:48 PM [app] INFO: WebSocket server initialized {"service":"websocket"}
+4:34:48 PM 09:34:48 PM [startup] INFO: WebSocket server initialized {"service":"sirius"}
+4:34:48 PM 09:34:48 PM [app] INFO: Starting cron scheduler {"service":"cron-scheduler"}
+4:34:48 PM 09:34:48 PM [app] INFO: Found 6 enabled cron jobs {"service":"cron-scheduler"}
+4:34:48 PM 09:34:48 PM [app] INFO: Scheduled job: delete-expired-reports {"service":"cron-scheduler","jobName":"delete-expired-reports","schedule":"0 2 * * *"}
+4:34:48 PM 09:34:48 PM [app] INFO: Scheduled job: delete-old-cron-logs {"service":"cron-scheduler","jobName":"delete-old-cron-logs","schedule":"0 3 * * *"}
+4:34:48 PM 09:34:48 PM [app] INFO: Scheduled job: delete-expired-flood-events {"service":"cron-scheduler","jobName":"delete-expired-flood-events","schedule":"0 * * * *"}
+4:34:48 PM 09:34:48 PM [app] INFO: Scheduled job: delete-expired-hfe {"service":"cron-scheduler","jobName":"delete-expired-hfe","schedule":"0 4 * * *"}
+4:34:48 PM 09:34:48 PM [app] INFO: Scheduled job: sweep-expired-ban-elig {"service":"cron-scheduler","jobName":"sweep-expired-ban-elig","schedule":"0 5 * * *"}
+4:34:48 PM 09:34:48 PM [app] INFO: Scheduled job: sync-ban-active-status {"service":"cron-scheduler","jobName":"sync-ban-active-status","schedule":"0 6 * * *"}
+4:34:48 PM 09:34:48 PM [app] INFO: Cron scheduler started successfully {"service":"cron-scheduler","jobCount":6}
+4:34:48 PM 09:34:48 PM [startup] INFO: Cron scheduler started {"service":"sirius"}
+4:34:48 PM file:///app/dist/server/index.js:38664
+4:34:48 PM     throw new Error(
+4:34:48 PM           ^
+4:34:48 PM Error: Could not find the build directory: /app/dist/server/public, make sure to build the client first
+4:34:48 PM     at serveStatic (file:///app/dist/server/index.js:38664:11)
+4:34:48 PM     at file:///app/dist/server/index.js:42382:5
+4:34:48 PM     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+4:34:48 PM Node.js v20.18.1
+4:34:48 PM npm notice
+4:34:48 PM npm notice New major version of npm available! 10.8.2 -> 11.9.0
+4:34:48 PM npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.9.0
+4:34:48 PM npm notice To update run: npm install -g npm@11.9.0
+4:34:48 PM npm notice

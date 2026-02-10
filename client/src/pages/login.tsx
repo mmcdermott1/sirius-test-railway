@@ -58,8 +58,15 @@ export default function LoginPage() {
     [authProviders.providers.replit, authProviders.providers.cognito, authProviders.providers.saml]
       .filter(Boolean).length > 1;
 
+  const isPreview = true;
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      {isPreview && (
+        <div className="fixed top-0 left-0 right-0 bg-amber-500 text-black text-center py-2 px-4 font-semibold text-sm z-50">
+          PREVIEW ENVIRONMENT - This is a test deployment from a pull request
+        </div>
+      )}
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
@@ -67,7 +74,7 @@ export default function LoginPage() {
               <LogIn className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Sirius</CardTitle>
+          <CardTitle className="text-2xl font-bold">SIRIUS PREVIEW ENVIRONMENT YO!</CardTitle>
           <CardDescription>
             Sign in to access the worker management system
           </CardDescription>

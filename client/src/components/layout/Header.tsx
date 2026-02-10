@@ -119,8 +119,15 @@ export default function Header() {
     return user.email || "User";
   };
 
+  const isPreview = true;
+
   return (
     <header className="border-b bg-white dark:bg-gray-950 dark:border-gray-800">
+      {isPreview && (
+        <div className="bg-amber-500 text-black text-center py-2 px-4 font-bold text-sm">
+          SIRIUS PREVIEW ENVIRONMENT YO!
+        </div>
+      )}
       {/* Masquerade indicator banner */}
       {masquerade.isMasquerading && masquerade.originalUser && (
         <div className="bg-orange-500 text-white px-6 py-2 flex items-center justify-between text-sm">
