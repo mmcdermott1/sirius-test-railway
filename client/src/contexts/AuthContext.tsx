@@ -1,7 +1,12 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { User } from '@/lib/user-types';
+
+let _clerkSignOut: ((opts?: { redirectUrl?: string }) => Promise<void>) | null = null;
+export function registerClerkSignOut(fn: typeof _clerkSignOut) {
+  _clerkSignOut = fn;
+}
 
 interface MasqueradeInfo {
   isMasquerading: boolean;
@@ -85,9 +90,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = '/api/login';
   };
 
-  const logout = () => {
-    window.location.href = '/api/logout';
-  };
+  const logout = useCallback(async () => {
+    if (_clerkSignOut) {
+      await _clerkSignOut({ redirectUrl: '/api/logout' });
+    } else {
+      window.location.href = '/api/logout';
+    }
+  }, []);
 
   const stopMasquerade = async () => {
     try {

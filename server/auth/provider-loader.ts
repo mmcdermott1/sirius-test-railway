@@ -12,6 +12,11 @@ const loadSamlProvider = async (): Promise<ProviderModule> => {
   return samlProvider as ProviderModule;
 };
 
+const loadClerkProvider = async (): Promise<ProviderModule> => {
+  const clerkProvider = await import("./providers/clerk");
+  return clerkProvider as ProviderModule;
+};
+
 export async function loadProvider(config: AuthProviderConfig): Promise<AuthProvider> {
   if (config.type === "replit") {
     return (replitProvider as ProviderModule).createProvider(config);
@@ -21,10 +26,15 @@ export async function loadProvider(config: AuthProviderConfig): Promise<AuthProv
     const samlProvider = await loadSamlProvider();
     return samlProvider.createProvider(config);
   }
+
+  if (config.type === "clerk") {
+    const clerkProvider = await loadClerkProvider();
+    return clerkProvider.createProvider(config);
+  }
   
   throw new Error(`Unknown auth provider type: ${config.type}`);
 }
 
 export function isValidProviderType(type: string): type is AuthProviderType {
-  return ["replit", "saml", "okta", "oauth", "local"].includes(type);
+  return ["replit", "saml", "okta", "oauth", "local", "clerk"].includes(type);
 }

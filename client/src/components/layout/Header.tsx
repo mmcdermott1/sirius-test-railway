@@ -4,6 +4,9 @@ import { useTerm } from "@/contexts/TerminologyContext";
 import { useMyEmployers } from "@/hooks/useMyEmployers";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
+import { UserButton } from "@clerk/clerk-react";
+
+const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 import {
   LogOut,
   User,
@@ -577,7 +580,19 @@ export default function Header() {
         {/* User menu - right side of row 1 */}
         <div className="flex items-center gap-2">
           {user && <AlertsBell />}
-          {user && (
+          {user && CLERK_ENABLED && (
+            <div className="flex items-center gap-2">
+              {(hasPermission("bookmark") || hasPermission("admin") || hasPermission("employer") || hasPermission("worker")) && (
+                <Link href="/bookmarks">
+                  <Button variant="ghost" size="icon" data-testid="menu-bookmarks">
+                    <Bookmark className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+              <UserButton afterSignOutUrl="/api/logout" />
+            </div>
+          )}
+          {user && !CLERK_ENABLED && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" data-testid="button-user-menu">

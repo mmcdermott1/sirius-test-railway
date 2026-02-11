@@ -109,7 +109,7 @@ export async function setupAuth(app: Express): Promise<void> {
     cb(null, user);
   });
 
-  const validProviderTypes = ["replit", "okta", "saml", "oauth", "local"] as const;
+  const validProviderTypes = ["replit", "okta", "saml", "oauth", "local", "clerk"] as const;
   
   for (const providerConfig of config.providers) {
     if (!providerConfig.enabled) continue;

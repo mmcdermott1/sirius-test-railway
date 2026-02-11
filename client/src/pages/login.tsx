@@ -4,15 +4,40 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, LogIn } from 'lucide-react';
+import { SignInButton, SignedIn, SignedOut, UserButton, useClerk } from '@clerk/clerk-react';
+
+const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+function ClerkNotProvisionedMessage() {
+  const { signOut } = useClerk();
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+        <p className="text-sm text-foreground text-center">
+          You are signed in but your account has not been provisioned yet.
+          Please contact your system administrator to set up your account.
+        </p>
+      </div>
+      <Button
+        onClick={() => signOut({ redirectUrl: '/' })}
+        variant="outline"
+        className="w-full"
+        size="lg"
+        data-testid="button-clerk-signout"
+      >
+        Sign out and try a different account
+      </Button>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { login, isAuthenticated, isLoading } = useAuth();
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      // Check if there's a saved redirect path
       const redirectTo = sessionStorage.getItem('redirectAfterLogin');
       if (redirectTo) {
         sessionStorage.removeItem('redirectAfterLogin');
@@ -45,19 +70,39 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-bold">Welcome to Sirius</CardTitle>
           <CardDescription>
-            Sign in with your Replit account to access the worker management system
+            Sign in to access the worker management system
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button 
-            onClick={login} 
-            className="w-full" 
-            size="lg"
-            data-testid="button-login"
-          >
-            <LogIn className="mr-2 h-5 w-5" />
-            Sign in with Replit
-          </Button>
+          {CLERK_ENABLED ? (
+            <>
+              <SignedOut>
+                <SignInButton mode="modal">
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-login-clerk"
+                  >
+                    <LogIn className="mr-2 h-5 w-5" />
+                    Sign In
+                  </Button>
+                </SignInButton>
+              </SignedOut>
+              <SignedIn>
+                <ClerkNotProvisionedMessage />
+              </SignedIn>
+            </>
+          ) : (
+            <Button
+              onClick={login}
+              className="w-full"
+              size="lg"
+              data-testid="button-login"
+            >
+              <LogIn className="mr-2 h-5 w-5" />
+              Sign in with Replit
+            </Button>
+          )}
 
           <div className="mt-4 p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground text-center">
