@@ -82,6 +82,32 @@ async function resolveClerkUser(
       profileImageUrl: profileImageUrl || undefined,
     });
 
+    if (email && email !== user.email) {
+      try {
+        const meta = identity.metadata as Record<string, any> | null;
+        let linkedWorker = null;
+        if (meta?.workerId) {
+          linkedWorker = await storage.workers.getWorker(meta.workerId);
+        }
+        if (!linkedWorker && user.email) {
+          linkedWorker = await storage.workers.getWorkerByContactEmail(user.email);
+        }
+        if (linkedWorker) {
+          const contact = await storage.contacts.getContact(linkedWorker.contactId);
+          if (contact && contact.email !== email) {
+            await storage.contacts.updateEmail(linkedWorker.contactId, email);
+            logger.info("Synced updated Clerk email to worker contact on login", {
+              workerId: linkedWorker.id,
+              previousEmail: contact.email,
+              newEmail: email,
+            });
+          }
+        }
+      } catch (syncErr) {
+        logger.warn("Failed to sync email to worker contact on login", { error: syncErr });
+      }
+    }
+
     await storage.users.updateUserLastLogin(user.id);
     logLoginEvent(updatedUser, clerkUserId, false);
 
@@ -107,6 +133,14 @@ async function resolveClerkUser(
 
   logger.info("Linking Clerk account to provisioned user", { userId: user.id });
 
+  let linkedWorkerId: string | null = null;
+  if (email) {
+    const worker = await storage.workers.getWorkerByContactEmail(email);
+    if (worker) {
+      linkedWorkerId = worker.id;
+    }
+  }
+
   await storage.authIdentities.create({
     userId: user.id,
     providerType: "clerk",
@@ -114,6 +148,7 @@ async function resolveClerkUser(
     email: email,
     displayName: `${firstName || ""} ${lastName || ""}`.trim() || undefined,
     profileImageUrl: profileImageUrl || undefined,
+    metadata: linkedWorkerId ? { workerId: linkedWorkerId } : undefined,
   });
 
   const linkedUser = await storage.users.updateUser(user.id, {
@@ -535,6 +570,7 @@ export function createProvider(config: ClerkProviderConfig): AuthProvider {
             displayName:
               `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || undefined,
             profileImageUrl: clerkUser.imageUrl || undefined,
+            metadata: { workerId: worker.id },
           });
 
           const linkedUser = await storage.users.updateUser(user.id, {
@@ -545,12 +581,14 @@ export function createProvider(config: ClerkProviderConfig): AuthProvider {
             accountStatus: "linked",
           });
 
-          if (primaryEmail && !contact.email) {
+          if (primaryEmail && primaryEmail !== contact.email) {
             try {
               await storage.contacts.updateEmail(worker.contactId, primaryEmail);
               logger.info("Synced Clerk email to worker contact", {
                 workerId: worker.id,
                 contactId: worker.contactId,
+                previousEmail: contact.email || "(none)",
+                newEmail: primaryEmail,
               });
             } catch (emailErr) {
               logger.warn("Failed to sync email to worker contact", { error: emailErr });

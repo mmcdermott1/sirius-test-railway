@@ -168,12 +168,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userPermissions = await storage.users.getUserPermissions(dbUser.id);
       const enabledComponents = await getEnabledComponentIds();
       
-      // Get user's associated worker if they have one
       let workerId: string | null = null;
-      if (dbUser.email) {
+      const identities = await storage.authIdentities.getByUserId(dbUser.id);
+      for (const identity of identities) {
+        const meta = identity.metadata as Record<string, any> | null;
+        if (meta?.workerId) {
+          const worker = await storage.workers.getWorker(meta.workerId);
+          if (worker) {
+            workerId = worker.id;
+            break;
+          }
+        }
+      }
+      if (!workerId && dbUser.email) {
         const worker = await storage.workers.getWorkerByContactEmail(dbUser.email);
         if (worker) {
           workerId = worker.id;
+        }
+      }
+      if (!workerId) {
+        for (const identity of identities) {
+          if (identity.email && identity.email !== dbUser.email) {
+            const worker = await storage.workers.getWorkerByContactEmail(identity.email);
+            if (worker) {
+              workerId = worker.id;
+              break;
+            }
+          }
         }
       }
       
