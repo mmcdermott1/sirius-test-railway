@@ -131,6 +131,9 @@ async function resolveClerkUser(
 }
 
 export function createProvider(config: ClerkProviderConfig): AuthProvider {
+  const unlinkedUserCache = new Map<string, number>();
+  const UNLINKED_CACHE_TTL = 60 * 1000;
+
   return {
     type: "clerk",
 
@@ -154,6 +157,11 @@ export function createProvider(config: ClerkProviderConfig): AuthProvider {
             return next();
           }
 
+          const cachedAt = unlinkedUserCache.get(auth.userId);
+          if (cachedAt && Date.now() - cachedAt < UNLINKED_CACHE_TTL) {
+            return next();
+          }
+
           const client = createClerkClient({ secretKey: config.secretKey, publishableKey: config.publishableKey });
           const clerkUser = await client.users.getUser(auth.userId);
 
@@ -169,6 +177,8 @@ export function createProvider(config: ClerkProviderConfig): AuthProvider {
           });
 
           if (result.allowed && result.user) {
+            unlinkedUserCache.delete(auth.userId);
+
             const sessionUser: AuthenticatedUser = {
               claims: {
                 sub: auth.userId,
@@ -187,6 +197,8 @@ export function createProvider(config: ClerkProviderConfig): AuthProvider {
                 else resolve();
               });
             });
+          } else {
+            unlinkedUserCache.set(auth.userId, Date.now());
           }
         } catch (error) {
           logger.error("Clerk middleware user resolution error", { error });
@@ -486,6 +498,7 @@ export function createProvider(config: ClerkProviderConfig): AuthProvider {
           await storage.users.updateUserLastLogin(user.id);
 
           delete (req.session as any).verifiedWorker;
+          unlinkedUserCache.delete(auth.userId);
 
           const sessionUser: AuthenticatedUser = {
             claims: {
