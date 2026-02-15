@@ -2,6 +2,7 @@ import { storage } from "../storage";
 import { getTodayYmd, isYmdBefore } from "@shared/utils/date";
 import { logger } from "../logger";
 import type { PollPhaseResult, PollResult, DispatchJobData } from "@shared/schema";
+import { createDispatchEligibleWorkersStorage } from "../storage/dispatch-eligible-workers";
 
 const SERVICE_NAME = "dispatch-poll";
 
@@ -257,10 +258,151 @@ function getDispatchWorkerName(dispatch: { worker?: { contact?: { given: string 
 }
 
 async function phaseCreate(ctx: PollContext): Promise<void> {
+  const job = await storage.dispatchJobs.getWithRelations(ctx.jobId);
+  if (!job) {
+    ctx.phases.push({
+      phase: "create",
+      status: "failed",
+      message: "Job not found",
+    });
+    ctx.exitedAtPhase = "create";
+    ctx.shouldExit = true;
+    return;
+  }
+
+  const jobData = job.data as DispatchJobData | undefined;
+  const jobTypeData = job.jobType?.data as import("@shared/schema").JobTypeData | undefined;
+  const offerRatio = jobData?.offerRatio ?? jobTypeData?.offerRatio;
+
+  if (offerRatio == null) {
+    ctx.phases.push({
+      phase: "create",
+      status: "failed",
+      message: "Offer ratio is not configured. Set it on the job or its job type before running the poll.",
+      details: { jobId: ctx.jobId, jobTypeId: job.jobTypeId },
+    });
+    if (ctx.mode === "live") {
+      ctx.exitedAtPhase = "create";
+      ctx.shouldExit = true;
+    }
+    return;
+  }
+
+  const workerCount = job.workerCount ?? 0;
+  if (workerCount <= 0) {
+    ctx.phases.push({
+      phase: "create",
+      status: "passed",
+      message: "Job has no positions (workerCount is 0), nothing to create",
+      details: { workerCount },
+    });
+    return;
+  }
+
+  const allDispatches = await storage.dispatches.getByJob(ctx.jobId);
+  const activeCount = allDispatches.filter(
+    (d) => d.status === "pending" || d.status === "notified" || d.status === "accepted"
+  ).length;
+
+  const openSlots = workerCount - activeCount;
+  if (openSlots <= 0) {
+    ctx.phases.push({
+      phase: "create",
+      status: "passed",
+      message: `No open slots (${activeCount} active dispatches for ${workerCount} positions)`,
+      details: { workerCount, activeCount, openSlots: 0 },
+    });
+    return;
+  }
+
+  const toCreate = Math.floor(openSlots * offerRatio);
+  if (toCreate <= 0) {
+    ctx.phases.push({
+      phase: "create",
+      status: "passed",
+      message: `Ratio calculation resulted in 0 dispatches (${openSlots} open slots × ${offerRatio} ratio)`,
+      details: { workerCount, activeCount, openSlots, offerRatio, toCreate: 0 },
+    });
+    return;
+  }
+
+  const eligibleWorkersStorage = createDispatchEligibleWorkersStorage();
+  const eligResult = await eligibleWorkersStorage.getEligibleWorkersForJob(
+    ctx.jobId, toCreate, 0, { excludeWithDispatches: true }
+  );
+
+  if (eligResult.workers.length === 0) {
+    ctx.phases.push({
+      phase: "create",
+      status: "passed",
+      message: `No eligible workers available (needed ${toCreate})`,
+      details: { workerCount, activeCount, openSlots, offerRatio, toCreate, eligibleAvailable: 0 },
+    });
+    return;
+  }
+
+  const workersToDispatch = eligResult.workers.slice(0, toCreate);
+  const created: { workerId: string; workerName: string; dispatchId: string }[] = [];
+  const errors: { workerId: string; workerName: string; error: string }[] = [];
+
+  if (ctx.mode === "live") {
+    for (const worker of workersToDispatch) {
+      try {
+        const dispatch = await storage.dispatches.create({
+          jobId: ctx.jobId,
+          workerId: worker.id,
+          status: "pending",
+        });
+
+        const statusResult = await storage.dispatches.setStatus(dispatch.id, "pending");
+        if (statusResult.success) {
+          created.push({ workerId: worker.id, workerName: worker.displayName, dispatchId: dispatch.id });
+          logger.info("Poll created dispatch", {
+            service: SERVICE_NAME,
+            jobId: ctx.jobId,
+            dispatchId: dispatch.id,
+            workerId: worker.id,
+            workerName: worker.displayName,
+          });
+        } else {
+          errors.push({ workerId: worker.id, workerName: worker.displayName, error: statusResult.error ?? "Failed to set status" });
+        }
+      } catch (err) {
+        errors.push({
+          workerId: worker.id,
+          workerName: worker.displayName,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  } else {
+    for (const worker of workersToDispatch) {
+      created.push({ workerId: worker.id, workerName: worker.displayName, dispatchId: "(test)" });
+    }
+  }
+
+  const createdNames = created.map((c) => c.workerName);
+  const actionWord = ctx.mode === "live" ? "Created" : "Would create";
+
+  const hasErrors = errors.length > 0;
+  const phaseStatus = hasErrors ? "failed" : "passed";
+
   ctx.phases.push({
     phase: "create",
-    status: "stub",
-    message: "Create phase not yet implemented",
+    status: phaseStatus,
+    message: created.length > 0
+      ? `${actionWord} ${created.length} dispatch(es): ${createdNames.join(", ")}${hasErrors ? ` (${errors.length} error(s))` : ""}`
+      : hasErrors ? `Failed to create dispatches (${errors.length} error(s))` : `No dispatches created`,
+    details: {
+      workerCount,
+      activeCount,
+      openSlots,
+      offerRatio,
+      toCreate,
+      eligibleAvailable: eligResult.workers.length,
+      created,
+      errors: errors.length > 0 ? errors : undefined,
+    },
   });
 }
 
