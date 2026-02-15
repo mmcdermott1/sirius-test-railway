@@ -73,7 +73,8 @@ function buildMonthGrids(days: Date[]): MonthGrid[] {
     }
     weeks.push(currentWeek);
 
-    grids.push({ year, month, label, weeks });
+    const filteredWeeks = weeks.filter(week => week.some(day => day !== null));
+    grids.push({ year, month, label, weeks: filteredWeeks });
   }
 
   return grids;
