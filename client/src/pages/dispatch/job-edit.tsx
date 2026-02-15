@@ -115,15 +115,14 @@ function DispatchJobEditContent() {
       const workerCountNum = data.workerCount ? parseInt(data.workerCount, 10) : null;
       const updatedJobData: JobData = {
         ...(jobData ?? {}),
-        requiredSkills: selectedSkills.length > 0 ? selectedSkills : undefined,
+        requiredSkills: selectedSkills.length > 0 ? selectedSkills : [],
       };
-      const hasData = Object.values(updatedJobData).some((v) => v !== undefined);
       return apiRequest("PUT", `/api/dispatch-jobs/${job.id}`, {
         ...data,
         jobTypeId: data.jobTypeId || null,
         workerCount: workerCountNum,
         status: data.status,
-        data: hasData ? updatedJobData : undefined,
+        data: updatedJobData,
       });
     },
     onSuccess: () => {
