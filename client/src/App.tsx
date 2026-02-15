@@ -179,6 +179,7 @@ const DispatchJobTypePluginsPage = lazy(() => import("@/pages/config/dispatch-jo
 const DispatchJobTypeNotificationsPage = lazy(() => import("@/pages/config/dispatch-job-type-notifications"));
 const DispatchJobTypeRunSettingsPage = lazy(() => import("@/pages/config/dispatch-job-type-run-settings"));
 const DispatchDncConfigPage = lazy(() => import("@/pages/config/dispatch-dnc"));
+const DispatchEbaSettingsPage = lazy(() => import("@/pages/config/dispatch-eba-settings"));
 const EdlsSettingsPage = lazy(() => import("@/pages/config/edls/settings"));
 const EdlsTasksPage = lazy(() => import("@/pages/config/edls/tasks"));
 const WsBundlesPage = lazy(() => import("@/pages/config/ws/bundles"));
@@ -1671,6 +1672,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <DispatchDncConfigPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/dispatch/eba">
+        <ProtectedRoute permission="admin" component="dispatch.eba">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <DispatchEbaSettingsPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

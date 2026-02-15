@@ -50,6 +50,7 @@ import { registerWorkerBenefitsScanRoutes } from "./modules/worker-benefits-scan
 import { registerWmbScanQueueRoutes } from "./modules/wmb-scan-queue";
 import { registerStaffAlertRoutes } from "./modules/staff-alerts";
 import { registerDispatchDncConfigRoutes } from "./modules/dispatch-dnc-config";
+import { registerDispatchEbaConfigRoutes } from "./modules/dispatch-eba-config";
 import { registerWorkerBanConfigRoutes } from "./modules/worker-ban-config";
 import { registerCardcheckDefinitionsRoutes } from "./modules/cardcheck-definitions";
 import { registerCardchecksRoutes } from "./modules/cardchecks";
@@ -350,6 +351,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register dispatch DNC configuration routes
   registerDispatchDncConfigRoutes(app, requireAuth, requireAccess, storage);
+  
+  // Register dispatch EBA configuration routes
+  registerDispatchEbaConfigRoutes(app, requireAuth, requireAccess, storage);
   
   // Register worker ban configuration routes
   registerWorkerBanConfigRoutes(app, requireAuth, requireAccess, storage);

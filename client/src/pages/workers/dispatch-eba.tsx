@@ -84,6 +84,11 @@ function DispatchEbaContent() {
   const { toast } = useToast();
   const pendingDateRef = useRef<string | null>(null);
 
+  const { data: ebaSettings } = useQuery<{ advanceDays: number }>({
+    queryKey: ["/api/dispatch-eba/settings"],
+  });
+  const advanceDays = ebaSettings?.advanceDays ?? 30;
+
   const { data: entries = [], isLoading } = useQuery<WorkerDispatchEba[]>({
     queryKey: ["/api/worker-dispatch-eba/worker", worker.id],
   });
@@ -119,15 +124,15 @@ function DispatchEbaContent() {
   }, [savedDates, syncMutation]);
 
   const today = startOfDay(new Date());
-  const next30Days = useMemo(() => {
+  const availableDays = useMemo(() => {
     const days: Date[] = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < advanceDays; i++) {
       days.push(addDays(today, i));
     }
     return days;
-  }, [today]);
+  }, [today, advanceDays]);
 
-  const monthGrids = useMemo(() => buildMonthGrids(next30Days), [next30Days]);
+  const monthGrids = useMemo(() => buildMonthGrids(availableDays), [availableDays]);
   const selectedCount = savedDates.size;
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
