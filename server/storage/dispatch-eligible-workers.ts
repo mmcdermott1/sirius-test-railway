@@ -1,7 +1,7 @@
 import { createNoopValidator } from './utils/validation';
 import { getClient } from './transaction-context';
 import type { db } from './db';
-import { workers, contacts, workerDispatchEligDenorm, dispatches, type EligibilityPluginConfig, type JobTypeData } from "@shared/schema";
+import { workers, contacts, workerDispatchEligDenorm, dispatches, workerDispatchStatus, type EligibilityPluginConfig, type JobTypeData } from "@shared/schema";
 import { sql, eq, and, exists, notExists, or, ilike, inArray } from "drizzle-orm";
 import { logger } from "../logger";
 import { 
@@ -21,6 +21,7 @@ export interface EligibleWorker {
   id: string;
   siriusId: number;
   displayName: string;
+  seniorityDate: Date | null;
 }
 
 export interface EligibleWorkersFilters {
@@ -143,9 +144,11 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
       id: workers.id,
       siriusId: workers.siriusId,
       displayName: contacts.displayName,
+      seniorityDate: workerDispatchStatus.seniorityDate,
     })
     .from(workers)
     .innerJoin(contacts, eq(workers.contactId, contacts.id))
+    .leftJoin(workerDispatchStatus, eq(workerDispatchStatus.workerId, workers.id))
     .$dynamic();
 
   const whereConditions = appliedConditions.flatMap(({ condition }) => {
@@ -434,7 +437,7 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
       const total = countResult[0]?.count || 0;
 
       const eligibleWorkers = await finalQuery
-        .orderBy(contacts.displayName)
+        .orderBy(sql`${workerDispatchStatus.seniorityDate} ASC NULLS LAST`, contacts.displayName)
         .limit(limit)
         .offset(offset) as unknown as EligibleWorker[];
 
@@ -463,7 +466,7 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
       const { finalQuery, appliedConditions } = result;
 
       const paginatedQuery = finalQuery
-        .orderBy(contacts.displayName)
+        .orderBy(sql`${workerDispatchStatus.seniorityDate} ASC NULLS LAST`, contacts.displayName)
         .limit(limit)
         .offset(offset);
 
