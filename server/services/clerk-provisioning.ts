@@ -85,8 +85,12 @@ export async function provisionClerkAccount(params: {
 
   try {
     if (!clerkUserId) {
+      const baseUsername = email.split("@")[0].replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+      const username = `${baseUsername}_${Date.now().toString(36)}`;
+
       const newClerkUser = await clerk.users.createUser({
         emailAddress: [email],
+        username,
         firstName: firstName || undefined,
         lastName: lastName || undefined,
         skipPasswordChecks: true,
@@ -119,14 +123,21 @@ export async function provisionClerkAccount(params: {
 
     return { success: true, clerkUserId };
   } catch (clerkErr: any) {
+    const errorDetails = {
+      message: clerkErr?.message,
+      status: clerkErr?.status,
+      clerkError: clerkErr?.errors || clerkErr?.clerkError,
+      code: clerkErr?.code,
+      raw: JSON.stringify(clerkErr, Object.getOwnPropertyNames(clerkErr || {})),
+    };
     logger.error("Failed to create/link Clerk account for provisioned user", {
       userId,
       email,
-      error: clerkErr?.message || clerkErr,
+      ...errorDetails,
     });
     return {
       success: false,
-      warning: "Clerk account could not be created automatically. User will need to sign up manually.",
+      warning: `Clerk account could not be created automatically: ${clerkErr?.message || 'Unknown error'}. User will need to sign up manually.`,
     };
   }
 }
