@@ -34,10 +34,12 @@ export const dispatchEbaPlugin: DispatchEligPlugin = {
       return null;
     }
 
+    const startDate = String(job.startYmd).split(' ')[0].split('T')[0];
+
     return {
       category: EBA_CATEGORY,
       type: "exists",
-      value: job.startYmd,
+      value: startDate,
     };
   },
 

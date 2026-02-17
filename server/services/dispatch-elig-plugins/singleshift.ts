@@ -38,7 +38,7 @@ export const dispatchSingleshiftPlugin: DispatchEligPlugin = {
     return {
       category: SINGLESHIFT_CATEGORY,
       type: "not_exists_unless_exists",
-      value: job.startYmd,
+      value: String(job.startYmd).split(' ')[0].split('T')[0],
       unlessCategory: ACCEPTED_CATEGORY,
       unlessValue: job.id,
     };
@@ -83,7 +83,7 @@ export const dispatchSingleshiftPlugin: DispatchEligPlugin = {
         entries.push({
           workerId,
           category: SINGLESHIFT_CATEGORY,
-          value: job.startYmd,
+          value: String(job.startYmd).split(' ')[0].split('T')[0],
         });
       }
     }
