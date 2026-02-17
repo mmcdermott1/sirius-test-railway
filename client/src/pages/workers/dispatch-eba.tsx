@@ -119,8 +119,9 @@ function DispatchEbaContent() {
     } else {
       updated.add(dateStr);
     }
+    const todayStr = formatYmd(startOfDay(new Date()));
     const arr: string[] = [];
-    updated.forEach(d => arr.push(d));
+    updated.forEach(d => { if (d >= todayStr) arr.push(d); });
     syncMutation.mutate(arr);
   }, [savedDates, syncMutation]);
 
