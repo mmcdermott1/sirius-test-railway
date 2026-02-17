@@ -3,6 +3,8 @@ import { createWorkerDispatchEbaStorage, workerDispatchEbaLoggingConfig } from "
 import { withStorageLogging } from "../storage/middleware/logging";
 import { z } from "zod";
 import { requireComponent } from "./components";
+import { getEbaSettings } from "./dispatch-eba-config";
+import { storage as appStorage } from "../storage";
 
 type RequireAccess = (policy: string, getEntityId?: (req: Request) => string | Promise<string | undefined> | undefined) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
@@ -12,10 +14,11 @@ const storage = withStorageLogging(
   workerDispatchEbaLoggingConfig
 );
 
-function getValidDateRange(): { min: string; max: string } {
+async function getValidDateRange(): Promise<{ min: string; max: string }> {
+  const settings = await getEbaSettings(appStorage);
   const today = new Date();
   const maxDate = new Date(today);
-  maxDate.setDate(maxDate.getDate() + 29);
+  maxDate.setDate(maxDate.getDate() + (settings.advanceDays - 1));
   const fmt = (d: Date) => d.toISOString().split('T')[0];
   return { min: fmt(today), max: fmt(maxDate) };
 }
@@ -48,7 +51,7 @@ export function registerWorkerDispatchEbaRoutes(
       
       const uniqueDates = Array.from(new Set(validated.dates));
       
-      const { min, max } = getValidDateRange();
+      const { min, max } = await getValidDateRange();
       const invalidDates = uniqueDates.filter(d => d < min || d > max);
       if (invalidDates.length > 0) {
         return res.status(400).json({ 

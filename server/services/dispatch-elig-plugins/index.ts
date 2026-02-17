@@ -10,6 +10,14 @@ import {
   backfillDispatchStatusEligibility,
 } from "./status";
 import { dispatchWsPlugin, backfillDispatchWsEligibility } from "./ws";
+import {
+  dispatchSingleshiftPlugin,
+  backfillDispatchSingleshiftEligibility,
+} from "./singleshift";
+import {
+  dispatchAcceptedPlugin,
+  backfillDispatchAcceptedEligibility,
+} from "./accepted";
 
 /**
  * Registers all dispatch eligibility plugins.
@@ -24,7 +32,8 @@ export function registerDispatchEligPlugins(): void {
   dispatchEligPluginRegistry.register(dispatchSkillPlugin);
   dispatchEligPluginRegistry.register(dispatchStatusPlugin);
   dispatchEligPluginRegistry.register(dispatchWsPlugin);
-
+  dispatchEligPluginRegistry.register(dispatchSingleshiftPlugin);
+  dispatchEligPluginRegistry.register(dispatchAcceptedPlugin);
   logger.info("Dispatch eligibility plugins registered", {
     service: "dispatch-elig-plugins",
     plugins: dispatchEligPluginRegistry.getAllPluginIds(),
@@ -105,6 +114,41 @@ export async function initializeDispatchEligSystem(): Promise<void> {
     }
   } catch (error) {
     logger.error("Failed to backfill EBA eligibility during startup", {
+      service: "dispatch-elig-plugins",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Backfill accepted dispatch entries (infrastructure data used by other plugins like singleshift)
+  // Must run before singleshift backfill since singleshift references accepted entries
+  try {
+    const result = await backfillDispatchAcceptedEligibility();
+    if (result.workersProcessed > 0) {
+      logger.info("Accepted eligibility backfill completed during startup", {
+        service: "dispatch-elig-plugins",
+        workersProcessed: result.workersProcessed,
+        entriesCreated: result.entriesCreated,
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to backfill accepted eligibility during startup", {
+      service: "dispatch-elig-plugins",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Backfill eligibility data for existing accepted dispatches (single shift prevention)
+  try {
+    const result = await backfillDispatchSingleshiftEligibility();
+    if (result.workersProcessed > 0) {
+      logger.info("Singleshift eligibility backfill completed during startup", {
+        service: "dispatch-elig-plugins",
+        workersProcessed: result.workersProcessed,
+        entriesCreated: result.entriesCreated,
+      });
+    }
+  } catch (error) {
+    logger.error("Failed to backfill singleshift eligibility during startup", {
       service: "dispatch-elig-plugins",
       error: error instanceof Error ? error.message : String(error),
     });
