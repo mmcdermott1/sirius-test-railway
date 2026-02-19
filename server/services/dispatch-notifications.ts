@@ -117,8 +117,9 @@ async function sendDispatchNotifications(
   dispatchId: string,
   workerInfo: WorkerContactInfo,
   jobConfig: { employerName: string; notificationMedia: NotificationMedia[]; dispatchUrl: string }
-): Promise<{ commIds: string[] }> {
+): Promise<{ commIds: string[]; anyConfirmed: boolean }> {
   const commIds: string[] = [];
+  let anyConfirmed = false;
   const messages = buildNotificationMessage(jobConfig.employerName, jobConfig.dispatchUrl);
 
   for (const medium of jobConfig.notificationMedia) {
@@ -135,6 +136,7 @@ async function sendDispatchNotifications(
             });
             if (result.comm) {
               commIds.push(result.comm.id);
+              if (COMM_CONFIRMED_STATUSES.has(result.comm.status)) anyConfirmed = true;
             }
             logger.info(`SMS notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
               service: SERVICE_NAME,
@@ -163,6 +165,7 @@ async function sendDispatchNotifications(
             });
             if (result.comm) {
               commIds.push(result.comm.id);
+              if (COMM_CONFIRMED_STATUSES.has(result.comm.status)) anyConfirmed = true;
             }
             logger.info(`Email notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
               service: SERVICE_NAME,
@@ -192,6 +195,7 @@ async function sendDispatchNotifications(
             });
             if (result.comm) {
               commIds.push(result.comm.id);
+              if (COMM_CONFIRMED_STATUSES.has(result.comm.status)) anyConfirmed = true;
             }
             logger.info(`In-app notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
               service: SERVICE_NAME,
@@ -226,7 +230,7 @@ async function sendDispatchNotifications(
     }
   }
 
-  return { commIds };
+  return { commIds, anyConfirmed };
 }
 
 async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void> {
@@ -290,16 +294,34 @@ async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void>
       return;
     }
 
-    const { commIds } = await sendDispatchNotifications(payload.dispatchId, workerInfo, jobConfig);
+    const { commIds, anyConfirmed } = await sendDispatchNotifications(payload.dispatchId, workerInfo, jobConfig);
 
     if (commIds.length > 0) {
       const dispatchStorage = createDispatchStorage();
       await dispatchStorage.update(payload.dispatchId, { commIds });
-      logger.info(`Dispatch notifications sent, awaiting delivery confirmation`, {
-        service: SERVICE_NAME,
-        dispatchId: payload.dispatchId,
-        commIds,
-      });
+
+      if (anyConfirmed) {
+        const statusResult = await dispatchStorage.setStatus(payload.dispatchId, "notified");
+        if (statusResult.success) {
+          logger.info(`Dispatch set to notified after confirmed delivery`, {
+            service: SERVICE_NAME,
+            dispatchId: payload.dispatchId,
+            commIds,
+          });
+        } else {
+          logger.warn(`Failed to set dispatch to notified`, {
+            service: SERVICE_NAME,
+            dispatchId: payload.dispatchId,
+            error: statusResult.error,
+          });
+        }
+      } else {
+        logger.info(`Dispatch notifications sent, awaiting delivery confirmation via callback`, {
+          service: SERVICE_NAME,
+          dispatchId: payload.dispatchId,
+          commIds,
+        });
+      }
     } else {
       logger.warn(`No notifications could be sent for dispatch, leaving as pending`, {
         service: SERVICE_NAME,
