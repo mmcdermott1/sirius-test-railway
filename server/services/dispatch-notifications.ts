@@ -117,9 +117,8 @@ async function sendDispatchNotifications(
   dispatchId: string,
   workerInfo: WorkerContactInfo,
   jobConfig: { employerName: string; notificationMedia: NotificationMedia[]; dispatchUrl: string }
-): Promise<{ commIds: string[]; anySent: boolean }> {
+): Promise<{ commIds: string[] }> {
   const commIds: string[] = [];
-  let anySent = false;
   const messages = buildNotificationMessage(jobConfig.employerName, jobConfig.dispatchUrl);
 
   for (const medium of jobConfig.notificationMedia) {
@@ -137,8 +136,7 @@ async function sendDispatchNotifications(
             if (result.comm) {
               commIds.push(result.comm.id);
             }
-            if (result.success) anySent = true;
-            logger.info(`SMS notification ${result.success ? 'sent' : 'failed'} for dispatch`, {
+            logger.info(`SMS notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
               service: SERVICE_NAME,
               dispatchId,
               workerId: workerInfo.workerId,
@@ -166,8 +164,7 @@ async function sendDispatchNotifications(
             if (result.comm) {
               commIds.push(result.comm.id);
             }
-            if (result.success) anySent = true;
-            logger.info(`Email notification ${result.success ? 'sent' : 'failed'} for dispatch`, {
+            logger.info(`Email notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
               service: SERVICE_NAME,
               dispatchId,
               workerId: workerInfo.workerId,
@@ -196,8 +193,7 @@ async function sendDispatchNotifications(
             if (result.comm) {
               commIds.push(result.comm.id);
             }
-            if (result.success) anySent = true;
-            logger.info(`In-app notification ${result.success ? 'sent' : 'failed'} for dispatch`, {
+            logger.info(`In-app notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
               service: SERVICE_NAME,
               dispatchId,
               workerId: workerInfo.workerId,
@@ -230,7 +226,7 @@ async function sendDispatchNotifications(
     }
   }
 
-  return { commIds, anySent };
+  return { commIds };
 }
 
 async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void> {
@@ -294,31 +290,18 @@ async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void>
       return;
     }
 
-    const { commIds, anySent } = await sendDispatchNotifications(payload.dispatchId, workerInfo, jobConfig);
-
-    const dispatchStorage = createDispatchStorage();
+    const { commIds } = await sendDispatchNotifications(payload.dispatchId, workerInfo, jobConfig);
 
     if (commIds.length > 0) {
+      const dispatchStorage = createDispatchStorage();
       await dispatchStorage.update(payload.dispatchId, { commIds });
-    }
-
-    if (anySent) {
-      const statusResult = await dispatchStorage.setStatus(payload.dispatchId, "notified");
-      if (statusResult.success) {
-        logger.info(`Dispatch set to notified after successful notification`, {
-          service: SERVICE_NAME,
-          dispatchId: payload.dispatchId,
-          commIds,
-        });
-      } else {
-        logger.warn(`Failed to set dispatch to notified after notification`, {
-          service: SERVICE_NAME,
-          dispatchId: payload.dispatchId,
-          error: statusResult.error,
-        });
-      }
+      logger.info(`Dispatch notifications sent, awaiting delivery confirmation`, {
+        service: SERVICE_NAME,
+        dispatchId: payload.dispatchId,
+        commIds,
+      });
     } else {
-      logger.warn(`All notifications failed for dispatch, leaving as pending`, {
+      logger.warn(`No notifications could be sent for dispatch, leaving as pending`, {
         service: SERVICE_NAME,
         dispatchId: payload.dispatchId,
         workerId: payload.workerId,
@@ -334,18 +317,12 @@ async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void>
   }
 }
 
-const COMM_FAILURE_STATUSES = new Set(['failed', 'undelivered', 'bounced']);
-const COMM_SUCCESS_STATUSES = new Set(['sent', 'delivered']);
-const COMM_PENDING_STATUSES = new Set(['queued', 'sending']);
+const COMM_CONFIRMED_STATUSES = new Set(['sent', 'delivered']);
 
 export async function handleCommStatusForDispatches(
   commId: string,
   newCommStatus: string,
 ): Promise<void> {
-  if (!COMM_FAILURE_STATUSES.has(newCommStatus)) {
-    return;
-  }
-
   try {
     const dispatchStorage = createDispatchStorage();
     const dispatch = await dispatchStorage.findByCommId(commId);
@@ -354,32 +331,17 @@ export async function handleCommStatusForDispatches(
       return;
     }
 
-    const commIds = dispatch.commIds || [];
-    if (commIds.length === 0) {
-      return;
-    }
-
-    const commStorage = (await import('../storage/comm')).createCommStorage();
-    const allComms = await commStorage.getByIds(commIds);
-
-    const hasAnySuccessOrPending = allComms.some(c => {
-      if (c.id === commId) {
-        return COMM_SUCCESS_STATUSES.has(newCommStatus) || COMM_PENDING_STATUSES.has(newCommStatus);
-      }
-      return COMM_SUCCESS_STATUSES.has(c.status) || COMM_PENDING_STATUSES.has(c.status);
-    });
-
-    if (!hasAnySuccessOrPending) {
-      const statusResult = await dispatchStorage.setStatus(dispatch.id, 'pending');
+    if (dispatch.status === 'pending' && COMM_CONFIRMED_STATUSES.has(newCommStatus)) {
+      const statusResult = await dispatchStorage.setStatus(dispatch.id, 'notified');
       if (statusResult.success) {
-        logger.info(`Dispatch reverted to pending after all notifications failed`, {
+        logger.info(`Dispatch set to notified after confirmed delivery`, {
           service: SERVICE_NAME,
           dispatchId: dispatch.id,
           commId,
           commStatus: newCommStatus,
         });
       } else {
-        logger.warn(`Failed to revert dispatch to pending`, {
+        logger.warn(`Failed to set dispatch to notified`, {
           service: SERVICE_NAME,
           dispatchId: dispatch.id,
           error: statusResult.error,

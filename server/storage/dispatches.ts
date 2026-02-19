@@ -370,10 +370,7 @@ export function createDispatchStorage(): DispatchStorage {
       const [dispatch] = await client
         .select()
         .from(dispatches)
-        .where(and(
-          arrayContains(dispatches.commIds, [commId]),
-          eq(dispatches.status, "notified")
-        ))
+        .where(arrayContains(dispatches.commIds, [commId]))
         .limit(1);
       return dispatch || undefined;
     },
