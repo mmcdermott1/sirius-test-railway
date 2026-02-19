@@ -52,7 +52,8 @@ export const dispatchStatusEnum = [
   "accepted", 
   "layoff", 
   "resigned", 
-  "declined"
+  "declined",
+  "expired"
 ] as const;
 export type DispatchStatus = typeof dispatchStatusEnum[number];
 

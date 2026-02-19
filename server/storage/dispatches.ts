@@ -68,6 +68,7 @@ export interface DispatchStorage {
   setStatusPossible(dispatchId: string, newStatus: DispatchStatus): Promise<SetStatusResult>;
   setStatus(dispatchId: string, newStatus: DispatchStatus): Promise<{ success: boolean; dispatch?: Dispatch; error?: string }>;
   findByCommId(commId: string): Promise<Dispatch | undefined>;
+  expireRemainingIfJobFull(jobId: string): Promise<void>;
 }
 
 async function getWorkerName(workerId: string): Promise<string> {
@@ -459,6 +460,13 @@ export function createDispatchStorage(): DispatchStorage {
           return { possible: true };
         }
 
+        case "expired": {
+          if (currentStatus !== "pending" && currentStatus !== "notified") {
+            return { possible: false, reason: `Can only expire from pending or notified status (current: ${currentStatus})` };
+          }
+          return { possible: true };
+        }
+
         case "layoff":
         case "resigned": {
           if (currentStatus !== "accepted") {
@@ -526,7 +534,58 @@ export function createDispatchStorage(): DispatchStorage {
         console.error("Failed to emit DISPATCH_SAVED event:", err);
       });
 
+      if (newStatus === "accepted") {
+        this.expireRemainingIfJobFull(updatedDispatch.jobId).catch(err => {
+          console.error("Failed to expire remaining dispatches after accept:", err);
+        });
+      }
+
       return { success: true, dispatch: updatedDispatch };
+    },
+
+    async expireRemainingIfJobFull(jobId: string): Promise<void> {
+      const client = getClient();
+
+      const [job] = await client.select().from(dispatchJobs).where(eq(dispatchJobs.id, jobId));
+      if (!job) return;
+
+      const workerCount = job.workerCount;
+      if (workerCount == null || workerCount <= 0) return;
+
+      const acceptedDispatches = await client
+        .select()
+        .from(dispatches)
+        .where(and(
+          eq(dispatches.jobId, jobId),
+          eq(dispatches.status, "accepted")
+        ));
+
+      if (acceptedDispatches.length < workerCount) return;
+
+      const remaining = await client
+        .select()
+        .from(dispatches)
+        .where(and(
+          eq(dispatches.jobId, jobId),
+          inArray(dispatches.status, ["pending", "notified"])
+        ));
+
+      for (const d of remaining) {
+        await client
+          .update(dispatches)
+          .set({ status: "expired" })
+          .where(eq(dispatches.id, d.id));
+
+        eventBus.emit(EventType.DISPATCH_SAVED, {
+          dispatchId: d.id,
+          workerId: d.workerId,
+          jobId: d.jobId,
+          status: "expired",
+          previousStatus: d.status,
+        }).catch(err => {
+          console.error("Failed to emit DISPATCH_SAVED event for expired dispatch:", err);
+        });
+      }
     }
   };
 }

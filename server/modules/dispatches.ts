@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { insertDispatchSchema, dispatchStatusEnum } from "@shared/schema";
-import { requireAccess } from "../services/access-policy-evaluator";
+import { requireAccess, buildContext, getAccessStorage } from "../services/access-policy-evaluator";
 import { requireComponent } from "./components";
 
 export function registerDispatchesRoutes(
@@ -147,10 +147,12 @@ export function registerDispatchesRoutes(
     }
   });
 
+  const workerAllowedStatuses = ["accepted", "declined"] as const;
+
   app.get("/api/dispatches/:id/status-options", dispatchComponent, requireAccess('worker.view', async (req: any) => {
     const dispatch = await storage.dispatches.get(req.params.id);
     return dispatch?.workerId;
-  }), async (req, res) => {
+  }), async (req: any, res) => {
     try {
       const { id } = req.params;
       
@@ -160,8 +162,14 @@ export function registerDispatchesRoutes(
         return;
       }
 
+      const context = await buildContext(req);
+      const accessStorage = getAccessStorage();
+      const isAdmin = context.user && accessStorage ? await accessStorage.hasPermission(context.user.id, 'admin') : false;
+
+      const statusesToCheck = isAdmin ? dispatchStatusEnum : workerAllowedStatuses;
+
       const results = await Promise.all(
-        dispatchStatusEnum.map(async (status) => {
+        statusesToCheck.map(async (status) => {
           const result = await storage.dispatches.setStatusPossible(id, status);
           return {
             status,
@@ -180,13 +188,21 @@ export function registerDispatchesRoutes(
   app.post("/api/dispatches/:id/set-status", dispatchComponent, requireAccess('worker.view', async (req: any) => {
     const dispatch = await storage.dispatches.get(req.params.id);
     return dispatch?.workerId;
-  }), async (req, res) => {
+  }), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
 
       if (!status || !dispatchStatusEnum.includes(status)) {
         res.status(400).json({ message: `Invalid status. Must be one of: ${dispatchStatusEnum.join(', ')}` });
+        return;
+      }
+
+      const context = await buildContext(req);
+      const accessStorage = getAccessStorage();
+      const isAdmin = context.user && accessStorage ? await accessStorage.hasPermission(context.user.id, 'admin') : false;
+      if (!isAdmin && !workerAllowedStatuses.includes(status)) {
+        res.status(403).json({ message: `Workers can only accept or decline dispatches` });
         return;
       }
 
