@@ -8,7 +8,10 @@ import { isComponentEnabledSync, isCacheInitialized } from "./component-cache";
 import { createUnifiedOptionsStorage } from "../storage/unified-options";
 import { createDispatchJobStorage } from "../storage/dispatch-jobs";
 import { createDispatchStorage } from "../storage/dispatches";
-import type { JobTypeData, NotificationMedia } from "@shared/schema/dispatch/eligibility-config";
+import type {
+  JobTypeData,
+  NotificationMedia,
+} from "@shared/schema/dispatch/eligibility-config";
 import type { Comm } from "@shared/schema";
 
 const SERVICE_NAME = "dispatch-notifications";
@@ -23,32 +26,41 @@ interface WorkerContactInfo {
   userId: string | null;
 }
 
-async function getWorkerContactInfo(workerId: string): Promise<WorkerContactInfo | null> {
+async function getWorkerContactInfo(
+  workerId: string,
+): Promise<WorkerContactInfo | null> {
   const worker = await storage.workers.getWorker(workerId);
   if (!worker) {
-    logger.warn(`Worker not found for dispatch notification`, { service: SERVICE_NAME, workerId });
+    logger.warn(`Worker not found for dispatch notification`, {
+      service: SERVICE_NAME,
+      workerId,
+    });
     return null;
   }
 
   const contact = await storage.contacts.getContact(worker.contactId);
   if (!contact) {
-    logger.warn(`Contact not found for dispatch notification`, { 
-      service: SERVICE_NAME, 
+    logger.warn(`Contact not found for dispatch notification`, {
+      service: SERVICE_NAME,
       workerId,
-      contactId: worker.contactId 
+      contactId: worker.contactId,
     });
     return null;
   }
 
-  const phoneNumbers = await storage.contacts.phoneNumbers.getPhoneNumbersByContact(contact.id);
-  const primaryPhone = phoneNumbers.find(p => p.isPrimary && p.isActive);
-  const activePhone = primaryPhone || phoneNumbers.find(p => p.isActive);
+  const phoneNumbers =
+    await storage.contacts.phoneNumbers.getPhoneNumbersByContact(contact.id);
+  const primaryPhone = phoneNumbers.find((p) => p.isPrimary && p.isActive);
+  const activePhone = primaryPhone || phoneNumbers.find((p) => p.isActive);
 
-  const user = contact.email ? await storage.users.getUserByEmail(contact.email) : null;
+  const user = contact.email
+    ? await storage.users.getUserByEmail(contact.email)
+    : null;
 
-  const contactName = contact.displayName || 
-    [contact.given, contact.family].filter(Boolean).join(' ') || 
-    'Worker';
+  const contactName =
+    contact.displayName ||
+    [contact.given, contact.family].filter(Boolean).join(" ") ||
+    "Worker";
 
   return {
     workerId,
@@ -60,8 +72,11 @@ async function getWorkerContactInfo(workerId: string): Promise<WorkerContactInfo
   };
 }
 
-async function getJobNotificationConfig(jobId: string, dispatchId: string): Promise<{ 
-  employerName: string; 
+async function getJobNotificationConfig(
+  jobId: string,
+  dispatchId: string,
+): Promise<{
+  employerName: string;
   notificationMedia: NotificationMedia[];
   dispatchUrl: string;
 } | null> {
@@ -70,22 +85,31 @@ async function getJobNotificationConfig(jobId: string, dispatchId: string): Prom
 
   const job = await jobStorage.getWithRelations(jobId);
   if (!job) {
-    logger.warn(`Dispatch job not found for notification`, { service: SERVICE_NAME, jobId });
+    logger.warn(`Dispatch job not found for notification`, {
+      service: SERVICE_NAME,
+      jobId,
+    });
     return null;
   }
 
-  const employerName = job.employer?.name || 'Employer';
+  const employerName = job.employer?.name || "Employer";
 
   let notificationMedia: NotificationMedia[] = [];
   if (job.jobTypeId) {
-    const jobType = await unifiedOptionsStorage.get("dispatch-job-type", job.jobTypeId);
+    const jobType = await unifiedOptionsStorage.get(
+      "dispatch-job-type",
+      job.jobTypeId,
+    );
     if (jobType) {
       const jobTypeData = jobType.data as JobTypeData | null;
       notificationMedia = jobTypeData?.notificationMedia || [];
     }
   }
 
-  const domain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost:5000';
+  const domain =
+    process.env.REPLIT_DEV_DOMAIN ||
+    process.env.REPLIT_DOMAINS?.split(",")[0] ||
+    "localhost:5000";
   const dispatchUrl = `https://${domain}/dispatch/${dispatchId}`;
 
   return {
@@ -95,15 +119,18 @@ async function getJobNotificationConfig(jobId: string, dispatchId: string): Prom
   };
 }
 
-function buildNotificationMessage(employerName: string, dispatchUrl: string): { 
+function buildNotificationMessage(
+  employerName: string,
+  dispatchUrl: string,
+): {
   smsMessage: string;
   emailSubject: string;
   emailBody: string;
   inappTitle: string;
   inappBody: string;
 } {
-  const messageText = `Job offer from ${employerName}. Details here: ${dispatchUrl}`;
-  
+  const messageText = `HTA Connect: A new dispatch offer from ${employerName} is available for you. Click here to view details and respond: ${dispatchUrl}. Reply STOP to opt out.`;
+
   return {
     smsMessage: messageText,
     emailSubject: `Job Offer from ${employerName}`,
@@ -116,18 +143,26 @@ function buildNotificationMessage(employerName: string, dispatchUrl: string): {
 async function sendDispatchNotifications(
   dispatchId: string,
   workerInfo: WorkerContactInfo,
-  jobConfig: { employerName: string; notificationMedia: NotificationMedia[]; dispatchUrl: string }
+  jobConfig: {
+    employerName: string;
+    notificationMedia: NotificationMedia[];
+    dispatchUrl: string;
+  },
 ): Promise<{ commIds: string[]; anyConfirmed: boolean }> {
   const commIds: string[] = [];
   let anyConfirmed = false;
-  const messages = buildNotificationMessage(jobConfig.employerName, jobConfig.dispatchUrl);
+  const messages = buildNotificationMessage(
+    jobConfig.employerName,
+    jobConfig.dispatchUrl,
+  );
 
   for (const medium of jobConfig.notificationMedia) {
     try {
-      let result: { success: boolean; comm?: Comm; error?: string } | null = null;
+      let result: { success: boolean; comm?: Comm; error?: string } | null =
+        null;
 
       switch (medium) {
-        case 'sms':
+        case "sms":
           if (workerInfo.phoneNumber) {
             result = await sendSms({
               contactId: workerInfo.contactId,
@@ -136,15 +171,19 @@ async function sendDispatchNotifications(
             });
             if (result.comm) {
               commIds.push(result.comm.id);
-              if (COMM_CONFIRMED_STATUSES.has(result.comm.status)) anyConfirmed = true;
+              if (COMM_CONFIRMED_STATUSES.has(result.comm.status))
+                anyConfirmed = true;
             }
-            logger.info(`SMS notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
-              service: SERVICE_NAME,
-              dispatchId,
-              workerId: workerInfo.workerId,
-              success: result.success,
-              error: result.error,
-            });
+            logger.info(
+              `SMS notification ${result.success ? "accepted" : "failed"} for dispatch`,
+              {
+                service: SERVICE_NAME,
+                dispatchId,
+                workerId: workerInfo.workerId,
+                success: result.success,
+                error: result.error,
+              },
+            );
           } else {
             logger.warn(`No phone number available for SMS notification`, {
               service: SERVICE_NAME,
@@ -154,7 +193,7 @@ async function sendDispatchNotifications(
           }
           break;
 
-        case 'email':
+        case "email":
           if (workerInfo.email) {
             result = await sendEmail({
               contactId: workerInfo.contactId,
@@ -165,15 +204,19 @@ async function sendDispatchNotifications(
             });
             if (result.comm) {
               commIds.push(result.comm.id);
-              if (COMM_CONFIRMED_STATUSES.has(result.comm.status)) anyConfirmed = true;
+              if (COMM_CONFIRMED_STATUSES.has(result.comm.status))
+                anyConfirmed = true;
             }
-            logger.info(`Email notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
-              service: SERVICE_NAME,
-              dispatchId,
-              workerId: workerInfo.workerId,
-              success: result.success,
-              error: result.error,
-            });
+            logger.info(
+              `Email notification ${result.success ? "accepted" : "failed"} for dispatch`,
+              {
+                service: SERVICE_NAME,
+                dispatchId,
+                workerId: workerInfo.workerId,
+                success: result.success,
+                error: result.error,
+              },
+            );
           } else {
             logger.warn(`No email available for email notification`, {
               service: SERVICE_NAME,
@@ -183,7 +226,7 @@ async function sendDispatchNotifications(
           }
           break;
 
-        case 'in-app':
+        case "in-app":
           if (workerInfo.userId) {
             result = await sendInapp({
               contactId: workerInfo.contactId,
@@ -191,19 +234,23 @@ async function sendDispatchNotifications(
               title: messages.inappTitle,
               body: messages.inappBody,
               linkUrl: jobConfig.dispatchUrl,
-              linkLabel: 'View Details',
+              linkLabel: "View Details",
             });
             if (result.comm) {
               commIds.push(result.comm.id);
-              if (COMM_CONFIRMED_STATUSES.has(result.comm.status)) anyConfirmed = true;
+              if (COMM_CONFIRMED_STATUSES.has(result.comm.status))
+                anyConfirmed = true;
             }
-            logger.info(`In-app notification ${result.success ? 'accepted' : 'failed'} for dispatch`, {
-              service: SERVICE_NAME,
-              dispatchId,
-              workerId: workerInfo.workerId,
-              success: result.success,
-              error: result.error,
-            });
+            logger.info(
+              `In-app notification ${result.success ? "accepted" : "failed"} for dispatch`,
+              {
+                service: SERVICE_NAME,
+                dispatchId,
+                workerId: workerInfo.workerId,
+                success: result.success,
+                error: result.error,
+              },
+            );
           } else {
             logger.warn(`No user account available for in-app notification`, {
               service: SERVICE_NAME,
@@ -233,26 +280,34 @@ async function sendDispatchNotifications(
   return { commIds, anyConfirmed };
 }
 
-async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void> {
+async function handleDispatchSaved(
+  payload: DispatchSavedPayload,
+): Promise<void> {
   if (!isCacheInitialized()) {
-    logger.debug(`Component cache not initialized, skipping dispatch notification`, {
-      service: SERVICE_NAME,
-    });
+    logger.debug(
+      `Component cache not initialized, skipping dispatch notification`,
+      {
+        service: SERVICE_NAME,
+      },
+    );
     return;
   }
 
   if (!isComponentEnabledSync(COMPONENT_ID)) {
-    logger.debug(`${COMPONENT_ID} component not enabled, skipping dispatch notification`, {
-      service: SERVICE_NAME,
-    });
+    logger.debug(
+      `${COMPONENT_ID} component not enabled, skipping dispatch notification`,
+      {
+        service: SERVICE_NAME,
+      },
+    );
     return;
   }
 
-  if (payload.status !== 'pending') {
+  if (payload.status !== "pending") {
     return;
   }
 
-  if (payload.previousStatus === 'pending') {
+  if (payload.previousStatus === "pending") {
     return;
   }
 
@@ -267,15 +322,21 @@ async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void>
   try {
     const workerInfo = await getWorkerContactInfo(payload.workerId);
     if (!workerInfo) {
-      logger.warn(`Could not get worker contact info for dispatch notification`, {
-        service: SERVICE_NAME,
-        dispatchId: payload.dispatchId,
-        workerId: payload.workerId,
-      });
+      logger.warn(
+        `Could not get worker contact info for dispatch notification`,
+        {
+          service: SERVICE_NAME,
+          dispatchId: payload.dispatchId,
+          workerId: payload.workerId,
+        },
+      );
       return;
     }
 
-    const jobConfig = await getJobNotificationConfig(payload.jobId, payload.dispatchId);
+    const jobConfig = await getJobNotificationConfig(
+      payload.jobId,
+      payload.dispatchId,
+    );
     if (!jobConfig) {
       logger.warn(`Could not get job config for dispatch notification`, {
         service: SERVICE_NAME,
@@ -286,22 +347,32 @@ async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void>
     }
 
     if (jobConfig.notificationMedia.length === 0) {
-      logger.debug(`No notification media configured for job type, skipping notification`, {
-        service: SERVICE_NAME,
-        dispatchId: payload.dispatchId,
-        jobId: payload.jobId,
-      });
+      logger.debug(
+        `No notification media configured for job type, skipping notification`,
+        {
+          service: SERVICE_NAME,
+          dispatchId: payload.dispatchId,
+          jobId: payload.jobId,
+        },
+      );
       return;
     }
 
-    const { commIds, anyConfirmed } = await sendDispatchNotifications(payload.dispatchId, workerInfo, jobConfig);
+    const { commIds, anyConfirmed } = await sendDispatchNotifications(
+      payload.dispatchId,
+      workerInfo,
+      jobConfig,
+    );
 
     if (commIds.length > 0) {
       const dispatchStorage = createDispatchStorage();
       await dispatchStorage.update(payload.dispatchId, { commIds });
 
       if (anyConfirmed) {
-        const statusResult = await dispatchStorage.setStatus(payload.dispatchId, "notified");
+        const statusResult = await dispatchStorage.setStatus(
+          payload.dispatchId,
+          "notified",
+        );
         if (statusResult.success) {
           logger.info(`Dispatch set to notified after confirmed delivery`, {
             service: SERVICE_NAME,
@@ -316,20 +387,25 @@ async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void>
           });
         }
       } else {
-        logger.info(`Dispatch notifications sent, awaiting delivery confirmation via callback`, {
-          service: SERVICE_NAME,
-          dispatchId: payload.dispatchId,
-          commIds,
-        });
+        logger.info(
+          `Dispatch notifications sent, awaiting delivery confirmation via callback`,
+          {
+            service: SERVICE_NAME,
+            dispatchId: payload.dispatchId,
+            commIds,
+          },
+        );
       }
     } else {
-      logger.warn(`No notifications could be sent for dispatch, leaving as pending`, {
-        service: SERVICE_NAME,
-        dispatchId: payload.dispatchId,
-        workerId: payload.workerId,
-      });
+      logger.warn(
+        `No notifications could be sent for dispatch, leaving as pending`,
+        {
+          service: SERVICE_NAME,
+          dispatchId: payload.dispatchId,
+          workerId: payload.workerId,
+        },
+      );
     }
-
   } catch (error: any) {
     logger.error(`Failed to process dispatch notification`, {
       service: SERVICE_NAME,
@@ -339,7 +415,7 @@ async function handleDispatchSaved(payload: DispatchSavedPayload): Promise<void>
   }
 }
 
-const COMM_CONFIRMED_STATUSES = new Set(['sent', 'delivered']);
+const COMM_CONFIRMED_STATUSES = new Set(["sent", "delivered"]);
 
 export async function handleCommStatusForDispatches(
   commId: string,
@@ -353,8 +429,14 @@ export async function handleCommStatusForDispatches(
       return;
     }
 
-    if (dispatch.status === 'pending' && COMM_CONFIRMED_STATUSES.has(newCommStatus)) {
-      const statusResult = await dispatchStorage.setStatus(dispatch.id, 'notified');
+    if (
+      dispatch.status === "pending" &&
+      COMM_CONFIRMED_STATUSES.has(newCommStatus)
+    ) {
+      const statusResult = await dispatchStorage.setStatus(
+        dispatch.id,
+        "notified",
+      );
       if (statusResult.success) {
         logger.info(`Dispatch set to notified after confirmed delivery`, {
           service: SERVICE_NAME,
@@ -383,19 +465,25 @@ let handlerId: string | null = null;
 
 export function initDispatchNotifications(): void {
   if (handlerId) {
-    logger.warn(`Dispatch notifications already initialized`, { service: SERVICE_NAME });
+    logger.warn(`Dispatch notifications already initialized`, {
+      service: SERVICE_NAME,
+    });
     return;
   }
 
   handlerId = eventBus.on(EventType.DISPATCH_SAVED, handleDispatchSaved);
-  
-  logger.info(`Dispatch notifications service initialized`, { service: SERVICE_NAME });
+
+  logger.info(`Dispatch notifications service initialized`, {
+    service: SERVICE_NAME,
+  });
 }
 
 export function stopDispatchNotifications(): void {
   if (handlerId) {
     eventBus.off(handlerId);
     handlerId = null;
-    logger.info(`Dispatch notifications service stopped`, { service: SERVICE_NAME });
+    logger.info(`Dispatch notifications service stopped`, {
+      service: SERVICE_NAME,
+    });
   }
 }
