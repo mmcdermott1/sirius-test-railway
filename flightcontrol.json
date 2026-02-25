@@ -6,16 +6,16 @@
   },
   "environments": [
     {
-      "id": "prod-hta",
-      "name": "Production (HTA)",
+      "id": "production",
+      "name": "Production",
       "region": "us-east-1",
       "source": {
-        "branch": "prod-hta"
+        "branch": "main"
       },
       "services": [
         {
-          "id": "sirius-app-hta",
-          "name": "Sirius Application (HTA)",
+          "id": "sirius-app",
+          "name": "Sirius Application",
           "type": "fargate",
           "buildType": "nixpacks",
           "cpu": 0.5,
