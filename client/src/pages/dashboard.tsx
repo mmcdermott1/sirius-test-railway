@@ -43,7 +43,7 @@ export default function Dashboard() {
     <div className="bg-background text-foreground min-h-screen">
       <PageHeader title="Dashboard" icon={<Home className="text-primary-foreground" size={16} />} />
       <div className="text-center py-6">
-        <span className="text-6xl">😊</span>
+        <span className="text-6xl">😈</span>
       </div>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {rolesLoading || configsLoading ? (
