@@ -827,6 +827,18 @@ git push origin def5678:refs/heads/prod-btu
 - **Never force-push** to `prod-*` branches. The push should always be a fast-forward.
 - If `git push` is rejected, it means the prod branch has diverged from main — investigate before proceeding.
 
+### GitHub Branch Protection Rules
+
+| Branch | PRs Required | Direct Push | Force Push |
+|--------|:---:|:---:|:---:|
+| `main` | Yes | No | No |
+| `prod-*` | No | Yes | No |
+| `dev-*` | No | Yes | Yes (optional) |
+
+- **`main`**: All changes must come through PRs from `dev-*` branches. No direct pushes or force-pushes.
+- **`prod-*`**: Direct fast-forward pushes only via command line. Do not use PRs to merge into `prod-*` branches — this creates merge commits that break the fast-forward model.
+- **`dev-*`**: No restrictions. Developers commit directly to their dev branch.
+
 ---
 
 ## Quick Reference: Adding a New Client
