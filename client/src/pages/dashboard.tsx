@@ -8,13 +8,15 @@ import { PluginConfig } from "@/plugins/types";
 
 export default function Dashboard() {
   const { user, permissions, components } = useAuth();
-  
+
   const { data: userRoles = [], isLoading: rolesLoading } = useQuery<Role[]>({
     queryKey: [`/api/users/${user?.id}/roles`],
     enabled: !!user?.id,
   });
 
-  const { data: pluginConfigs = [], isLoading: configsLoading } = useQuery<PluginConfig[]>({
+  const { data: pluginConfigs = [], isLoading: configsLoading } = useQuery<
+    PluginConfig[]
+  >({
     queryKey: ["/api/dashboard-plugins/config"],
   });
 
@@ -24,16 +26,18 @@ export default function Dashboard() {
   // Filter plugins based on:
   // 1. Plugin is enabled in config (or enabled by default if no config exists)
   // 2. User has required permissions
-  const enabledPlugins = allPlugins.filter(plugin => {
+  const enabledPlugins = allPlugins.filter((plugin) => {
     // Check if plugin is enabled
-    const config = pluginConfigs.find(c => c.pluginId === plugin.id);
+    const config = pluginConfigs.find((c) => c.pluginId === plugin.id);
     const isEnabled = config ? config.enabled : plugin.enabledByDefault;
-    
+
     if (!isEnabled) return false;
 
     // Check permissions
     if (plugin.requiredPermissions && plugin.requiredPermissions.length > 0) {
-      return plugin.requiredPermissions.some(perm => permissions.includes(perm));
+      return plugin.requiredPermissions.some((perm) =>
+        permissions.includes(perm),
+      );
     }
 
     return true;
@@ -41,9 +45,12 @@ export default function Dashboard() {
 
   return (
     <div className="bg-background text-foreground min-h-screen">
-      <PageHeader title="Dashboard" icon={<Home className="text-primary-foreground" size={16} />} />
+      <PageHeader
+        title="Dashboard"
+        icon={<Home className="text-primary-foreground" size={16} />}
+      />
       <div className="text-center py-6">
-        <span className="text-6xl">😊</span>
+        <span className="text-6xl">☹️</span>
       </div>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {rolesLoading || configsLoading ? (
@@ -53,7 +60,7 @@ export default function Dashboard() {
         ) : (
           <>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {enabledPlugins.map(plugin => {
+              {enabledPlugins.map((plugin) => {
                 const PluginComponent = plugin.component;
                 return (
                   <PluginComponent
