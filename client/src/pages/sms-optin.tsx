@@ -121,8 +121,7 @@ export default function SmsOptinPage() {
 
           <div className="text-center text-xs text-muted-foreground pt-4 border-t">
             <p>
-              By opting in, you agree to receive SMS messages from us. 
-              Standard message and data rates may apply.
+              By checking this box, you agree to receive automated dispatch alerts from HTA Connect (a program of the Hospitality Industry Training and Education Fund). Message and data rates may apply. Frequency depends on job availability. Text STOP to cancel, HELP for help.
             </p>
           </div>
         </CardContent>
