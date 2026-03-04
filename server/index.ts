@@ -158,6 +158,11 @@ app.use((req, res, next) => {
     const sheet = await injectedStorage.edlsSheets?.get?.(id);
     return sheet || null;
   });
+
+  registerEntityLoader('dispatch', async (id: string, injectedStorage: any) => {
+    const dispatch = await injectedStorage.dispatches?.get?.(id);
+    return dispatch || null;
+  });
   
   // Initialize address validation service (loads or creates config)
   await addressValidationService.getConfig();

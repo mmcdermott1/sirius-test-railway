@@ -46,7 +46,10 @@ export function registerDispatchesRoutes(
     }
   });
 
-  app.get("/api/dispatches/:id", dispatchComponent, requireAccess('admin'), async (req, res) => {
+  app.get("/api/dispatches/:id", dispatchComponent, requireAccess('worker.view', async (req: any) => {
+    const dispatch = await storage.dispatches.get(req.params.id);
+    return dispatch?.workerId;
+  }), async (req, res) => {
     try {
       const { id } = req.params;
       const dispatch = await storage.dispatches.getWithRelations(id);
