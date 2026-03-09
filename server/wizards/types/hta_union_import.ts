@@ -24,6 +24,22 @@ function normalizeForComparison(value: string): string {
   return String(value).toLowerCase().replace(/\s+/g, '');
 }
 
+function findMatchingWorkStatus(
+  statusValue: string,
+  options: Array<{ id: string; name: string }>
+): { id: string; name: string } | undefined {
+  const normalized = normalizeForComparison(statusValue);
+  let match = options.find(ws => normalizeForComparison(ws.name) === normalized);
+  if (match) return match;
+
+  const lower = statusValue.toLowerCase().trim();
+  match = options.find(ws => lower.startsWith(ws.name.toLowerCase()));
+  if (match) return match;
+
+  match = options.find(ws => lower.includes(ws.name.toLowerCase()));
+  return match;
+}
+
 export class HtaUnionImportWizard extends FeedWizard {
   name = 'hta_union_import';
   displayName = 'HTA Union/Apprentice Import';
@@ -79,20 +95,37 @@ export class HtaUnionImportWizard extends FeedWizard {
         displayOrder: 4
       },
       {
-        id: 'statusReason',
-        name: 'Status/Reason',
-        type: 'string',
+        id: 'dateOfBirth',
+        name: 'Date of Birth',
+        type: 'date',
         required: false,
-        description: 'Work status/reason (required for Union imports, ignored for Apprentice)',
+        description: 'Worker date of birth (optional)',
+        format: 'date',
         displayOrder: 5
       },
       {
+        id: 'gender',
+        name: 'Gender',
+        type: 'string',
+        required: false,
+        description: 'Worker gender (optional)',
+        displayOrder: 6
+      },
+      {
+        id: 'statusReason',
+        name: 'Work Status',
+        type: 'string',
+        required: false,
+        description: 'Work status (required for Union imports, ignored for Apprentice)',
+        displayOrder: 7
+      },
+      {
         id: 'employerName',
-        name: 'Employer Name',
+        name: 'Employer',
         type: 'string',
         required: true,
         description: 'Employer name (must match an existing employer)',
-        displayOrder: 6
+        displayOrder: 8
       },
       {
         id: 'primarySecondary',
@@ -100,7 +133,7 @@ export class HtaUnionImportWizard extends FeedWizard {
         type: 'string',
         required: false,
         description: 'Employment type: Primary or Secondary (maps to home boolean)',
-        displayOrder: 7
+        displayOrder: 9
       },
       {
         id: 'hireDate',
@@ -109,7 +142,7 @@ export class HtaUnionImportWizard extends FeedWizard {
         required: false,
         description: 'Hire date (optional)',
         format: 'date',
-        displayOrder: 8
+        displayOrder: 10
       },
       {
         id: 'phoneNumber',
@@ -117,7 +150,7 @@ export class HtaUnionImportWizard extends FeedWizard {
         type: 'string',
         required: false,
         description: 'Worker phone number (optional)',
-        displayOrder: 9
+        displayOrder: 11
       },
       {
         id: 'email',
@@ -126,7 +159,7 @@ export class HtaUnionImportWizard extends FeedWizard {
         required: false,
         description: 'Worker email address (optional)',
         format: 'email',
-        displayOrder: 10
+        displayOrder: 12
       },
       {
         id: 'addressLine1',
@@ -134,7 +167,7 @@ export class HtaUnionImportWizard extends FeedWizard {
         type: 'string',
         required: false,
         description: 'Street address (optional)',
-        displayOrder: 11
+        displayOrder: 13
       },
       {
         id: 'city',
@@ -142,7 +175,7 @@ export class HtaUnionImportWizard extends FeedWizard {
         type: 'string',
         required: false,
         description: 'City (optional)',
-        displayOrder: 12
+        displayOrder: 14
       },
       {
         id: 'state',
@@ -150,15 +183,15 @@ export class HtaUnionImportWizard extends FeedWizard {
         type: 'string',
         required: false,
         description: 'State (optional)',
-        displayOrder: 13
+        displayOrder: 15
       },
       {
         id: 'postalCode',
-        name: 'Zone/ZIP',
+        name: 'ZIP',
         type: 'string',
         required: false,
-        description: 'Postal/ZIP code (optional)',
-        displayOrder: 14
+        description: 'ZIP code (optional)',
+        displayOrder: 16
       }
     ];
   }
@@ -282,20 +315,17 @@ export class HtaUnionImportWizard extends FeedWizard {
         errors.push({
           rowIndex,
           field: 'statusReason',
-          message: 'Status/Reason is required for Union imports',
+          message: 'Work Status is required for Union imports',
           value: row.statusReason
         });
       } else {
         const workStatusOptions = await this.getWorkStatusOptions();
-        const normalizedStatus = normalizeForComparison(statusReason);
-        const matchingOption = workStatusOptions.find(ws =>
-          normalizeForComparison(ws.name) === normalizedStatus
-        );
+        const matchingOption = findMatchingWorkStatus(statusReason, workStatusOptions);
         if (!matchingOption) {
           errors.push({
             rowIndex,
             field: 'statusReason',
-            message: `Status/Reason "${statusReason}" does not match any configured work status option`,
+            message: `Work Status "${statusReason}" does not match any configured work status option`,
             value: row.statusReason
           });
         }
@@ -341,10 +371,7 @@ export class HtaUnionImportWizard extends FeedWizard {
       targetStatusName = statusReason;
     }
 
-    const normalizedTarget = normalizeForComparison(targetStatusName);
-    const matchingWsOption = workStatusOptions.find(ws =>
-      normalizeForComparison(ws.name) === normalizedTarget
-    );
+    const matchingWsOption = findMatchingWorkStatus(targetStatusName, workStatusOptions);
 
     if (!matchingWsOption) {
       return;
@@ -383,7 +410,7 @@ export class HtaUnionImportWizard extends FeedWizard {
     } else {
       statusReason = row.statusReason?.toString().trim() || '';
       if (!statusReason) {
-        throw new Error('Status/Reason is required for Union imports');
+        throw new Error('Work Status is required for Union imports');
       }
     }
 
