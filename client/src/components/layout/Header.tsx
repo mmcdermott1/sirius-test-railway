@@ -330,6 +330,18 @@ export default function Header() {
                         </Button>
                       </Link>
                     )}
+                    {hasComponent("sitespecific.hta") && (
+                      <Link href="/inactivity-scan" onClick={() => setMobileMenuOpen(false)}>
+                        <Button
+                          variant={location === "/inactivity-scan" ? "default" : "ghost"}
+                          className="w-full justify-start pl-8"
+                          data-testid="mobile-nav-inactivity-scan"
+                        >
+                          <ScanLine className="h-4 w-4 mr-2" />
+                          Inactivity Scan
+                        </Button>
+                      </Link>
+                    )}
                   </>
                 )}
 
@@ -800,6 +812,16 @@ export default function Header() {
                         <div className="flex items-center cursor-pointer" data-testid="menu-worker-import">
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
                           Worker Import
+                        </div>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {hasComponent("sitespecific.hta") && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/inactivity-scan" className="w-full">
+                        <div className="flex items-center cursor-pointer" data-testid="menu-inactivity-scan">
+                          <ScanLine className="h-4 w-4 mr-2" />
+                          Inactivity Scan
                         </div>
                       </Link>
                     </DropdownMenuItem>

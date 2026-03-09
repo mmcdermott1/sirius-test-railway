@@ -14,7 +14,15 @@ export function registerHtaRoutes(
 
   app.post("/api/sitespecific/hta/inactivity-scan", requireAuth, componentMiddleware, requirePermission("staff"), async (req, res) => {
     try {
-      const result = await runInactivityScan();
+      const { mode, workerId } = req.body || {};
+      if (mode && mode !== "test" && mode !== "live") {
+        res.status(400).json({ message: "Mode must be 'test' or 'live'" });
+        return;
+      }
+      const result = await runInactivityScan({
+        mode: mode === "live" ? "live" : "test",
+        workerId: workerId || undefined,
+      });
       res.json(result);
     } catch (error) {
       console.error("Failed to run inactivity scan:", error);

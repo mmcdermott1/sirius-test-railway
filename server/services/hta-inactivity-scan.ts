@@ -5,23 +5,45 @@ import {
   workerWsh,
   optionsWorkerWs,
   optionsWorkerMs,
+  contacts,
 } from "@shared/schema";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { logger } from "../logger";
+
+export interface WorkerScanDetail {
+  workerId: string;
+  workerName: string;
+  currentStatus: string;
+  lastActiveDate: string | null;
+  action: "deactivated" | "already_inactive" | "still_active" | "not_union" | "error";
+  reason: string;
+}
 
 export interface InactivityScanResult {
   scanned: number;
   deactivated: number;
   alreadyInactive: number;
   errors: string[];
+  mode: "live" | "test";
+  details: WorkerScanDetail[];
 }
 
-export async function runInactivityScan(): Promise<InactivityScanResult> {
+export interface ScanOptions {
+  mode?: "live" | "test";
+  workerId?: string;
+}
+
+export async function runInactivityScan(options?: ScanOptions): Promise<InactivityScanResult> {
+  const mode = options?.mode || "live";
+  const targetWorkerId = options?.workerId;
+
   const result: InactivityScanResult = {
     scanned: 0,
     deactivated: 0,
     alreadyInactive: 0,
     errors: [],
+    mode,
+    details: [],
   };
 
   const client = getClient();
@@ -55,15 +77,54 @@ export async function runInactivityScan(): Promise<InactivityScanResult> {
     return result;
   }
 
-  const unionWorkers = await client
-    .select({
-      id: workers.id,
-      denormWsId: workers.denormWsId,
-    })
-    .from(workers)
-    .where(sql`${workers.denormMsIds} @> ARRAY[${unionMsOption.id}]::varchar[]`);
+  const wsMap = new Map(allWsOptions.map(o => [o.id, o.name]));
 
-  result.scanned = unionWorkers.length;
+  let targetWorkers: Array<{ id: string; denormWsId: string | null }>;
+
+  if (targetWorkerId) {
+    const [worker] = await client
+      .select({ id: workers.id, denormWsId: workers.denormWsId, denormMsIds: workers.denormMsIds })
+      .from(workers)
+      .where(eq(workers.id, targetWorkerId));
+
+    if (!worker) {
+      result.errors.push(`Worker ${targetWorkerId} not found`);
+      return result;
+    }
+
+    const msIds = worker.denormMsIds || [];
+    if (!msIds.includes(unionMsOption.id)) {
+      const workerContact = await client
+        .select({ given: contacts.given, family: contacts.family })
+        .from(contacts)
+        .innerJoin(workers, eq(workers.contactId, contacts.id))
+        .where(eq(workers.id, targetWorkerId));
+      const name = workerContact[0] ? `${workerContact[0].given || ''} ${workerContact[0].family || ''}`.trim() : targetWorkerId;
+
+      result.scanned = 1;
+      result.details.push({
+        workerId: targetWorkerId,
+        workerName: name,
+        currentStatus: wsMap.get(worker.denormWsId || '') || 'Unknown',
+        lastActiveDate: null,
+        action: "not_union",
+        reason: "Worker does not have Union member status",
+      });
+      return result;
+    }
+
+    targetWorkers = [{ id: worker.id, denormWsId: worker.denormWsId }];
+  } else {
+    targetWorkers = await client
+      .select({
+        id: workers.id,
+        denormWsId: workers.denormWsId,
+      })
+      .from(workers)
+      .where(sql`${workers.denormMsIds} @> ARRAY[${unionMsOption.id}]::varchar[]`);
+  }
+
+  result.scanned = targetWorkers.length;
 
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
@@ -71,10 +132,26 @@ export async function runInactivityScan(): Promise<InactivityScanResult> {
 
   const today = new Date().toISOString().split("T")[0];
 
-  for (const worker of unionWorkers) {
+  for (const worker of targetWorkers) {
     try {
+      const workerContact = await client
+        .select({ given: contacts.given, family: contacts.family })
+        .from(contacts)
+        .innerJoin(workers, eq(workers.contactId, contacts.id))
+        .where(eq(workers.id, worker.id));
+      const workerName = workerContact[0] ? `${workerContact[0].given || ''} ${workerContact[0].family || ''}`.trim() : worker.id;
+      const currentStatusName = wsMap.get(worker.denormWsId || '') || 'Unknown';
+
       if (worker.denormWsId !== activeWsOption.id) {
         result.alreadyInactive++;
+        result.details.push({
+          workerId: worker.id,
+          workerName,
+          currentStatus: currentStatusName,
+          lastActiveDate: null,
+          action: "already_inactive",
+          reason: `Current status is "${currentStatusName}" (not Active)`,
+        });
         continue;
       }
 
@@ -90,17 +167,40 @@ export async function runInactivityScan(): Promise<InactivityScanResult> {
         .orderBy(desc(workerWsh.date), sql`${workerWsh.createdAt} DESC NULLS LAST`)
         .limit(1);
 
+      const lastActiveDateStr = lastActiveEntry?.date || null;
+
       const shouldDeactivate =
         !lastActiveEntry || lastActiveEntry.date <= threeMonthsAgoStr;
 
       if (shouldDeactivate) {
-        await storage.workerWsh.createWorkerWsh({
-          workerId: worker.id,
-          date: today,
-          wsId: inactiveWsOption.id,
-          data: { source: "hta_inactivity_scan" },
-        });
+        if (mode === "live") {
+          await storage.workerWsh.createWorkerWsh({
+            workerId: worker.id,
+            date: today,
+            wsId: inactiveWsOption.id,
+            data: { source: "hta_inactivity_scan" },
+          });
+        }
         result.deactivated++;
+        result.details.push({
+          workerId: worker.id,
+          workerName,
+          currentStatus: currentStatusName,
+          lastActiveDate: lastActiveDateStr,
+          action: "deactivated",
+          reason: lastActiveEntry
+            ? `Last Active entry on ${lastActiveDateStr} is older than 3 months (cutoff: ${threeMonthsAgoStr})`
+            : `No Active work status entry found`,
+        });
+      } else {
+        result.details.push({
+          workerId: worker.id,
+          workerName,
+          currentStatus: currentStatusName,
+          lastActiveDate: lastActiveDateStr,
+          action: "still_active",
+          reason: `Last Active entry on ${lastActiveDateStr} is within 3 months`,
+        });
       }
     } catch (err) {
       const message =
@@ -108,6 +208,14 @@ export async function runInactivityScan(): Promise<InactivityScanResult> {
       result.errors.push(
         `Error processing worker ${worker.id}: ${message}`
       );
+      result.details.push({
+        workerId: worker.id,
+        workerName: worker.id,
+        currentStatus: "Unknown",
+        lastActiveDate: null,
+        action: "error",
+        reason: message,
+      });
       logger.error(`Inactivity scan error for worker ${worker.id}`, {
         service: "hta-inactivity-scan",
         error: message,
@@ -116,7 +224,7 @@ export async function runInactivityScan(): Promise<InactivityScanResult> {
   }
 
   logger.info(
-    `Inactivity scan complete: scanned=${result.scanned}, deactivated=${result.deactivated}, alreadyInactive=${result.alreadyInactive}, errors=${result.errors.length}`,
+    `Inactivity scan complete (${mode}): scanned=${result.scanned}, deactivated=${result.deactivated}, alreadyInactive=${result.alreadyInactive}, errors=${result.errors.length}`,
     { service: "hta-inactivity-scan" }
   );
 

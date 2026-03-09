@@ -33,6 +33,7 @@ const AlertsPage = lazy(() => import("@/pages/alerts").then(m => ({ default: m.d
 const AlertsRedirect = lazy(() => import("@/pages/alerts").then(m => ({ default: m.AlertsRedirect })));
 const Reports = lazy(() => import("@/pages/reports"));
 const Imports = lazy(() => import("@/pages/imports"));
+const InactivityScan = lazy(() => import("@/pages/inactivity-scan"));
 const ReportType = lazy(() => import("@/pages/report-type"));
 const Workers = lazy(() => import("@/pages/workers"));
 const WorkersAdd = lazy(() => import("@/pages/workers-add"));
@@ -814,6 +815,14 @@ function Router() {
         <ProtectedRoute permission="staff">
           <AuthenticatedLayout>
             <Imports />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/inactivity-scan">
+        <ProtectedRoute permission="staff">
+          <AuthenticatedLayout>
+            <InactivityScan />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
