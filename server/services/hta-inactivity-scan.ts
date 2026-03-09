@@ -23,6 +23,7 @@ export interface InactivityScanResult {
   scanned: number;
   deactivated: number;
   alreadyInactive: number;
+  stillActive: number;
   errors: string[];
   mode: "live" | "test";
   details: WorkerScanDetail[];
@@ -63,6 +64,7 @@ export async function runInactivityScan(options?: ScanOptions): Promise<Inactivi
     scanned: 0,
     deactivated: 0,
     alreadyInactive: 0,
+    stillActive: 0,
     errors: [],
     mode,
     details: [],
@@ -207,6 +209,7 @@ export async function runInactivityScan(options?: ScanOptions): Promise<Inactivi
             : `No Active work status entry found`,
         });
       } else {
+        result.stillActive++;
         result.details.push({
           workerId: worker.id,
           workerName,

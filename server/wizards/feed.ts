@@ -110,6 +110,15 @@ export interface ProcessResults {
   completedAt?: Date;
   benefitsSummary?: BenefitSummary[]; // Summary of benefits created by type
   chargesSummary?: ChargesSummary; // Summary of charges generated
+  inactivityScan?: {
+    ran: boolean;
+    scanned: number;
+    deactivated: number;
+    alreadyInactive: number;
+    stillActive: number;
+    errors: string[];
+    details: Array<{ workerId: string; workerName: string; action: string; reason: string }>;
+  };
 }
 
 export interface FeedField {
@@ -520,6 +529,8 @@ export abstract class FeedWizard extends BaseWizard {
       successCount: number; 
       failureCount: number;
       currentRow?: { index: number; status: 'success' | 'error'; error?: string };
+      phase?: string;
+      phaseMessage?: string;
     }) => void
   ): Promise<ProcessResults> {
     const wizard = await storage.wizards.getById(wizardId);

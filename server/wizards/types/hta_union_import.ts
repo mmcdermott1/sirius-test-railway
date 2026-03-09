@@ -607,6 +607,8 @@ export class HtaUnionImportWizard extends FeedWizard {
       successCount: number;
       failureCount: number;
       currentRow?: { index: number; status: 'success' | 'error'; error?: string };
+      phase?: string;
+      phaseMessage?: string;
     }) => void
   ): Promise<ProcessResults> {
     this.workStatusCache = null;
@@ -623,10 +625,42 @@ export class HtaUnionImportWizard extends FeedWizard {
       const memberStatusType = this.getMemberStatusType(wizard);
       if (memberStatusType === 'Union') {
         try {
+          if (onProgress) {
+            onProgress({
+              processed: results.totalRows,
+              total: results.totalRows,
+              createdCount: results.createdCount,
+              updatedCount: results.updatedCount,
+              successCount: results.successCount,
+              failureCount: results.failureCount,
+              phase: 'inactivity_scan',
+              phaseMessage: 'Running inactivity scan...',
+            });
+          }
+
           const { runInactivityScan } = await import('../../services/hta-inactivity-scan.js');
-          await runInactivityScan({ mode: 'live' });
+          const scanResult = await runInactivityScan({ mode: 'live' });
+
+          results.inactivityScan = {
+            ran: true,
+            scanned: scanResult.scanned,
+            deactivated: scanResult.deactivated,
+            alreadyInactive: scanResult.alreadyInactive,
+            stillActive: scanResult.stillActive,
+            errors: scanResult.errors,
+            details: scanResult.details,
+          };
         } catch (err) {
           console.error('Failed to run inactivity scan after union import:', err);
+          results.inactivityScan = {
+            ran: false,
+            scanned: 0,
+            deactivated: 0,
+            alreadyInactive: 0,
+            stillActive: 0,
+            errors: [err instanceof Error ? err.message : 'Unknown error'],
+            details: [],
+          };
         }
       }
     }

@@ -1198,7 +1198,7 @@ export function registerWizardRoutes(
             100, // batch size
             (progress) => {
               // Send progress event with explicit fields
-              res.write(`data: ${JSON.stringify({ 
+              const progressData: any = { 
                 type: 'progress',
                 processed: progress.processed,
                 total: progress.total,
@@ -1206,8 +1206,13 @@ export function registerWizardRoutes(
                 updatedCount: progress.updatedCount,
                 successCount: progress.successCount,
                 failureCount: progress.failureCount,
-                currentRow: progress.currentRow
-              })}\n\n`);
+                currentRow: progress.currentRow,
+              };
+              if (progress.phase) {
+                progressData.phase = progress.phase;
+                progressData.phaseMessage = progress.phaseMessage;
+              }
+              res.write(`data: ${JSON.stringify(progressData)}\n\n`);
             }
           );
 
