@@ -391,69 +391,94 @@ export class HtaUnionImportWizard extends FeedWizard {
   }
 
   protected async processWorkerHours(workerId: string, row: Record<string, any>, wizard: any): Promise<void> {
-    const employerMap = await this.getEmployerMap();
-    const employerNameRaw = row.employerName?.toString().trim();
-    if (!employerNameRaw) {
-      throw new Error('Employer name is required');
-    }
+    const errors: string[] = [];
 
-    const normalizedName = normalizeForComparison(employerNameRaw);
-    const employerId = employerMap.get(normalizedName);
-    if (!employerId) {
-      throw new Error(`Employer "${employerNameRaw}" not found`);
-    }
-
-    const memberStatusType = this.getMemberStatusType(wizard);
-    let statusReason: string;
-    if (memberStatusType === 'Apprentice') {
-      statusReason = 'Active';
-    } else {
-      statusReason = row.statusReason?.toString().trim() || '';
-      if (!statusReason) {
-        throw new Error('Work Status is required for Union imports');
+    try {
+      const employerMap = await this.getEmployerMap();
+      const employerNameRaw = row.employerName?.toString().trim();
+      if (!employerNameRaw) {
+        throw new Error('Employer name is required');
       }
-    }
 
-    const employmentStatusOptions = await this.getEmploymentStatusOptions();
-    const normalizedStatus = normalizeForComparison(statusReason);
+      const normalizedName = normalizeForComparison(employerNameRaw);
+      const employerId = employerMap.get(normalizedName);
+      if (!employerId) {
+        throw new Error(`Employer "${employerNameRaw}" not found`);
+      }
 
-    let matchingEsOption = employmentStatusOptions.find(option =>
-      normalizeForComparison(option.name) === normalizedStatus
-    );
-    if (!matchingEsOption) {
-      matchingEsOption = employmentStatusOptions.find(option =>
-        option.code && normalizeForComparison(option.code) === normalizedStatus
+      const memberStatusType = this.getMemberStatusType(wizard);
+      let statusReason: string;
+      if (memberStatusType === 'Apprentice') {
+        statusReason = 'Active';
+      } else {
+        statusReason = row.statusReason?.toString().trim() || '';
+        if (!statusReason) {
+          throw new Error('Work Status is required for Union imports');
+        }
+      }
+
+      const employmentStatusOptions = await this.getEmploymentStatusOptions();
+
+      let matchingEsOption = employmentStatusOptions.find(option =>
+        normalizeForComparison(option.name) === normalizeForComparison(statusReason)
       );
-    }
-
-    if (!matchingEsOption) {
-      const activeOption = employmentStatusOptions.find(option => option.employed === true);
-      if (!activeOption) {
-        throw new Error(`No matching employment status found for "${statusReason}"`);
+      if (!matchingEsOption) {
+        matchingEsOption = employmentStatusOptions.find(option =>
+          option.code && normalizeForComparison(option.code) === normalizeForComparison(statusReason)
+        );
       }
-      matchingEsOption = activeOption;
+      if (!matchingEsOption) {
+        const lower = statusReason.toLowerCase().trim();
+        matchingEsOption = employmentStatusOptions.find(option =>
+          lower.includes(option.name.toLowerCase()) || option.name.toLowerCase().includes(lower)
+        );
+      }
+      if (!matchingEsOption) {
+        matchingEsOption = employmentStatusOptions.find(option => option.employed === true);
+      }
+      if (!matchingEsOption && employmentStatusOptions.length > 0) {
+        matchingEsOption = employmentStatusOptions[0];
+      }
+
+      if (!matchingEsOption) {
+        errors.push(`No employment status options configured`);
+      } else {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1;
+
+        const primarySecondary = row.primarySecondary?.toString().trim().toLowerCase();
+        const isHome = primarySecondary === 'primary' ? true : (primarySecondary === 'secondary' ? false : undefined);
+
+        await storage.workerHours.upsertWorkerHours({
+          workerId,
+          employerId,
+          employmentStatusId: matchingEsOption.id,
+          year,
+          month,
+          hours: 0,
+          home: isHome
+        });
+      }
+    } catch (err: any) {
+      errors.push(err.message || 'Employment record creation failed');
     }
 
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth() + 1;
-    const day = today.getDate();
+    try {
+      await this.processWorkerWorkStatus(workerId, row, wizard);
+    } catch (err: any) {
+      errors.push(`Work status: ${err.message}`);
+    }
 
-    const primarySecondary = row.primarySecondary?.toString().trim().toLowerCase();
-    const isHome = primarySecondary === 'primary' ? true : (primarySecondary === 'secondary' ? false : undefined);
+    try {
+      await this.processWorkerMemberStatus(workerId, wizard);
+    } catch (err: any) {
+      errors.push(`Member status: ${err.message}`);
+    }
 
-    await storage.workerHours.upsertWorkerHours({
-      workerId,
-      employerId,
-      employmentStatusId: matchingEsOption.id,
-      year,
-      month,
-      hours: 0,
-      home: isHome
-    });
-
-    await this.processWorkerWorkStatus(workerId, row, wizard);
-    await this.processWorkerMemberStatus(workerId, wizard);
+    if (errors.length > 0) {
+      throw new Error(errors.join('; '));
+    }
   }
 
   protected async processWorkerContactInfo(workerId: string, row: Record<string, any>): Promise<void> {
@@ -463,6 +488,20 @@ export class HtaUnionImportWizard extends FeedWizard {
     }
 
     const contactId = worker.contactId;
+
+    const genderValue = row.gender?.toString().trim();
+    if (genderValue) {
+      const genderOptions = await unifiedOptionsStorage.list("gender");
+      const normalizedInput = normalizeForComparison(genderValue);
+      const matchingGender = genderOptions.find((option: { id: string; name: string; code: string }) => {
+        if (normalizeForComparison(option.name) === normalizedInput) return true;
+        if (option.code && normalizeForComparison(option.code) === normalizedInput) return true;
+        return false;
+      });
+      if (matchingGender) {
+        await storage.workers.updateWorkerContactGender(workerId, matchingGender.id, null);
+      }
+    }
 
     const email = row.email?.toString().trim();
     if (email) {
@@ -491,7 +530,7 @@ export class HtaUnionImportWizard extends FeedWizard {
     const state = row.state?.toString().trim();
     const postalCode = row.postalCode?.toString().trim();
 
-    if (addressLine1 && city && state && postalCode) {
+    if (addressLine1 || city || state || postalCode) {
       const existingAddresses = await storage.contacts.addresses.getContactPostalByContact(contactId);
       if (existingAddresses.length > 0) {
         const primaryAddress = existingAddresses.find((a: { isPrimary: boolean }) => a.isPrimary) || existingAddresses[0];

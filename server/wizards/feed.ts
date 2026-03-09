@@ -394,7 +394,7 @@ export abstract class FeedWizard extends BaseWizard {
    * Handles: string dates (M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD, etc.), 
    * Excel serial numbers (days since 1900-01-01), and Date objects
    */
-  private parseDate(dateValue: unknown): string | null {
+  protected parseDate(dateValue: unknown): string | null {
     if (dateValue === null || dateValue === undefined) {
       return null;
     }
@@ -404,9 +404,9 @@ export abstract class FeedWizard extends BaseWizard {
       if (isNaN(dateValue.getTime())) {
         throw new Error(`Invalid date value`);
       }
-      const year = dateValue.getFullYear();
-      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
-      const day = String(dateValue.getDate()).padStart(2, '0');
+      const year = dateValue.getUTCFullYear();
+      const month = String(dateValue.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(dateValue.getUTCDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
 
@@ -450,35 +450,46 @@ export abstract class FeedWizard extends BaseWizard {
     // Try to parse common formats
     let parsed: Date | null = null;
 
-    // M/D/YYYY or MM/DD/YYYY (e.g., 6/8/1955, 01/02/2015)
-    const mdyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    // M/D/YYYY, MM/DD/YYYY, M/D/YY, MM/DD/YY (e.g., 6/8/1955, 01/02/2015, 5/1/94)
+    const mdyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
     if (mdyMatch) {
-      const [, month, day, year] = mdyMatch;
-      parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      let [, monthStr, dayStr, yearStr] = mdyMatch;
+      let yearNum = parseInt(yearStr);
+      if (yearStr.length === 2) {
+        yearNum = yearNum >= 50 ? 1900 + yearNum : 2000 + yearNum;
+      }
+      parsed = new Date(Date.UTC(yearNum, parseInt(monthStr) - 1, parseInt(dayStr)));
     }
 
-    // M-D-YYYY or MM-DD-YYYY
-    const mdyDashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    if (mdyDashMatch) {
-      const [, month, day, year] = mdyDashMatch;
-      parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    // M-D-YYYY, MM-DD-YYYY, M-D-YY, MM-DD-YY
+    if (!parsed) {
+      const mdyDashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+      if (mdyDashMatch) {
+        let [, monthStr, dayStr, yearStr] = mdyDashMatch;
+        let yearNum = parseInt(yearStr);
+        if (yearStr.length === 2) {
+          yearNum = yearNum >= 50 ? 1900 + yearNum : 2000 + yearNum;
+        }
+        parsed = new Date(Date.UTC(yearNum, parseInt(monthStr) - 1, parseInt(dayStr)));
+      }
     }
 
     // YYYY/MM/DD
-    const ymdMatch = trimmed.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
-    if (ymdMatch) {
-      const [, year, month, day] = ymdMatch;
-      parsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    if (!parsed) {
+      const ymdMatch = trimmed.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+      if (ymdMatch) {
+        const [, yearStr, monthStr, dayStr] = ymdMatch;
+        parsed = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(dayStr)));
+      }
     }
 
     if (!parsed || isNaN(parsed.getTime())) {
-      throw new Error(`Invalid date format: ${dateValue}. Supported formats: M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD, or Excel serial number`);
+      throw new Error(`Invalid date format: ${dateValue}. Supported formats: M/D/YYYY, MM/DD/YYYY, M/D/YY, YYYY-MM-DD, or Excel serial number`);
     }
 
-    // Convert to YYYY-MM-DD
-    const year = parsed.getFullYear();
-    const month = String(parsed.getMonth() + 1).padStart(2, '0');
-    const day = String(parsed.getDate()).padStart(2, '0');
+    const year = parsed.getUTCFullYear();
+    const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getUTCDate()).padStart(2, '0');
     
     return `${year}-${month}-${day}`;
   }
