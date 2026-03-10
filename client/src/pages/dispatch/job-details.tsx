@@ -116,6 +116,12 @@ function DispatchJobDetailsContent() {
             </p>
           </div>
           <div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-1">Pay Rate</h3>
+            <p className="text-foreground" data-testid="text-payrate">
+              {job.payRate != null ? `$${parseFloat(job.payRate).toFixed(2)}` : "—"}
+            </p>
+          </div>
+          <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Created</h3>
             <p className="text-foreground" data-testid="text-created">
               {new Date(job.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
