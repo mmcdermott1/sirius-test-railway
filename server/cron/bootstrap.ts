@@ -64,6 +64,12 @@ const DEFAULT_CRON_JOBS: DefaultCronJob[] = [
     schedule: '0 3 * * *', // Daily at 3 AM
     isEnabled: false, // Disabled by default - must configure policies first
   },
+  {
+    name: 'dispatch-job-poll',
+    description: 'Polls all open, running dispatch jobs to process eligible workers',
+    schedule: '*/5 * * * *', // Every 5 minutes
+    isEnabled: true,
+  },
 ];
 
 export async function bootstrapCronJobs(): Promise<void> {
