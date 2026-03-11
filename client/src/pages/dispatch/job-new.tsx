@@ -52,6 +52,8 @@ const formSchema = z.object({
   startYmd: z.string().min(1, "Start date is required"),
   workerCount: z.string().optional(),
   payRate: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -93,6 +95,8 @@ export default function DispatchJobNewPage() {
       startYmd: getTodayYmd(),
       workerCount: "",
       payRate: "",
+      startTime: "",
+      endTime: "",
     },
   });
 
@@ -115,6 +119,8 @@ export default function DispatchJobNewPage() {
         startYmd: data.startYmd,
         workerCount: workerCountNum,
         payRate: payRateVal,
+        startTime: data.startTime?.trim() || null,
+        endTime: data.endTime?.trim() || null,
         data:
           selectedSkills.length > 0
             ? { requiredSkills: selectedSkills }
@@ -255,7 +261,7 @@ export default function DispatchJobNewPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="status"
@@ -341,6 +347,42 @@ export default function DispatchJobNewPage() {
                             data-testid="input-payrate"
                           />
                         </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Time</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="time"
+                          data-testid="input-starttime"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End Time</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="time"
+                          data-testid="input-endtime"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

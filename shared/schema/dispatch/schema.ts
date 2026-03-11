@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, varchar, jsonb, index, integer, boolean, date, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, varchar, jsonb, index, integer, boolean, date, numeric, time } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -25,6 +25,8 @@ export const dispatchJobs = pgTable("dispatch_jobs", {
   startYmd: date("start_ymd").notNull(),
   workerCount: integer("worker_count"),
   payRate: numeric("pay_rate", { precision: 10, scale: 2 }),
+  startTime: time("start_time"),
+  endTime: time("end_time"),
   data: jsonb("data"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });

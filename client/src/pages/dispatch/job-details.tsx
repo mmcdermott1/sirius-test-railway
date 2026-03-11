@@ -44,6 +44,15 @@ const iconMap: Record<string, LucideIcon> = {
   ClipboardList, Package, MapPin, Users,
 };
 
+function formatTime12h(time: string): string {
+  const [hStr, mStr] = time.split(":");
+  let h = parseInt(hStr, 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${mStr} ${ampm}`;
+}
+
 function DispatchJobDetailsContent() {
   const { job } = useDispatchJobLayout();
   const jobData = job.data as JobData | null;
@@ -121,6 +130,24 @@ function DispatchJobDetailsContent() {
               {job.payRate != null ? `$${parseFloat(job.payRate).toFixed(2)}` : "—"}
             </p>
           </div>
+          {job.startTime && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">Start Time</h3>
+              <div className="flex items-center gap-2" data-testid="text-starttime">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <p className="text-foreground">{formatTime12h(job.startTime)}</p>
+              </div>
+            </div>
+          )}
+          {job.endTime && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">End Time</h3>
+              <div className="flex items-center gap-2" data-testid="text-endtime">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <p className="text-foreground">{formatTime12h(job.endTime)}</p>
+              </div>
+            </div>
+          )}
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Created</h3>
             <p className="text-foreground" data-testid="text-created">

@@ -46,6 +46,8 @@ type FormData = {
   startYmd: string;
   workerCount: string;
   payRate: string;
+  startTime: string;
+  endTime: string;
   status: DispatchJobStatus;
 };
 
@@ -91,6 +93,8 @@ function DispatchJobEditContent() {
       startYmd: job.startYmd,
       workerCount: job.workerCount?.toString() || "",
       payRate: job.payRate?.toString() || "",
+      startTime: job.startTime || "",
+      endTime: job.endTime || "",
       status: job.status as DispatchJobStatus,
     },
   });
@@ -125,6 +129,8 @@ function DispatchJobEditContent() {
         jobTypeId: data.jobTypeId || null,
         workerCount: workerCountNum,
         payRate: payRateVal,
+        startTime: data.startTime?.trim() || null,
+        endTime: data.endTime?.trim() || null,
         status: data.status,
         data: updatedJobData,
       });
@@ -323,7 +329,7 @@ function DispatchJobEditContent() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {!isFixedWorkerCount ? (
                 <FormField
                   control={form.control}
@@ -385,6 +391,42 @@ function DispatchJobEditContent() {
                           data-testid="input-payrate"
                         />
                       </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="startTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Time</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="time"
+                        data-testid="input-starttime"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Time</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="time"
+                        data-testid="input-endtime"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

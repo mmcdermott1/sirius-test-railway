@@ -176,6 +176,8 @@ export function registerDispatchJobsRoutes(
           startYmd,
           workerCount,
           payRate,
+          startTime,
+          endTime,
           data,
         } = req.body;
         const updates: any = {};
@@ -253,6 +255,14 @@ export function registerDispatchJobsRoutes(
 
         if (payRate !== undefined) {
           updates.payRate = payRate === null ? null : String(payRate);
+        }
+
+        if (startTime !== undefined) {
+          updates.startTime = startTime || null;
+        }
+
+        if (endTime !== undefined) {
+          updates.endTime = endTime || null;
         }
 
         if (data !== undefined) {

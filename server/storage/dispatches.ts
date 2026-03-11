@@ -43,6 +43,8 @@ export interface DispatchWithRelations extends Dispatch {
     id: string;
     title: string;
     employerId: string;
+    startTime: string | null;
+    endTime: string | null;
     employer?: {
       id: string;
       name: string;
@@ -143,6 +145,8 @@ async function searchDispatches(criteria: SearchDispatchesCriteria): Promise<Dis
         id: dispatchJobs.id,
         title: dispatchJobs.title,
         employerId: dispatchJobs.employerId,
+        startTime: dispatchJobs.startTime,
+        endTime: dispatchJobs.endTime,
       },
       employer: {
         id: employers.id,
@@ -314,6 +318,8 @@ export function createDispatchStorage(): DispatchStorage {
             id: dispatchJobs.id,
             title: dispatchJobs.title,
             employerId: dispatchJobs.employerId,
+            startTime: dispatchJobs.startTime,
+            endTime: dispatchJobs.endTime,
           },
         })
         .from(dispatches)
