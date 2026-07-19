@@ -12,6 +12,7 @@ import { captureRequestContext } from "./middleware/request-context";
 import { cronScheduler } from "./cron";
 import { initializeCronPluginSystem } from "./plugins/system/cron";
 import { initializeDenormPluginSystem } from "./plugins/system/denorm";
+import { initializeDataRetentionPluginSystem } from "./plugins/system/data-retention";
 import { bootstrapSingletonPluginConfigs } from "./plugins/_core";
 import { initDispatchSeniorityReset } from "./services/dispatch/seniority-reset";
 import { loadComponentCache } from "./services/component-cache";
@@ -38,6 +39,7 @@ import { initializeEventNotifierPluginSystem } from "./plugins/event-notifier";
 import { initializeWizardPluginSystem } from "./plugins/wizards";
 import { initializeMenuPluginSystem } from "./plugins/menu";
 import { initWorkerBanNotifications } from "./services/worker-ban-notifications";
+import { initSnapshotCapture } from "./services/snapshots/capture";
 import { initDispatchNotifications } from "./services/dispatch/notifications";
 import "@shared/access-policies/loader";
 import { registerEntityAccessModule } from "./modules/entity-access";
@@ -316,6 +318,7 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
 
   // Initialize worker ban notifications
   initWorkerBanNotifications();
+  initSnapshotCapture();
   logger.info("Worker ban notifications initialized", { source: "startup" });
 
   // Initialize dispatch notifications
@@ -337,6 +340,10 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
   // Register denorm plugins (kind + adapter + self-registering plugin imports)
   initializeDenormPluginSystem();
   logger.info("Denorm plugins registered", { source: "startup" });
+
+  // Register data-retention plugins (kind + adapter + self-registering plugin imports)
+  initializeDataRetentionPluginSystem();
+  logger.info("Data-retention plugins registered", { source: "startup" });
 
   // Register wizards as the sixth plugin kind (self-registering plugin imports)
   initializeWizardPluginSystem();
