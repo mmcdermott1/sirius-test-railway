@@ -9,14 +9,19 @@ import { useDashboardContent } from "../useDashboardContent";
 interface EdlsSummaryData {
   memberStatuses: string[];
   grid: Record<string, Record<string, number>>;
+  demand: Record<string, number>;
+  unassigned: Record<string, number>;
+  unassignedTotal: number;
 }
 
-const sheetStatusColumns = [
+// Non-reserved statuses render before the Total column; Reserved is
+// informational only, rendered after Total and excluded from all totals.
+const mainStatusColumns = [
   { key: "draft", label: "Draft" },
   { key: "request", label: "Requested" },
-  { key: "reserved", label: "Reserved" },
   { key: "lock", label: "Scheduled" },
 ];
+const reservedColumn = { key: "reserved", label: "Reserved" };
 
 const statusHeaderColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -55,18 +60,34 @@ export function EdlsSummary(_props: DashboardPluginProps) {
     { params: { ymd: selectedDate } },
   );
 
-  const hasData = data && data.memberStatuses.length > 0;
+  const hasDemand = !!data && Object.keys(data.demand ?? {}).length > 0;
+  const hasUnassigned = !!data && Object.keys(data.unassigned ?? {}).length > 0;
+  const hasData = (data && data.memberStatuses.length > 0) || hasDemand || hasUnassigned;
 
   const columnTotals: Record<string, number> = {};
   if (hasData) {
-    for (const col of sheetStatusColumns) {
+    for (const col of [...mainStatusColumns, reservedColumn]) {
       columnTotals[col.key] = data.memberStatuses.reduce(
         (sum, ms) => sum + (data.grid[ms]?.[col.key] || 0),
         0,
       );
     }
   }
-  const grandTotal = Object.values(columnTotals).reduce((s, v) => s + v, 0);
+  // Grand total excludes reserved: Draft + Requested + Scheduled only.
+  const grandTotal = mainStatusColumns.reduce(
+    (sum, col) => sum + (columnTotals[col.key] || 0),
+    0,
+  );
+
+  // Total Demand: slot counts per sheet status; reserved is always N/A and
+  // excluded from the demand total.
+  const demandTotal = mainStatusColumns.reduce(
+    (sum, col) => sum + (data?.demand?.[col.key] || 0),
+    0,
+  );
+
+  // Variance: non-reserved demand minus non-reserved assigned total.
+  const variance = demandTotal - grandTotal;
 
   return (
     <Card data-testid="card-edls-summary">
@@ -144,7 +165,7 @@ export function EdlsSummary(_props: DashboardPluginProps) {
                   <th className="text-left px-4 py-2 font-medium text-sm border-b bg-muted/50">
                     Member Status
                   </th>
-                  {sheetStatusColumns.map((col) => (
+                  {mainStatusColumns.map((col) => (
                     <th
                       key={col.key}
                       className={`text-center px-4 py-2 font-medium text-sm border-b ${statusHeaderColors[col.key]}`}
@@ -155,14 +176,23 @@ export function EdlsSummary(_props: DashboardPluginProps) {
                   <th className="text-center px-4 py-2 font-semibold text-sm border-b bg-muted">
                     Total
                   </th>
+                  <th
+                    className={`text-center px-4 py-2 font-medium text-sm border-b ${statusHeaderColors[reservedColumn.key]}`}
+                  >
+                    {reservedColumn.label}
+                  </th>
+                  <th className="text-center px-4 py-2 font-medium text-sm border-b bg-muted/50">
+                    Unassigned
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.memberStatuses.map((ms, idx) => {
-                  const rowTotal = sheetStatusColumns.reduce(
+                  const rowTotal = mainStatusColumns.reduce(
                     (sum, col) => sum + (data.grid[ms]?.[col.key] || 0),
                     0,
                   );
+                  const reservedVal = data.grid[ms]?.[reservedColumn.key] || 0;
                   return (
                     <tr
                       key={ms}
@@ -170,7 +200,7 @@ export function EdlsSummary(_props: DashboardPluginProps) {
                       data-testid={`row-edls-ms-${ms.toLowerCase().replace(/\s+/g, "-")}`}
                     >
                       <td className="px-4 py-2 text-sm font-medium border-b">{ms}</td>
-                      {sheetStatusColumns.map((col) => {
+                      {mainStatusColumns.map((col) => {
                         const val = data.grid[ms]?.[col.key] || 0;
                         return (
                           <td
@@ -184,6 +214,19 @@ export function EdlsSummary(_props: DashboardPluginProps) {
                       <td className="text-center px-4 py-2 text-sm font-semibold tabular-nums border-b bg-muted/50">
                         {rowTotal}
                       </td>
+                      <td className="text-center px-4 py-2 text-sm tabular-nums border-b">
+                        {reservedVal > 0 ? reservedVal : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td
+                        className="text-center px-4 py-2 text-sm tabular-nums border-b"
+                        data-testid={`cell-edls-unassigned-${ms.toLowerCase().replace(/\s+/g, "-")}`}
+                      >
+                        {(data.unassigned?.[ms] || 0) > 0 ? (
+                          data.unassigned[ms]
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -191,7 +234,7 @@ export function EdlsSummary(_props: DashboardPluginProps) {
               <tfoot>
                 <tr className="bg-muted/70 font-semibold">
                   <td className="px-4 py-2 text-sm border-t">Total</td>
-                  {sheetStatusColumns.map((col) => (
+                  {mainStatusColumns.map((col) => (
                     <td key={col.key} className="text-center px-4 py-2 text-sm tabular-nums border-t">
                       {columnTotals[col.key] || 0}
                     </td>
@@ -199,6 +242,62 @@ export function EdlsSummary(_props: DashboardPluginProps) {
                   <td className="text-center px-4 py-2 text-sm tabular-nums border-t font-bold">
                     {grandTotal}
                   </td>
+                  <td
+                    className="text-center px-4 py-2 text-sm tabular-nums border-t"
+                    data-testid="cell-edls-total-reserved"
+                  >
+                    {columnTotals[reservedColumn.key] || 0}
+                  </td>
+                  <td
+                    className="text-center px-4 py-2 text-sm tabular-nums border-t"
+                    data-testid="cell-edls-unassigned-total"
+                  >
+                    {data?.unassignedTotal ?? 0}
+                  </td>
+                </tr>
+                <tr className="bg-muted/40 font-medium" data-testid="row-edls-total-demand">
+                  <td className="px-4 py-2 text-sm border-t">Total Demand</td>
+                  {mainStatusColumns.map((col) => (
+                    <td
+                      key={col.key}
+                      className="text-center px-4 py-2 text-sm tabular-nums border-t"
+                      data-testid={`cell-edls-demand-${col.key}`}
+                    >
+                      {data?.demand?.[col.key] || 0}
+                    </td>
+                  ))}
+                  <td
+                    className="text-center px-4 py-2 text-sm tabular-nums border-t font-semibold"
+                    data-testid="cell-edls-demand-total"
+                  >
+                    {demandTotal}
+                  </td>
+                  <td
+                    className="text-center px-4 py-2 text-sm border-t"
+                    data-testid="cell-edls-demand-reserved"
+                  >
+                    <span className="text-muted-foreground">N/A</span>
+                  </td>
+                  <td
+                    className="text-center px-4 py-2 text-sm border-t"
+                    data-testid="cell-edls-demand-unassigned"
+                  >
+                    <span className="text-muted-foreground">N/A</span>
+                  </td>
+                </tr>
+                <tr className="bg-muted/40 font-medium" data-testid="row-edls-variance">
+                  <td className="px-4 py-2 text-sm border-t">Variance</td>
+                  {mainStatusColumns.map((col) => (
+                    <td key={col.key} className="px-4 py-2 border-t" />
+                  ))}
+                  <td
+                    className="text-center px-4 py-2 text-sm tabular-nums border-t font-semibold"
+                    data-testid="cell-edls-variance-total"
+                  >
+                    {variance}
+                  </td>
+                  <td className="px-4 py-2 border-t" />
+                  <td className="px-4 py-2 border-t" />
                 </tr>
               </tfoot>
             </table>
