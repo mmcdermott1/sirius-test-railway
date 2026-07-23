@@ -259,6 +259,12 @@ const WsClientIpRulesPage = lazy(() => import("@/pages/config/ws/client-ip-rules
 const WsClientTestPage = lazy(() => import("@/pages/config/ws/client-test"));
 const WsClientLogsPage = lazy(() => import("@/pages/config/ws/client-logs"));
 const SftpClientsPage = lazy(() => import("@/pages/config/sftp/clients"));
+const BusinessCalendarsPage = lazy(() => import("@/pages/config/business-calendars/index"));
+const BusinessCalendarDetailPage = lazy(() => import("@/pages/config/business-calendars/detail"));
+const BusinessCalendarClosedDaysPage = lazy(() => import("@/pages/config/business-calendars/closed-days"));
+const BusinessCalendarVacationsPage = lazy(() => import("@/pages/config/business-calendars/vacations"));
+const BusinessCalendarOpenDaysPage = lazy(() => import("@/pages/config/business-calendars/open-days"));
+const BusinessCalendarTestPage = lazy(() => import("@/pages/config/business-calendars/test"));
 const SftpClientDetailsPage = lazy(() => import("@/pages/config/sftp/client-details"));
 const SftpClientConnectionPage = lazy(() => import("@/pages/config/sftp/client-connection"));
 const SftpClientTestPage = lazy(() => import("@/pages/config/sftp/client-test"));
@@ -1296,6 +1302,14 @@ function Router() {
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <Reports activeCategory="BTU" />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/reports/edls">
+        <ProtectedRoute permission="admin" component="edls">
+          <AuthenticatedLayout>
+            <Reports activeCategory="EDLS" />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -2755,6 +2769,66 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <SftpClientsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/business-calendars">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <BusinessCalendarsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/business-calendars/:id">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <BusinessCalendarDetailPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/business-calendars/:id/closed-days">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <BusinessCalendarClosedDaysPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/business-calendars/:id/vacations">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <BusinessCalendarVacationsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/business-calendars/:id/open-days">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <BusinessCalendarOpenDaysPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/business-calendars/:id/test">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <BusinessCalendarTestPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
