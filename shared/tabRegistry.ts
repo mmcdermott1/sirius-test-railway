@@ -187,8 +187,10 @@ export const workerTabTree: HierarchicalTab[] = [
       { id: 'dispatch-status', label: 'Status', hrefTemplate: '/workers/{id}/dispatch/status', policyId: 'worker.view', component: 'dispatch' },
       { id: 'dispatch-list', label: 'List', hrefTemplate: '/workers/{id}/dispatch/list', policyId: 'worker.view', component: 'dispatch' },
       { id: 'dispatch-dnc', label: 'Do Not Call', hrefTemplate: '/workers/{id}/dispatch/do-not-call', policyId: 'worker.view', component: 'dispatch.dnc' },
+      { id: 'dispatch-departments', label: 'Departments', hrefTemplate: '/workers/{id}/dispatch/departments', policyId: 'worker.view', component: 'dispatch.department' },
       { id: 'dispatch-hfe', label: 'Employer Priority', hrefTemplate: '/workers/{id}/dispatch/hold-for-employer', policyId: 'worker.view', component: 'dispatch.hfe' },
       { id: 'dispatch-eba', label: 'Availability Dates', hrefTemplate: '/workers/{id}/dispatch/eba', policyId: 'worker.mine', component: 'dispatch.eba' },
+      { id: 'dispatch-asi', label: 'Auto Sign-In', hrefTemplate: '/workers/{id}/dispatch/asi', policyId: 'worker.dispatch.asi', component: 'dispatch.asi' },
     ]
   },
   { id: 'political', label: 'Political', hrefTemplate: '/workers/{id}/political', permission: 'staff', component: 'sitespecific.btu.political' },
@@ -354,6 +356,7 @@ export const dispatchJobTabTree: HierarchicalTab[] = [
       { id: 'eligible-workers-check', label: 'Check', hrefTemplate: '/dispatch/job/{id}/eligible-workers/check', permission: 'staff', component: 'dispatch' },
     ]
   },
+  { id: 'foreperson', label: 'Foreperson', hrefTemplate: '/dispatch/job/{id}/foreperson', permission: 'staff', component: 'dispatch.fore' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/dispatch/job/{id}/edit', permission: 'staff', component: 'dispatch' },
 ];
 
@@ -364,6 +367,9 @@ export const dispatchJobTypeTabTree: HierarchicalTab[] = [
   { id: 'view', label: 'View', hrefTemplate: '/config/dispatch-job-type/{id}', permission: 'staff', component: 'dispatch' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/config/dispatch-job-type/{id}/edit', permission: 'staff', component: 'dispatch' },
   { id: 'notifications', label: 'Notifications', hrefTemplate: '/config/dispatch-job-type/{id}/notifications', permission: 'staff', component: 'dispatch' },
+  // Admin-gated (not staff) because the embedded generic plugin-configs page
+  // hits the dispatch-eligibility config APIs, which require the admin policy.
+  { id: 'eligibility-plugins', label: 'Eligibility Plugins', hrefTemplate: '/config/dispatch-job-type/{id}/eligibility-plugins', permission: 'admin', component: 'dispatch' },
   { id: 'run-settings', label: 'Run Settings', hrefTemplate: '/config/dispatch-job-type/{id}/run-settings', permission: 'staff', component: 'dispatch' },
   { id: 'delete', label: 'Delete', hrefTemplate: '/config/dispatch-job-type/{id}/delete', permission: 'staff', component: 'dispatch' },
 ];

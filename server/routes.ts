@@ -62,6 +62,7 @@ import { registerBootstrapRoutes } from "./modules/system/bootstrap";
 import { registerBargainingUnitsRoutes } from "./modules/bargaining-units";
 import { registerSftpClientDestinationRoutes } from "./modules/sftp-client-destinations";
 import { registerBusinessCalendarRoutes } from "./modules/business-calendars";
+import { registerHelpRoutes } from "./modules/helps";
 import { registerTrustProviderEdiRoutes } from "./modules/trust/provider/edi";
 import { registerBulkMessageRoutes } from "./modules/bulk/messages";
 import { registerEmployerComplianceRoutes } from "./modules/employer-compliance";
@@ -81,10 +82,13 @@ import { registerDispatchJobGroupsRoutes } from "./modules/dispatch/job-groups";
 import { registerFacilityRoutes } from "./modules/facility/facilities";
 import { registerContractRoutes } from "./modules/contract/contract";
 import { registerDispatchesRoutes } from "./modules/dispatch/dispatches";
+import { registerDispatchForeRoutes } from "./modules/dispatch/fore";
+import { registerWorkerDispatchDepartmentRoutes } from "./modules/dispatch/worker-departments";
 import { registerWorkerDispatchStatusRoutes } from "./modules/dispatch/worker-status";
 import { registerWorkerDispatchDncRoutes } from "./modules/dispatch/worker-dnc";
 import { registerWorkerDispatchHfeRoutes } from "./modules/dispatch/worker-hfe";
 import { registerWorkerDispatchEbaRoutes } from "./modules/dispatch/worker-eba";
+import { registerWorkerDispatchAsiRoutes } from "./modules/dispatch/worker-asi";
 import { registerWorkerBansRoutes } from "./modules/worker-bans";
 import { registerWorkerSkillsRoutes } from "./modules/workers/skills";
 import { registerWorkerRelationsRoutes } from "./modules/workers/relations";
@@ -439,6 +443,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Register SFTP client destination routes
   registerSftpClientDestinationRoutes(app, requireAuth, requireAccess, storage);
   registerBusinessCalendarRoutes(app, requireAuth, requireAccess, storage);
+  registerHelpRoutes(app, requireAuth, requireAccess, storage);
 
   // Register trust provider EDI routes
   registerTrustProviderEdiRoutes(app, requireAuth, requireAccess, storage);
@@ -1681,6 +1686,8 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
 
   // Register dispatches routes
   registerDispatchesRoutes(app, requireAuth, requirePermission);
+  registerDispatchForeRoutes(app);
+  registerWorkerDispatchDepartmentRoutes(app);
 
   // Register worker dispatch status routes (handles all access control internally)
   registerWorkerDispatchStatusRoutes(app, requireAuth, requireAccess);
@@ -1693,6 +1700,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
 
   // Register worker dispatch EBA routes (handles all access control internally)
   registerWorkerDispatchEbaRoutes(app, requireAuth, requireAccess);
+
+  // Register worker dispatch ASI routes (handles all access control internally)
+  registerWorkerDispatchAsiRoutes(app, requireAuth, requireAccess);
 
   // Register worker bans routes (handles all access control internally)
   registerWorkerBansRoutes(app, requireAuth, requireAccess);

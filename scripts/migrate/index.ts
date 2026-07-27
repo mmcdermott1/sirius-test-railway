@@ -53,6 +53,9 @@ import "./core/1048_delete_legacy_cleanup_cron_configs";
 import "./core/1049_create_business_calendars";
 import "./core/1050_add_employer_business_calendar";
 import "./core/1051_dashboard_roles_array";
+import "./core/1052_add_dispatch_is_primary";
+import "./core/1053_create_help";
+import "./core/1054_options_event_type_sirius_id_nullable";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the
@@ -96,6 +99,9 @@ import "./components/grievance.settlement/001_create_grievance_settlement";
 import "./components/grievance.contract/001_create_grievance_contract_sections";
 import "./components/grievance.contract/002_create_grievance_contracts";
 import "./components/dispatch/001_backfill_dispatch_eligibility_configs";
+import "./components/dispatch.fore/001_create_dispatch_job_fore";
+import "./components/dispatch.bullpen/001_create_dispatch_job_event";
+import "./components/dispatch.department/001_create_department_tables";
 import "./components/dispatch/002_worker_dispatch_elig_denorm_denorm_id";
 import "./components/trust.benefits/001_backfill_trust_eligibility_configs";
 import "./components/trust.benefits/002_create_trust_wmb_events";

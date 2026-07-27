@@ -66,6 +66,13 @@ export interface ComponentDefinition {
    * See {@link ComponentManagedPluginConfig}.
    */
   pluginConfigs?: ComponentManagedPluginConfig[];
+  /**
+   * Component IDs this component depends on, for components that do NOT
+   * manage a schema. Schema-managing components declare dependencies in
+   * `schemaManifest.dependsOnComponents` instead. The enable flow refuses
+   * to enable this component unless every listed component is enabled.
+   */
+  dependsOnComponents?: string[];
 }
 
 export interface ComponentConfig {
@@ -625,6 +632,48 @@ export const componentRegistry: ComponentDefinition[] = [
     ]
   },
   {
+    id: "dispatch.fore",
+    name: "Dispatch Forepersons",
+    description: "Track Forepersons designated on dispatch jobs",
+    enabledByDefault: false,
+    category: "dispatch",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/fore-schema.ts",
+      tables: ["dispatch_job_fore"],
+      dependsOnComponents: ["dispatch"]
+    }
+  },
+  {
+    id: "dispatch.department",
+    name: "Dispatch Departments",
+    description: "Worker department preferences and job departments for dispatch",
+    enabledByDefault: false,
+    category: "dispatch",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/department-schema.ts",
+      tables: ["worker_dispatch_department", "dispatch_job_department"],
+      dependsOnComponents: ["dispatch"]
+    }
+  },
+  {
+    id: "dispatch.bullpen",
+    name: "Dispatch Bullpen",
+    description: "Bullpen functionality for dispatch job types (host/shared bullpens tied to event types)",
+    enabledByDefault: false,
+    category: "dispatch",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/bullpen-schema.ts",
+      tables: ["dispatch_job_event"],
+      dependsOnComponents: ["dispatch"]
+    }
+  },
+  {
     id: "dispatch.dnc",
     name: "Dispatch Do Not Call",
     description: "Do Not Call list management for dispatch",
@@ -657,6 +706,25 @@ export const componentRegistry: ComponentDefinition[] = [
         rules: [
           { permission: "staff" }
         ]
+      }
+    ]
+  },
+  {
+    id: "dispatch.asi",
+    name: "Auto Sign-In",
+    description: "Auto Sign-In tracking for dispatch workers",
+    enabledByDefault: false,
+    category: "dispatch",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/asi-schema.ts",
+      tables: ["worker_dispatch_asi"]
+    },
+    permissions: [
+      {
+        key: "worker.dispatch.asi",
+        description: "Access to Auto Sign-In dispatch functionality"
       }
     ]
   },

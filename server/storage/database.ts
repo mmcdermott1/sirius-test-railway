@@ -104,6 +104,7 @@ import { type PolicyStorage, createPolicyStorage, policyLoggingConfig } from "./
 import { type BargainingUnitStorage, createBargainingUnitStorage, bargainingUnitLoggingConfig } from "./bargaining-units";
 import { type SftpClientDestinationStorage, createSftpClientDestinationStorage, sftpClientDestinationLoggingConfig } from "./sftp-client-destinations";
 import { type BusinessCalendarStorage, createBusinessCalendarStorage } from "./business-calendars";
+import { type HelpStorage, createHelpStorage } from "./helps";
 import { type TrustProviderEdiStorage, createTrustProviderEdiStorage, trustProviderEdiLoggingConfig } from "./trust/provider/edi";
 import { type BulkMessageStorage, createBulkMessageStorage, bulkMessageLoggingConfig } from "./bulk/messages";
 import { type BulkMessagesEmailStorage, createBulkMessagesEmailStorage, bulkMessagesEmailLoggingConfig } from "./bulk/messages/email";
@@ -125,6 +126,8 @@ import { type DispatchJobGroupStorage, createDispatchJobGroupStorage, dispatchJo
 import { type FacilityStorage, createFacilityStorage, facilityLoggingConfig } from "./facility/facilities";
 import { type GbhetPensionStorage, createGbhetPensionStorage } from "./sitespecific/gbhet/pension";
 import { type DispatchStorage, createDispatchStorage, dispatchLoggingConfig } from "./dispatch/dispatches";
+import { type DispatchJobForeStorage, createDispatchJobForeStorage, dispatchJobForeLoggingConfig } from "./dispatch/fore";
+import { type DispatchJobEventStorage, createDispatchJobEventStorage } from "./dispatch/job-events";
 import { type WorkerStewardAssignmentStorage, createWorkerStewardAssignmentStorage, workerStewardAssignmentLoggingConfig } from "./worker-steward-assignments";
 import { type BtuCsgStorage, createBtuCsgStorage, btuCsgLoggingConfig } from "./sitespecific/btu/csg";
 import { type BtuEmployerMapStorage, createBtuEmployerMapStorage, btuEmployerMapLoggingConfig } from "./sitespecific/btu/employer-map";
@@ -137,6 +140,8 @@ import { type BaoImmediateEligibilityStorage, createBaoImmediateEligibilityStora
 import { type BaoBeneficiariesStorage, createBaoBeneficiariesStorage, baoBeneficiariesLoggingConfig } from "./sitespecific/bao/beneficiaries";
 import { type WorkerBanStorage, createWorkerBanStorage, workerBanLoggingConfig } from "./worker-bans";
 import { type WorkerDispatchDncStorage, createWorkerDispatchDncStorage, workerDispatchDncLoggingConfig } from "./dispatch/worker-dnc";
+import { type WorkerDispatchDepartmentStorage, createWorkerDispatchDepartmentStorage, workerDispatchDepartmentLoggingConfig } from "./dispatch/worker-departments";
+import { type DispatchJobDepartmentStorage, createDispatchJobDepartmentStorage } from "./dispatch/job-departments";
 import { type WorkerSkillStorage, createWorkerSkillStorage, workerSkillLoggingConfig } from "./workers/skills";
 import { type WorkerTosStorage, createWorkerTosStorage, workerTosLoggingConfig } from "./workers/tos";
 import { type WorkerCertificationStorage, createWorkerCertificationStorage, workerCertificationLoggingConfig } from "./workers/certifications";
@@ -233,6 +238,8 @@ export interface IStorage {
   dispatchJobs: DispatchJobStorage;
   dispatchJobGroups: DispatchJobGroupStorage;
   dispatches: DispatchStorage;
+  dispatchJobFore: DispatchJobForeStorage;
+  dispatchJobEvents: DispatchJobEventStorage;
   workerStewardAssignments: WorkerStewardAssignmentStorage;
   btuCsg: BtuCsgStorage;
   btuEmployerMap: BtuEmployerMapStorage;
@@ -245,6 +252,8 @@ export interface IStorage {
   freemanCrewleads: FreemanCrewleadsStorage;
   workerBans: WorkerBanStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
+  workerDispatchDepartments: WorkerDispatchDepartmentStorage;
+  dispatchJobDepartments: DispatchJobDepartmentStorage;
   workerSkills: WorkerSkillStorage;
   workerTos: WorkerTosStorage;
   workerCertifications: WorkerCertificationStorage;
@@ -271,6 +280,7 @@ export interface IStorage {
   contracts: ContractStorage;
   sftpClientDestinations: SftpClientDestinationStorage;
   businessCalendars: BusinessCalendarStorage;
+  helps: HelpStorage;
   trustProviderEdi: TrustProviderEdiStorage;
   bulkMessages: BulkMessageStorage;
   bulkMessagesEmail: BulkMessagesEmailStorage;
@@ -339,6 +349,8 @@ export class DatabaseStorage implements IStorage {
   dispatchJobs: DispatchJobStorage;
   dispatchJobGroups: DispatchJobGroupStorage;
   dispatches: DispatchStorage;
+  dispatchJobFore: DispatchJobForeStorage;
+  dispatchJobEvents: DispatchJobEventStorage;
   workerStewardAssignments: WorkerStewardAssignmentStorage;
   btuCsg: BtuCsgStorage;
   btuEmployerMap: BtuEmployerMapStorage;
@@ -351,6 +363,8 @@ export class DatabaseStorage implements IStorage {
   freemanCrewleads: FreemanCrewleadsStorage;
   workerBans: WorkerBanStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
+  workerDispatchDepartments: WorkerDispatchDepartmentStorage;
+  dispatchJobDepartments: DispatchJobDepartmentStorage;
   workerSkills: WorkerSkillStorage;
   workerTos: WorkerTosStorage;
   workerCertifications: WorkerCertificationStorage;
@@ -377,6 +391,7 @@ export class DatabaseStorage implements IStorage {
   contracts: ContractStorage;
   sftpClientDestinations: SftpClientDestinationStorage;
   businessCalendars: BusinessCalendarStorage;
+  helps: HelpStorage;
   trustProviderEdi: TrustProviderEdiStorage;
   bulkMessages: BulkMessageStorage;
   bulkMessagesEmail: BulkMessagesEmailStorage;
@@ -548,6 +563,9 @@ export class DatabaseStorage implements IStorage {
     this.dispatchJobs = withStorageLogging(createDispatchJobStorage(), dispatchJobLoggingConfig);
     this.dispatchJobGroups = withStorageLogging(createDispatchJobGroupStorage(), dispatchJobGroupLoggingConfig);
     this.dispatches = withStorageLogging(createDispatchStorage(), dispatchLoggingConfig);
+    this.dispatchJobFore = withStorageLogging(createDispatchJobForeStorage(), dispatchJobForeLoggingConfig);
+    // No logging for dispatchJobEvents - written only by the dispatch_job_event denorm plugin (internal sync churn).
+    this.dispatchJobEvents = createDispatchJobEventStorage();
     this.workerStewardAssignments = withStorageLogging(createWorkerStewardAssignmentStorage(), workerStewardAssignmentLoggingConfig);
     this.btuCsg = withStorageLogging(createBtuCsgStorage(), btuCsgLoggingConfig);
     this.btuEmployerMap = withStorageLogging(createBtuEmployerMapStorage(), btuEmployerMapLoggingConfig);
@@ -569,6 +587,8 @@ export class DatabaseStorage implements IStorage {
     );
     this.workerBans = withStorageLogging(createWorkerBanStorage(), workerBanLoggingConfig);
     this.workerDispatchDnc = withStorageLogging(createWorkerDispatchDncStorage(), workerDispatchDncLoggingConfig);
+    this.workerDispatchDepartments = withStorageLogging(createWorkerDispatchDepartmentStorage(), workerDispatchDepartmentLoggingConfig);
+    this.dispatchJobDepartments = createDispatchJobDepartmentStorage();
     this.workerSkills = withStorageLogging(createWorkerSkillStorage(), workerSkillLoggingConfig);
     this.workerTos = withStorageLogging(createWorkerTosStorage(), workerTosLoggingConfig);
     this.workerCertifications = withStorageLogging(
@@ -601,6 +621,7 @@ export class DatabaseStorage implements IStorage {
       sftpClientDestinationLoggingConfig
     );
     this.businessCalendars = createBusinessCalendarStorage();
+    this.helps = createHelpStorage();
     this.trustProviderEdi = withStorageLogging(
       createTrustProviderEdiStorage(),
       trustProviderEdiLoggingConfig
