@@ -13,6 +13,7 @@ import {
 import { LocalFileSystemProvider } from "../services/files/providers/local";
 import multer from "multer";
 import { logger } from "../logger";
+import { buildContentDisposition } from "../utils/content-disposition";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -211,12 +212,11 @@ export function registerFileRoutes(
 
       const fileContent = await fileSystemService.download(file.fileSystemId, file.storagePath);
       
-      const safeName = file.fileName.replace(/"/g, '');
       const mime = file.mimeType || 'application/octet-stream';
       const inlineEligible = mime.startsWith('image/') || mime === 'application/pdf';
       const disposition = req.query.download === '1' || !inlineEligible ? 'attachment' : 'inline';
       res.setHeader('Content-Type', mime);
-      res.setHeader('Content-Disposition', `${disposition}; filename="${safeName}"`);
+      res.setHeader('Content-Disposition', buildContentDisposition(disposition, file.fileName));
       res.setHeader('Content-Length', file.size);
       res.send(fileContent);
     } catch (error) {

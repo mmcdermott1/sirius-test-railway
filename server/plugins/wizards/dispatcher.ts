@@ -5,6 +5,7 @@ import { logger } from "../../logger";
 import { validateAgainstSchema } from "../../lib/json-schema-validator";
 import { enforcePluginGating } from "../_core";
 import { wizardPluginRegistry } from "./registry";
+import { buildContentDisposition } from "../../utils/content-disposition";
 import { enforceWizardEntityAccess } from "./entity-access";
 import type {
   WizardPlugin,
@@ -475,7 +476,7 @@ export function registerWizardDispatcherRoutes(
         res.setHeader("Content-Type", "text/csv");
         res.setHeader(
           "Content-Disposition",
-          `attachment; filename="${filename}"`,
+          buildContentDisposition("attachment", filename),
         );
         res.send(csv);
       } catch (error) {

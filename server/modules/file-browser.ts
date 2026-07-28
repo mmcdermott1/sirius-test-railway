@@ -13,6 +13,7 @@ import {
 } from "../services/files";
 import multer from "multer";
 import { logger } from "../logger";
+import { buildContentDisposition } from "../utils/content-disposition";
 import { getEffectiveUser } from "./masquerade";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -458,9 +459,8 @@ export function registerFileBrowserRoutes(app: Express, requireAuth: AuthMiddlew
       const content = await fileSystemService.download(fileSystemId, storagePath);
       const row = await storage.files.getByStoragePath(storagePath, fileSystemId);
       const rawName = row?.fileName || storagePath.split("/").pop() || "download";
-      const safeName = rawName.replace(/["\r\n]/g, "");
       res.setHeader("Content-Type", row?.mimeType || "application/octet-stream");
-      res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+      res.setHeader("Content-Disposition", buildContentDisposition("attachment", rawName));
       res.setHeader("Content-Length", content.length);
       res.send(content);
     } catch (error) {

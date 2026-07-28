@@ -24,6 +24,7 @@ import { registerConsolidatedOptionsRoutes } from "./modules/options-routes";
 import { getOptionsType } from "./modules/options-registry";
 import { registerWorkerIdsRoutes } from "./modules/workers/ids";
 import { registerAddressValidationRoutes } from "./modules/address-validation";
+import { buildContentDisposition } from "./utils/content-disposition";
 import {
   registerMasqueradeRoutes,
   getEffectiveUser,
@@ -763,7 +764,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
       // Send CSV response
       const filename = `workers_export_${new Date().toISOString().split('T')[0]}.csv`;
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Disposition', buildContentDisposition('attachment', filename));
       res.send(csv);
     } catch (error) {
       console.error("Failed to export workers:", error);
