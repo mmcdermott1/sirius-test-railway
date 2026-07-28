@@ -14,6 +14,11 @@ route registration).
 unset resolver must fail closed so client/standalone evaluation grants
 nothing extra.
 
+**Also:** when a policy branch replaces a dedicated per-context route, it
+must be authoritative — placed before generic shortcut grants (uploader /
+staff / broad permissions), returning grant-or-deny, so access is exactly
+what the old route allowed.
+
 **How to apply:** shared file: `set<X>Resolver(fn)` + null default, branch
 only grants when resolver returns true. Server wiring: look up registry,
 gate on `ctx.isComponentEnabled(component)`, call a req-free
