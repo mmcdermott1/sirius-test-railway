@@ -17,6 +17,7 @@ import {
 } from "../services/entity-files/config";
 import { insertFileSchema } from "@shared/schema";
 import { logger } from "../logger";
+import { buildContentDisposition } from "../utils/content-disposition";
 import { z } from "zod";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -222,13 +223,13 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           record.file.fileSystemId,
           record.file.storagePath,
         );
-        const safeName = (record.name || record.file.fileName).replace(/"/g, "");
+        const rawName = record.name || record.file.fileName;
         const mime = record.file.mimeType || "application/octet-stream";
         const inlineEligible = mime.startsWith("image/") || mime === "application/pdf";
         const disposition =
           req.query.download === "1" || !inlineEligible ? "attachment" : "inline";
         res.setHeader("Content-Type", mime);
-        res.setHeader("Content-Disposition", `${disposition}; filename="${safeName}"`);
+        res.setHeader("Content-Disposition", buildContentDisposition(disposition, rawName));
         res.setHeader("Content-Length", content.length);
         res.send(content);
       } catch (error) {
