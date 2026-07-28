@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
-import { requireAccess } from "../services/access-policy-evaluator";
+import { requireAccess, buildContext } from "../services/access-policy-evaluator";
 import { isComponentEnabled } from "./components";
 import { fileSystemService, listFileSystemConfigs, FileSystemNotConfiguredError } from "../services/files";
 import {
@@ -154,6 +154,12 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           });
         }
 
+        const accessContext = await buildContext(req);
+        const uploaderId = accessContext.user?.id;
+        if (!uploaderId) {
+          return res.status(401).json({ message: "Could not determine the current user for this upload. Please sign in again." });
+        }
+
         const tokenValues = await context.resolveTokens(req.params.entityId);
         const directory = expandDirectoryTemplate(usable.config.directory, tokenValues);
         const safeName = req.file.originalname.split(/[/\\]/).pop() || "file";
@@ -177,7 +183,7 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           storagePath: uploadResult.storagePath,
           mimeType: req.file.mimetype,
           size: uploadResult.size,
-          uploadedBy: (req.user as any)?.id,
+          uploadedBy: uploaderId,
           entityType: `entity-files:${context.id}`,
           entityId: req.params.entityId,
           fileSystemId: usable.config.file_system,
@@ -196,8 +202,14 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           context: req.params.context,
           error: error instanceof Error ? error.message : String(error),
         });
-        if (error instanceof Error && error.name === "ZodError") {
-          res.status(400).json({ message: "Invalid file data" });
+        if (error instanceof z.ZodError) {
+          const fields = error.issues
+            .map((issue) => (issue.path.length ? issue.path.join(".") : "(root)"))
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .join(", ");
+          res.status(400).json({
+            message: `The file record failed validation${fields ? ` (invalid or missing: ${fields})` : ""}. Please try again or contact an administrator.`,
+          });
         } else if (error instanceof FileSystemNotConfiguredError) {
           res.status(503).json({ message: error.message });
         } else {
