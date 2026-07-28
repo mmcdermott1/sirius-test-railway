@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import type { File } from "@shared/schema";
 import type { InsertFile } from "@shared/schema";
+import type { PolicyContext } from "@shared/access-policies";
 
 /**
  * Generic entity file attachments framework — context registry.
@@ -42,6 +43,12 @@ export interface EntityFilesAdapter {
   list(entityId: string): Promise<EntityFileRecord[]>;
   get(entityId: string, attachmentId: string): Promise<EntityFileRecord | undefined>;
   /**
+   * Look up the attachment row by its backing files-row id. Used by the
+   * generic /api/files/:id/download route to serve the user-editable
+   * display name instead of the original filename.
+   */
+  getByFileId(entityId: string, fileId: string): Promise<EntityFileRecord | undefined>;
+  /**
    * Create the files row AND the join row in one transaction. The bytes are
    * already uploaded by the route (bytes-first ordering: a failed insert
    * leaves a sweepable orphan object, never a row pointing at nothing).
@@ -82,6 +89,17 @@ export interface EntityFileContext {
   resolveTokens(entityId: string): Promise<Record<string, string>>;
   /** Access callback: may this request view/manage this entity's files? */
   checkAccess(verb: EntityFilesVerb, entityId: string, req: Request): Promise<boolean>;
+  /**
+   * Request-free twin of `checkAccess` used by the `file.read` access
+   * policy (see server/services/entity-files/file-read-access.ts): may the
+   * policy-context user view this entity's files? Must be exactly as
+   * strict as `checkAccess("view", ...)`.
+   */
+  checkPolicyAccess(
+    verb: EntityFilesVerb,
+    entityId: string,
+    ctx: PolicyContext,
+  ): Promise<boolean>;
   adapter: EntityFilesAdapter;
 }
 

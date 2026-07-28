@@ -14,6 +14,37 @@ import { LocalFileSystemProvider } from "../services/files/providers/local";
 import multer from "multer";
 import { logger } from "../logger";
 import { buildContentDisposition } from "../utils/content-disposition";
+import { getEntityFileContext } from "../services/entity-files/registry";
+
+/**
+ * For files owned by the entity-files framework (entityType
+ * `entity-files:<context>`), the user-editable display name lives on the
+ * context's join row, not on the files row. Falls back to the original
+ * filename on any miss.
+ */
+async function resolveDownloadName(file: {
+  fileName: string;
+  entityType: string | null;
+  entityId: string | null;
+  id: string;
+}): Promise<string> {
+  const prefix = "entity-files:";
+  if (!file.entityType?.startsWith(prefix) || !file.entityId) {
+    return file.fileName;
+  }
+  try {
+    const context = getEntityFileContext(file.entityType.slice(prefix.length));
+    const record = await context?.adapter.getByFileId(file.entityId, file.id);
+    return record?.name || file.fileName;
+  } catch (error) {
+    logger.warn("Failed to resolve attachment display name; using original filename", {
+      service: "files",
+      fileId: file.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return file.fileName;
+  }
+}
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -216,7 +247,7 @@ export function registerFileRoutes(
       const inlineEligible = mime.startsWith('image/') || mime === 'application/pdf';
       const disposition = req.query.download === '1' || !inlineEligible ? 'attachment' : 'inline';
       res.setHeader('Content-Type', mime);
-      res.setHeader('Content-Disposition', buildContentDisposition(disposition, file.fileName));
+      res.setHeader('Content-Disposition', buildContentDisposition(disposition, await resolveDownloadName(file)));
       res.setHeader('Content-Length', file.size);
       res.send(fileContent);
     } catch (error) {

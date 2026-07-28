@@ -17,7 +17,6 @@ import {
 } from "../services/entity-files/config";
 import { insertFileSchema } from "@shared/schema";
 import { logger } from "../logger";
-import { buildContentDisposition } from "../utils/content-disposition";
 import { z } from "zod";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -219,44 +218,10 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
     },
   );
 
-  // Download / inline view.
-  app.get(
-    "/api/entity-files/:context/:entityId/:attachmentId/download",
-    requireAuth,
-    async (req, res) => {
-      try {
-        const context = await resolveContextAndAuthorize(req, res, "view");
-        if (!context) return;
-        const record = await context.adapter.get(req.params.entityId, req.params.attachmentId);
-        if (!record) {
-          return res.status(404).json({ message: "File not found" });
-        }
-        const content = await fileSystemService.download(
-          record.file.fileSystemId,
-          record.file.storagePath,
-        );
-        const rawName = record.name || record.file.fileName;
-        const mime = record.file.mimeType || "application/octet-stream";
-        const inlineEligible = mime.startsWith("image/") || mime === "application/pdf";
-        const disposition =
-          req.query.download === "1" || !inlineEligible ? "attachment" : "inline";
-        res.setHeader("Content-Type", mime);
-        res.setHeader("Content-Disposition", buildContentDisposition(disposition, rawName));
-        res.setHeader("Content-Length", content.length);
-        res.send(content);
-      } catch (error) {
-        logger.error("Entity file download failed", {
-          service: "entityFiles",
-          context: req.params.context,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        if (error instanceof FileSystemNotConfiguredError) {
-          return res.status(503).json({ message: error.message });
-        }
-        res.status(500).json({ message: "Failed to download file" });
-      }
-    },
-  );
+  // Downloads go through the generic /api/files/:id/download route — the
+  // file.read policy delegates to this context's access callback and the
+  // download serves the attachment's display name (see
+  // server/services/entity-files/file-read-access.ts and files.ts).
 
   // Rename / edit attachment data.
   app.patch(

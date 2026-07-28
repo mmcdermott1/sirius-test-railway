@@ -58,4 +58,5 @@
 - [FILESYSTEMS env registry](filesystems-env-registry.md) — env-only filesystem config, no code default fs, write-then-insert/row-then-object ordering; local jail needs realpath+lstat, not just lexical resolve.
 - [E2E route harness auth stub](route-harness-auth-stub.md) — standalone route tests need req.user={claims:{sub},dbUser:user} (resolveDbUser cache); multer must run AFTER authz.
 - [Masquerade effective-actor convention](masquerade-effective-actor.md) — masqueraded user is THE actor everywhere (context, notifications, audit user_id); real user only in provenance fields/meta.masqueradedBy; resolve via getEffectiveUser (dynamic import to avoid cycle).
+- [Shared policy → server hook injection](shared-policy-server-hook-injection.md) — shared access-policy files can't import server registries; use a boot-wired injectable resolver that fails closed when unset.
 - [Tx race handling: ON CONFLICT, not catch](tx-race-onconflict-not-catch.md) — inside a Postgres transaction, catch-and-continue after a unique violation leaves the tx aborted; use ON CONFLICT DO NOTHING + returning() rowcount and undo side-effect inserts when losing the race.

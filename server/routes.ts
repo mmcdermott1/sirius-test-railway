@@ -15,6 +15,7 @@ import { registerCommRoutes } from "./modules/comm";
 import { registerGrievanceRoutes } from "./modules/grievances/grievances";
 import { registerGrievanceEntityFileContext } from "./modules/grievances/grievance-files-context";
 import { registerEntityFileRoutes } from "./modules/entity-files";
+import { wireEntityFilesFileReadAccess } from "./services/entity-files/file-read-access";
 import { registerGrievanceTimelineTemplateRoutes } from "./modules/grievances/grievance-timeline-templates";
 import { registerEmployerContactRoutes } from "./modules/employers/contacts";
 import { registerTrustBenefitsRoutes } from "./modules/trust/benefits";
@@ -303,6 +304,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
 
   // Entity file attachments framework: register contexts, then the generic routes
   registerGrievanceEntityFileContext();
+  wireEntityFilesFileReadAccess();
   registerEntityFileRoutes(app, requireAuth);
 
   // Register grievance timeline template routes

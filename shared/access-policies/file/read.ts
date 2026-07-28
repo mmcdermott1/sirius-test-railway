@@ -1,5 +1,29 @@
 import { definePolicy, registerPolicy, type PolicyContext } from '../index';
 
+/**
+ * Injected resolver for files owned by the generic entity-files framework
+ * (entityType `entity-files:<context>`). The server wires this at boot
+ * (server/services/entity-files/file-read-access.ts) so this shared module
+ * never imports server code. When unset (e.g. in the client bundle or a
+ * standalone script) entity-files ownership grants nothing extra — the
+ * uploader/staff/files.read-private checks above still apply.
+ */
+export type EntityFilesReadAccessResolver = (
+  contextId: string,
+  entityId: string,
+  ctx: PolicyContext,
+) => Promise<boolean>;
+
+let entityFilesReadAccessResolver: EntityFilesReadAccessResolver | null = null;
+
+export function setEntityFilesReadAccessResolver(
+  resolver: EntityFilesReadAccessResolver,
+): void {
+  entityFilesReadAccessResolver = resolver;
+}
+
+const ENTITY_FILES_PREFIX = 'entity-files:';
+
 const policy = definePolicy({
   id: 'file.read',
   description: 'Download files',
@@ -47,6 +71,14 @@ const policy = definePolicy({
         const hasAccess = await ctx.checkPolicy(targetPolicy, entityId);
         if (hasAccess) {
           return { granted: true, reason: `Has view access to associated ${entityType}` };
+        }
+      }
+
+      if (entityType.startsWith(ENTITY_FILES_PREFIX) && entityFilesReadAccessResolver) {
+        const contextId = entityType.slice(ENTITY_FILES_PREFIX.length);
+        const granted = await entityFilesReadAccessResolver(contextId, entityId, ctx);
+        if (granted) {
+          return { granted: true, reason: `Has view access to ${contextId} files` };
         }
       }
 

@@ -296,9 +296,7 @@ export function EntityFileManager({
                       asChild
                       data-testid={`button-download-${item.id}`}
                     >
-                      <a
-                        href={`/api/entity-files/${context}/${entityId}/${item.id}/download?download=1`}
-                      >
+                      <a href={`/api/files/${item.file.id}/download?download=1`}>
                         <Download className="h-4 w-4" />
                       </a>
                     </Button>

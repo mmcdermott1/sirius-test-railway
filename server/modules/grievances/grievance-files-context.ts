@@ -46,6 +46,11 @@ export function registerGrievanceEntityFileContext(): void {
       return result.granted;
     },
 
+    // Must stay exactly as strict as checkAccess above: same `staff` policy.
+    async checkPolicyAccess(_verb, _entityId, ctx): Promise<boolean> {
+      return ctx.checkPolicy("staff");
+    },
+
     adapter: {
       async list(entityId: string) {
         const rows = await storage.grievanceFiles.list(entityId);
@@ -53,6 +58,10 @@ export function registerGrievanceEntityFileContext(): void {
       },
       async get(entityId: string, attachmentId: string) {
         const row = await storage.grievanceFiles.get(entityId, attachmentId);
+        return row ? toRecord(row) : undefined;
+      },
+      async getByFileId(entityId: string, fileId: string) {
+        const row = await storage.grievanceFiles.getByFileId(entityId, fileId);
         return row ? toRecord(row) : undefined;
       },
       async attach(entityId: string, file: InsertFile, name: string) {

@@ -33,6 +33,7 @@ export interface GrievanceFileWithFile extends GrievanceFile {
 export interface GrievanceFileStorage {
   list(grievanceId: string): Promise<GrievanceFileWithFile[]>;
   get(grievanceId: string, attachmentId: string): Promise<GrievanceFileWithFile | undefined>;
+  getByFileId(grievanceId: string, fileId: string): Promise<GrievanceFileWithFile | undefined>;
   createWithFile(
     grievanceId: string,
     file: InsertFile,
@@ -79,6 +80,24 @@ export function createGrievanceFileStorage(): GrievanceFileStorage {
           and(
             eq(grievanceFiles.grievanceId, grievanceId),
             eq(grievanceFiles.id, attachmentId),
+          ),
+        );
+      return rows[0] ? rowToRecord(rows[0]) : undefined;
+    },
+
+    async getByFileId(
+      grievanceId: string,
+      fileId: string,
+    ): Promise<GrievanceFileWithFile | undefined> {
+      const client = getClient();
+      const rows = await client
+        .select()
+        .from(grievanceFiles)
+        .innerJoin(files, eq(grievanceFiles.fileId, files.id))
+        .where(
+          and(
+            eq(grievanceFiles.grievanceId, grievanceId),
+            eq(grievanceFiles.fileId, fileId),
           ),
         );
       return rows[0] ? rowToRecord(rows[0]) : undefined;
