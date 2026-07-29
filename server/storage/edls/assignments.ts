@@ -11,10 +11,11 @@ import {
   users,
   facilities,
   dispatchJobGroups,
+  optionsDepartment,
   type EdlsAssignment, 
   type InsertEdlsAssignment
 } from "@shared/schema";
-import { eq, and, sql, gte, lte, asc, inArray, ne } from "drizzle-orm";
+import { eq, and, sql, gt, gte, lte, asc, inArray, ne } from "drizzle-orm";
 import { defineLoggingConfig } from "../middleware/logging";
 import { getClient, runInTransaction } from "../transaction-context";
 import { createUnifiedOptionsStorage } from "../unified-options";
@@ -129,6 +130,8 @@ export interface WorkerAssignmentDetails {
 }
 
 export interface AssignmentForWorkerFilters {
+  /** Strictly-after date bound (ymd > afterYmd), e.g. "next assignment after this sheet". */
+  afterYmd?: string;
   startYmd?: string;
   endYmd?: string;
   supervisorId?: string;
@@ -149,6 +152,7 @@ export interface AssignmentForWorker {
   supervisor: { id: string; firstName: string | null; lastName: string | null; email: string } | null;
   facility: { id: string; name: string } | null;
   jobGroup: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
   data: Record<string, unknown> | null;
 }
 
@@ -536,6 +540,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         eq(edlsAssignments.workerId, workerId),
         ne(edlsSheets.status, 'trash'),
       ];
+      if (filters?.afterYmd) conditions.push(gt(edlsSheets.ymd, filters.afterYmd));
       if (filters?.startYmd) conditions.push(gte(edlsSheets.ymd, filters.startYmd));
       if (filters?.endYmd) conditions.push(lte(edlsSheets.ymd, filters.endYmd));
       if (filters?.supervisorId) conditions.push(eq(edlsSheets.supervisor, filters.supervisorId));
@@ -561,6 +566,8 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           supervisorEmail: users.email,
           facilityId: facilities.id,
           facilityName: facilities.name,
+          departmentId: optionsDepartment.id,
+          departmentName: optionsDepartment.name,
           jobGroupId: withJobGroups ? dispatchJobGroups.id : sql<string | null>`NULL::varchar`,
           jobGroupName: withJobGroups ? dispatchJobGroups.name : sql<string | null>`NULL::text`,
         })
@@ -569,6 +576,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         .innerJoin(edlsSheets, eq(edlsCrews.sheetId, edlsSheets.id))
         .leftJoin(users, eq(edlsSheets.supervisor, users.id))
         .leftJoin(facilities, eq(edlsSheets.facilityId, facilities.id))
+        .leftJoin(optionsDepartment, eq(edlsSheets.departmentId, optionsDepartment.id))
         .$dynamic();
 
       const rows = await (withJobGroups
@@ -597,6 +605,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           : null,
         facility: r.facilityId ? { id: r.facilityId, name: r.facilityName! } : null,
         jobGroup: r.jobGroupId ? { id: r.jobGroupId, name: r.jobGroupName! } : null,
+        department: r.departmentId ? { id: r.departmentId, name: r.departmentName! } : null,
         data: (r.assignmentData as Record<string, unknown> | null) ?? null,
       }));
     },
@@ -614,6 +623,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         inArray(edlsAssignments.workerId, workerIds),
         ne(edlsSheets.status, 'trash'),
       ];
+      if (filters?.afterYmd) conditions.push(gt(edlsSheets.ymd, filters.afterYmd));
       if (filters?.startYmd) conditions.push(gte(edlsSheets.ymd, filters.startYmd));
       if (filters?.endYmd) conditions.push(lte(edlsSheets.ymd, filters.endYmd));
       if (filters?.supervisorId) conditions.push(eq(edlsSheets.supervisor, filters.supervisorId));
@@ -640,6 +650,8 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           supervisorEmail: users.email,
           facilityId: facilities.id,
           facilityName: facilities.name,
+          departmentId: optionsDepartment.id,
+          departmentName: optionsDepartment.name,
           jobGroupId: withJobGroups ? dispatchJobGroups.id : sql<string | null>`NULL::varchar`,
           jobGroupName: withJobGroups ? dispatchJobGroups.name : sql<string | null>`NULL::text`,
         })
@@ -648,6 +660,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         .innerJoin(edlsSheets, eq(edlsCrews.sheetId, edlsSheets.id))
         .leftJoin(users, eq(edlsSheets.supervisor, users.id))
         .leftJoin(facilities, eq(edlsSheets.facilityId, facilities.id))
+        .leftJoin(optionsDepartment, eq(edlsSheets.departmentId, optionsDepartment.id))
         .$dynamic();
 
       const rows = await (withJobGroups
@@ -677,6 +690,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
             : null,
           facility: r.facilityId ? { id: r.facilityId, name: r.facilityName! } : null,
           jobGroup: r.jobGroupId ? { id: r.jobGroupId, name: r.jobGroupName! } : null,
+          department: r.departmentId ? { id: r.departmentId, name: r.departmentName! } : null,
           data: (r.assignmentData as Record<string, unknown> | null) ?? null,
         };
         const list = result.get(r.workerId);

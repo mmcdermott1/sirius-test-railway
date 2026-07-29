@@ -449,6 +449,38 @@ export function registerEdlsSheetsRoutes(
     }
   });
 
+  app.get("/api/edls/sheets/:id/next-assignments", requireAuth, edlsComponent, requireAccess('edls.sheet.view', req => req.params.id), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sheet = await storage.edlsSheets.get(id);
+      if (!sheet) {
+        res.status(404).json({ message: "Sheet not found" });
+        return;
+      }
+
+      const assignments = await storage.edlsAssignments.getBySheetId(id);
+      const workerIds = Array.from(new Set(assignments.map(a => a.workerId)));
+
+      // Next assignment = earliest assignment on a non-trashed sheet strictly
+      // after this sheet's date (one sheet per worker per day is DB-enforced).
+      const upcoming = await storage.edlsAssignments.getAssignmentsForWorkerIds(
+        workerIds,
+        { afterYmd: sheet.ymd },
+      );
+
+      const next: Record<string, unknown | null> = {};
+      for (const workerId of workerIds) {
+        const list = upcoming.get(workerId) ?? [];
+        next[workerId] = list.length > 0 ? list[0] : null;
+      }
+
+      res.json({ next });
+    } catch (error) {
+      console.error("Failed to fetch next assignments:", error);
+      res.status(500).json({ message: "Failed to fetch next assignments" });
+    }
+  });
+
   app.get("/api/edls/sheets/:id/worker-display-ids", requireAuth, edlsComponent, requireAccess('edls.sheet.view', req => req.params.id), async (req, res) => {
     try {
       const { id } = req.params;

@@ -384,6 +384,7 @@ const EdlsSheetsPage = lazy(() => import("@/pages/edls/sheets"));
 const EdlsTosPage = lazy(() => import("@/pages/edls/tos"));
 const EdlsSheetDetailsPage = lazy(() => import("@/pages/edls/sheet-details"));
 const EdlsSheetAssignmentsPage = lazy(() => import("@/pages/edls/sheet-assignments"));
+const EdlsSheetNextAssignmentsPage = lazy(() => import("@/pages/edls/sheet-next-assignments"));
 const EdlsSheetManagePage = lazy(() => import("@/pages/edls/sheet-manage"));
 const EdlsSheetEditPage = lazy(() => import("@/pages/edls/sheet-edit"));
 const EdlsSheetLogsPage = lazy(() => import("@/pages/edls/sheet-logs"));
@@ -3154,6 +3155,14 @@ function Router() {
         <ProtectedRoute tabId="details" entityType="edls_sheet">
           <AuthenticatedLayout>
             <EdlsSheetDetailsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/edls/sheet/:id/next-assignments">
+        <ProtectedRoute tabId="next-assignments" entityType="edls_sheet">
+          <AuthenticatedLayout>
+            <EdlsSheetNextAssignmentsPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

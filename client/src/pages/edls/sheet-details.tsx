@@ -84,7 +84,7 @@ function EdlsSheetDetailsContent() {
 
 export default function EdlsSheetDetailsPage() {
   return (
-    <EdlsSheetLayout activeTab="details">
+    <EdlsSheetLayout activeTab="overview">
       <EdlsSheetDetailsContent />
     </EdlsSheetLayout>
   );
