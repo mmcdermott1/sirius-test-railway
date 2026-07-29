@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Users, Clock, User } from "lucide-react";
-import { formatYmd } from "@shared/utils/date";
+import { ymdToLocalDate } from "@shared/utils/date";
 import type { EdlsCrewWithRelations, AssignmentWithWorker } from "@/components/edls/SheetDetailsView";
 
 interface NextAssignment {
@@ -49,6 +49,45 @@ function formatTime(time: string | null | undefined): string {
   const ampm = hour >= 12 ? "PM" : "AM";
   const hour12 = hour % 12 || 12;
   return `${hour12}:${minutes} ${ampm}`;
+}
+
+/** Effective start time: assignment data.startTime override, else crew/sheet start time. Returns "HH:MM" or null. */
+function effectiveStartTime(data: Record<string, unknown> | null | undefined, fallback: string | null | undefined): string | null {
+  const override = data && typeof (data as { startTime?: unknown }).startTime === "string"
+    ? ((data as { startTime: string }).startTime)
+    : null;
+  const raw = override || fallback;
+  return raw ? raw.slice(0, 5) : null;
+}
+
+/** "Saturday, Aug 1, 2026" — full weekday, short month. */
+function formatYmdFullWeekday(ymd: string): string {
+  const d = ymdToLocalDate(ymd);
+  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Local Date at ymd + optional "HH:MM" (midnight when time missing). */
+function ymdTimeToDate(ymd: string, time: string | null): Date {
+  const d = ymdToLocalDate(ymd);
+  if (time) {
+    const [h, m] = time.split(":").map(Number);
+    d.setHours(h || 0, m || 0, 0, 0);
+  }
+  return d;
+}
+
+/** Interval between two start datetimes, e.g. "2 days 11 hours". */
+function formatInterval(from: Date, to: Date): string | null {
+  const ms = to.getTime() - from.getTime();
+  if (ms <= 0) return null;
+  const totalHours = Math.floor(ms / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days} ${days === 1 ? "day" : "days"}`);
+  if (hours > 0) parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
+  if (parts.length === 0) return "less than an hour";
+  return parts.join(" ");
 }
 
 function NextAssignmentsContent() {
@@ -121,7 +160,14 @@ function NextAssignmentsContent() {
                 <div className="divide-y">
                   {crewAssignments.map((a) => {
                     const next = nextMap[a.workerId] ?? null;
-                    const overrideStart = (next?.data as { startTime?: string | null } | null)?.startTime;
+                    const currentStart = effectiveStartTime(a.data as Record<string, unknown> | null, crew.startTime);
+                    const nextStart = next ? effectiveStartTime(next.data, next.startTime) : null;
+                    const interval = next
+                      ? formatInterval(
+                          ymdTimeToDate(sheet.ymd, currentStart),
+                          ymdTimeToDate(next.ymd, nextStart),
+                        )
+                      : null;
                     return (
                       <div
                         key={a.id}
@@ -132,28 +178,27 @@ function NextAssignmentsContent() {
                           <span className="truncate font-medium" data-testid={`text-worker-name-${a.id}`}>
                             {formatWorkerName(a.worker)}
                           </span>
-                          {a.worker.siriusId && (
-                            <span className="text-xs text-muted-foreground tabular-nums">
-                              #{a.worker.siriusId}
-                            </span>
-                          )}
+                          <span
+                            className="w-12 text-left text-xs tabular-nums text-muted-foreground truncate"
+                            title={a.worker.memberStatusName ?? undefined}
+                            data-testid={`text-member-status-${a.id}`}
+                          >
+                            {a.worker.memberStatusCode ?? "—"}
+                          </span>
                         </div>
                         {next ? (
                           <div
-                            className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground min-w-0"
+                            className="flex-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground min-w-0"
                             data-testid={`next-assignment-${a.id}`}
                           >
-                            <Link
-                              href={`/edls/sheet/${next.sheetId}`}
-                              className="text-primary hover:underline truncate max-w-[240px]"
-                              data-testid={`link-next-sheet-${a.id}`}
-                            >
+                            <span className="truncate max-w-[240px]" data-testid={`text-next-sheet-${a.id}`}>
                               {next.sheetTitle}
-                            </Link>
-                            <span data-testid={`text-next-date-${a.id}`}>{formatYmd(next.ymd, 'long')}</span>
-                            <span className="flex items-center gap-1" data-testid={`text-next-start-${a.id}`}>
+                            </span>
+                            <span className="flex items-center gap-1" data-testid={`text-next-when-${a.id}`}>
                               <Clock className="h-3.5 w-3.5" />
-                              {formatTime(overrideStart || next.startTime)}
+                              {formatYmdFullWeekday(next.ymd)}
+                              {nextStart ? `, ${formatTime(nextStart)}` : ""}
+                              {interval ? ` (${interval})` : ""}
                             </span>
                             {next.department && <span data-testid={`text-next-department-${a.id}`}>{next.department.name}</span>}
                             {next.facility && <span data-testid={`text-next-facility-${a.id}`}>{next.facility.name}</span>}
@@ -164,6 +209,14 @@ function NextAssignmentsContent() {
                                 {formatUserName(next.supervisor)}
                               </span>
                             )}
+                            <span className="flex-1" />
+                            <Link
+                              href={`/edls/sheet/${next.sheetId}`}
+                              className="text-primary hover:underline shrink-0"
+                              data-testid={`link-next-sheet-${a.id}`}
+                            >
+                              View
+                            </Link>
                           </div>
                         ) : (
                           <span className="text-sm text-muted-foreground italic" data-testid={`text-none-scheduled-${a.id}`}>
