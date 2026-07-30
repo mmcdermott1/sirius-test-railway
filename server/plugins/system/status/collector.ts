@@ -43,6 +43,10 @@ function worstPriority(messages: StatusMessage[]): StatusPriority {
   return STATUS_PRIORITIES[worst];
 }
 
+function isImmediate(plugin: SystemStatusPlugin): boolean {
+  return plugin.scanMode === "immediate";
+}
+
 /**
  * Run one plugin's scan inside the sandbox: a thrown error or a scan that
  * exceeds its timeout becomes an error-level message — the collector itself
@@ -95,7 +99,11 @@ async function runScan(plugin: SystemStatusPlugin): Promise<StatusScanResult> {
     scannedAt: new Date().toISOString(),
     durationMs: Date.now() - started,
   };
-  results.set(plugin.id, result);
+  // Immediate plugins are recomputed on every collect; caching their
+  // result would only ever serve stale data.
+  if (!isImmediate(plugin)) {
+    results.set(plugin.id, result);
+  }
   return result;
 }
 
@@ -118,24 +126,25 @@ function toEntry(
     id: plugin.id,
     name: plugin.name,
     description: plugin.description,
-    canRescan: plugin.canRescan !== false,
+    canRescan: !isImmediate(plugin),
     worstPriority: worstPriority(result.messages),
     result,
   };
 }
 
 /**
- * Collect the latest status for the given plugins, scanning on first demand:
- * plugins with no cached result are scanned now (concurrently), plugins with
- * a cached result return it as-is. Callers decide the plugin set — routes
- * pass the viewer-visible plugins from the registry.
+ * Collect the latest status for the given plugins. `"scan-and-cache"`
+ * plugins scan on first demand and then serve their cached result until an
+ * explicit rescan; `"immediate"` plugins are recomputed on every collect.
+ * Callers decide the plugin set — routes pass the viewer-visible plugins
+ * from the registry.
  */
 export async function collectStatus(
   plugins: SystemStatusPlugin[],
 ): Promise<SystemStatusEntry[]> {
   const entries = await Promise.all(
     plugins.map(async (plugin) => {
-      const cached = results.get(plugin.id);
+      const cached = isImmediate(plugin) ? undefined : results.get(plugin.id);
       const result = cached ?? (await scanShared(plugin));
       return toEntry(plugin, result);
     }),
@@ -144,31 +153,22 @@ export async function collectStatus(
 }
 
 /**
- * Force a fresh scan of one plugin. Returns null when the plugin does not
- * support re-scanning (`canRescan: false`).
+ * Force a fresh scan of one plugin. For `"immediate"` plugins this is
+ * indistinguishable from a normal collect — the scan runs fresh either way.
  */
 export async function rescanPlugin(
   plugin: SystemStatusPlugin,
-): Promise<SystemStatusEntry | null> {
-  if (plugin.canRescan === false) return null;
+): Promise<SystemStatusEntry> {
   const result = await scanShared(plugin);
   return toEntry(plugin, result);
 }
 
-/**
- * Force a fresh scan of every given plugin that supports it; plugins with
- * `canRescan: false` keep (or lazily produce) their existing result.
- */
+/** Force a fresh scan of every given plugin. */
 export async function rescanAll(
   plugins: SystemStatusPlugin[],
 ): Promise<SystemStatusEntry[]> {
   const entries = await Promise.all(
     plugins.map(async (plugin) => {
-      if (plugin.canRescan === false) {
-        const cached = results.get(plugin.id);
-        const result = cached ?? (await scanShared(plugin));
-        return toEntry(plugin, result);
-      }
       const result = await scanShared(plugin);
       return toEntry(plugin, result);
     }),

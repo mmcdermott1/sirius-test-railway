@@ -19,9 +19,9 @@ registerSystemStatusPlugin({
   id: "uptime",
   name: "Uptime",
   description: "When this server process started.",
-  // The boot time never changes for the life of the process, so there is
-  // nothing to re-scan.
-  canRescan: false,
+  // Cheap to compute and its answer changes every minute — recompute on
+  // every collect instead of caching a stale "Up 0m".
+  scanMode: "immediate",
   async scan() {
     return [
       {

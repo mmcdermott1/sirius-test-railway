@@ -17,7 +17,7 @@ function pluginToMetadata(p: SystemStatusPlugin): BasePluginMetadata {
 function pluginToManifestEntry(p: SystemStatusPlugin): SystemStatusManifestEntry {
   return {
     ...pluginToMetadata(p),
-    canRescan: p.canRescan !== false,
+    scanMode: p.scanMode ?? "scan-and-cache",
   };
 }
 

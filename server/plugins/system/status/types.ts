@@ -8,6 +8,10 @@ import type { BasePluginMetadata } from "../../_core/types";
 export const STATUS_PRIORITIES = ["info", "notice", "warning", "error"] as const;
 export type StatusPriority = (typeof STATUS_PRIORITIES)[number];
 
+/** Scan modes — see {@link SystemStatusPlugin.scanMode}. */
+export const STATUS_SCAN_MODES = ["scan-and-cache", "immediate"] as const;
+export type StatusScanMode = (typeof STATUS_SCAN_MODES)[number];
+
 /** One message produced by a status plugin's scan. */
 export interface StatusMessage {
   priority: StatusPriority;
@@ -26,13 +30,17 @@ export interface StatusMessage {
  */
 export interface SystemStatusPlugin extends BasePluginMetadata {
   /**
-   * Whether the plugin supports on-demand re-scanning. Defaults to true.
-   * Plugins whose result cannot meaningfully change between scans (e.g.
-   * uptime/boot time) set this to false; the collector still scans them
-   * once on first demand but the UI hides the rescan button and the
-   * rescan endpoints refuse to re-run them.
+   * How the collector treats this plugin's results:
+   *
+   * - `"scan-and-cache"` (default): the scan result is cached in memory
+   *   and served as-is until an explicit rescan. The UI offers a rescan
+   *   button.
+   * - `"immediate"`: the scan is cheap and its answer changes over time
+   *   (e.g. uptime), so the collector recomputes it on every collect and
+   *   never serves a cached result. The UI hides the rescan button — the
+   *   value is always fresh — and rescan requests simply recompute.
    */
-  canRescan?: boolean;
+  scanMode?: StatusScanMode;
   /**
    * Per-plugin scan timeout in milliseconds. Defaults to
    * {@link DEFAULT_SCAN_TIMEOUT_MS}. When exceeded, the collector records
@@ -45,7 +53,7 @@ export interface SystemStatusPlugin extends BasePluginMetadata {
 
 /** Manifest entry shape for system-status plugins. */
 export interface SystemStatusManifestEntry extends BasePluginMetadata {
-  canRescan: boolean;
+  scanMode: StatusScanMode;
 }
 
 /** In-memory scan result for one plugin. */
@@ -67,6 +75,11 @@ export interface SystemStatusEntry {
   id: string;
   name: string;
   description: string;
+  /**
+   * Whether the UI should offer a rescan action. False for immediate
+   * plugins — their result is recomputed on every load, so a rescan
+   * button would be meaningless.
+   */
   canRescan: boolean;
   /** Highest-severity priority among the plugin's messages. */
   worstPriority: StatusPriority;

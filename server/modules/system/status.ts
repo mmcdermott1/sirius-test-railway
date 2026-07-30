@@ -57,7 +57,7 @@ export function registerSystemStatusRoutes(app: Express, requireAuth: AuthMiddle
     }
   });
 
-  // Force a fresh scan of every visible plugin that supports re-scanning.
+  // Force a fresh scan of every visible plugin.
   app.post("/api/system-status/rescan", requireAuth, async (req, res) => {
     try {
       if (!(await gate(req, res))) return;
@@ -71,7 +71,8 @@ export function registerSystemStatusRoutes(app: Express, requireAuth: AuthMiddle
     }
   });
 
-  // Force a fresh scan of one visible plugin.
+  // Force a fresh scan of one visible plugin. For "immediate" plugins this
+  // simply recomputes (they are never cached), same as a normal collect.
   app.post("/api/system-status/:id/rescan", requireAuth, async (req, res) => {
     try {
       if (!(await gate(req, res))) return;
@@ -82,10 +83,6 @@ export function registerSystemStatusRoutes(app: Express, requireAuth: AuthMiddle
         return;
       }
       const entry = await rescanPlugin(plugin);
-      if (!entry) {
-        res.status(400).json({ message: "This plugin does not support re-scanning" });
-        return;
-      }
       res.setHeader("Cache-Control", "no-store");
       res.json(entry);
     } catch (error) {
