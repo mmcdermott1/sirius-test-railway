@@ -199,14 +199,16 @@ export default function SystemStatusPage() {
                 <CardTitle className="text-base">{entry.name}</CardTitle>
               </div>
               <div className="flex items-center gap-3">
-                <span
-                  className="text-xs text-muted-foreground"
-                  data-testid={`text-scanned-at-${entry.id}`}
-                >
-                  Scanned {new Date(entry.result.scannedAt).toLocaleString()} —{" "}
-                  {formatDistanceToNow(new Date(entry.result.scannedAt), { addSuffix: true })} (
-                  {entry.result.durationMs}ms)
-                </span>
+                {entry.canRescan && (
+                  <span
+                    className="text-xs text-muted-foreground"
+                    data-testid={`text-scanned-at-${entry.id}`}
+                  >
+                    Scanned {new Date(entry.result.scannedAt).toLocaleString()} —{" "}
+                    {formatDistanceToNow(new Date(entry.result.scannedAt), { addSuffix: true })} (
+                    {entry.result.durationMs}ms)
+                  </span>
+                )}
                 {entry.canRescan && (
                   <Button
                     variant="outline"
