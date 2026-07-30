@@ -309,6 +309,7 @@ const DispatchEditPage = lazy(() => import("@/pages/dispatch/dispatch-edit"));
 const DispatchManagePage = lazy(() => import("@/pages/dispatch/dispatch-manage"));
 const MasqueradePage = lazy(() => import("@/pages/config/masquerade"));
 const SystemModePage = lazy(() => import("@/pages/config/system-mode"));
+const SystemStatusPage = lazy(() => import("@/pages/config/system-status"));
 const DefaultPolicyPage = lazy(() => import("@/pages/config/default-policy"));
 const TwilioConfigPage = lazy(() => import("@/pages/config/twilio"));
 const EmailConfigPage = lazy(() => import("@/pages/config/email"));
@@ -3267,6 +3268,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <SystemModePage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/system-status">
+        <ProtectedRoute policy="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <SystemStatusPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

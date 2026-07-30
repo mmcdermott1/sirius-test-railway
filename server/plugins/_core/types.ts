@@ -52,4 +52,5 @@ export type PluginKind =
   | "cron"
   | "denorm"
   | "data-retention"
-  | "menu";
+  | "menu"
+  | "system-status";

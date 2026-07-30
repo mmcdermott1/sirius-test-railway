@@ -358,6 +358,11 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   const { registerPluginsAdminRoutes } = await import("./modules/system/plugins-admin");
   registerPluginsAdminRoutes(app, requireAuth);
 
+  // System status routes (Task #951) — admin-gated list + rescan endpoints
+  // over the in-memory status collector.
+  const { registerSystemStatusRoutes } = await import("./modules/system/status");
+  registerSystemStatusRoutes(app, requireAuth);
+
   // Register bookmark routes
   registerBookmarkRoutes(app, requireAuth, requirePermission);
 
