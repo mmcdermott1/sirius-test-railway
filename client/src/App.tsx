@@ -217,7 +217,6 @@ const AdminRolesPage = lazy(() => import("@/pages/admin/roles"));
 const AdminPermissionsPage = lazy(() => import("@/pages/admin/permissions"));
 const WmbScanQueue = lazy(() => import("@/pages/admin/wmb-scan-queue"));
 const WmbScanDetail = lazy(() => import("@/pages/admin/wmb-scan-detail"));
-const AdminQuickstarts = lazy(() => import("@/pages/admin-quickstarts"));
 const CronJobs = lazy(() => import("@/pages/cron-jobs"));
 const EventBusDebug = lazy(() => import("@/pages/admin/debug/event-bus"));
 const CronJobView = lazy(() => import("@/pages/cron-job-view"));
@@ -3704,14 +3703,6 @@ function Router() {
             <AdminLayout>
               <AdminPermissionsPage />
             </AdminLayout>
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/admin/quickstarts">
-        <ProtectedRoute permission="admin">
-          <AuthenticatedLayout>
-            <AdminQuickstarts />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

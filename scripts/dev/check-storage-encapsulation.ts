@@ -50,9 +50,6 @@ const ALLOWED_DIRECTORIES = [
 
 const ALLOWED_FILES = [
   'server/db.ts',
-  // Admin-only database snapshot utility that needs bulk operations across all tables
-  // This is intentionally excluded as it operates at the infrastructure level
-  'server/services/quickstart.ts',
 ];
 
 // Files under server/plugins/ that call storage.readOnly.query(...) but are

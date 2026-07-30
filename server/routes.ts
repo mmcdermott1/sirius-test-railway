@@ -54,7 +54,6 @@ import { registerLogRoutes } from "./modules/system/logs";
 import { registerWorkerWshRoutes } from "./modules/worker-wsh";
 import { registerWorkerMshRoutes } from "./modules/worker-msh";
 import { registerWorkerHoursRoutes } from "./modules/worker-hours";
-import { registerQuickstartRoutes } from "./modules/quickstart";
 import { registerCronJobRoutes } from "./modules/system/cron";
 import { registerEventBusIntrospectRoutes } from "./modules/dev/event-bus-introspect";
 import { registerEbsInspectionRoutes } from "./modules/system/ebs";
@@ -410,7 +409,6 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   registerWorkerWshRoutes(app, requireAuth, requirePermission, requireAccess, storage.workerWsh);
   registerWorkerMshRoutes(app, requireAuth, requirePermission, requireAccess, storage.workerMsh);
   registerWorkerHoursRoutes(app, requireAuth, requirePermission, requireAccess, storage.workerHours, storage.ledger);
-  registerQuickstartRoutes(app);
   
 
   // Register cron job management routes
