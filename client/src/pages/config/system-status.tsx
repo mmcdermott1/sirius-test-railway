@@ -83,8 +83,7 @@ export default function SystemStatusPage() {
 
   const rescanAllMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/system-status/rescan");
-      return res.json();
+      return await apiRequest("POST", "/api/system-status/rescan");
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/system-status"], data);
@@ -101,8 +100,7 @@ export default function SystemStatusPage() {
 
   const rescanOneMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", `/api/system-status/${id}/rescan`);
-      return res.json() as Promise<SystemStatusEntry>;
+      return (await apiRequest("POST", `/api/system-status/${id}/rescan`)) as SystemStatusEntry;
     },
     onMutate: (id) => setRescanningId(id),
     onSettled: () => setRescanningId(null),
