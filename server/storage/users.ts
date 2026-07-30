@@ -53,6 +53,8 @@ export interface UserStorage {
   searchUsers(query: string, roleIds?: string[], limit?: number): Promise<(User & { roles: Role[] })[]>;
   userHasAnyRole(userId: string, roleIds: string[]): Promise<boolean>;
   hasAnyUsers(): Promise<boolean>;
+  countUsers(): Promise<number>;
+  countUsersLoggedInSince(since: Date): Promise<number>;
   updateUserData(id: string, data: Record<string, unknown>): Promise<User | undefined>;
   getUserData(id: string): Promise<Record<string, unknown> | null>;
   
@@ -315,6 +317,24 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
       const client = getClient();
       const [result] = await client.select({ count: sql<number>`count(*)` }).from(users);
       return (result?.count ?? 0) > 0;
+    },
+
+    async countUsers(): Promise<number> {
+      const client = getClient();
+      const [result] = await client
+        .select({ count: count() })
+        .from(users)
+        .where(eq(users.isActive, true));
+      return Number(result?.count ?? 0);
+    },
+
+    async countUsersLoggedInSince(since: Date): Promise<number> {
+      const client = getClient();
+      const [result] = await client
+        .select({ count: count() })
+        .from(users)
+        .where(sql`${users.lastLogin} >= ${since}`);
+      return Number(result?.count ?? 0);
     },
 
     async updateUserData(id: string, data: Record<string, unknown>): Promise<User | undefined> {
