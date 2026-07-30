@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { apiRequest, queryClient, getApiErrorMessage } from "@/lib/queryClient";
@@ -171,7 +172,8 @@ export default function SystemStatusPage() {
                   className="text-xs text-muted-foreground"
                   data-testid={`text-scanned-at-${entry.id}`}
                 >
-                  Scanned {new Date(entry.result.scannedAt).toLocaleString()} (
+                  Scanned {new Date(entry.result.scannedAt).toLocaleString()} —{" "}
+                  {formatDistanceToNow(new Date(entry.result.scannedAt), { addSuffix: true })} (
                   {entry.result.durationMs}ms)
                 </span>
                 {entry.canRescan && (
