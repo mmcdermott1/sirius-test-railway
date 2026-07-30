@@ -73,6 +73,13 @@ function PriorityBadge({ priority }: { priority: StatusPriority }) {
   }
 }
 
+const CARD_PRIORITY_CLASSES: Record<StatusPriority, string> = {
+  info: "border-green-500/50 bg-green-50/50 dark:bg-green-950/20",
+  notice: "border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20",
+  warning: "border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20",
+  error: "border-red-500/50 bg-red-50/50 dark:bg-red-950/20",
+};
+
 export default function SystemStatusPage() {
   usePageTitle("System Status");
   const { toast } = useToast();
@@ -159,8 +166,32 @@ export default function SystemStatusPage() {
         </div>
       )}
 
+      {entries && entries.length > 0 && (() => {
+        const counts = { healthy: 0, notice: 0, warning: 0, error: 0 };
+        for (const e of entries) {
+          if (e.worstPriority === "info") counts.healthy++;
+          else counts[e.worstPriority]++;
+        }
+        const parts = [
+          `${entries.length} status plugin${entries.length === 1 ? "" : "s"}`,
+          `${counts.healthy} healthy`,
+          ...(counts.notice > 0 ? [`${counts.notice} notice${counts.notice === 1 ? "" : "s"}`] : []),
+          ...(counts.warning > 0 ? [`${counts.warning} warning${counts.warning === 1 ? "" : "s"}`] : []),
+          ...(counts.error > 0 ? [`${counts.error} error${counts.error === 1 ? "" : "s"}`] : []),
+        ];
+        return (
+          <p className="text-sm font-medium" data-testid="text-status-summary">
+            {parts.join(", ")}
+          </p>
+        );
+      })()}
+
       {entries?.map((entry) => (
-        <Card key={entry.id} data-testid={`card-system-status-${entry.id}`}>
+        <Card
+          key={entry.id}
+          className={CARD_PRIORITY_CLASSES[entry.worstPriority]}
+          data-testid={`card-system-status-${entry.id}`}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
