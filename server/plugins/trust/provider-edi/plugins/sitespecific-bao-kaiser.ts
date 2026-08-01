@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lte, or, gte, arrayContains } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   workers,
   contacts,
@@ -6,7 +6,7 @@ import {
   phoneNumbers,
   optionsGender,
   trustBenefits,
-  workerTrustElections,
+  trustWmb,
   workerRelations,
   optionsWorkerRelationType,
   employers,
@@ -19,10 +19,10 @@ import {
 /**
  * BAO — Kaiser Permanente eligibility EDI file.
  *
- * Port of the legacy PHP generator. Produces a fixed-width file with one
- * record per subscriber ("A" record) and one per covered dependent
- * ("D" record) for every worker holding an active trust election that
- * includes the Kaiser benefit as of the run date.
+ * Port of the legacy PHP generator's record encoding. Produces a
+ * fixed-width file with one record per subscriber ("A" record) and one per
+ * covered dependent ("D" record) for every worker who holds a monthly
+ * benefit record (trust_wmb) for the configured benefit in the as-of month.
  *
  * Fixed-width layout: `EDI_FIELDS` below defines every output field in
  * order with its exact width (FILLER fields emit spaces). A row is the
@@ -230,7 +230,7 @@ registerTrustProviderEdiPlugin({
   name: "BAO - Kaiser Eligibility File",
   description:
     "Fixed-width Kaiser Permanente eligibility file: one record per subscriber " +
-    "with an active Kaiser trust election, plus one per covered dependent.",
+    "with a Kaiser monthly benefit record in the as-of month, plus one per covered dependent.",
   requiredComponent: "sitespecific.bao",
   configSchema: {
     type: "object",
@@ -252,7 +252,7 @@ registerTrustProviderEdiPlugin({
         title: "Benefit Sirius ID",
         default: "K",
         description:
-          "Sirius ID of the trust benefit whose active elections populate the file.",
+          "Sirius ID of the trust benefit whose monthly benefit records populate the file.",
       },
     },
   },
@@ -263,7 +263,8 @@ registerTrustProviderEdiPlugin({
         type: "string",
         format: "date",
         title: "As-of Date",
-        description: "Include elections active on this date (defaults to today).",
+        description:
+          "Include workers with a monthly benefit record in this date's month (defaults to today).",
       },
       activityDateMode: {
         type: "string",
@@ -293,11 +294,11 @@ registerTrustProviderEdiPlugin({
   },
 
   // NOTE on provider scoping: file membership is defined by the configured
-  // benefit (benefitSiriusId) — the same rule as the legacy PHP generator.
-  // The config's providerId is an organizational dimension (which provider
-  // entity the file/SFTP destination belongs to); the schema has no
-  // provider→benefit or provider→election relation to filter by. Admins
-  // must point each config at the correct benefit.
+  // benefit (benefitSiriusId) — workers with a monthly benefit record
+  // (trust_wmb) for that benefit in the as-of month. The config's providerId
+  // is an organizational dimension (which provider entity the file/SFTP
+  // destination belongs to); the schema has no provider→benefit relation to
+  // filter by. Admins must point each config at the correct benefit.
   async getPrimaryKeys(ctx) {
     const cfg = readConfig(ctx);
     const { asOfYmd } = readInput(ctx);
@@ -307,22 +308,45 @@ registerTrustProviderEdiPlugin({
         `No trust benefit found with Sirius ID '${cfg.benefitSiriusId}' — check the EDI configuration.`,
       );
     }
-    const elections = await ctx.storage.readOnly.query(async (db) =>
+    const asOfYear = Number(asOfYmd.slice(0, 4));
+    const asOfMonth = Number(asOfYmd.slice(5, 7));
+    const wmbRows = await ctx.storage.readOnly.query(async (db) =>
       db
-        .select({ id: workerTrustElections.id })
-        .from(workerTrustElections)
+        .select({
+          id: trustWmb.id,
+          workerId: trustWmb.workerId,
+          employerSiriusId: employers.siriusId,
+        })
+        .from(trustWmb)
+        .leftJoin(employers, eq(trustWmb.employerId, employers.id))
         .where(
           and(
-            arrayContains(workerTrustElections.benefitIds, [benefitId]),
-            lte(workerTrustElections.startYmd, asOfYmd),
-            or(
-              isNull(workerTrustElections.endYmd),
-              gte(workerTrustElections.endYmd, asOfYmd),
-            ),
+            eq(trustWmb.benefitId, benefitId),
+            eq(trustWmb.year, asOfYear),
+            eq(trustWmb.month, asOfMonth),
           ),
         ),
     );
-    return elections.map((e) => e.id);
+    // One subscriber record per worker: if a worker has several qualifying
+    // rows (e.g. two employers), pick deterministically — prefer a non-COBRA
+    // employer row, then lowest row id.
+    const byWorker = new Map<string, (typeof wmbRows)[number]>();
+    for (const row of wmbRows) {
+      const prev = byWorker.get(row.workerId);
+      if (!prev) {
+        byWorker.set(row.workerId, row);
+        continue;
+      }
+      const prevCobra = prev.employerSiriusId === "COBRA";
+      const rowCobra = row.employerSiriusId === "COBRA";
+      if (
+        (prevCobra && !rowCobra) ||
+        (prevCobra === rowCobra && row.id < prev.id)
+      ) {
+        byWorker.set(row.workerId, row);
+      }
+    }
+    return Array.from(byWorker.values()).map((r) => r.id);
   },
 
   async processBatch(keys, ctx) {
@@ -330,17 +354,17 @@ registerTrustProviderEdiPlugin({
     const { asOfYmd, activityDate } = readInput(ctx);
 
     const rows = await ctx.storage.readOnly.query(async (db) => {
-      const elections = await db
+      const wmbRows = await db
         .select()
-        .from(workerTrustElections)
-        .where(inArray(workerTrustElections.id, keys));
+        .from(trustWmb)
+        .where(inArray(trustWmb.id, keys));
 
       const out: Array<Record<string, unknown>> = [];
 
-      // COBRA elections (Kaiser enrollment unit 7000) are those whose
-      // election employer has the Sirius ID "COBRA".
+      // COBRA members (Kaiser enrollment unit 7000) are those whose monthly
+      // benefit record's employer has the Sirius ID "COBRA".
       const employerIds = Array.from(
-        new Set(elections.map((e) => e.employerId).filter(Boolean)),
+        new Set(wmbRows.map((e) => e.employerId).filter(Boolean)),
       );
       const cobraEmployers = employerIds.length
         ? await db
@@ -355,7 +379,52 @@ registerTrustProviderEdiPlugin({
         : [];
       const cobraEmployerIds = new Set(cobraEmployers.map((e) => e.id));
 
-      for (const election of elections) {
+      // Coverage start = first month of the worker's CONTIGUOUS run of
+      // monthly records for this benefit ending at the as-of month. Load all
+      // (worker, year, month) pairs for the batch's workers + benefit once.
+      const workerIds = Array.from(new Set(wmbRows.map((r) => r.workerId)));
+      const benefitIds = Array.from(new Set(wmbRows.map((r) => r.benefitId)));
+      const allMonths = workerIds.length
+        ? await db
+            .select({
+              workerId: trustWmb.workerId,
+              year: trustWmb.year,
+              month: trustWmb.month,
+            })
+            .from(trustWmb)
+            .where(
+              and(
+                inArray(trustWmb.workerId, workerIds),
+                inArray(trustWmb.benefitId, benefitIds),
+              ),
+            )
+        : [];
+      const monthsByWorker = new Map<string, Set<string>>();
+      for (const m of allMonths) {
+        let set = monthsByWorker.get(m.workerId);
+        if (!set) monthsByWorker.set(m.workerId, (set = new Set()));
+        set.add(`${m.year}-${m.month}`);
+      }
+      /** Walk back from (year, month) while the previous month exists. */
+      function coverageStartFor(workerId: string, year: number, month: number): string {
+        const set = monthsByWorker.get(workerId);
+        let y = year;
+        let m = month;
+        while (set) {
+          let py = y;
+          let pm = m - 1;
+          if (pm === 0) {
+            pm = 12;
+            py -= 1;
+          }
+          if (!set.has(`${py}-${pm}`)) break;
+          y = py;
+          m = pm;
+        }
+        return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-01`;
+      }
+
+      for (const wmb of wmbRows) {
         // Subscriber demographics.
         const [subscriber] = await db
           .select({
@@ -371,7 +440,7 @@ registerTrustProviderEdiPlugin({
           .from(workers)
           .innerJoin(contacts, eq(workers.contactId, contacts.id))
           .leftJoin(optionsGender, eq(contacts.gender, optionsGender.id))
-          .where(eq(workers.id, election.workerId));
+          .where(eq(workers.id, wmb.workerId));
         if (!subscriber) continue;
 
         const [postal] = await db
@@ -404,22 +473,23 @@ registerTrustProviderEdiPlugin({
         const subscriberName = [subscriber.givenName, subscriber.familyName]
           .filter(Boolean)
           .join(" ");
+        const startYmd = coverageStartFor(wmb.workerId, wmb.year, wmb.month);
         const coverageStartYmd =
-          election.startYmd < COVERAGE_START_FLOOR
-            ? COVERAGE_START_FLOOR
-            : election.startYmd;
+          startYmd < COVERAGE_START_FLOOR ? COVERAGE_START_FLOOR : startYmd;
 
         const shared = {
           regionCode: cfg.regionCode,
           customerId: cfg.customerId,
-          enrollmentUnit: cobraEmployerIds.has(election.employerId)
+          enrollmentUnit: cobraEmployerIds.has(wmb.employerId)
             ? "7000"
             : "0000",
           activityDate,
           subscriberSsn,
           subscriberName,
           coverageStart: ymdCompact(coverageStartYmd),
-          coverageEnd: ymdCompact(election.endYmd),
+          // Monthly benefit records have no end date; coverage is open,
+          // matching how an election with null endYmd encoded (blank).
+          coverageEnd: "",
           // Premiums are not modeled here yet; the legacy generator encodes
           // the (zero) amount, producing "000000{".
           duesAmount: kaiserEncodeNumber(0),
@@ -427,7 +497,7 @@ registerTrustProviderEdiPlugin({
 
         // Subscriber record ("A").
         out.push({
-          pk: election.id,
+          pk: wmb.id,
           ...shared,
           recordCode: "A",
           memberSsn: subscriberSsn,
@@ -446,9 +516,9 @@ registerTrustProviderEdiPlugin({
           supplementalId: "",
         });
 
-        // Dependent records ("D") for each covered relationship.
-        const relIds = election.relationshipIds ?? [];
-        if (!relIds.length) continue;
+        // Dependent records ("D"): the worker's covered relations that are
+        // still active as of the run date (monthly benefit records carry no
+        // explicit relationship list, unlike elections).
         const relations = await db
           .select({
             relationId: workerRelations.id,
@@ -470,7 +540,7 @@ registerTrustProviderEdiPlugin({
             optionsWorkerRelationType,
             eq(workerRelations.relationType, optionsWorkerRelationType.id),
           )
-          .where(inArray(workerRelations.id, relIds));
+          .where(eq(workerRelations.worker1, wmb.workerId));
 
         for (const rel of relations) {
           if (rel.endYmd && rel.endYmd < asOfYmd) continue;
@@ -505,7 +575,7 @@ registerTrustProviderEdiPlugin({
             );
 
           out.push({
-            pk: `${election.id}:${rel.relationId}`,
+            pk: `${wmb.id}:${rel.relationId}`,
             ...shared,
             recordCode: "D",
             memberSsn: padSsn(rel.ssn),
