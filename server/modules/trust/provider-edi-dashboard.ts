@@ -18,7 +18,7 @@ interface LatestWizardSummary {
   recordCount: number | null;
 }
 
-interface DashboardRow {
+export interface TrustProviderEdiDashboardRow {
   configId: string;
   configName: string | null;
   pluginId: string;
@@ -77,12 +77,75 @@ function summarizeWizard(wizard: {
 }
 
 /**
- * Dashboard for EDI services: every enabled `trust-provider-edi`
- * configuration joined with its provider name and a summary of the most
- * recent `trust_provider_edi` wizard whose selected config
- * (`data.config.configId`) matches. Gated on the same component + admin
- * policy as the other trust provider EDI surfaces (the plugin kind and the
- * wizard both declare `trust.providers.edi` + admin).
+ * Shared aggregation: every enabled `trust-provider-edi` configuration
+ * joined with its provider name and a summary of the most recent
+ * `trust_provider_edi` wizard whose selected config
+ * (`data.config.configId`) matches. Used by both the EDI page endpoint
+ * below and the "EDI" dashboard widget so the two always agree.
+ */
+export async function getTrustProviderEdiDashboardRows(): Promise<
+  TrustProviderEdiDashboardRow[]
+> {
+  const [envelopes, providers, wizards] = await Promise.all([
+    storage.pluginConfigs.search("trust-provider-edi", { enabled: true }),
+    storage.trustProviders.getAllTrustProviders(),
+    storage.wizards.list({ type: WIZARD_TYPE }),
+  ]);
+
+  const providerNames = new Map<string, string>(
+    providers.map((p: { id: string; name: string }) => [p.id, p.name]),
+  );
+
+  // Latest wizard per selected configId (wizards store the chosen
+  // configuration under data.config.configId).
+  const latestByConfig = new Map<string, (typeof wizards)[number]>();
+  for (const w of wizards) {
+    const configId = (w.data as any)?.config?.configId;
+    if (!configId) continue;
+    const prev = latestByConfig.get(configId);
+    if (!prev || new Date(w.date) > new Date(prev.date)) {
+      latestByConfig.set(configId, w);
+    }
+  }
+
+  const { trustProviderEdiPluginRegistry } = await import(
+    "../../plugins/trust/provider-edi/registry"
+  );
+
+  const rows: TrustProviderEdiDashboardRow[] = envelopes.map((e) => {
+    const providerId = (e.subsidiary as any)?.providerId ?? null;
+    const ediPlugin = trustProviderEdiPluginRegistry.get(e.config.pluginId);
+    const latest = latestByConfig.get(e.config.id);
+    return {
+      configId: e.config.id,
+      configName: e.config.name,
+      pluginId: e.config.pluginId,
+      pluginName: ediPlugin?.name ?? e.config.pluginId,
+      providerId,
+      providerName: providerId ? providerNames.get(providerId) ?? null : null,
+      sftpClientId: (e.subsidiary as any)?.sftpClientId ?? null,
+      latestWizard: latest ? summarizeWizard(latest) : null,
+    };
+  });
+
+  // Sort by provider name (rows with no provider last), then config name.
+  rows.sort((a, b) => {
+    const pa = a.providerName ?? "\uffff";
+    const pb = b.providerName ?? "\uffff";
+    const byProvider = pa.localeCompare(pb);
+    if (byProvider !== 0) return byProvider;
+    return (a.configName ?? a.pluginName).localeCompare(
+      b.configName ?? b.pluginName,
+    );
+  });
+
+  return rows;
+}
+
+/**
+ * EDI page endpoint. Gated on the same component + admin policy as the
+ * other trust provider EDI surfaces (the plugin kind and the wizard both
+ * declare `trust.providers.edi` + admin).
  */
 export function registerTrustProviderEdiDashboardRoutes(
   app: Express,
@@ -95,60 +158,7 @@ export function registerTrustProviderEdiDashboardRoutes(
     requireAccess("admin"),
     async (_req, res) => {
       try {
-        const [envelopes, providers, wizards] = await Promise.all([
-          storage.pluginConfigs.search("trust-provider-edi", { enabled: true }),
-          storage.trustProviders.getAllTrustProviders(),
-          storage.wizards.list({ type: WIZARD_TYPE }),
-        ]);
-
-        const providerNames = new Map<string, string>(
-          providers.map((p: { id: string; name: string }) => [p.id, p.name]),
-        );
-
-        // Latest wizard per selected configId (wizards store the chosen
-        // configuration under data.config.configId).
-        const latestByConfig = new Map<string, (typeof wizards)[number]>();
-        for (const w of wizards) {
-          const configId = (w.data as any)?.config?.configId;
-          if (!configId) continue;
-          const prev = latestByConfig.get(configId);
-          if (!prev || new Date(w.date) > new Date(prev.date)) {
-            latestByConfig.set(configId, w);
-          }
-        }
-
-        const { trustProviderEdiPluginRegistry } = await import(
-          "../../plugins/trust/provider-edi/registry"
-        );
-
-        const rows: DashboardRow[] = envelopes.map((e) => {
-          const providerId = (e.subsidiary as any)?.providerId ?? null;
-          const ediPlugin = trustProviderEdiPluginRegistry.get(e.config.pluginId);
-          const latest = latestByConfig.get(e.config.id);
-          return {
-            configId: e.config.id,
-            configName: e.config.name,
-            pluginId: e.config.pluginId,
-            pluginName: ediPlugin?.name ?? e.config.pluginId,
-            providerId,
-            providerName: providerId ? providerNames.get(providerId) ?? null : null,
-            sftpClientId: (e.subsidiary as any)?.sftpClientId ?? null,
-            latestWizard: latest ? summarizeWizard(latest) : null,
-          };
-        });
-
-        // Sort by provider name (rows with no provider last), then config name.
-        rows.sort((a, b) => {
-          const pa = a.providerName ?? "\uffff";
-          const pb = b.providerName ?? "\uffff";
-          const byProvider = pa.localeCompare(pb);
-          if (byProvider !== 0) return byProvider;
-          return (a.configName ?? a.pluginName).localeCompare(
-            b.configName ?? b.pluginName,
-          );
-        });
-
-        res.json({ rows });
+        res.json({ rows: await getTrustProviderEdiDashboardRows() });
       } catch (error) {
         res.status(500).json({
           message:
