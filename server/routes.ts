@@ -21,6 +21,7 @@ import { registerEmployerContactRoutes } from "./modules/employers/contacts";
 import { registerTrustBenefitsRoutes } from "./modules/trust/benefits";
 import { registerTrustProvidersRoutes } from "./modules/trust/providers";
 import { registerTrustProviderContactRoutes } from "./modules/trust/provider/contacts";
+import { registerTrustProviderEdiDashboardRoutes } from "./modules/trust/provider-edi-dashboard";
 import { registerConsolidatedOptionsRoutes } from "./modules/options-routes";
 import { getOptionsType } from "./modules/options-registry";
 import { registerWorkerIdsRoutes } from "./modules/workers/ids";
@@ -461,6 +462,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   registerHelpRoutes(app, requireAuth, requireAccess, storage);
 
   // Register trust provider EDI routes
+  registerTrustProviderEdiDashboardRoutes(app, requireAuth);
 
   // Register bulk message routes
   registerBulkMessageRoutes(app, requireAuth, requireAccess, storage);
