@@ -15,6 +15,48 @@
  * IMPORTANT: Do NOT pass Ymd values through `new Date()` - that will reintroduce timezone issues.
  */
 
+/**
+ * Durations
+ *
+ * Human-readable duration formatting in the `Xd Yh Zm` style shared by the
+ * uptime status plugin and the worker TOS surfaces. The formatter is pure:
+ * callers decide how to present negative/invalid durations (clamp, placeholder).
+ */
+
+/**
+ * Format a non-negative millisecond duration as `Xd Yh Zm`.
+ * Days and hours are omitted when zero; the minutes part is always emitted
+ * (so a fresh duration renders as `0m`). Negative input is clamped to `0m`.
+ */
+export function formatDurationMs(ms: number): string {
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const mins = totalMinutes % 60;
+  const parts: string[] = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  parts.push(`${mins}m`);
+  return parts.join(" ");
+}
+
+/**
+ * Format the duration between two instants as `Xd Yh Zm`.
+ * Accepts Dates or date strings; a null/undefined `end` means "now".
+ * Returns null when the span is negative or either input is unparseable,
+ * letting callers choose their own placeholder (`—`, `0m`, ...).
+ */
+export function formatDurationBetween(
+  start: Date | string,
+  end?: Date | string | null,
+): string | null {
+  const s = typeof start === "string" ? new Date(start) : start;
+  const e = end == null ? new Date() : typeof end === "string" ? new Date(end) : end;
+  const ms = e.getTime() - s.getTime();
+  if (Number.isNaN(ms) || ms < 0) return null;
+  return formatDurationMs(ms);
+}
+
 export type Ymd = string;
 
 const YMD_REGEX = /^\d{4}-\d{2}-\d{2}$/;
