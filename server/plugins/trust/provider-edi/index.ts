@@ -65,8 +65,12 @@ function registerTrustProviderEdiKind(): void {
     }),
     envelopeFields: [
       {
+        // NOTE: organizational label only — which provider this file belongs
+        // to. It does NOT filter file membership (no provider→benefit
+        // relation exists); each plugin defines membership from its own
+        // config (e.g. Kaiser's benefitSiriusId).
         name: "providerId",
-        label: "Provider",
+        label: "Provider (label only — does not filter members)",
         type: "string",
         filterable: true,
         options: {

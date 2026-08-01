@@ -9,6 +9,7 @@ import {
   workerTrustElections,
   workerRelations,
   optionsWorkerRelationType,
+  employers,
 } from "@shared/schema";
 import {
   registerTrustProviderEdiPlugin,
@@ -38,33 +39,84 @@ interface EdiField {
   get?: (row: Record<string, unknown>) => string;
 }
 
+// Exact port of the legacy PHP `edi_fields()` layout (field order, widths,
+// and FILLERs). Fields with no `get` emit spaces.
 const EDI_FIELDS: EdiField[] = [
-  { name: "region_code", width: 3, get: (r) => str(r.regionCode) },
-  { name: "record_type", width: 1, get: () => "1" },
-  { name: "customer_id", width: 9, get: (r) => str(r.customerId) },
-  { name: "enrollment_unit", width: 4, get: (r) => str(r.enrollmentUnit) },
-  { name: "activity_date", width: 8, get: (r) => str(r.activityDate) },
-  { name: "record_code", width: 1, get: (r) => str(r.recordCode) },
-  { name: "subscriber_ssn", width: 9, get: (r) => str(r.subscriberSsn) },
-  { name: "member_ssn", width: 9, get: (r) => str(r.memberSsn) },
-  { name: "account_role", width: 2, get: (r) => str(r.accountRole) },
-  { name: "last_name", width: 25, get: (r) => str(r.lastName) },
-  { name: "first_name", width: 15, get: (r) => str(r.firstName) },
-  { name: "middle_initial", width: 1, get: (r) => str(r.middleInitial) },
-  { name: "gender", width: 2, get: (r) => str(r.gender) },
-  { name: "birth_date", width: 8, get: (r) => str(r.birthDate) },
-  { name: "address_1", width: 30, get: (r) => str(r.street) },
-  { name: "address_2", width: 30, get: () => "" },
-  { name: "city", width: 20, get: (r) => str(r.city) },
-  { name: "state", width: 2, get: (r) => str(r.state) },
-  { name: "zip", width: 9, get: (r) => str(r.zip) },
-  { name: "phone", width: 10, get: (r) => str(r.phone) },
-  { name: "coverage_start", width: 8, get: (r) => str(r.coverageStart) },
-  { name: "coverage_end", width: 8, get: (r) => str(r.coverageEnd) },
-  { name: "supplemental_id", width: 2, get: (r) => str(r.supplementalId) },
-  { name: "current_dues_amount", width: 7, get: (r) => str(r.duesAmount) },
-  { name: "filler", width: 20 },
+  { name: "Region Code", width: 3, get: (r) => str(r.regionCode) },
+  { name: "Record Type", width: 1, get: () => "1" },
+  { name: "Customer ID", width: 9, get: (r) => str(r.customerId) },
+  { name: "Enrollment Unit", width: 4, get: (r) => str(r.enrollmentUnit) },
+  { name: "FILLER1", width: 36 },
+  { name: "Activity Date", width: 8, get: (r) => str(r.activityDate) },
+  { name: "Transaction Type", width: 1 },
+  { name: "Record Code", width: 1, get: (r) => str(r.recordCode) },
+  { name: "FILLER2", width: 38 },
+  { name: "Last Name", width: 25, get: (r) => str(r.lastName) },
+  { name: "First Name", width: 25, get: (r) => str(r.firstName) },
+  { name: "Middle Name", width: 25, get: (r) => str(r.middleName) },
+  { name: "Account Role", width: 2, get: (r) => str(r.accountRole) },
+  { name: "FILLER3", width: 10 },
+  { name: "Birth Date", width: 8, get: (r) => str(r.birthDate) },
+  { name: "Marital Status", width: 2 },
+  { name: "FILLER4", width: 10 },
+  { name: "Gender", width: 2, get: (r) => str(r.gender) },
+  { name: "FILLER5", width: 5 },
+  { name: "FILLER6", width: 1 },
+  { name: "FILLER7", width: 2 },
+  { name: "Subscriber SSN", width: 9, get: (r) => str(r.subscriberSsn) },
+  { name: "Member SSN", width: 9, get: (r) => str(r.memberSsn) },
+  { name: "FILLER8", width: 2 },
+  { name: "Employee ID", width: 9 },
+  { name: "Supplemental ID", width: 16, get: (r) => str(r.supplementalId) },
+  { name: "Employer ID", width: 4 },
+  { name: "Employment Status", width: 2 },
+  { name: "FILLER9", width: 5 },
+  { name: "Hire Date", width: 8 },
+  { name: "Home Phone", width: 10, get: (r) => str(r.phone) },
+  { name: "Work", width: 10 },
+  { name: "FILLER10", width: 30 },
+  { name: "Address Line 1", width: 40, get: (r) => str(r.street) },
+  { name: "Address Line 2", width: 40 },
+  { name: "FILLER11", width: 30 },
+  { name: "City", width: 45, get: (r) => str(r.city) },
+  { name: "FILLER12", width: 45 },
+  { name: "State", width: 2, get: (r) => str(r.state) },
+  { name: "ZIP Code", width: 5, get: (r) => str(r.zip) },
+  { name: "FILLER13", width: 2 },
+  { name: "ZIP Plus 4", width: 4 },
+  { name: "FILLER14", width: 45 },
+  { name: "Enrollment  Reason", width: 2 },
+  { name: "FILLER15", width: 10 },
+  { name: "Effective Date", width: 8, get: (r) => str(r.coverageStart) },
+  { name: "FILLER16", width: 8 },
+  { name: "FILLER17", width: 2 },
+  { name: "FILLER18", width: 10 },
+  { name: "Termination Date", width: 8, get: (r) => str(r.coverageEnd) },
+  { name: "FILLER19", width: 2 },
+  { name: "FILLER20", width: 8 },
+  { name: "Current Eligibility Status", width: 1 },
+  { name: "Current Dues Amount", width: 7, get: (r) => str(r.duesAmount) },
+  { name: "Current Rate Code", width: 5 },
+  { name: "Retroactivity Date", width: 8 },
+  { name: "Retroactive Dues Amount", width: 7 },
+  { name: "Retroactive Rate Code", width: 5 },
+  { name: "Additional Retroactivity", width: 220 },
+  { name: "FILLER21", width: 7 },
+  { name: "Eligibility Date", width: 8 },
+  { name: "Dues Amount or Rate Code", width: 7 },
+  { name: "Eligibility Status", width: 1 },
+  { name: "Additional Eligibility Grid Information", width: 160 },
+  { name: "FILLER22", width: 36 },
 ];
+
+/** Encode one persisted row as a fixed-width Kaiser record (exported for the format check script). */
+export function encodeKaiserRow(row: Record<string, unknown>): string {
+  return EDI_FIELDS.map((f) => padField(f.get ? f.get(row) : "", f)).join("");
+}
+
+/** Exported for the format check script. */
+export const KAISER_EDI_FIELDS: ReadonlyArray<{ name: string; width: number }> =
+  EDI_FIELDS.map((f) => ({ name: f.name, width: f.width }));
 
 function str(v: unknown): string {
   return v == null ? "" : String(v);
@@ -77,7 +129,11 @@ function padField(value: string, field: EdiField): string {
     : v.padEnd(field.width, " ");
 }
 
-/** Legacy `kaiser_encode_number`: signed-overpunch encoding, 7 chars wide. */
+/**
+ * Legacy `kaiser_encode_number`: amount in dollars → cents with the last
+ * digit replaced by a signed-overpunch character, zero-padded to 7 wide.
+ * kaiserEncodeNumber(0) === "000000{".
+ */
 export function kaiserEncodeNumber(amount: number, width = 7): string {
   const cents = Math.round(Math.abs(amount) * 100);
   const digits = String(cents).padStart(width, "0").slice(-width);
@@ -149,9 +205,10 @@ function readInput(ctx: TrustProviderEdiContext): {
   const input = ctx.input ?? {};
   const today = new Date().toISOString().slice(0, 10);
   const asOfYmd = typeof input.asOfDate === "string" && input.asOfDate ? input.asOfDate : today;
-  // activity_date option: file creation date (default) vs first of the month.
+  // activity_date option: file creation date (default) vs first of the
+  // current month (legacy uses today's month, not the as-of month).
   const mode = input.activityDateMode === "first_of_month" ? "first_of_month" : "creation_date";
-  const activity = mode === "first_of_month" ? `${asOfYmd.slice(0, 7)}-01` : today;
+  const activity = mode === "first_of_month" ? `${today.slice(0, 7)}-01` : today;
   return { asOfYmd, activityDate: ymdCompact(activity) };
 }
 
@@ -235,6 +292,12 @@ registerTrustProviderEdiPlugin({
     ];
   },
 
+  // NOTE on provider scoping: file membership is defined by the configured
+  // benefit (benefitSiriusId) — the same rule as the legacy PHP generator.
+  // The config's providerId is an organizational dimension (which provider
+  // entity the file/SFTP destination belongs to); the schema has no
+  // provider→benefit or provider→election relation to filter by. Admins
+  // must point each config at the correct benefit.
   async getPrimaryKeys(ctx) {
     const cfg = readConfig(ctx);
     const { asOfYmd } = readInput(ctx);
@@ -273,6 +336,24 @@ registerTrustProviderEdiPlugin({
         .where(inArray(workerTrustElections.id, keys));
 
       const out: Array<Record<string, unknown>> = [];
+
+      // COBRA elections (Kaiser enrollment unit 7000) are those whose
+      // election employer has the Sirius ID "COBRA".
+      const employerIds = Array.from(
+        new Set(elections.map((e) => e.employerId).filter(Boolean)),
+      );
+      const cobraEmployers = employerIds.length
+        ? await db
+            .select({ id: employers.id })
+            .from(employers)
+            .where(
+              and(
+                inArray(employers.id, employerIds),
+                eq(employers.siriusId, "COBRA"),
+              ),
+            )
+        : [];
+      const cobraEmployerIds = new Set(cobraEmployers.map((e) => e.id));
 
       for (const election of elections) {
         // Subscriber demographics.
@@ -331,20 +412,17 @@ registerTrustProviderEdiPlugin({
         const shared = {
           regionCode: cfg.regionCode,
           customerId: cfg.customerId,
-          // COBRA enrollments (unit 7000) are not modeled in this system yet;
-          // all records are emitted as active-employee unit 0000.
-          enrollmentUnit: "0000",
+          enrollmentUnit: cobraEmployerIds.has(election.employerId)
+            ? "7000"
+            : "0000",
           activityDate,
           subscriberSsn,
           subscriberName,
-          street: postal?.street ?? "",
-          city: postal?.city ?? "",
-          state: postal?.state ?? "",
-          zip: String(postal?.postalCode ?? "").replace(/\D/g, "").slice(0, 9),
-          phone: phoneDigits(phone?.phoneNumber),
           coverageStart: ymdCompact(coverageStartYmd),
           coverageEnd: ymdCompact(election.endYmd),
-          duesAmount: "",
+          // Premiums are not modeled here yet; the legacy generator encodes
+          // the (zero) amount, producing "000000{".
+          duesAmount: kaiserEncodeNumber(0),
         };
 
         // Subscriber record ("A").
@@ -357,9 +435,14 @@ registerTrustProviderEdiPlugin({
           accountRole: "01",
           lastName: subscriber.familyName ?? "",
           firstName: subscriber.givenName ?? "",
-          middleInitial: (subscriber.middleName ?? "").slice(0, 1),
+          middleName: subscriber.middleName ?? "",
           gender: genderCode(subscriber.genderCode),
           birthDate: ymdCompact(subscriber.birthDate),
+          street: postal?.street ?? "",
+          city: postal?.city ?? "",
+          state: postal?.state ?? "",
+          zip: String(postal?.postalCode ?? "").replace(/\D/g, "").slice(0, 5),
+          phone: phoneDigits(phone?.phoneNumber),
           supplementalId: "",
         });
 
@@ -392,6 +475,35 @@ registerTrustProviderEdiPlugin({
         for (const rel of relations) {
           if (rel.endYmd && rel.endYmd < asOfYmd) continue;
           const relSirius = rel.relationSiriusId ?? null;
+
+          // Dependents carry their own address and phone (legacy generator
+          // reads them from the member's record, not the subscriber's).
+          const [relPostal] = await db
+            .select({
+              street: contactPostal.street,
+              city: contactPostal.city,
+              state: contactPostal.state,
+              postalCode: contactPostal.postalCode,
+            })
+            .from(contactPostal)
+            .where(
+              and(
+                eq(contactPostal.contactId, rel.contactId),
+                eq(contactPostal.isActive, true),
+                eq(contactPostal.isPrimary, true),
+              ),
+            );
+          const [relPhone] = await db
+            .select({ phoneNumber: phoneNumbers.phoneNumber })
+            .from(phoneNumbers)
+            .where(
+              and(
+                eq(phoneNumbers.contactId, rel.contactId),
+                eq(phoneNumbers.isActive, true),
+                eq(phoneNumbers.isPrimary, true),
+              ),
+            );
+
           out.push({
             pk: `${election.id}:${rel.relationId}`,
             ...shared,
@@ -401,9 +513,14 @@ registerTrustProviderEdiPlugin({
             accountRole: accountRole(relSirius),
             lastName: rel.familyName ?? "",
             firstName: rel.givenName ?? "",
-            middleInitial: (rel.middleName ?? "").slice(0, 1),
+            middleName: rel.middleName ?? "",
             gender: genderCode(rel.genderCode),
             birthDate: ymdCompact(rel.birthDate),
+            street: relPostal?.street ?? "",
+            city: relPostal?.city ?? "",
+            state: relPostal?.state ?? "",
+            zip: String(relPostal?.postalCode ?? "").replace(/\D/g, "").slice(0, 5),
+            phone: phoneDigits(relPhone?.phoneNumber),
             supplementalId: relSirius === "QMSCO" ? "08" : "",
           });
         }
@@ -415,7 +532,7 @@ registerTrustProviderEdiPlugin({
   },
 
   encodeRow(row) {
-    return EDI_FIELDS.map((f) => padField(f.get ? f.get(row) : "", f)).join("");
+    return encodeKaiserRow(row);
   },
 
   buildFilename() {
