@@ -3,7 +3,7 @@ name: Trust-provider EDI scoping decision
 description: Why EDI file membership is scoped by benefit, not by the config's providerId
 ---
 
-Rule: `trust-provider-edi` plugin configs carry a `providerId` subsidiary dimension, but file membership is defined solely by the configured benefit (`benefitSiriusId`) — workers with a monthly benefit record for that benefit in the as-of month (user decision: "EDI files are driven by benefits", not elections).
+Rule: `trust-provider-edi` plugin configs carry a `providerId` subsidiary dimension, but file membership is defined solely by the configured benefit (`benefitSiriusId`) — workers with a monthly benefit record for that benefit in the as-of month (user decision: "EDI files are driven by benefits", not elections). Dependents come from worker relations and must use canonical active semantics (start ≤ as-of AND end null/≥ as-of) — an end-only filter leaks future-dated dependents into counts and rows.
 
 **Why:** The schema has NO provider→benefit or provider→election relation, and the legacy PHP generators also scoped only by benefit. An architect review flagged "config's provider is ignored" as a cross-provider PII risk; it is by design until a provider↔benefit linkage exists (follow-up task proposed). COBRA detection = wmb row's employer with siriusId "COBRA" (per user).
 
