@@ -1,4 +1,5 @@
 import { logger } from "../../../logger";
+import { wmbPrimaryKeys } from "./base";
 import { PluginRegistry, isPluginComponentEnabledSync } from "../../_core";
 import type { BasePluginMetadata } from "../../_core";
 import type { JsonSchema } from "@shared/json-schema-form";
@@ -36,10 +37,20 @@ export interface TrustProviderEdiPlugin extends BasePluginMetadata {
   configSchema?: JsonSchema;
   /** JSON Schema for wizard run parameters (e.g. as-of date). */
   inputSchema?: JsonSchema;
+  /**
+   * Sirius IDs of the trust benefit(s) whose monthly benefit records define
+   * file membership. When set (and `getPrimaryKeys` is not overridden), the
+   * registry supplies the default wmb-driven `getPrimaryKeys`. A config-level
+   * `benefitSiriusId` data value still overrides these defaults per config.
+   */
+  benefitSiriusIds?: readonly string[];
   /** Columns for the wizard results preview table (and CSV export). */
   getColumns(): Array<{ id: string; header: string; type?: string; width?: number }>;
-  /** List every record key that belongs in the file. */
-  getPrimaryKeys(ctx: TrustProviderEdiContext): Promise<string[]>;
+  /**
+   * List every record key that belongs in the file. Optional when
+   * `benefitSiriusIds` is declared — the default wmb membership is used.
+   */
+  getPrimaryKeys?(ctx: TrustProviderEdiContext): Promise<string[]>;
   /**
    * Materialize a batch of keys into row objects. Each row must carry its
    * key under `pk`; rows are persisted to `wizard_report_data`.
@@ -99,6 +110,15 @@ class TrustProviderEdiPluginRegistry extends PluginRegistry<
   }
 
   register(plugin: TrustProviderEdiPlugin): void {
+    if (!plugin.getPrimaryKeys) {
+      const siriusIds = plugin.benefitSiriusIds;
+      if (!siriusIds?.length) {
+        throw new Error(
+          `Trust provider EDI plugin '${plugin.id}' must declare benefitSiriusIds or implement getPrimaryKeys.`,
+        );
+      }
+      plugin.getPrimaryKeys = (ctx) => wmbPrimaryKeys(ctx, siriusIds);
+    }
     super.register(plugin);
     logger.info(`Trust provider EDI plugin registered: ${plugin.id}`, {
       service: "trust-provider-edi-registry",

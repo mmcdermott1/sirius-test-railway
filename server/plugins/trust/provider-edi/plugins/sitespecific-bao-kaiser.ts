@@ -1,20 +1,19 @@
-import { and, eq, inArray } from "drizzle-orm";
-import {
-  workers,
-  contacts,
-  contactPostal,
-  phoneNumbers,
-  optionsGender,
-  trustBenefits,
-  trustWmb,
-  workerRelations,
-  optionsWorkerRelationType,
-  employers,
-} from "@shared/schema";
 import {
   registerTrustProviderEdiPlugin,
   type TrustProviderEdiContext,
 } from "../registry";
+import {
+  type EdiField,
+  encodeFixedWidthRow,
+  str,
+  ymdCompact,
+  padSsn,
+  phoneDigits,
+  readAsOfYmd,
+  buildMemberUnits,
+  displayName,
+  postalFields,
+} from "../base";
 
 /**
  * BAO — Kaiser Permanente eligibility EDI file.
@@ -22,22 +21,14 @@ import {
  * Port of the legacy PHP generator's record encoding. Produces a
  * fixed-width file with one record per subscriber ("A" record) and one per
  * covered dependent ("D" record) for every worker who holds a monthly
- * benefit record (trust_wmb) for the configured benefit in the as-of month.
+ * benefit record (trust_wmb) for the configured benefit in the as-of month
+ * (membership/dependent assembly comes from the shared EDI base).
  *
  * Fixed-width layout: `EDI_FIELDS` below defines every output field in
  * order with its exact width (FILLER fields emit spaces). A row is the
  * concatenation of each field value left-justified and space-padded (or
  * zero-padded where noted) to its width.
  */
-
-/** Field layout, in output order. `get` reads from the persisted row. */
-interface EdiField {
-  name: string;
-  width: number;
-  /** 'left' (default, space pad) | 'right' (zero pad, numeric). */
-  align?: "left" | "right";
-  get?: (row: Record<string, unknown>) => string;
-}
 
 // Exact port of the legacy PHP `edi_fields()` layout (field order, widths,
 // and FILLERs). Fields with no `get` emit spaces.
@@ -111,23 +102,12 @@ const EDI_FIELDS: EdiField[] = [
 
 /** Encode one persisted row as a fixed-width Kaiser record (exported for the format check script). */
 export function encodeKaiserRow(row: Record<string, unknown>): string {
-  return EDI_FIELDS.map((f) => padField(f.get ? f.get(row) : "", f)).join("");
+  return encodeFixedWidthRow(EDI_FIELDS, row);
 }
 
 /** Exported for the format check script. */
 export const KAISER_EDI_FIELDS: ReadonlyArray<{ name: string; width: number }> =
   EDI_FIELDS.map((f) => ({ name: f.name, width: f.width }));
-
-function str(v: unknown): string {
-  return v == null ? "" : String(v);
-}
-
-function padField(value: string, field: EdiField): string {
-  const v = value.slice(0, field.width);
-  return field.align === "right"
-    ? v.padStart(field.width, "0")
-    : v.padEnd(field.width, " ");
-}
 
 /**
  * Legacy `kaiser_encode_number`: amount in dollars → cents with the last
@@ -142,26 +122,6 @@ export function kaiserEncodeNumber(amount: number, width = 7): string {
   const negatives = ["}", "J", "K", "L", "M", "N", "O", "P", "Q", "R"];
   const overpunch = amount < 0 ? negatives[lastDigit] : positives[lastDigit];
   return digits.slice(0, -1) + overpunch;
-}
-
-/** yyyy-mm-dd (or Date) → YYYYMMDD; empty when absent. */
-function ymdCompact(value: unknown): string {
-  if (!value) return "";
-  const s = String(value).slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.replace(/-/g, "") : "";
-}
-
-/** SSN digits, zero-padded to 9; empty stays empty. */
-function padSsn(ssn: unknown): string {
-  const digits = String(ssn ?? "").replace(/\D/g, "");
-  return digits ? digits.padStart(9, "0").slice(-9) : "";
-}
-
-function phoneDigits(phone: unknown): string {
-  const digits = String(phone ?? "").replace(/\D/g, "");
-  return digits.length === 11 && digits.startsWith("1")
-    ? digits.slice(1)
-    : digits.slice(0, 10);
 }
 
 /** Relation-type sirius id → Kaiser account role. */
@@ -186,7 +146,6 @@ const COVERAGE_START_FLOOR = "2025-08-01";
 interface KaiserConfigData {
   regionCode?: string;
   customerId?: string;
-  benefitSiriusId?: string;
 }
 
 function readConfig(ctx: TrustProviderEdiContext): Required<KaiserConfigData> {
@@ -194,35 +153,19 @@ function readConfig(ctx: TrustProviderEdiContext): Required<KaiserConfigData> {
   return {
     regionCode: d.regionCode || "SCR",
     customerId: d.customerId || "000226111",
-    benefitSiriusId: d.benefitSiriusId || "K",
   };
 }
 
-function readInput(ctx: TrustProviderEdiContext): {
-  asOfYmd: string;
-  activityDate: string;
-} {
+/**
+ * Activity date option: file creation date (default) vs first of the
+ * current month (legacy uses today's month, not the as-of month).
+ */
+function readActivityDate(ctx: TrustProviderEdiContext): string {
   const input = ctx.input ?? {};
   const today = new Date().toISOString().slice(0, 10);
-  const asOfYmd = typeof input.asOfDate === "string" && input.asOfDate ? input.asOfDate : today;
-  // activity_date option: file creation date (default) vs first of the
-  // current month (legacy uses today's month, not the as-of month).
   const mode = input.activityDateMode === "first_of_month" ? "first_of_month" : "creation_date";
   const activity = mode === "first_of_month" ? `${today.slice(0, 7)}-01` : today;
-  return { asOfYmd, activityDate: ymdCompact(activity) };
-}
-
-async function resolveBenefitId(
-  ctx: TrustProviderEdiContext,
-  benefitSiriusId: string,
-): Promise<string | null> {
-  const rows = await ctx.storage.readOnly.query(async (db) =>
-    db
-      .select({ id: trustBenefits.id })
-      .from(trustBenefits)
-      .where(eq(trustBenefits.siriusId, benefitSiriusId)),
-  );
-  return rows[0]?.id ?? null;
+  return ymdCompact(activity);
 }
 
 registerTrustProviderEdiPlugin({
@@ -232,6 +175,9 @@ registerTrustProviderEdiPlugin({
     "Fixed-width Kaiser Permanente eligibility file: one record per subscriber " +
     "with a Kaiser monthly benefit record in the as-of month, plus one per covered dependent.",
   requiredComponent: "sitespecific.bao",
+  // Default membership: wmb rows for these benefits in the as-of month
+  // (config-level benefitSiriusId still overrides per config).
+  benefitSiriusIds: ["K"],
   configSchema: {
     type: "object",
     properties: {
@@ -293,316 +239,77 @@ registerTrustProviderEdiPlugin({
     ];
   },
 
-  // NOTE on provider scoping: file membership is defined by the configured
-  // benefit (benefitSiriusId) — workers with a monthly benefit record
-  // (trust_wmb) for that benefit in the as-of month. The config's providerId
-  // is an organizational dimension (which provider entity the file/SFTP
-  // destination belongs to); the schema has no provider→benefit relation to
-  // filter by. Admins must point each config at the correct benefit.
-  async getPrimaryKeys(ctx) {
-    const cfg = readConfig(ctx);
-    const { asOfYmd } = readInput(ctx);
-    const benefitId = await resolveBenefitId(ctx, cfg.benefitSiriusId);
-    if (!benefitId) {
-      throw new Error(
-        `No trust benefit found with Sirius ID '${cfg.benefitSiriusId}' — check the EDI configuration.`,
-      );
-    }
-    const asOfYear = Number(asOfYmd.slice(0, 4));
-    const asOfMonth = Number(asOfYmd.slice(5, 7));
-    const wmbRows = await ctx.storage.readOnly.query(async (db) =>
-      db
-        .select({
-          id: trustWmb.id,
-          workerId: trustWmb.workerId,
-          employerSiriusId: employers.siriusId,
-        })
-        .from(trustWmb)
-        .leftJoin(employers, eq(trustWmb.employerId, employers.id))
-        .where(
-          and(
-            eq(trustWmb.benefitId, benefitId),
-            eq(trustWmb.year, asOfYear),
-            eq(trustWmb.month, asOfMonth),
-          ),
-        ),
-    );
-    // One subscriber record per worker: if a worker has several qualifying
-    // rows (e.g. two employers), pick deterministically — prefer a non-COBRA
-    // employer row, then lowest row id.
-    const byWorker = new Map<string, (typeof wmbRows)[number]>();
-    for (const row of wmbRows) {
-      const prev = byWorker.get(row.workerId);
-      if (!prev) {
-        byWorker.set(row.workerId, row);
-        continue;
-      }
-      const prevCobra = prev.employerSiriusId === "COBRA";
-      const rowCobra = row.employerSiriusId === "COBRA";
-      if (
-        (prevCobra && !rowCobra) ||
-        (prevCobra === rowCobra && row.id < prev.id)
-      ) {
-        byWorker.set(row.workerId, row);
-      }
-    }
-    return Array.from(byWorker.values()).map((r) => r.id);
-  },
-
   async processBatch(keys, ctx) {
     const cfg = readConfig(ctx);
-    const { asOfYmd, activityDate } = readInput(ctx);
+    const activityDate = readActivityDate(ctx);
+    const units = await buildMemberUnits(keys, ctx);
+    const out: Array<Record<string, unknown>> = [];
 
-    const rows = await ctx.storage.readOnly.query(async (db) => {
-      const wmbRows = await db
-        .select()
-        .from(trustWmb)
-        .where(inArray(trustWmb.id, keys));
+    for (const unit of units) {
+      const { wmb, subscriber } = unit;
+      const subscriberSsn = padSsn(subscriber.ssn);
+      const coverageStartYmd =
+        unit.coverageStartYmd < COVERAGE_START_FLOOR
+          ? COVERAGE_START_FLOOR
+          : unit.coverageStartYmd;
 
-      const out: Array<Record<string, unknown>> = [];
+      const shared = {
+        regionCode: cfg.regionCode,
+        customerId: cfg.customerId,
+        // COBRA members carry the Kaiser enrollment unit 7000.
+        enrollmentUnit: unit.isCobra ? "7000" : "0000",
+        activityDate,
+        subscriberSsn,
+        subscriberName: displayName(subscriber),
+        coverageStart: ymdCompact(coverageStartYmd),
+        // Monthly benefit records have no end date; coverage is open,
+        // matching how an election with null endYmd encoded (blank).
+        coverageEnd: "",
+        // Premiums are not modeled here yet; the legacy generator encodes
+        // the (zero) amount, producing "000000{".
+        duesAmount: kaiserEncodeNumber(0),
+      };
 
-      // COBRA members (Kaiser enrollment unit 7000) are those whose monthly
-      // benefit record's employer has the Sirius ID "COBRA".
-      const employerIds = Array.from(
-        new Set(wmbRows.map((e) => e.employerId).filter(Boolean)),
-      );
-      const cobraEmployers = employerIds.length
-        ? await db
-            .select({ id: employers.id })
-            .from(employers)
-            .where(
-              and(
-                inArray(employers.id, employerIds),
-                eq(employers.siriusId, "COBRA"),
-              ),
-            )
-        : [];
-      const cobraEmployerIds = new Set(cobraEmployers.map((e) => e.id));
+      // Subscriber record ("A").
+      out.push({
+        pk: wmb.id,
+        ...shared,
+        recordCode: "A",
+        memberSsn: subscriberSsn,
+        memberName: displayName(subscriber),
+        accountRole: "01",
+        lastName: subscriber.familyName ?? "",
+        firstName: subscriber.givenName ?? "",
+        middleName: subscriber.middleName ?? "",
+        gender: genderCode(subscriber.genderCode),
+        birthDate: ymdCompact(subscriber.birthDate),
+        ...postalFields(subscriber.postal),
+        phone: phoneDigits(subscriber.phoneNumber),
+        supplementalId: "",
+      });
 
-      // Coverage start = first month of the worker's CONTIGUOUS run of
-      // monthly records for this benefit ending at the as-of month. Load all
-      // (worker, year, month) pairs for the batch's workers + benefit once.
-      const workerIds = Array.from(new Set(wmbRows.map((r) => r.workerId)));
-      const benefitIds = Array.from(new Set(wmbRows.map((r) => r.benefitId)));
-      const allMonths = workerIds.length
-        ? await db
-            .select({
-              workerId: trustWmb.workerId,
-              year: trustWmb.year,
-              month: trustWmb.month,
-            })
-            .from(trustWmb)
-            .where(
-              and(
-                inArray(trustWmb.workerId, workerIds),
-                inArray(trustWmb.benefitId, benefitIds),
-              ),
-            )
-        : [];
-      const monthsByWorker = new Map<string, Set<string>>();
-      for (const m of allMonths) {
-        let set = monthsByWorker.get(m.workerId);
-        if (!set) monthsByWorker.set(m.workerId, (set = new Set()));
-        set.add(`${m.year}-${m.month}`);
-      }
-      /** Walk back from (year, month) while the previous month exists. */
-      function coverageStartFor(workerId: string, year: number, month: number): string {
-        const set = monthsByWorker.get(workerId);
-        let y = year;
-        let m = month;
-        while (set) {
-          let py = y;
-          let pm = m - 1;
-          if (pm === 0) {
-            pm = 12;
-            py -= 1;
-          }
-          if (!set.has(`${py}-${pm}`)) break;
-          y = py;
-          m = pm;
-        }
-        return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-01`;
-      }
-
-      for (const wmb of wmbRows) {
-        // Subscriber demographics.
-        const [subscriber] = await db
-          .select({
-            workerId: workers.id,
-            ssn: workers.ssn,
-            contactId: contacts.id,
-            givenName: contacts.given,
-            familyName: contacts.family,
-            middleName: contacts.middle,
-            birthDate: contacts.birthDate,
-            genderCode: optionsGender.code,
-          })
-          .from(workers)
-          .innerJoin(contacts, eq(workers.contactId, contacts.id))
-          .leftJoin(optionsGender, eq(contacts.gender, optionsGender.id))
-          .where(eq(workers.id, wmb.workerId));
-        if (!subscriber) continue;
-
-        const [postal] = await db
-          .select({
-            street: contactPostal.street,
-            city: contactPostal.city,
-            state: contactPostal.state,
-            postalCode: contactPostal.postalCode,
-          })
-          .from(contactPostal)
-          .where(
-            and(
-              eq(contactPostal.contactId, subscriber.contactId),
-              eq(contactPostal.isActive, true),
-              eq(contactPostal.isPrimary, true),
-            ),
-          );
-        const [phone] = await db
-          .select({ phoneNumber: phoneNumbers.phoneNumber })
-          .from(phoneNumbers)
-          .where(
-            and(
-              eq(phoneNumbers.contactId, subscriber.contactId),
-              eq(phoneNumbers.isActive, true),
-              eq(phoneNumbers.isPrimary, true),
-            ),
-          );
-
-        const subscriberSsn = padSsn(subscriber.ssn);
-        const subscriberName = [subscriber.givenName, subscriber.familyName]
-          .filter(Boolean)
-          .join(" ");
-        const startYmd = coverageStartFor(wmb.workerId, wmb.year, wmb.month);
-        const coverageStartYmd =
-          startYmd < COVERAGE_START_FLOOR ? COVERAGE_START_FLOOR : startYmd;
-
-        const shared = {
-          regionCode: cfg.regionCode,
-          customerId: cfg.customerId,
-          enrollmentUnit: cobraEmployerIds.has(wmb.employerId)
-            ? "7000"
-            : "0000",
-          activityDate,
-          subscriberSsn,
-          subscriberName,
-          coverageStart: ymdCompact(coverageStartYmd),
-          // Monthly benefit records have no end date; coverage is open,
-          // matching how an election with null endYmd encoded (blank).
-          coverageEnd: "",
-          // Premiums are not modeled here yet; the legacy generator encodes
-          // the (zero) amount, producing "000000{".
-          duesAmount: kaiserEncodeNumber(0),
-        };
-
-        // Subscriber record ("A").
+      // Dependent records ("D") — dependents carry their own address and
+      // phone (legacy generator reads them from the member's record).
+      for (const dep of unit.dependents) {
         out.push({
-          pk: wmb.id,
+          pk: `${wmb.id}:${dep.relationId}`,
           ...shared,
-          recordCode: "A",
-          memberSsn: subscriberSsn,
-          memberName: subscriberName,
-          accountRole: "01",
-          lastName: subscriber.familyName ?? "",
-          firstName: subscriber.givenName ?? "",
-          middleName: subscriber.middleName ?? "",
-          gender: genderCode(subscriber.genderCode),
-          birthDate: ymdCompact(subscriber.birthDate),
-          street: postal?.street ?? "",
-          city: postal?.city ?? "",
-          state: postal?.state ?? "",
-          zip: String(postal?.postalCode ?? "").replace(/\D/g, "").slice(0, 5),
-          phone: phoneDigits(phone?.phoneNumber),
-          supplementalId: "",
+          recordCode: "D",
+          memberSsn: padSsn(dep.ssn),
+          memberName: displayName(dep),
+          accountRole: accountRole(dep.relationSiriusId),
+          lastName: dep.familyName ?? "",
+          firstName: dep.givenName ?? "",
+          middleName: dep.middleName ?? "",
+          gender: genderCode(dep.genderCode),
+          birthDate: ymdCompact(dep.birthDate),
+          ...postalFields(dep.postal),
+          phone: phoneDigits(dep.phoneNumber),
+          supplementalId: dep.relationSiriusId === "QMSCO" ? "08" : "",
         });
-
-        // Dependent records ("D"): the worker's covered relations that are
-        // still active as of the run date (monthly benefit records carry no
-        // explicit relationship list, unlike elections).
-        const relations = await db
-          .select({
-            relationId: workerRelations.id,
-            relationSiriusId: optionsWorkerRelationType.siriusId,
-            startYmd: workerRelations.startYmd,
-            endYmd: workerRelations.endYmd,
-            ssn: workers.ssn,
-            contactId: contacts.id,
-            givenName: contacts.given,
-            familyName: contacts.family,
-            middleName: contacts.middle,
-            birthDate: contacts.birthDate,
-            genderCode: optionsGender.code,
-          })
-          .from(workerRelations)
-          .innerJoin(workers, eq(workerRelations.worker2, workers.id))
-          .innerJoin(contacts, eq(workers.contactId, contacts.id))
-          .leftJoin(optionsGender, eq(contacts.gender, optionsGender.id))
-          .innerJoin(
-            optionsWorkerRelationType,
-            eq(workerRelations.relationType, optionsWorkerRelationType.id),
-          )
-          .where(eq(workerRelations.worker1, wmb.workerId));
-
-        for (const rel of relations) {
-          // Canonical active-relation semantics: start on/before the as-of
-          // date AND (no end OR end on/after the as-of date).
-          if (!rel.startYmd || rel.startYmd > asOfYmd) continue;
-          if (rel.endYmd && rel.endYmd < asOfYmd) continue;
-          const relSirius = rel.relationSiriusId ?? null;
-
-          // Dependents carry their own address and phone (legacy generator
-          // reads them from the member's record, not the subscriber's).
-          const [relPostal] = await db
-            .select({
-              street: contactPostal.street,
-              city: contactPostal.city,
-              state: contactPostal.state,
-              postalCode: contactPostal.postalCode,
-            })
-            .from(contactPostal)
-            .where(
-              and(
-                eq(contactPostal.contactId, rel.contactId),
-                eq(contactPostal.isActive, true),
-                eq(contactPostal.isPrimary, true),
-              ),
-            );
-          const [relPhone] = await db
-            .select({ phoneNumber: phoneNumbers.phoneNumber })
-            .from(phoneNumbers)
-            .where(
-              and(
-                eq(phoneNumbers.contactId, rel.contactId),
-                eq(phoneNumbers.isActive, true),
-                eq(phoneNumbers.isPrimary, true),
-              ),
-            );
-
-          out.push({
-            pk: `${wmb.id}:${rel.relationId}`,
-            ...shared,
-            recordCode: "D",
-            memberSsn: padSsn(rel.ssn),
-            memberName: [rel.givenName, rel.familyName].filter(Boolean).join(" "),
-            accountRole: accountRole(relSirius),
-            lastName: rel.familyName ?? "",
-            firstName: rel.givenName ?? "",
-            middleName: rel.middleName ?? "",
-            gender: genderCode(rel.genderCode),
-            birthDate: ymdCompact(rel.birthDate),
-            street: relPostal?.street ?? "",
-            city: relPostal?.city ?? "",
-            state: relPostal?.state ?? "",
-            zip: String(relPostal?.postalCode ?? "").replace(/\D/g, "").slice(0, 5),
-            phone: phoneDigits(relPhone?.phoneNumber),
-            supplementalId: relSirius === "QMSCO" ? "08" : "",
-          });
-        }
       }
-      return out;
-    });
-
-    return rows;
+    }
+    return out;
   },
 
   encodeRow(row) {

@@ -160,7 +160,8 @@ const runStep: WizardStepHandler = {
     const plugin = resolvePlugin(selected.pluginId);
     const ediCtx = buildEdiContext(ctx, selected);
 
-    const keys = await plugin.getPrimaryKeys(ediCtx);
+    // The registry guarantees getPrimaryKeys (default filled at registration).
+    const keys = await plugin.getPrimaryKeys!(ediCtx);
     const columns = plugin.getColumns();
 
     await ctx.storage.wizards.deleteReportData(ctx.wizardId);
