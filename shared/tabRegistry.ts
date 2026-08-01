@@ -75,7 +75,6 @@ export type TabEntityType =
   | 'user'
   | 'ws_client'
   | 'sftp_client_destination'
-  | 'trust_provider_edi'
   | 'bulk_message'
   | 'ledger_payment_batch'
   | 'facility'
@@ -257,7 +256,6 @@ export const providerTabTree: HierarchicalTab[] = [
   { id: 'view', label: 'View', hrefTemplate: '/trust/provider/{id}', policyId: 'trust.provider.mine' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/trust/provider/{id}/edit', permission: 'staff' },
   { id: 'contacts', label: 'Contacts', hrefTemplate: '/trust/provider/{id}/contacts', policyId: 'trust.provider.mine' },
-  { id: 'edi', label: 'EDI', hrefTemplate: '/trust/provider/{id}/edi', permission: 'admin', component: 'trust.providers.edi' },
   { id: 'logs', label: 'Logs', hrefTemplate: '/trust/provider/{id}/logs', permission: 'staff' },
 ];
 
@@ -620,15 +618,6 @@ export const sftpClientDestinationTabTree: HierarchicalTab[] = [
   { id: 'edit', label: 'Edit', hrefTemplate: '/config/sftp/client/{id}/edit', permission: 'admin', component: 'system.sftp.client' },
 ];
 
-/**
- * Trust Provider EDI entity tab tree
- */
-export const trustProviderEdiTabTree: HierarchicalTab[] = [
-  { id: 'details', label: 'Details', hrefTemplate: '/trust/provider-edi/{id}', permission: 'admin', component: 'trust.providers.edi' },
-  { id: 'edit', label: 'Edit', hrefTemplate: '/trust/provider-edi/{id}/edit', permission: 'admin', component: 'trust.providers.edi' },
-  { id: 'logs', label: 'Logs', hrefTemplate: '/trust/provider-edi/{id}/logs', permission: 'admin', component: 'trust.providers.edi' },
-];
-
 export const ledgerPaymentBatchTabTree: HierarchicalTab[] = [
   { id: 'details', label: 'Details', hrefTemplate: '/ledger/payment-batch/{id}', policyId: 'staff', component: 'ledger.payment.batch' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/ledger/payment-batch/{id}/edit', policyId: 'staff', component: 'ledger.payment.batch' },
@@ -694,7 +683,6 @@ export const tabTreeRegistry: Record<TabEntityType, HierarchicalTab[]> = {
   user: userTabTree,
   ws_client: wsClientTabTree,
   sftp_client_destination: sftpClientDestinationTabTree,
-  trust_provider_edi: trustProviderEdiTabTree,
   bulk_message: bulkMessageTabTree,
   ledger_payment_batch: ledgerPaymentBatchTabTree,
   facility: facilityTabTree,

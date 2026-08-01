@@ -64,6 +64,8 @@ import "./core/1055_files_file_system_id";
 // per-component migration files under `scripts/migrate/components/<id>/`
 // and import them here so they are loaded at startup.
 //
+import "./components/trust.providers.edi/001_drop_legacy_table";
+import "./components/trust.providers.edi/002_create_subsidiary_table";
 import "./components/trust.benefits.eligibility.exemptions/001_create_exemptions";
 import "./components/trust.benefits.eligibility.exemptions/002_require_benefit_and_plugins";
 import "./components/sitespecific.bao/001_create_immediate_eligibility";

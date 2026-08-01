@@ -53,4 +53,5 @@ export type PluginKind =
   | "denorm"
   | "data-retention"
   | "menu"
-  | "system-status";
+  | "system-status"
+  | "trust-provider-edi";

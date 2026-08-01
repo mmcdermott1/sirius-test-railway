@@ -434,17 +434,6 @@ export function useSftpClientDestinationTabAccess(destinationId: string | undefi
   });
 }
 
-/**
- * Hook specifically for Trust Provider EDI entity tabs
- */
-export function useTrustProviderEdiTabAccess(ediId: string | undefined, enabled = true) {
-  return useTabAccess({ 
-    entityType: 'trust_provider_edi', 
-    entityId: ediId, 
-    enabled 
-  });
-}
-
 export function useBulkMessageTabAccess(bulkMessageId: string | undefined, enabled = true) {
   return useTabAccess({ 
     entityType: 'bulk_message', 

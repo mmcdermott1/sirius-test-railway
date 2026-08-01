@@ -1069,10 +1069,10 @@ export {
 } from "./schema/system/sftp-client-schema";
 
 export {
-  trustProviderEdi,
-  insertTrustProviderEdiSchema,
-  type TrustProviderEdi,
-  type InsertTrustProviderEdi,
+  pluginConfigsTrustProviderEdi,
+  insertPluginConfigTrustProviderEdiSchema,
+  type PluginConfigTrustProviderEdi,
+  type InsertPluginConfigTrustProviderEdi,
 } from "./schema/trust/provider-edi-schema";
 
 export {

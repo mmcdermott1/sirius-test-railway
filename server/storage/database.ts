@@ -105,7 +105,6 @@ import { type BargainingUnitStorage, createBargainingUnitStorage, bargainingUnit
 import { type SftpClientDestinationStorage, createSftpClientDestinationStorage, sftpClientDestinationLoggingConfig } from "./sftp-client-destinations";
 import { type BusinessCalendarStorage, createBusinessCalendarStorage } from "./business-calendars";
 import { type HelpStorage, createHelpStorage } from "./helps";
-import { type TrustProviderEdiStorage, createTrustProviderEdiStorage, trustProviderEdiLoggingConfig } from "./trust/provider/edi";
 import { type BulkMessageStorage, createBulkMessageStorage, bulkMessageLoggingConfig } from "./bulk/messages";
 import { type BulkMessagesEmailStorage, createBulkMessagesEmailStorage, bulkMessagesEmailLoggingConfig } from "./bulk/messages/email";
 import { type BulkMessagesSmsStorage, createBulkMessagesSmsStorage, bulkMessagesSmsLoggingConfig } from "./bulk/messages/sms";
@@ -286,7 +285,6 @@ export interface IStorage {
   sftpClientDestinations: SftpClientDestinationStorage;
   businessCalendars: BusinessCalendarStorage;
   helps: HelpStorage;
-  trustProviderEdi: TrustProviderEdiStorage;
   bulkMessages: BulkMessageStorage;
   bulkMessagesEmail: BulkMessagesEmailStorage;
   bulkMessagesSms: BulkMessagesSmsStorage;
@@ -398,7 +396,6 @@ export class DatabaseStorage implements IStorage {
   sftpClientDestinations: SftpClientDestinationStorage;
   businessCalendars: BusinessCalendarStorage;
   helps: HelpStorage;
-  trustProviderEdi: TrustProviderEdiStorage;
   bulkMessages: BulkMessageStorage;
   bulkMessagesEmail: BulkMessagesEmailStorage;
   bulkMessagesSms: BulkMessagesSmsStorage;
@@ -629,10 +626,6 @@ export class DatabaseStorage implements IStorage {
     );
     this.businessCalendars = createBusinessCalendarStorage();
     this.helps = createHelpStorage();
-    this.trustProviderEdi = withStorageLogging(
-      createTrustProviderEdiStorage(),
-      trustProviderEdiLoggingConfig
-    );
     this.bulkMessages = withStorageLogging(
       createBulkMessageStorage(),
       bulkMessageLoggingConfig

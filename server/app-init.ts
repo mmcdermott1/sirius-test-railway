@@ -38,6 +38,7 @@ import { initializeDashboardPluginSystem } from "./plugins/dashboard";
 import { initializeClientInjectionPluginSystem } from "./plugins/client-injection";
 import { initializeEventNotifierPluginSystem } from "./plugins/event-notifier";
 import { initializeWizardPluginSystem } from "./plugins/wizards";
+import { initializeTrustProviderEdiSystem } from "./plugins/trust/provider-edi";
 import { initializeMenuPluginSystem } from "./plugins/menu";
 import { initWorkerBanNotifications } from "./services/worker-ban-notifications";
 import { initSnapshotCapture } from "./services/snapshots/capture";
@@ -362,6 +363,9 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
   logger.info("System status plugins registered", { source: "startup" });
 
   // Register wizards as the sixth plugin kind (self-registering plugin imports)
+  initializeTrustProviderEdiSystem();
+  logger.info("Trust provider EDI system initialized", { source: "startup" });
+
   initializeWizardPluginSystem();
   logger.info("Wizard plugins registered", { source: "startup" });
 
