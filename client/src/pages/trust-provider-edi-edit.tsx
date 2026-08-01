@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -24,9 +23,7 @@ function EdiEditContent() {
     siriusId: "",
     sftpClientId: "",
     active: true,
-    dataJson: "",
   });
-  const [dataError, setDataError] = useState<string | null>(null);
 
   const { data: sftpDestinations } = useQuery<SftpClientDestination[]>({
     queryKey: ["/api/sftp/client-destinations"],
@@ -39,7 +36,6 @@ function EdiEditContent() {
         siriusId: edi.siriusId || "",
         sftpClientId: edi.sftpClientId || "",
         active: edi.active,
-        dataJson: edi.data ? JSON.stringify(edi.data, null, 2) : "",
       });
     }
   }, [edi]);
@@ -52,11 +48,8 @@ function EdiEditContent() {
       };
       payload.siriusId = data.siriusId || null;
       payload.sftpClientId = data.sftpClientId || null;
-      if (data.dataJson.trim()) {
-        payload.data = JSON.parse(data.dataJson);
-      } else {
-        payload.data = null;
-      }
+      // `data` is intentionally omitted: the raw JSON editor was removed and
+      // the PATCH route's partial schema leaves absent fields unchanged.
       return apiRequest("PATCH", `/api/trust-provider-edi/${edi.id}`, payload);
     },
     onSuccess: () => {
@@ -70,28 +63,10 @@ function EdiEditContent() {
     },
   });
 
-  const handleDataChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, dataJson: value }));
-    if (value.trim()) {
-      try {
-        JSON.parse(value);
-        setDataError(null);
-      } catch {
-        setDataError("Invalid JSON");
-      }
-    } else {
-      setDataError(null);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) {
       toast({ title: "Validation error", description: "Name is required.", variant: "destructive" });
-      return;
-    }
-    if (dataError) {
-      toast({ title: "Validation error", description: "Data field contains invalid JSON.", variant: "destructive" });
       return;
     }
     updateMutation.mutate(formData);
@@ -151,21 +126,6 @@ function EdiEditContent() {
                 data-testid="switch-edi-active"
               />
               <Label htmlFor="active">Active</Label>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="data">Data (JSON)</Label>
-              <Textarea
-                id="data"
-                value={formData.dataJson}
-                onChange={(e) => handleDataChange(e.target.value)}
-                placeholder='{"key": "value"}'
-                rows={8}
-                className="font-mono text-sm"
-                data-testid="textarea-edi-data"
-              />
-              {dataError && (
-                <p className="text-sm text-destructive" data-testid="text-edi-data-error">{dataError}</p>
-              )}
             </div>
             <div className="flex gap-3 pt-4">
               <Button
