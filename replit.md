@@ -44,6 +44,20 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 -   **Ledger System**: `server/modules/ledger/`, `client/src/pages/ledger/`
 -   **SFTP Client Destinations**: `server/modules/sftp-client-destination/`, `client/src/pages/config/sftp-client-destinations/`
 
+## Stable layout CSS ids (public contract)
+
+These ids exist so deployment-specific "client injection" CSS can target
+layout regions reliably (e.g. `#site-banner { background: #3333cc; }`).
+Treat them as a public contract — do not rename casually:
+
+-   `#site-header` — whole `<header>` wrapper (banner + menu), in `Header.tsx`
+-   `#site-banner` — top header row (site name / user menu bar)
+-   `#site-menu` — desktop main navigation row
+-   `#site-menu-mobile` — mobile navigation sheet content
+-   `#site-title` — page title area (`PageHeader.tsx`, contains the h1)
+-   `#site-content` — main body/content area (`<main>` in `App.tsx`)
+-   `#site-footer` — footer (`Footer.tsx`)
+
 ## User preferences
 
 Preferred communication style: Simple, everyday language.

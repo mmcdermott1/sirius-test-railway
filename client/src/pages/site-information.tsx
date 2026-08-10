@@ -225,11 +225,11 @@ export default function SiteInformation() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="site-title">Title Bar Site Name (max 50 characters)</Label>
+            <Label htmlFor="site-title-input">Title Bar Site Name (max 50 characters)</Label>
             {isEditingTitle ? (
               <div className="space-y-2">
                 <Input
-                  id="site-title"
+                  id="site-title-input"
                   value={siteTitle}
                   onChange={(e) => setSiteTitle(e.target.value)}
                   placeholder="Enter title bar site name"
