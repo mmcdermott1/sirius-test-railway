@@ -250,6 +250,17 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
   await initializeDispatchEligSystem();
   logger.info("Dispatch eligibility system initialized", { source: "startup" });
 
+  // Initialize the worker-ban plugin framework (kind + built-in plugins),
+  // seed the default "Dispatch" ban type and migrate legacy dispatch bans.
+  {
+    const { initializeWorkerBanSystem, seedWorkerBanTypes } = await import(
+      "./plugins/worker-bans"
+    );
+    initializeWorkerBanSystem();
+    await seedWorkerBanTypes();
+  }
+  logger.info("Worker-ban system initialized", { source: "startup" });
+
   // Initialize dashboard plugin system (registration + legacy migrations)
   await initializeDashboardPluginSystem();
   logger.info("Dashboard plugin system initialized", { source: "startup" });

@@ -1,23 +1,12 @@
 import { storage } from "../../../../storage";
+import {
+  banGloballyDenies,
+  isBanCurrentlyActive,
+} from "../../../worker-bans/service";
 import { registerCronPlugin } from "../registry";
 import type { CronJobContext, CronJobResult } from "../types";
 
 const BAN_CATEGORY = "ban";
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function isBanCurrentlyActive(ban: { startDate: Date; endDate: Date | null }): boolean {
-  const today = startOfDay(new Date());
-  const startDay = startOfDay(new Date(ban.startDate));
-  if (startDay > today) return false;
-  if (!ban.endDate) return true;
-  const endDay = startOfDay(new Date(ban.endDate));
-  return endDay >= today;
-}
 
 registerCronPlugin({
   metadata: {
@@ -39,9 +28,14 @@ registerCronPlugin({
     for (const workerId of workerIds) {
       const bans = await storage.workerBans.getByWorker(workerId);
 
-      const activeDispatchBans = bans.filter(
-        ban => ban.type === "dispatch" && isBanCurrentlyActive(ban)
-      );
+      // Mirror the denorm write side: only bans whose type unconditionally
+      // denies dispatch acceptance count as global dispatch bans.
+      const activeDispatchBans = [];
+      for (const ban of bans) {
+        if (isBanCurrentlyActive(ban) && (await banGloballyDenies(ban, "dispatch.accept"))) {
+          activeDispatchBans.push(ban);
+        }
+      }
 
       if (activeDispatchBans.length === 0) {
         if (context.mode === 'live') {

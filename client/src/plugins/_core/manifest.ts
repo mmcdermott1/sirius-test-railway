@@ -13,7 +13,11 @@ export type PluginKind =
   | "client-injection"
   | "payment-gateway"
   | "event-notifier"
-  | "denorm";
+  | "denorm"
+  // Worker-ban behaviors: manifest-only kind (no config adapter — plugins
+  // are singletons; admin configuration lives on the Worker Ban Types
+  // options page).
+  | "worker-ban";
 
 /**
  * Kinds whose `/api/plugins/:kind/manifest` returns a flat array of
@@ -172,6 +176,11 @@ export interface PluginSearchParamsByKind {
   "payment-gateway": BasePluginSearchParams;
   "event-notifier": BasePluginSearchParams;
   denorm: BasePluginSearchParams;
+  // No config adapter on the server (manifest-only kind); listed so the
+  // PluginKind union stays a valid key set. The generic admin page never
+  // reaches config search for it because /api/plugins/kinds omits
+  // adapterless kinds.
+  "worker-ban": BasePluginSearchParams;
 }
 
 /**

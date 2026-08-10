@@ -65,6 +65,7 @@ function DispatchJobEditContent() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>(jobData?.requiredSkills || []);
   // Absent flag = allow EBA workers (default behavior).
   const [allowEbaWorkers, setAllowEbaWorkers] = useState<boolean>(jobData?.allowEbaWorkers !== false);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string>(jobData?.facilityId || "");
 
   const { data: employers = [] } = useQuery<Employer[]>({
     queryKey: ["/api/employers"],
@@ -89,6 +90,15 @@ function DispatchJobEditContent() {
   const departmentComponentEnabled = componentConfigs.some(
     (c) => c.componentId === "dispatch.department" && c.enabled
   );
+
+  const facilityComponentEnabled = componentConfigs.some(
+    (c) => c.componentId === "facility" && c.enabled
+  );
+
+  const { data: facilities = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/options/facility"],
+    enabled: facilityComponentEnabled,
+  });
 
   const { data: availableDepartments = [] } = useQuery<AvailableDepartment[]>({
     queryKey: ["/api/dispatch-departments/available"],
@@ -160,6 +170,13 @@ function DispatchJobEditContent() {
         // Field not applicable (component off or job type not "both") —
         // drop any stale value instead of carrying it forward.
         delete updatedJobData.allowEbaWorkers;
+      }
+      if (facilityComponentEnabled) {
+        if (selectedFacilityId) {
+          updatedJobData.facilityId = selectedFacilityId;
+        } else {
+          delete updatedJobData.facilityId;
+        }
       }
       const payRateVal = data.payRate && data.payRate.trim() !== "" ? data.payRate.trim() : null;
       return apiRequest("PUT", `/api/dispatch-jobs/${job.id}`, {
@@ -353,6 +370,28 @@ function DispatchJobEditContent() {
                       {availableDepartments.map((department) => (
                         <SelectItem key={department.id} value={department.id}>
                           {department.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+
+              {facilityComponentEnabled && (
+                <FormItem>
+                  <FormLabel>Facility</FormLabel>
+                  <Select
+                    value={selectedFacilityId || "__none__"}
+                    onValueChange={(v) => setSelectedFacilityId(v === "__none__" ? "" : v)}
+                  >
+                    <SelectTrigger data-testid="select-facility">
+                      <SelectValue placeholder="No facility" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No facility</SelectItem>
+                      {facilities.map((facility) => (
+                        <SelectItem key={facility.id} value={facility.id}>
+                          {facility.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

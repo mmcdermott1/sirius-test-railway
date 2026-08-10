@@ -271,6 +271,18 @@ export const workers = pgTable("workers", {
   data: jsonb("data"),
 });
 
+// Worker ban types — admin-configurable options rows. Each row names a ban
+// type and selects (in data.pluginIds) which registered worker-ban plugins
+// the type applies. `worker_bans.type` stores the id of one of these rows
+// (soft reference — validated at the API layer, no FK).
+export const optionsWorkerBanType = pgTable("options_worker_ban_type", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  siriusId: text("sirius_id").unique(),
+  data: jsonb("data"),
+});
+
 export const workerBans = pgTable("worker_bans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
@@ -1366,16 +1378,15 @@ export const insertWorkerSchema = createInsertSchema(workers).omit({
   data: true, // Generic JSON blob; written only through dedicated storage methods
 });
 
-export const workerBanTypeEnum = ["dispatch"] as const;
-export type WorkerBanType = typeof workerBanTypeEnum[number];
-
 export const insertWorkerBanSchema = createInsertSchema(workerBans).omit({
   id: true,
   denormActive: true, // Auto-calculated based on end_date
 }).extend({
   startDate: z.coerce.date(),
   endDate: z.coerce.date().optional().nullable(),
-  type: z.enum(workerBanTypeEnum).optional().nullable(),
+  // Stores the id of an options_worker_ban_type row (soft reference,
+  // validated at the API layer against the configured ban types).
+  type: z.string().optional().nullable(),
 });
 
 export const insertEmployerSchema = createInsertSchema(employers).omit({

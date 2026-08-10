@@ -32,6 +32,7 @@ import {
   optionsGrievanceRemedies,
   optionsGrievanceRoles,
   optionsGrievanceSettlementType,
+  optionsWorkerBanType,
   bulkMediumEnum,
 } from "@shared/schema";
 import { defineLoggingConfig } from "./middleware/logging";
@@ -71,7 +72,8 @@ export type OptionsTypeName =
   | "grievance-complaint"
   | "grievance-remedy"
   | "grievance-role"
-  | "grievance-settlement-type";
+  | "grievance-settlement-type"
+  | "worker-ban-type";
 
 /**
  * Field definition for dynamic form and table rendering
@@ -79,7 +81,7 @@ export type OptionsTypeName =
 export interface FieldDefinition {
   name: string;
   label: string;
-  inputType: 'text' | 'textarea' | 'number' | 'select-self' | 'icon' | 'checkbox' | 'select-options' | 'color' | 'multi-enum' | 'enum' | 'system-roles';
+  inputType: 'text' | 'textarea' | 'number' | 'select-self' | 'icon' | 'checkbox' | 'select-options' | 'color' | 'multi-enum' | 'enum' | 'system-roles' | 'worker-ban-plugins';
   required: boolean;
   placeholder?: string;
   helperText?: string;
@@ -209,6 +211,18 @@ export function fieldsToJsonSchema(
         prop.uniqueItems = true;
         prop.items = { type: "string" };
         (prop as Record<string, unknown>)["x-widget"] = "system-roles";
+        if (f.required) prop.minItems = 1;
+        break;
+      }
+      case "worker-ban-plugins": {
+        // Dynamic multi-select of registered worker-ban plugins. Like
+        // `system-roles`, the allowed values are live (the plugin registry,
+        // fetched by the client widget from the worker-ban manifest), so no
+        // enum is baked here; the write routes validate against the registry.
+        prop.type = "array";
+        prop.uniqueItems = true;
+        prop.items = { type: "string" };
+        (prop as Record<string, unknown>)["x-widget"] = "worker-ban-plugins";
         if (f.required) prop.minItems = 1;
         break;
       }
@@ -620,6 +634,25 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
       { name: "icon", label: "Icon", inputType: "icon", required: false, showInTable: true, columnHeader: "Icon", columnWidth: "80px", dataField: true },
       { name: "name", label: "Name", inputType: "text", required: true, placeholder: "e.g., Monetary, Reinstatement, Backpay", showInTable: true, columnHeader: "Name" },
       { name: "description", label: "Description", inputType: "textarea", required: false, placeholder: "Optional description of this settlement type", showInTable: true, columnHeader: "Description" },
+      { name: "siriusId", label: "Sirius ID", inputType: "text", required: false, placeholder: "External ID", showInTable: true, columnHeader: "Sirius ID" },
+    ],
+  },
+  "worker-ban-type": {
+    table: optionsWorkerBanType,
+    displayName: "Worker Ban Types",
+    description: "Ban types available on the worker bans page. Each type applies one or more ban behaviors (what the ban prohibits).",
+    singularName: "Ban Type",
+    pluralName: "Ban Types",
+    orderByColumn: "name" as const,
+    loggingModule: "options.workerBanType",
+    requiredFields: ["name"],
+    optionalFields: ["description", "siriusId", "data"],
+    supportsSequencing: false,
+    requiredComponent: "dispatch",
+    fields: [
+      { name: "name", label: "Name", inputType: "text", required: true, placeholder: "e.g., Dispatch, Facility Ban", showInTable: true, columnHeader: "Name" },
+      { name: "description", label: "Description", inputType: "textarea", required: false, placeholder: "Optional description of this ban type", showInTable: true, columnHeader: "Description" },
+      { name: "pluginIds", label: "Ban Behaviors", inputType: "worker-ban-plugins", required: true, helperText: "What a ban of this type prohibits. Bans of this type apply every selected behavior.", showInTable: false, dataField: true },
       { name: "siriusId", label: "Sirius ID", inputType: "text", required: false, placeholder: "External ID", showInTable: true, columnHeader: "Sirius ID" },
     ],
   },

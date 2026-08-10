@@ -99,6 +99,37 @@ export function registerDispatchesRoutes(
     }
   });
 
+  /**
+   * Worker-ban point check for accepting a dispatch. Returns a 403 response
+   * body when an active ban (all-dispatch, facility, job type) prohibits
+   * `dispatch.accept` for this worker+job, or null when acceptance is
+   * allowed. Applies to everyone — staff must lift the ban instead.
+   */
+  async function acceptBanRejection(
+    workerId: string,
+    jobId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const job = await storage.dispatchJobs.get(jobId);
+    const { isBanned } = await import("../../plugins/worker-bans/service");
+    const verdict = await isBanned("dispatch.accept", workerId, {
+      jobTypeId: job?.jobTypeId ?? null,
+      facilityId: (job?.data as { facilityId?: string } | null)?.facilityId,
+    });
+    if (!verdict.banned) return null;
+    const reasons = verdict.matches.map((m) =>
+      [m.banTypeName ?? "Ban", m.message].filter(Boolean).join(": "),
+    );
+    return {
+      message: `This worker is banned from accepting this dispatch (${reasons.join("; ")})`,
+      banMatches: verdict.matches.map((m) => ({
+        banId: m.ban.id,
+        banType: m.banTypeName,
+        pluginId: m.pluginId,
+        message: m.message,
+      })),
+    };
+  }
+
   app.put("/api/dispatches/:id", dispatchComponent, requireAccess('admin'), async (req, res) => {
     try {
       const { id } = req.params;
@@ -116,6 +147,15 @@ export function registerDispatchesRoutes(
         if (!dispatchStatusEnum.includes(status)) {
           res.status(400).json({ message: `Invalid status. Must be one of: ${dispatchStatusEnum.join(', ')}` });
           return;
+        }
+        // Same worker-ban point check as /set-status — the generic update
+        // route must not be a bypass for accepting a banned worker.
+        if (status === "accepted" && existing.status !== "accepted") {
+          const rejection = await acceptBanRejection(existing.workerId, existing.jobId);
+          if (rejection) {
+            res.status(403).json(rejection);
+            return;
+          }
         }
         updates.status = status;
       }
@@ -216,6 +256,19 @@ export function registerDispatchesRoutes(
       if (!isAdmin && !workerAllowedStatuses.includes(status)) {
         res.status(403).json({ message: `Workers can only accept or decline dispatches` });
         return;
+      }
+
+      // Worker-ban point check: bans (all-dispatch, facility, job type)
+      // block acceptance for everyone; staff must lift the ban first.
+      if (status === "accepted") {
+        const dispatch = await storage.dispatches.get(id);
+        if (dispatch) {
+          const rejection = await acceptBanRejection(dispatch.workerId, dispatch.jobId);
+          if (rejection) {
+            res.status(403).json(rejection);
+            return;
+          }
+        }
       }
 
       const result = await storage.dispatches.setStatus(id, status);

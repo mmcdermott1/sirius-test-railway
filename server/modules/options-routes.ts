@@ -75,6 +75,26 @@ function validateDispatchJobTypeBullpen(data: unknown): string | null {
 }
 
 /**
+ * Validation for `worker-ban-type` writes: `data.pluginIds` must be a
+ * non-empty array of registered worker-ban plugin ids. The UI already
+ * constrains this via the ban-plugins widget, but a direct API call must
+ * not persist unknown plugin ids. Returns an error message or null.
+ */
+async function validateWorkerBanTypePlugins(data: unknown): Promise<string | null> {
+  const pluginIds = (data as { pluginIds?: unknown } | null | undefined)?.pluginIds;
+  if (!Array.isArray(pluginIds) || pluginIds.length === 0) {
+    return "At least one ban behavior is required";
+  }
+  const { workerBanPluginRegistry } = await import("../plugins/worker-bans/registry");
+  const known = new Set(workerBanPluginRegistry.listIds());
+  const unknown = pluginIds.filter((p) => typeof p !== "string" || !known.has(p));
+  if (unknown.length > 0) {
+    return `Unknown ban behavior(s): ${unknown.join(", ")}`;
+  }
+  return null;
+}
+
+/**
  * Middleware for the generic `/api/options/:type*` routes that rejects
  * requests for an option type whose `requiredComponent` is not enabled.
  * Without this, an authenticated user could read or mutate a disabled
@@ -238,15 +258,21 @@ export function registerConsolidatedOptionsRoutes(app: Express) {
   );
 
   // Special-case: facilities exposed as a remote-options source for the
-  // trust eligibility "BAO - Start Healthnet" plugin's site picker.
-  // Read-only; gated by the `sitespecific.bao` component. Register BEFORE
-  // the generic `/api/options/:type` so it matches first.
+  // trust eligibility "BAO - Start Healthnet" plugin's site picker and the
+  // worker-ban Facility behavior's picker. Read-only; available when either
+  // the `facility` or the `sitespecific.bao` component is enabled. Register
+  // BEFORE the generic `/api/options/:type` so it matches first.
   app.get(
     "/api/options/facility",
     requireAccess('authenticated'),
-    requireComponent("sitespecific.bao"),
     async (_req: Request, res: Response) => {
       try {
+        const enabled =
+          (await isComponentEnabled("facility")) ||
+          (await isComponentEnabled("sitespecific.bao"));
+        if (!enabled) {
+          return res.status(403).json({ message: "This feature is not enabled" });
+        }
         const facilities = await storage.facilities.getAll();
         res.json(facilities.map((f) => ({ id: f.id, name: f.name })));
       } catch (error) {
@@ -359,6 +385,13 @@ export function registerConsolidatedOptionsRoutes(app: Express) {
           return res.status(400).json({ message: bullpenError });
         }
       }
+
+      if (type === "worker-ban-type") {
+        const pluginError = await validateWorkerBanTypePlugins(data.data);
+        if (pluginError) {
+          return res.status(400).json({ message: pluginError });
+        }
+      }
       
       const item = await config.create(data);
       res.status(201).json(item);
@@ -421,8 +454,37 @@ export function registerConsolidatedOptionsRoutes(app: Express) {
           return res.status(400).json({ message: bullpenError });
         }
       }
+
+      if (type === "worker-ban-type" && updates.data !== undefined) {
+        const pluginError = await validateWorkerBanTypePlugins(updates.data);
+        if (pluginError) {
+          return res.status(400).json({ message: pluginError });
+        }
+      }
       
       const item = await config.update(id, updates);
+
+      // Editing a ban type's behaviors changes what every existing ban of
+      // that type enforces, so re-emit WORKER_BAN_SAVED for each affected
+      // ban. The dispatch_ban denorm plugin recomputes those workers'
+      // global eligibility facts (e.g. all-dispatch added/removed) instead
+      // of waiting for the daily sweep.
+      if (type === "worker-ban-type" && updates.data !== undefined) {
+        const affected = (await storage.workerBans.getAll()).filter(
+          (ban) => ban.type === id,
+        );
+        const { eventBus, EventType } = await import("../services/event-bus");
+        for (const ban of affected) {
+          eventBus.emit(EventType.WORKER_BAN_SAVED, {
+            banId: ban.id,
+            workerId: ban.workerId,
+            type: ban.type,
+            startDate: ban.startDate,
+            endDate: ban.endDate,
+            active: ban.denormActive ?? true,
+          });
+        }
+      }
       
       if (!item) {
         return res.status(404).json({ message: `${config.name} not found` });
@@ -462,6 +524,19 @@ export function registerConsolidatedOptionsRoutes(app: Express) {
           return res.status(409).json({
             message:
               "This status is used by a grievance timeline template and cannot be deleted. Remove it from all timeline steps first.",
+          });
+        }
+      }
+
+      // A worker ban type referenced by any ban cannot be deleted —
+      // `worker_bans.type` is a soft reference (no FK), so guard here to
+      // avoid orphaning bans onto an unknown (unenforced) type.
+      if (type === "worker-ban-type") {
+        const allBans = await storage.workerBans.getAll();
+        if (allBans.some((ban) => ban.type === id)) {
+          return res.status(409).json({
+            message:
+              "This ban type is used by one or more worker bans and cannot be deleted. Remove or retype those bans first.",
           });
         }
       }

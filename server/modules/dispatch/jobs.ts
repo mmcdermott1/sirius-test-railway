@@ -18,6 +18,26 @@ import { parseYmdParts } from "@shared/utils/date";
 
 const unifiedOptionsStorage = createUnifiedOptionsStorage();
 
+/**
+ * Validates an optional `data.facilityId` on a dispatch job write. The value
+ * is a soft reference to `facilities.id` (facility component) used by the
+ * worker-ban facility behavior's acceptance check, so it must point at a
+ * real facility and requires the component. Returns an error message or null.
+ */
+async function validateJobFacility(data: unknown): Promise<string | null> {
+  const facilityId = (data as { facilityId?: unknown } | null | undefined)?.facilityId;
+  if (facilityId === undefined || facilityId === null) return null;
+  if (typeof facilityId !== "string" || facilityId.trim() === "") {
+    return "facilityId must be a non-empty string";
+  }
+  if (!(await isComponentEnabled("facility"))) {
+    return "The facility component is not enabled";
+  }
+  const facility = await storage.facilities.get(facilityId);
+  if (!facility) return "Facility not found";
+  return null;
+}
+
 export function registerDispatchJobsRoutes(
   app: Express,
   requireAuth: any,
@@ -151,6 +171,12 @@ export function registerDispatchJobsRoutes(
           }
         }
 
+        const facilityError = await validateJobFacility(parsed.data.data);
+        if (facilityError) {
+          res.status(400).json({ message: facilityError });
+          return;
+        }
+
         const job = await storage.dispatchJobs.create(parsed.data);
         res.status(201).json(job);
       } catch (error) {
@@ -269,6 +295,11 @@ export function registerDispatchJobsRoutes(
         }
 
         if (data !== undefined) {
+          const facilityError = await validateJobFacility(data);
+          if (facilityError) {
+            res.status(400).json({ message: facilityError });
+            return;
+          }
           updates.data = data;
         }
 

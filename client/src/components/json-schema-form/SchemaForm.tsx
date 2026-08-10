@@ -18,6 +18,7 @@ import { HtmlEditorWidget } from "./widgets/HtmlEditorWidget";
 import { ArrayTableField } from "./fields/ArrayTableField";
 import { StaffRecipientsField } from "./fields/StaffRecipientsField";
 import { SystemRolesField } from "./fields/SystemRolesField";
+import { WorkerBanPluginsField } from "./fields/WorkerBanPluginsField";
 
 const validator = customizeValidator({
   ajvOptionsOverrides: { $data: true },
@@ -80,6 +81,8 @@ function buildVendorUiSchema(
       field = "staffRecipients";
     } else if (subAny["x-widget"] === "system-roles") {
       field = "systemRoles";
+    } else if (subAny["x-widget"] === "worker-ban-plugins") {
+      field = "workerBanPlugins";
     } else if (typeof subAny["x-options-resource"] === "string") {
       const isArray = (sub as RJSFSchema).type === "array";
       widget = isArray ? "remoteOptionsMulti" : "remoteOptions";
@@ -124,6 +127,7 @@ const baseFields = {
   arrayTable: ArrayTableField,
   staffRecipients: StaffRecipientsField,
   systemRoles: SystemRolesField,
+  workerBanPlugins: WorkerBanPluginsField,
 } as unknown as RegistryFieldsType;
 
 /**
