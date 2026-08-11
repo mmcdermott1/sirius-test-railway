@@ -101,7 +101,7 @@ async function main() {
     await storage.sessions.touchSession(SID, new Date(Date.now() + 120_000));
     check("session touch works in maintenance (rolling expiry)", true);
     const gone = await storage.sessions.deleteSession(SID, "logout");
-    check("session delete works in maintenance (logout)", gone === true);
+    check("session delete works in maintenance (logout)", gone.deleted === true);
 
     // 5. Cron-style failing write doesn't poison the pool; a transactional
     // write (EBS-pump claim style) fails before any side effect and rolls

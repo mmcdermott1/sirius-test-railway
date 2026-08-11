@@ -44,7 +44,18 @@ async function main() {
   const store = new StorageSessionStore({ ttlMs: 60_000 });
   const sid = `verify-store-${Date.now()}`;
   const inOneHour = new Date(Date.now() + 3600_000);
-  const sess = { cookie: { maxAge: 3600_000, expires: inOneHour.toISOString() }, marker: "hello" } as unknown as SessionData;
+  const fakeUserId = `verify-user-${Date.now()}`;
+  const passport = { user: { dbUser: { id: fakeUserId }, claims: { sub: "should-not-win" } } };
+  const sess = { cookie: { maxAge: 3600_000, expires: inOneHour.toISOString() }, marker: "hello", passport } as unknown as SessionData;
+
+  /** host_entity_id values of session logs for a sid. */
+  async function hostsFor(sid: string): Promise<Record<string, string | null>> {
+    const res = await db.execute(sql`
+      SELECT description, host_entity_id FROM winston_logs
+      WHERE module = 'sessions' AND entity_id = ${sid} ORDER BY timestamp ASC
+    `);
+    return Object.fromEntries((res.rows as any[]).map((r) => [String(r.description), r.host_entity_id ?? null]));
+  }
 
   // create
   await call<void>((cb) => store.set(sid, sess, cb));
@@ -78,8 +89,13 @@ async function main() {
     !metaStr.includes("hello") && metaStr.includes("redacted"));
 
   // expired session invisible + per-session prune with reason
+  // attribution: created entry lands on the session owner's account log
+  const createdHosts = await hostsFor(sid);
+  check("created log attributed to session owner (dbUser.id wins)",
+    Object.values(createdHosts)[0] === fakeUserId, createdHosts);
+
   const sidExpired = `${sid}-expired`;
-  await storage.sessions.upsertSession(sidExpired, { cookie: {} }, new Date(Date.now() - 1000));
+  await storage.sessions.upsertSession(sidExpired, { cookie: {}, passport }, new Date(Date.now() - 1000));
   const gotExpired = await call<SessionData | null>((cb) => store.get(sidExpired, cb));
   check("expired session not returned by get", gotExpired == null);
 
@@ -106,6 +122,32 @@ async function main() {
     expiredLogs.some((d) => d.startsWith("Session created")) &&
     expiredLogs.some((d) => d.startsWith("Deleted session") && d.includes("(expired)")),
     expiredLogs);
+  const expiredHosts = await hostsFor(sidExpired);
+  check("expired-delete log attributed to session owner (cron path, no request context)",
+    Object.entries(expiredHosts).every(([, h]) => h === fakeUserId), expiredHosts);
+
+  // pre-auth (anonymous) session: no fabricated attribution
+  const sidAnon = `${sid}-anon`;
+  await storage.sessions.upsertSession(sidAnon, { cookie: {} }, new Date(Date.now() + 60_000));
+  const anonLogs = await logsFor(sidAnon, 1);
+  const anonHosts = await hostsFor(sidAnon);
+  check("anonymous session created log stays unattributed",
+    anonLogs.length === 1 && Object.values(anonHosts).every((h) => h == null), anonHosts);
+  await storage.sessions.deleteSession(sidAnon); // cleanup
+
+  // claims-only session (external provider subject, no resolved dbUser):
+  // must NOT be attributed — claims.sub is not an internal account id
+  const sidClaims = `${sid}-claims`;
+  await storage.sessions.upsertSession(
+    sidClaims,
+    { cookie: {}, passport: { user: { claims: { sub: "external-subject-999" } } } },
+    new Date(Date.now() + 60_000),
+  );
+  await storage.sessions.deleteSession(sidClaims, "logout");
+  const claimsLogs = await logsFor(sidClaims, 2);
+  const claimsHosts = await hostsFor(sidClaims);
+  check("claims-only session logs stay unattributed (no claims.sub fallback)",
+    claimsLogs.length === 2 && Object.values(claimsHosts).every((h) => h == null), claimsHosts);
 
   // destroy (logout) log
   await call<void>((cb) => store.destroy(sid, cb));
@@ -115,6 +157,10 @@ async function main() {
   check("logout delete logged with reason",
     finalLogs.some((d) => d.startsWith("Deleted session") && d.includes("(logout)")),
     finalLogs);
+  const finalHosts = await hostsFor(sid);
+  check("logout delete log attributed to session owner",
+    Object.entries(finalHosts).filter(([d]) => d.startsWith("Deleted")).every(([, h]) => h === fakeUserId),
+    finalHosts);
 
   console.log(failures === 0 ? "ALL PASS" : `${failures} FAILURES`);
   process.exit(failures === 0 ? 0 : 1);

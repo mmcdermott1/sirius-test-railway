@@ -35,7 +35,7 @@ registerCronPlugin({
     // was renewed after the candidate scan above survives (and isn't logged).
     let deleted = 0;
     for (const sid of expiredSids) {
-      if (await storage.sessions.deleteExpiredSession(sid)) deleted++;
+      if ((await storage.sessions.deleteExpiredSession(sid)).deleted) deleted++;
     }
     return {
       message: `Deleted ${deleted} expired sessions`,

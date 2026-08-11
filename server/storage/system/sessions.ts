@@ -27,7 +27,7 @@ export interface SessionStorage {
    * so a session's lifecycle end is attributable. Omitted reason = manual
    * (admin) deletion.
    */
-  deleteSession(sid: string, reason?: string): Promise<boolean>;
+  deleteSession(sid: string, reason?: string): Promise<{ deleted: boolean; userId?: string }>;
 
   countActiveSessions(): Promise<number>;
   /**
@@ -49,9 +49,10 @@ export interface SessionStorage {
    * Delete one session ONLY if it is still expired (atomic `sid AND
    * expire < now()` qualification, so a session renewed between the prune's
    * candidate scan and this delete survives). Logged only when it actually
-   * deleted. Returns whether a row was removed.
+   * deleted. Returns whether a row was removed and the owner (for log
+   * attribution), derived atomically from the deleted row itself.
    */
-  deleteExpiredSession(sid: string): Promise<boolean>;
+  deleteExpiredSession(sid: string): Promise<{ deleted: boolean; userId?: string }>;
 }
 
 export function createSessionStorage(): SessionStorage {
@@ -88,14 +89,17 @@ export function createSessionStorage(): SessionStorage {
     // mode so admins can reach the system-mode escape route. This also
     // (deliberately) covers the session-prune cron (deleteExpiredSession) —
     // pruning during maintenance is harmless and keeps the table tidy.
-    async deleteSession(sid: string, _reason?: string): Promise<boolean> {
+    async deleteSession(sid: string, _reason?: string): Promise<{ deleted: boolean; userId?: string }> {
       return allowInMaintenanceMode(async () => {
         const client = getClient();
-        const result = await client
+        // RETURNING the deleted row's payload makes owner attribution atomic
+        // with the delete: the log can never name a user whose row survived
+        // or was concurrently replaced.
+        const [row] = await client
           .delete(sessions)
           .where(eq(sessions.sid, sid))
-          .returning();
-        return result.length > 0;
+          .returning({ sess: sessions.sess });
+        return row ? { deleted: true, userId: sessionUserId(row.sess) } : { deleted: false };
       });
     },
 
@@ -158,15 +162,15 @@ export function createSessionStorage(): SessionStorage {
       return rows.map((r) => r.sid);
     },
 
-    async deleteExpiredSession(sid: string): Promise<boolean> {
+    async deleteExpiredSession(sid: string): Promise<{ deleted: boolean; userId?: string }> {
       return allowInMaintenanceMode(async () => {
         const client = getClient();
         const now = new Date();
-        const result = await client
+        const [row] = await client
           .delete(sessions)
           .where(sql`${sessions.sid} = ${sid} AND ${sessions.expire} < ${now}`)
-          .returning({ sid: sessions.sid });
-        return result.length > 0;
+          .returning({ sess: sessions.sess });
+        return row ? { deleted: true, userId: sessionUserId(row.sess) } : { deleted: false };
       });
     },
 
@@ -175,10 +179,14 @@ export function createSessionStorage(): SessionStorage {
   return storage;
 }
 
-/** Best-effort user id out of an express-session payload (passport shape). */
+/**
+ * Internal user id out of an express-session payload (passport shape).
+ * ONLY the resolved internal account id (dbUser.id) — never claims.sub, which
+ * is an external-provider subject and must not become a host_entity_id
+ * (invalid reference at best, cross-account misattribution at worst).
+ */
 function sessionUserId(sess: any): string | undefined {
-  const user = sess?.passport?.user;
-  return user?.dbUser?.id ?? user?.claims?.sub ?? undefined;
+  return sess?.passport?.user?.dbUser?.id ?? undefined;
 }
 
 export const sessionLoggingConfig: StorageLoggingConfig<SessionStorage> = {
@@ -187,11 +195,15 @@ export const sessionLoggingConfig: StorageLoggingConfig<SessionStorage> = {
     deleteSession: {
       enabled: true,
       getEntityId: (args) => args[0],
+      shouldLog: (_args, result) => result?.deleted === true,
+      // Owner comes atomically from the DELETE ... RETURNING result, so the
+      // log can never be attributed to a concurrently-replaced session.
+      getHostEntityId: (_args, result) => result?.userId,
       getDescription: async (args) =>
         `Deleted session ${args[0]?.substring(0, 8)}...${args[1] ? ` (${args[1]})` : ''}`,
       after: async (args, result) => {
         return {
-          deleted: result,
+          deleted: result?.deleted === true,
           metadata: {
             sid: args[0],
             ...(args[1] ? { reason: args[1] } : {}),
@@ -208,6 +220,10 @@ export const sessionLoggingConfig: StorageLoggingConfig<SessionStorage> = {
       // potentially provider tokens) into the audit log — keep sid + expiry.
       logArgs: (args) => [args[0], "<session payload redacted>", args[2]],
       getEntityId: (args) => args[0],
+      // Attribute creation to the logging-in user (from the session payload
+      // itself — the ALS request context is not yet authenticated at login).
+      // Anonymous/pre-auth sessions stay unattributed.
+      getHostEntityId: (args) => sessionUserId(args[1]),
       getDescription: async (args) => `Session created ${args[0]?.substring(0, 8)}...`,
       after: async (args, result) => {
         return {
@@ -223,12 +239,15 @@ export const sessionLoggingConfig: StorageLoggingConfig<SessionStorage> = {
       enabled: true,
       // Atomic expired-only delete used by the prune cron. Only log when a
       // row was actually removed (a renewed session survives silently).
-      shouldLog: (_args, result) => result === true,
+      shouldLog: (_args, result) => result?.deleted === true,
       getEntityId: (args) => args[0],
+      // Same atomic owner attribution for cron-driven expiry deletes (no
+      // request context exists there at all).
+      getHostEntityId: (_args, result) => result?.userId,
       getDescription: async (args) => `Deleted session ${args[0]?.substring(0, 8)}... (expired)`,
       after: async (args, result) => {
         return {
-          deleted: result,
+          deleted: result?.deleted === true,
           metadata: {
             sid: args[0],
             reason: 'expired',
