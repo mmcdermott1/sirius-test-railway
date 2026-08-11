@@ -32,6 +32,26 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+export interface EligibilityFailure {
+  pluginName: string;
+  explanation: string;
+}
+
+/**
+ * Extract structured eligibility failures from a 403 dispatch create/accept
+ * rejection (`{ message, eligibilityFailures: [{ pluginName, explanation }] }`).
+ * Returns an empty array for any other error shape.
+ */
+export function getEligibilityFailures(error: unknown): EligibilityFailure[] {
+  if (!(error instanceof ApiError)) return [];
+  const failures = error.data?.eligibilityFailures;
+  if (!Array.isArray(failures)) return [];
+  return failures.filter(
+    (f: any): f is EligibilityFailure =>
+      f && typeof f.pluginName === "string" && typeof f.explanation === "string",
+  );
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     let data: any = null;

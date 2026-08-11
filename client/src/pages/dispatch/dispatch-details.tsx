@@ -29,7 +29,8 @@ import {
   ExternalLink, CheckCircle, XCircle, Pause, LogOut, Send, RotateCcw, Loader2,
   type LucideIcon,
 } from "lucide-react";
-import { apiRequest, queryClient, getApiErrorMessage } from "@/lib/queryClient";
+import { apiRequest, queryClient, getApiErrorMessage, getEligibilityFailures } from "@/lib/queryClient";
+import { EligibilityFailureList } from "@/components/dispatch/EligibilityFailureList";
 import { useToast } from "@/hooks/use-toast";
 import type { DispatchStatus } from "@shared/schema";
 import type { CommSummary } from "../../../../server/storage/dispatch/dispatches";
@@ -185,9 +186,18 @@ function StatusTransitionActions({ dispatchId, currentStatus }: { dispatchId: st
       setConfirmingStatus(null);
     },
     onError: (err: any) => {
+      const failures = getEligibilityFailures(err);
       toast({
-        title: "Failed to update status",
-        description: getApiErrorMessage(err, "An error occurred while updating the dispatch status."),
+        title: failures.length > 0 ? "Worker not eligible" : "Failed to update status",
+        description:
+          failures.length > 0 ? (
+            <EligibilityFailureList
+              intro="This dispatch can't be accepted because the worker fails these eligibility criteria:"
+              failures={failures}
+            />
+          ) : (
+            getApiErrorMessage(err, "An error occurred while updating the dispatch status.")
+          ),
         variant: "destructive",
       });
       setConfirmingStatus(null);
