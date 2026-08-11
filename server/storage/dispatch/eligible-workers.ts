@@ -634,20 +634,11 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
           continue;
         }
 
-        // Prefer the plugin's live authoritative check: denorm facts are
-        // updated asynchronously after saves, so fact-based evaluation here
-        // would leave a stale-fact window right after a ban is created.
-        if (plugin.checkAcceptance) {
-          const verdict = await plugin.checkAcceptance(context, workerId);
-          if (verdict && !verdict.passed) {
-            failures.push({
-              pluginId: plugin.id,
-              pluginName: plugin.name,
-              explanation: verdict.explanation,
-            });
-          }
-          continue;
-        }
+        // Purely fact-based: every criterion — bans included — is evaluated
+        // against worker_dispatch_elig_denorm, the same facts the listing
+        // query uses. Facts propagate through the standard denorm cycle
+        // (after-commit event → listener → fact table), so verdicts are
+        // eventually consistent with source writes, like DNC/skills/HFE.
         const conditionResult = await Promise.resolve(plugin.getEligibilityCondition(context, pluginConfig.config));
         if (!conditionResult) continue;
         const conditions = Array.isArray(conditionResult) ? conditionResult : [conditionResult];

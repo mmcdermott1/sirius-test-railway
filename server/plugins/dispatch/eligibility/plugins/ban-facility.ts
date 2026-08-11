@@ -29,20 +29,6 @@ export const dispatchBanFacilityPlugin: DispatchEligPlugin = {
       failureMessage: "Worker is banned from this job's facility",
     };
   },
-
-  // Live accept-time check from source ban rows (the `ban_facility` facts are
-  // updated asynchronously, so they cannot back the hard acceptance invariant).
-  async checkAcceptance(context: EligibilityQueryContext, workerId: string) {
-    if (!(await isComponentEnabled("dispatch.facility"))) return null;
-    const link = await storage.dispatchJobFacility.getByJob(context.jobId);
-    if (!link?.facilityId) return null;
-    const { isBanned } = await import("../../../worker-bans/service");
-    const verdict = await isBanned("dispatch.accept", workerId, { facilityId: link.facilityId });
-    const matches = verdict.matches.filter((m) => m.pluginId === "facility");
-    if (matches.length === 0) return { passed: true, explanation: "No facility ban for this job's facility" };
-    const reasons = matches.map((m) => [m.banTypeName ?? "Ban", m.message].filter(Boolean).join(": "));
-    return { passed: false, explanation: `Worker is banned from this job's facility (${reasons.join("; ")})` };
-  },
 };
 
 registerDispatchEligPlugin(dispatchBanFacilityPlugin);

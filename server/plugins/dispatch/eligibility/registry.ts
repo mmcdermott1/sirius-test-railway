@@ -43,18 +43,6 @@ export interface EligibilityQueryContext {
  */
 export interface DispatchEligPlugin extends BasePluginMetadata {
   configSchema?: JsonSchema;
-  /**
-   * Live authoritative check used at dispatch create/accept point checks
-   * INSTEAD of the denorm-fact condition. Denorm facts are updated
-   * asynchronously after ban saves, so a create/accept immediately following
-   * a ban save could otherwise slip through the stale-fact window. Return
-   * null when the criterion is inert for this job, or a pass/fail verdict
-   * computed from source data. The listing query always uses facts.
-   */
-  checkAcceptance?(
-    context: EligibilityQueryContext,
-    workerId: string,
-  ): Promise<{ passed: boolean; explanation: string } | null>;
   getEligibilityCondition(
     context: EligibilityQueryContext,
     config: EligibilityPluginConfig["config"],

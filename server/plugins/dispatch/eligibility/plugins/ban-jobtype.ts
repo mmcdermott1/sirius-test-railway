@@ -24,18 +24,6 @@ export const dispatchBanJobTypePlugin: DispatchEligPlugin = {
       failureMessage: "Worker is banned from this job's job type",
     };
   },
-
-  // Live accept-time check from source ban rows (the `ban_jobtype` facts are
-  // updated asynchronously, so they cannot back the hard acceptance invariant).
-  async checkAcceptance(context: EligibilityQueryContext, workerId: string) {
-    if (!context.jobTypeId) return null;
-    const { isBanned } = await import("../../../worker-bans/service");
-    const verdict = await isBanned("dispatch.accept", workerId, { jobTypeId: context.jobTypeId });
-    const matches = verdict.matches.filter((m) => m.pluginId === "dispatch-job-type");
-    if (matches.length === 0) return { passed: true, explanation: "No job-type ban for this job's job type" };
-    const reasons = matches.map((m) => [m.banTypeName ?? "Ban", m.message].filter(Boolean).join(": "));
-    return { passed: false, explanation: `Worker is banned from this job's job type (${reasons.join("; ")})` };
-  },
 };
 
 registerDispatchEligPlugin(dispatchBanJobTypePlugin);

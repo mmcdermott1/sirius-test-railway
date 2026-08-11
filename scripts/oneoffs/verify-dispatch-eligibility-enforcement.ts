@@ -1,9 +1,11 @@
 /**
- * One-off e2e check for Task #992: worker eligibility is enforced server-side
- * at BOTH dispatch creation (POST /api/dispatches) and acceptance (set-status
- * + generic PUT), using the FULL job-configured eligibility plugin set (the
- * `enforceOnAccept` flag is gone). Failures must name the failing plugin(s)
- * and their messages.
+ * One-off e2e check (Tasks #992/#997): worker eligibility is enforced
+ * server-side at BOTH dispatch creation (POST /api/dispatches) and acceptance
+ * (set-status + generic PUT), using the FULL job-configured eligibility plugin
+ * set, evaluated PURELY from worker_dispatch_elig_denorm facts (no live
+ * source-row reads). The script recomputes the ban denorm facts after each
+ * ban write, standing in for the after-commit event listener that does the
+ * same in the running app.
  *
  * Run:
  *   npx tsx scripts/oneoffs/verify-dispatch-eligibility-enforcement.ts
@@ -18,13 +20,17 @@ import { initAccessControl } from "../../server/services/access-policy-evaluator
 import { initializePermissions } from "../../shared/permissions";
 import "../../shared/access-policies/loader";
 import { registerDispatchesRoutes } from "../../server/modules/dispatch/dispatches";
-// Register the eligibility plugins (read side) + worker-ban plugins the ban
-// eligibility plugin's live check consults.
+// Register the eligibility plugins (read side), the ban denorm plugin (write
+// side — maintains the `ban` facts), and the worker-ban behavior plugins the
+// denorm compute consults. Import the denorm plugin file directly, not the
+// denorm barrel (the barrel's registry init breaks under standalone tsx).
 import "../../server/plugins/dispatch/eligibility/plugins/ban";
 import "../../server/plugins/dispatch/eligibility/plugins/ban-jobtype";
 import "../../server/plugins/dispatch/eligibility/plugins/singleshift";
 import "../../server/plugins/worker-bans/plugins/all-dispatch";
 import "../../server/plugins/worker-bans/plugins/dispatch-job-type";
+import "../../server/plugins/system/denorm/plugins/dispatch/ban";
+import { recomputeStaleDenorm } from "../../server/plugins/system/denorm/recompute";
 
 async function main() {
   await loadComponentCache();
@@ -123,6 +129,21 @@ async function main() {
     if (clean.length < 2) throw new Error("could not find two unbanned workers in dev DB");
     const [workerA, workerB] = clean;
 
+    // Stand-in for the after-commit denorm listener: mark the worker's `ban`
+    // facts stale and recompute them, exactly what the running app does
+    // asynchronously after a ban save/delete.
+    const banDenormConfigs = await storage.pluginConfigs.getByKindAndPlugin("denorm", "dispatch_ban");
+    if (banDenormConfigs.length === 0) throw new Error("dispatch_ban denorm plugin config missing");
+    const recomputeBanFacts = async (workerId: string) => {
+      await storage.denorm.upsertStatus({
+        configId: banDenormConfigs[0].id,
+        entityId: workerId,
+        entityType: "worker",
+        status: "stale",
+      });
+      await recomputeStaleDenorm({ pluginId: "dispatch_ban" });
+    };
+
     const post = (path: string, body: unknown) =>
       fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const put = (path: string, body: unknown) =>
@@ -141,6 +162,7 @@ async function main() {
       message: "T992 test ban",
     } as any);
     cleanup.push(async () => { try { await storage.workerBans.delete(banB.id); } catch {} });
+    await recomputeBanFacts(workerB.id);
 
     res = await post("/api/dispatches", { jobId: job.id, workerId: workerB.id, status: "pending" });
     let body: any = await res.json();
@@ -161,6 +183,7 @@ async function main() {
       startDate: new Date() as any,
       message: "T992 lapse ban",
     } as any);
+    await recomputeBanFacts(workerA.id);
 
     res = await post(`/api/dispatches/${dispatchA.id}/set-status`, { status: "accepted" });
     body = await res.json();
@@ -183,6 +206,7 @@ async function main() {
     // ---- 4. lift ban → accept succeeds (own pending dispatch doesn't block,
     //         singleshift enabled) -------------------------------------------
     await storage.workerBans.delete(banA.id);
+    await recomputeBanFacts(workerA.id);
     res = await post(`/api/dispatches/${dispatchA.id}/set-status`, { status: "accepted" });
     body = await res.json();
     check("accept after ban lifted (singleshift enabled, own pending dispatch) → 200", res.status === 200, { status: res.status, body });
