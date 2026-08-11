@@ -173,8 +173,8 @@ poolInstance.on("error", (err: Error) => {
   console.error("PG Pool error (idle client terminated, recovering):", err.message);
 });
 
-// Exported as pg.Pool: the only consumer of the pool outside this file is
-// connect-pg-simple (session store), whose types expect node-postgres. The
-// Neon Pool is a runtime drop-in for every API surface used there.
+// Exported as pg.Pool for the rare infrastructure consumer that needs the
+// raw pool (application code goes through the drizzle `db` / storage layer).
+// The Neon Pool is a runtime drop-in for the node-postgres API surface.
 export const pool = poolInstance as pg.Pool;
 export const db = dbInstance;

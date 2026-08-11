@@ -81,7 +81,7 @@ function reportIsEmpty(r: SchemaDriftReport): boolean {
  * conscious decision — prefer modeling tables in Drizzle whenever possible.
  */
 const EXTRA_TABLE_ALLOWLIST = new Set<string>([
-  "session", // express-session connect-pg-simple
+  "session", // express-session (StorageSessionStore; legacy unmodeled table name)
 ]);
 
 /**

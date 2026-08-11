@@ -128,3 +128,4 @@ import "./plugins/denormBackfill";
 import "./plugins/denormStale";
 import "./plugins/ebsPump";
 import "./plugins/fileConsistencySweep";
+import "./plugins/sessionPrune";

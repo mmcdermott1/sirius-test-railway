@@ -22,6 +22,20 @@ export interface SessionStorage {
   getSessions(): Promise<SessionWithUser[]>;
   deleteSession(sid: string): Promise<boolean>;
   countActiveSessions(): Promise<number>;
+  /**
+   * express-session store primitives (used by StorageSessionStore in
+   * server/auth/session-store.ts). These run on nearly every HTTP request,
+   * so they are intentionally NOT wrapped with per-operation diff logging
+   * (see sessionLoggingConfig, which only logs deleteSession).
+   */
+  /** The session payload for an unexpired session, or undefined. */
+  getSessionData(sid: string): Promise<unknown | undefined>;
+  /** Insert or replace a session row. */
+  upsertSession(sid: string, sess: unknown, expire: Date): Promise<void>;
+  /** Roll a session's expiry forward. No-op when the row is gone. */
+  touchSession(sid: string, expire: Date): Promise<void>;
+  /** Delete expired session rows; returns how many were removed. */
+  deleteExpiredSessions(): Promise<number>;
 }
 
 export function createSessionStorage(): SessionStorage {
@@ -70,6 +84,46 @@ export function createSessionStorage(): SessionStorage {
         .from(sessions)
         .where(sql`${sessions.expire} > ${now}`);
       return Number(result?.count ?? 0);
+    },
+
+    async getSessionData(sid: string): Promise<unknown | undefined> {
+      const client = getClient();
+      const now = new Date();
+      const [row] = await client
+        .select({ sess: sessions.sess })
+        .from(sessions)
+        .where(sql`${sessions.sid} = ${sid} AND ${sessions.expire} >= ${now}`)
+        .limit(1);
+      return row?.sess;
+    },
+
+    async upsertSession(sid: string, sess: unknown, expire: Date): Promise<void> {
+      const client = getClient();
+      await client
+        .insert(sessions)
+        .values({ sid, sess, expire })
+        .onConflictDoUpdate({
+          target: sessions.sid,
+          set: { sess, expire },
+        });
+    },
+
+    async touchSession(sid: string, expire: Date): Promise<void> {
+      const client = getClient();
+      await client
+        .update(sessions)
+        .set({ expire })
+        .where(eq(sessions.sid, sid));
+    },
+
+    async deleteExpiredSessions(): Promise<number> {
+      const client = getClient();
+      const now = new Date();
+      const result = await client
+        .delete(sessions)
+        .where(sql`${sessions.expire} < ${now}`)
+        .returning({ sid: sessions.sid });
+      return result.length;
     },
 
   };
