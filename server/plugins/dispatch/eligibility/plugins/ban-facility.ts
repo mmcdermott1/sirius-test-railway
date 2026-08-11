@@ -1,5 +1,4 @@
 import { registerDispatchEligPlugin } from "../registry";
-import { storage } from "../../../../storage";
 import { isComponentEnabled } from "../../../../modules/components";
 import type { DispatchEligPlugin, EligibilityCondition, EligibilityQueryContext } from "../registry";
 
@@ -20,7 +19,7 @@ export const dispatchBanFacilityPlugin: DispatchEligPlugin = {
 
   async getEligibilityCondition(context: EligibilityQueryContext, _config: Record<string, unknown>): Promise<EligibilityCondition | null> {
     if (!(await isComponentEnabled("dispatch.facility"))) return null;
-    const link = await storage.dispatchJobFacility.getByJob(context.jobId);
+    const link = context.facilityLink;
     if (!link?.facilityId) return null;
     return {
       category: BAN_FACILITY_CATEGORY,

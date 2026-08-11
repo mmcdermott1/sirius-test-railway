@@ -9,9 +9,13 @@ import {
   type EligibilityCondition, 
   type EligibilityQueryContext 
 } from "../../plugins/dispatch/eligibility/registry";
-import { createDispatchJobStorage } from "./jobs";
+import { createDispatchJobStorage, type DispatchJobWithRelations } from "./jobs";
+import { createDispatchJobFacilityStorage } from "./facility";
+import { createDispatchJobDepartmentStorage } from "./job-departments";
+import { createEmployerCompanyStorage } from "../employers/companies";
 import { createUnifiedOptionsStorage, type OptionsTypeName } from "../unified-options";
 import { createPluginConfigStorage } from "../system/plugin-configs";
+import { isComponentEnabled } from "../../modules/components";
 
 /**
  * Stub validator - add validation logic here when needed
@@ -92,6 +96,66 @@ export interface DispatchEligibleWorkersStorage {
   checkWorkerAcceptance(jobId: string, workerId: string): Promise<WorkerAcceptanceResult>;
 }
 
+/**
+ * Load the enabled per-job-type eligibility plugin configs for a job.
+ * Shared by all three invocation paths so they apply the same plugin set.
+ */
+async function loadEnabledPluginConfigs(jobTypeId: string | null): Promise<EligibilityPluginConfig[]> {
+  if (!jobTypeId) return [];
+  const pluginConfigStorage = createPluginConfigStorage();
+  const rows = await pluginConfigStorage.search("dispatch-eligibility", { jobType: jobTypeId });
+  return rows
+    .filter((r) => r.config.enabled)
+    .map((r) => ({
+      pluginId: r.config.pluginId,
+      enabled: true,
+      config: (r.config.data ?? {}) as Record<string, unknown>,
+    }));
+}
+
+/**
+ * Build the enriched EligibilityQueryContext from the already-loaded job.
+ * Prefetches job-scoped data the enabled plugins need (facility link,
+ * department link) so plugins don't issue their own storage queries, and
+ * exposes a memoized lazy loader for the employer-company relation.
+ */
+async function buildEligibilityContext(
+  job: DispatchJobWithRelations,
+  enabledPluginConfigs: EligibilityPluginConfig[],
+): Promise<EligibilityQueryContext> {
+  const enabledIds = new Set(enabledPluginConfigs.map((c) => c.pluginId));
+
+  const [facilityLink, departmentLink] = await Promise.all([
+    // Mirrors the facility-ban plugin's previous gate: only meaningful when
+    // the dispatch.facility component is on (the link table is component-owned).
+    enabledIds.has("dispatch_ban_facility")
+      ? isComponentEnabled("dispatch.facility").then((on) =>
+          on ? createDispatchJobFacilityStorage().getByJob(job.id) : undefined,
+        )
+      : Promise.resolve(undefined),
+    enabledIds.has("dispatch_department")
+      ? createDispatchJobDepartmentStorage().getByJob(job.id)
+      : Promise.resolve(undefined),
+  ]);
+
+  let employerCompanyPromise: ReturnType<ReturnType<typeof createEmployerCompanyStorage>["getByEmployerId"]> | null = null;
+
+  return {
+    jobId: job.id,
+    employerId: job.employerId,
+    jobTypeId: job.jobTypeId,
+    job,
+    facilityLink: facilityLink ?? null,
+    departmentLink: departmentLink ?? null,
+    getEmployerCompany() {
+      if (!employerCompanyPromise) {
+        employerCompanyPromise = createEmployerCompanyStorage().getByEmployerId(job.employerId);
+      }
+      return employerCompanyPromise;
+    },
+  };
+}
+
 type DynamicQuery = ReturnType<ReturnType<typeof db.select>["from"]>["$dynamic"] extends (...args: any) => infer R ? R : never;
 
 interface QueryBuildResult {
@@ -113,24 +177,8 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
     return null;
   }
 
-  const context: EligibilityQueryContext = {
-    jobId: job.id,
-    employerId: job.employerId,
-    jobTypeId: job.jobTypeId,
-  };
-
-  let enabledPluginConfigs: EligibilityPluginConfig[] = [];
-  
-  if (job.jobTypeId) {
-    const rows = await pluginConfigStorage.search("dispatch-eligibility", { jobType: job.jobTypeId });
-    enabledPluginConfigs = rows
-      .filter((r) => r.config.enabled)
-      .map((r) => ({
-        pluginId: r.config.pluginId,
-        enabled: true,
-        config: (r.config.data ?? {}) as Record<string, unknown>,
-      }));
-  }
+  const enabledPluginConfigs = await loadEnabledPluginConfigs(job.jobTypeId);
+  const context = await buildEligibilityContext(job, enabledPluginConfigs);
 
   const appliedConditions: Array<{ pluginId: string; condition: EligibilityCondition }> = [];
 
@@ -600,26 +648,10 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
         return { allowed: true, failures: [] };
       }
 
-      const context: EligibilityQueryContext = {
-        jobId: job.id,
-        employerId: job.employerId,
-        jobTypeId: job.jobTypeId,
-      };
-
       // Same plugin set the eligible-worker listing query applies: the
       // per-job-type plugin configs that are enabled for this job.
-      const pluginConfigStorage = createPluginConfigStorage();
-      let enabledPluginConfigs: EligibilityPluginConfig[] = [];
-      if (job.jobTypeId) {
-        const rows = await pluginConfigStorage.search("dispatch-eligibility", { jobType: job.jobTypeId });
-        enabledPluginConfigs = rows
-          .filter((r) => r.config.enabled)
-          .map((r) => ({
-            pluginId: r.config.pluginId,
-            enabled: true,
-            config: (r.config.data ?? {}) as Record<string, unknown>,
-          }));
-      }
+      const enabledPluginConfigs = await loadEnabledPluginConfigs(job.jobTypeId);
+      const context = await buildEligibilityContext(job, enabledPluginConfigs);
 
       const failures: AcceptanceFailure[] = [];
 
@@ -693,24 +725,8 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
 
       const worker = workerResult[0];
 
-      const context: EligibilityQueryContext = {
-        jobId: job.id,
-        employerId: job.employerId,
-        jobTypeId: job.jobTypeId,
-      };
-
-      let enabledPluginConfigs: EligibilityPluginConfig[] = [];
-      
-      if (job.jobTypeId) {
-        const rows = await pluginConfigStorage.search("dispatch-eligibility", { jobType: job.jobTypeId });
-        enabledPluginConfigs = rows
-          .filter((r) => r.config.enabled)
-          .map((r) => ({
-            pluginId: r.config.pluginId,
-            enabled: true,
-            config: (r.config.data ?? {}) as Record<string, unknown>,
-          }));
-      }
+      const enabledPluginConfigs = await loadEnabledPluginConfigs(job.jobTypeId);
+      const context = await buildEligibilityContext(job, enabledPluginConfigs);
 
       const pluginResults: PluginCheckResult[] = [];
 
