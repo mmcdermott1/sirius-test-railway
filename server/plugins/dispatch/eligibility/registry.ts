@@ -43,6 +43,25 @@ export interface EligibilityQueryContext {
  */
 export interface DispatchEligPlugin extends BasePluginMetadata {
   configSchema?: JsonSchema;
+  /**
+   * When true, this plugin's condition is ALSO enforced at dispatch-accept
+   * time for every worker (staff included), independent of per-job-type
+   * enablement — matching the historical hardcoded ban point check. Most
+   * plugins only shape the eligible-worker listing and leave this unset.
+   */
+  enforceOnAccept?: boolean;
+  /**
+   * Live authoritative check used at accept time INSTEAD of the denorm-fact
+   * condition. Denorm facts are updated asynchronously after ban saves, so an
+   * accept immediately following a ban save could otherwise slip through the
+   * stale-fact window. Return null when the criterion is inert for this job,
+   * or a pass/fail verdict computed from source data. Only consulted for
+   * plugins with `enforceOnAccept`; the listing query always uses facts.
+   */
+  checkAcceptance?(
+    context: EligibilityQueryContext,
+    workerId: string,
+  ): Promise<{ passed: boolean; explanation: string } | null>;
   getEligibilityCondition(
     context: EligibilityQueryContext,
     config: EligibilityPluginConfig["config"],

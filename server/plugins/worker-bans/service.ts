@@ -131,11 +131,27 @@ export async function isBanned(
 }
 
 /**
+ * True when the ban's type includes `pluginId` (registered, component enabled)
+ * for `action`. Used by the dispatch-eligibility denorm write side to turn
+ * conditional bans (facility, job type) into per-target eligibility facts.
+ */
+export async function banIncludesPlugin(
+  ban: WorkerBan,
+  pluginId: string,
+  action: BannableActionId,
+): Promise<boolean> {
+  const resolved = await resolveBanType(ban);
+  if (!resolved.pluginIds.includes(pluginId)) return false;
+  const plugin = enabledPluginsById().get(pluginId);
+  return !!plugin && plugin.actions.includes(action);
+}
+
+/**
  * True when the ban denies `action` UNCONDITIONALLY (via a plugin with no
  * match predicate). Used by the dispatch-eligibility denorm write side and
- * the expired-ban sweep: only outright dispatch bans become global `ban`
- * facts — conditional bans (facility, job type) are enforced at the point
- * check, not in the eligible-workers query.
+ * only outright dispatch bans become global `ban` facts — conditional bans
+ * (facility, job type) become per-target `ban_facility` / `ban_jobtype`
+ * facts via their own denorm plugins.
  */
 export async function banGloballyDenies(
   ban: WorkerBan,

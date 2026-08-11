@@ -50,7 +50,8 @@ const dispatchBanDenormPlugin: DenormPlugin<DispatchEligDenormPayload> = {
     // Only bans whose type UNCONDITIONALLY denies dispatch acceptance (e.g.
     // the all-dispatch plugin, including migrated legacy "dispatch" bans)
     // become global eligibility facts; conditional bans (facility, job type)
-    // are enforced at the acceptance point check instead.
+    // become per-target facts via the dispatch_ban_facility /
+    // dispatch_ban_jobtype denorm plugins instead.
     const dateActive = bans.filter((ban) => isBanCurrentlyActive(ban));
     const activeBans = [];
     for (const ban of dateActive) {

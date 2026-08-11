@@ -118,6 +118,8 @@ import "./plugins/dispatch/accepted";
 // dispatch ends (gated by the dispatch.asi component).
 import "./plugins/dispatch/asi-sign-in";
 import "./plugins/dispatch/ban";
+import "./plugins/dispatch/banFacility";
+import "./plugins/dispatch/banJobType";
 import "./plugins/dispatch/department";
 import "./plugins/dispatch/dnc";
 import "./plugins/dispatch/eba";

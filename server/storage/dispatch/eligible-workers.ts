@@ -67,10 +67,29 @@ export interface WorkerEligibilityCheckResult {
   pluginResults: PluginCheckResult[];
 }
 
+export interface AcceptanceFailure {
+  pluginId: string;
+  pluginName: string;
+  explanation: string;
+}
+
+export interface WorkerAcceptanceResult {
+  allowed: boolean;
+  failures: AcceptanceFailure[];
+}
+
 export interface DispatchEligibleWorkersStorage {
   getEligibleWorkersForJob(jobId: string, limit?: number, offset?: number, filters?: EligibleWorkersFilters): Promise<EligibleWorkersResult>;
   getEligibleWorkersForJobSql(jobId: string, limit?: number, offset?: number, filters?: EligibleWorkersFilters): Promise<EligibleWorkersSqlResult | null>;
   checkWorkerEligibility(jobId: string, workerId: string): Promise<WorkerEligibilityCheckResult | null>;
+  /**
+   * Accept-time enforcement: evaluate every registered, component-enabled
+   * eligibility plugin flagged `enforceOnAccept` for this worker+job. Unlike
+   * the listing query, this is NOT gated on per-job-type plugin configs —
+   * these criteria (bans) block acceptance for everyone, staff included,
+   * regardless of configuration (matching the historical point check).
+   */
+  checkWorkerAcceptance(jobId: string, workerId: string): Promise<WorkerAcceptanceResult>;
 }
 
 type DynamicQuery = ReturnType<ReturnType<typeof db.select>["from"]>["$dynamic"] extends (...args: any) => infer R ? R : never;
@@ -570,6 +589,59 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
         params: sqlResult.params,
         appliedConditions,
       };
+    },
+
+    async checkWorkerAcceptance(jobId: string, workerId: string): Promise<WorkerAcceptanceResult> {
+      const client = getClient();
+      const jobStorage = createDispatchJobStorage();
+      const job = await jobStorage.getWithRelations(jobId);
+      if (!job) {
+        // No job → nothing to enforce; the caller has already 404'd or will.
+        return { allowed: true, failures: [] };
+      }
+
+      const context: EligibilityQueryContext = {
+        jobId: job.id,
+        employerId: job.employerId,
+        jobTypeId: job.jobTypeId,
+      };
+
+      const failures: AcceptanceFailure[] = [];
+      const plugins = dispatchEligPluginRegistry
+        .getEnabledPlugins()
+        .filter((p) => p.enforceOnAccept);
+
+      for (const plugin of plugins) {
+        // Prefer the plugin's live authoritative check: denorm facts are
+        // updated asynchronously after saves, so fact-based evaluation here
+        // would leave a stale-fact window right after a ban is created.
+        if (plugin.checkAcceptance) {
+          const verdict = await plugin.checkAcceptance(context, workerId);
+          if (verdict && !verdict.passed) {
+            failures.push({
+              pluginId: plugin.id,
+              pluginName: plugin.name,
+              explanation: verdict.explanation,
+            });
+          }
+          continue;
+        }
+        const conditionResult = await Promise.resolve(plugin.getEligibilityCondition(context, {}));
+        if (!conditionResult) continue;
+        const conditions = Array.isArray(conditionResult) ? conditionResult : [conditionResult];
+        for (const condition of conditions) {
+          const result = await checkConditionForWorker(client, workerId, condition);
+          if (!result.passed) {
+            failures.push({
+              pluginId: plugin.id,
+              pluginName: plugin.name,
+              explanation: result.explanation,
+            });
+          }
+        }
+      }
+
+      return { allowed: failures.length === 0, failures };
     },
 
     async checkWorkerEligibility(jobId: string, workerId: string): Promise<WorkerEligibilityCheckResult | null> {

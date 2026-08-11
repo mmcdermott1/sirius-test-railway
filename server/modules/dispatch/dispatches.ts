@@ -3,7 +3,7 @@ import { storage } from "../../storage";
 import { PrimaryDispatchConflictError, PRIMARY_DISPATCH_CONFLICT_MESSAGE } from "../../storage/dispatch/dispatches";
 import { insertDispatchSchema, dispatchStatusEnum } from "@shared/schema";
 import { requireAccess, buildContext, getAccessStorage } from "../../services/access-policy-evaluator";
-import { requireComponent, isComponentEnabled } from "../components";
+import { requireComponent } from "../components";
 
 export function registerDispatchesRoutes(
   app: Express,
@@ -100,40 +100,23 @@ export function registerDispatchesRoutes(
   });
 
   /**
-   * Worker-ban point check for accepting a dispatch. Returns a 403 response
-   * body when an active ban (all-dispatch, facility, job type) prohibits
-   * `dispatch.accept` for this worker+job, or null when acceptance is
-   * allowed. Applies to everyone — staff must lift the ban instead.
+   * Generic eligibility point check for accepting a dispatch. Evaluates every
+   * eligibility plugin flagged `enforceOnAccept` (via denorm facts) and
+   * returns a 403 response body listing the failed criteria, or null when
+   * acceptance is allowed. Applies to everyone — staff must clear the
+   * underlying condition (e.g. lift a ban) instead.
    */
-  async function acceptBanRejection(
+  async function acceptEligibilityRejection(
     workerId: string,
     jobId: string,
   ): Promise<Record<string, unknown> | null> {
-    const job = await storage.dispatchJobs.get(jobId);
-    const { isBanned } = await import("../../plugins/worker-bans/service");
-    // Facility context comes from the dispatch_job_facility association
-    // (dispatch.facility component). Guarded: the table only exists while
-    // the component is enabled.
-    let facilityId: string | undefined;
-    if (job && (await isComponentEnabled("dispatch.facility"))) {
-      facilityId = (await storage.dispatchJobFacility.getByJob(jobId))?.facilityId;
-    }
-    const verdict = await isBanned("dispatch.accept", workerId, {
-      jobTypeId: job?.jobTypeId ?? null,
-      facilityId,
-    });
-    if (!verdict.banned) return null;
-    const reasons = verdict.matches.map((m) =>
-      [m.banTypeName ?? "Ban", m.message].filter(Boolean).join(": "),
-    );
+    const { createDispatchEligibleWorkersStorage } = await import("../../storage/dispatch/eligible-workers");
+    const result = await createDispatchEligibleWorkersStorage().checkWorkerAcceptance(jobId, workerId);
+    if (result.allowed) return null;
+    const reasons = result.failures.map((f) => `${f.pluginName}: ${f.explanation}`);
     return {
-      message: `This worker is banned from accepting this dispatch (${reasons.join("; ")})`,
-      banMatches: verdict.matches.map((m) => ({
-        banId: m.ban.id,
-        banType: m.banTypeName,
-        pluginId: m.pluginId,
-        message: m.message,
-      })),
+      message: `This worker is not eligible to accept this dispatch (${reasons.join("; ")})`,
+      eligibilityFailures: result.failures,
     };
   }
 
@@ -155,10 +138,10 @@ export function registerDispatchesRoutes(
           res.status(400).json({ message: `Invalid status. Must be one of: ${dispatchStatusEnum.join(', ')}` });
           return;
         }
-        // Same worker-ban point check as /set-status — the generic update
-        // route must not be a bypass for accepting a banned worker.
+        // Same eligibility point check as /set-status — the generic update
+        // route must not be a bypass for accepting an ineligible worker.
         if (status === "accepted" && existing.status !== "accepted") {
-          const rejection = await acceptBanRejection(existing.workerId, existing.jobId);
+          const rejection = await acceptEligibilityRejection(existing.workerId, existing.jobId);
           if (rejection) {
             res.status(403).json(rejection);
             return;
@@ -265,12 +248,12 @@ export function registerDispatchesRoutes(
         return;
       }
 
-      // Worker-ban point check: bans (all-dispatch, facility, job type)
-      // block acceptance for everyone; staff must lift the ban first.
+      // Eligibility point check: enforce-on-accept criteria (e.g. bans)
+      // block acceptance for everyone; staff must clear them first.
       if (status === "accepted") {
         const dispatch = await storage.dispatches.get(id);
         if (dispatch) {
-          const rejection = await acceptBanRejection(dispatch.workerId, dispatch.jobId);
+          const rejection = await acceptEligibilityRejection(dispatch.workerId, dispatch.jobId);
           if (rejection) {
             res.status(403).json(rejection);
             return;
