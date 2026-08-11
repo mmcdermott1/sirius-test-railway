@@ -20,15 +20,23 @@ registerCronPlugin({
   defaultEnabled: true,
 
   async execute(context: CronJobContext): Promise<CronJobResult> {
+    const expiredSids = await storage.sessions.getExpiredSessionSids();
+
     if (context.mode === "test") {
-      const active = await storage.sessions.countActiveSessions();
       return {
-        message: `Test mode: expired rows would be deleted; ${active} active sessions would be kept`,
-        metadata: { activeSessions: active },
+        message: `Test mode: ${expiredSids.length} expired sessions would be deleted`,
+        metadata: { expired: expiredSids.length },
       };
     }
 
-    const deleted = await storage.sessions.deleteExpiredSessions();
+    // Delete one at a time through the logged storage facade so each
+    // session gets its own "Deleted session ... (expired)" lifecycle entry.
+    // deleteExpiredSession re-checks expiry atomically, so a session that
+    // was renewed after the candidate scan above survives (and isn't logged).
+    let deleted = 0;
+    for (const sid of expiredSids) {
+      if (await storage.sessions.deleteExpiredSession(sid)) deleted++;
+    }
     return {
       message: `Deleted ${deleted} expired sessions`,
       metadata: { deleted },

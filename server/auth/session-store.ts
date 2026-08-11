@@ -53,7 +53,7 @@ export class StorageSessionStore extends session.Store {
   }
 
   destroy(sid: string, callback?: (err?: unknown) => void): void {
-    getStorage().sessions.deleteSession(sid)
+    getStorage().sessions.deleteSession(sid, "logout")
       .then(() => callback?.())
       .catch((err: unknown) => {
         logger.error("Session store destroy failed", { service: "session-store", error: err instanceof Error ? err.message : String(err) });

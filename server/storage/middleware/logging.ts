@@ -64,6 +64,23 @@ export interface MethodLoggingConfig<T = any> {
   /** Whether to enable logging for this method (default: false) */
   enabled?: boolean;
 
+  /**
+   * Optional per-call predicate: when it returns false, the successful
+   * operation produces NO log entry. Lets a method log conditionally based
+   * on its arguments or result (e.g. an upsert that only logs when it
+   * actually inserted). Only consulted on success — failed operations still
+   * produce their error log entry regardless of this predicate.
+   */
+  shouldLog?: (args: any[], result: any) => boolean;
+
+  /**
+   * Optional projection applied to `args` before they are persisted in the
+   * log entry's `meta.args` (success AND error paths). Use it to redact
+   * sensitive payloads (e.g. full session data, credentials) while keeping
+   * the identifying arguments. The live call always receives the real args.
+   */
+  logArgs?: (args: any[]) => any;
+
   // ---- defineLoggingConfig helper hints (consulted only when useDefaults is true) ----
 
   /**
@@ -530,12 +547,18 @@ export function withStorageLogging<T extends Record<string, any>>(
 
         result = await method.apply(storage, args);
 
+        // Conditional suppression: a method config may declare that only
+        // some successful calls are log-worthy (e.g. upserts that inserted).
+        if (methodConfig.shouldLog && !methodConfig.shouldLog(args, result)) {
+          return result;
+        }
+
         if (hooks.after) {
           afterState = await hooks.after(args, result, storage, beforeState);
         }
 
         const details: Record<string, any> = {
-          args,
+          args: methodConfig.logArgs ? methodConfig.logArgs(args) : args,
         };
 
         if (beforeState !== undefined) {
@@ -609,7 +632,7 @@ export function withStorageLogging<T extends Record<string, any>>(
         error = err;
 
         const details: Record<string, any> = {
-          args,
+          args: methodConfig.logArgs ? methodConfig.logArgs(args) : args,
           error: error instanceof Error ? {
             message: error.message,
             stack: error.stack,
