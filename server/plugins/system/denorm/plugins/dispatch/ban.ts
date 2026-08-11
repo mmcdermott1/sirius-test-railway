@@ -36,6 +36,12 @@ const dispatchBanDenormPlugin: DenormPlugin<DispatchEligDenormPayload> = {
       event: EventType.WORKER_BAN_SAVED,
       getEntityId: (payload) => (payload as { workerId: string }).workerId,
     },
+    {
+      // Date-rollover flips of the cached denorm_active flag (emitted after
+      // commit by worker_ban_active) must refresh the worker's ban facts.
+      event: EventType.WORKER_BAN_DENORM_FLIPPED,
+      getEntityId: (payload) => (payload as { workerId: string }).workerId,
+    },
   ],
 
   async compute(workerId: string): Promise<DispatchEligDenormPayload> {

@@ -10,3 +10,4 @@ description: Durable rules for configurable ban types and behavior plugins
 - A manifest-only plugin kind (no config adapter) still needs entries in the client PluginKind union AND the per-kind search-params map, or tsc fails.
 - Conditional ban context (e.g. a job's facility) must be an authoritative persisted field with server-side validation — a ban behavior whose context is never populated silently never matches.
 - Standalone scripts exercising component-gated plugins must load the component cache first or all gated plugins appear disabled.
+- `worker_bans.denorm_active` is owned by the `worker_ban_active` denorm plugin (endDate-window cache; enforcement never reads it). Nothing else may write it; date rollovers repair via the hourly denorm backfill, and a flag flip re-emits the ban-saved event AFTER COMMIT so worker dispatch facts recompute.

@@ -128,3 +128,4 @@ import "./plugins/dispatch/singleshift";
 import "./plugins/dispatch/skill";
 import "./plugins/dispatch/status";
 import "./plugins/dispatch/ws";
+import "./plugins/workerBanActive";

@@ -33,6 +33,7 @@ export enum EventType {
   DISPATCH_FORE_SAVED = "dispatch.fore.saved",
   DISPATCH_DEPARTMENT_SAVED = "dispatch.department.saved",
   WORKER_BAN_SAVED = "worker.ban.saved",
+  WORKER_BAN_DENORM_FLIPPED = "worker.ban.denorm-flipped",
   WORKER_SKILL_SAVED = "worker.skill.saved",
   WORKER_WS_CHANGED = "worker.ws.changed",
   WORKER_WSH_SAVED = "worker.wsh.saved",
@@ -179,6 +180,19 @@ export interface WorkerBanSavedPayload {
   endDate: Date | null;
   active: boolean;
   isDeleted?: boolean;
+}
+
+/**
+ * Emitted (after commit) by the worker_ban_active denorm plugin when a ban's
+ * cached denorm_active flag flips due to date rollover. Consumed ONLY by
+ * worker-level denorm plugins (dispatch_ban) to refresh worker facts — a
+ * distinct event so the flip cannot re-trigger worker_ban_active itself or
+ * ban-saved side effects like notifications.
+ */
+export interface WorkerBanDenormFlippedPayload {
+  banId: string;
+  workerId: string;
+  active: boolean;
 }
 
 export interface WorkerSkillSavedPayload {
@@ -405,6 +419,7 @@ export interface EventPayloadMap {
   [EventType.DISPATCH_FORE_SAVED]: DispatchForeSavedPayload;
   [EventType.DISPATCH_DEPARTMENT_SAVED]: DispatchDepartmentSavedPayload;
   [EventType.WORKER_BAN_SAVED]: WorkerBanSavedPayload;
+  [EventType.WORKER_BAN_DENORM_FLIPPED]: WorkerBanDenormFlippedPayload;
   [EventType.WORKER_SKILL_SAVED]: WorkerSkillSavedPayload;
   [EventType.WORKER_WS_CHANGED]: WorkerWsChangedPayload;
   [EventType.WORKER_WSH_SAVED]: WorkerWshSavedPayload;

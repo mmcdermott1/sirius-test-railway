@@ -113,8 +113,6 @@ export function initializeCronPluginSystem(): void {
 // consolidated into data-retention plugins swept by the single dataRetention cron.
 import "./plugins/dataRetention";
 import "./plugins/processWmbBatch";
-import "./plugins/sweepExpiredBanElig";
-import "./plugins/workerBanActiveScan";
 import "./plugins/workerCertificationActiveScan";
 import "./plugins/logCleanup";
 import "./plugins/memberStatusScan";

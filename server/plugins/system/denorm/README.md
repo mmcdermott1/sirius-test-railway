@@ -39,8 +39,9 @@ them.
   `workerMshDenorm`).
 - `soleWriter: false` marks a **shared target** — several writers converge on
   it. Current examples: `ebs` (three reminder plugins + the `ebs_pump` cron +
-  the EBS admin module) and `workerDispatchEligDenorm` (ten dispatch plugins
-  via `_shared.ts` + the `sweep-expired-ban-elig` cron).
+  the EBS admin module), `workerDispatchEligDenorm` (ten dispatch plugins
+  via `_shared.ts`), and `workerBans` (the `worker_ban_active` plugin owns
+  only the cached `denorm_active` column; regular storage writes own the rest).
 
 ### Shared targets must be written convergently
 
