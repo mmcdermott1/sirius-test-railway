@@ -11,4 +11,6 @@ The storage logging middleware persists each logged method's full `args` array v
 
 Attribution: `getHostEntityId` puts an entry on an account log. Only ever use internal user ids (resolved dbUser.id), never external provider subjects (claims.sub) — misattribution risk. For deletes, derive the owner atomically from `DELETE ... RETURNING` (a pre-delete read races with concurrent row replacement).
 
+Ownership-transition logging (sessions pattern): to log "owner changed" events from an upsert, capture the prior owner with SELECT ... FOR UPDATE in the same transaction as the overwrite — a snapshot CTE alongside INSERT ON CONFLICT can diverge from the row actually replaced under concurrency. Passport's req.logout() strips the identity via a session save BEFORE destroy, so logout attribution must come from the strip-upsert transition, not the delete.
+
 Also: prune-style "scan candidates then delete" loops must re-qualify the predicate atomically in the DELETE (`WHERE id = X AND still-expired`), or a row renewed between scan and delete gets wrongly removed.

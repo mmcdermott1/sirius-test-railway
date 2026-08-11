@@ -1,5 +1,5 @@
 import { createNoopValidator } from '../utils/validation';
-import { getClient } from '../transaction-context';
+import { getClient, runInTransaction } from '../transaction-context';
 import { allowInMaintenanceMode } from '../maintenance';
 import { sessions } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
@@ -39,8 +39,17 @@ export interface SessionStorage {
    */
   /** The session payload for an unexpired session, or undefined. */
   getSessionData(sid: string): Promise<unknown | undefined>;
-  /** Insert or replace a session row; reports whether a new row was inserted. */
-  upsertSession(sid: string, sess: unknown, expire: Date): Promise<{ created: boolean }>;
+  /**
+   * Insert or replace a session row. Reports whether a new row was inserted
+   * plus the session's owner transition (prior owner captured atomically in
+   * the same statement), so ownership changes — login (NONE→user), logout
+   * strip (user→NONE), and anomalous user→user swaps — are loggable 1:1.
+   */
+  upsertSession(sid: string, sess: unknown, expire: Date): Promise<{
+    created: boolean;
+    oldUserId?: string;
+    newUserId?: string;
+  }>;
   /** Roll a session's expiry forward. No-op when the row is gone. */
   touchSession(sid: string, expire: Date): Promise<void>;
   /** Sids of expired session rows (for per-session logged pruning). */
@@ -124,22 +133,48 @@ export function createSessionStorage(): SessionStorage {
       return row?.sess;
     },
 
-    async upsertSession(sid: string, sess: unknown, expire: Date): Promise<{ created: boolean }> {
-      return allowInMaintenanceMode(async () => {
+    async upsertSession(sid: string, sess: unknown, expire: Date): Promise<{
+      created: boolean;
+      oldUserId?: string;
+      newUserId?: string;
+    }> {
+      const newUserId = sessionUserId(sess);
+      return allowInMaintenanceMode(() => runInTransaction(async () => {
         const client = getClient();
-        // `xmax = 0` distinguishes insert from update in the same statement:
-        // a freshly inserted row has no deleting/locking transaction recorded,
-        // while ON CONFLICT UPDATE leaves xmax set. Single round-trip, atomic.
-        const [row] = await client
-          .insert(sessions)
-          .values({ sid, sess, expire })
-          .onConflictDoUpdate({
-            target: sessions.sid,
-            set: { sess, expire },
-          })
-          .returning({ created: sql<boolean>`(xmax = 0)` });
-        return { created: row?.created === true };
-      });
+        // The prior owner must be read from the exact row version this upsert
+        // overwrites. A snapshot read (plain SELECT or CTE) can diverge from
+        // what ON CONFLICT UPDATE actually replaces under concurrency, so:
+        // lock the row with FOR UPDATE (which follows the update chain to the
+        // latest committed version), then update it while holding the lock.
+        // If no row exists, INSERT ... ON CONFLICT DO NOTHING; losing that
+        // insert race means a row now exists — retry the locked-update path.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const locked = await client.execute(sql`
+            SELECT sess #>> '{passport,user,dbUser,id}' AS old_user_id
+            FROM sessions WHERE sid = ${sid} FOR UPDATE
+          `);
+          if (locked.rows.length > 0) {
+            await client
+              .update(sessions)
+              .set({ sess, expire })
+              .where(eq(sessions.sid, sid));
+            return {
+              created: false,
+              oldUserId: (locked.rows[0] as any).old_user_id ?? undefined,
+              newUserId,
+            };
+          }
+          const inserted = await client
+            .insert(sessions)
+            .values({ sid, sess, expire })
+            .onConflictDoNothing()
+            .returning({ sid: sessions.sid });
+          if (inserted.length > 0) {
+            return { created: true, newUserId };
+          }
+        }
+        throw new Error(`upsertSession: lost insert/update race repeatedly for session`);
+      }));
     },
 
     async touchSession(sid: string, expire: Date): Promise<void> {
@@ -213,24 +248,36 @@ export const sessionLoggingConfig: StorageLoggingConfig<SessionStorage> = {
     },
     upsertSession: {
       enabled: true,
-      // Runs on every session save; only the initial insert (session
-      // creation) is log-worthy. Mid-session data re-saves stay silent.
-      shouldLog: (_args, result) => result?.created === true,
+      // Runs on every session save; log-worthy events are creation and any
+      // owner transition (login NONE→user, logout strip user→NONE, anomalous
+      // user→user swap). Same-owner data re-saves stay silent. This gives a
+      // 1:1 mapping from session state change to log entry — no guessing
+      // from ambient request context.
+      shouldLog: (_args, result) =>
+        result?.created === true || (result?.oldUserId ?? null) !== (result?.newUserId ?? null),
       // Never persist the raw session payload (cookies, passport identity,
       // potentially provider tokens) into the audit log — keep sid + expiry.
       logArgs: (args) => [args[0], "<session payload redacted>", args[2]],
       getEntityId: (args) => args[0],
-      // Attribute creation to the logging-in user (from the session payload
-      // itself — the ALS request context is not yet authenticated at login).
-      // Anonymous/pre-auth sessions stay unattributed.
-      getHostEntityId: (args) => sessionUserId(args[1]),
-      getDescription: async (args) => `Session created ${args[0]?.substring(0, 8)}...`,
+      // Attribute to the new owner; when the owner departs (→NONE), to the
+      // departing user. Anonymous transitions stay unattributed.
+      getHostEntityId: (_args, result) => result?.newUserId ?? result?.oldUserId,
+      getDescription: async (args, result) => {
+        const sid8 = `${args[0]?.substring(0, 8)}...`;
+        if (result?.created === true) {
+          return result?.newUserId
+            ? `Created session ${sid8} for user ${result.newUserId}`
+            : `Created session ${sid8}`;
+        }
+        return `Changed session ${sid8} from ${result?.oldUserId ?? 'NONE'} to ${result?.newUserId ?? 'NONE'}`;
+      },
       after: async (args, result) => {
         return {
           created: result?.created === true,
           metadata: {
             sid: args[0],
-            userId: sessionUserId(args[1]) ?? null,
+            oldUserId: result?.oldUserId ?? null,
+            newUserId: result?.newUserId ?? null,
           }
         };
       }
