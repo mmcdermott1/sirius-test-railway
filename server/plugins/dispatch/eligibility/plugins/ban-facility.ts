@@ -17,7 +17,6 @@ export const dispatchBanFacilityPlugin: DispatchEligPlugin = {
   name: "Facility Ban",
   description: "Excludes workers banned from the job's facility",
   requiredComponent: "dispatch.ban",
-  enforceOnAccept: true,
 
   async getEligibilityCondition(context: EligibilityQueryContext, _config: Record<string, unknown>): Promise<EligibilityCondition | null> {
     if (!(await isComponentEnabled("dispatch.facility"))) return null;

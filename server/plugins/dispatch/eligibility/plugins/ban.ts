@@ -12,7 +12,6 @@ export const dispatchBanPlugin: DispatchEligPlugin = {
   name: "Worker Ban",
   description: "Excludes workers who have an active dispatch ban",
   requiredComponent: "dispatch.ban",
-  enforceOnAccept: true,
 
   getEligibilityCondition(_context: EligibilityQueryContext, _config: Record<string, unknown>): EligibilityCondition | null {
     return {

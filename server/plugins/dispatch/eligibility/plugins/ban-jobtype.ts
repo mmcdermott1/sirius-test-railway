@@ -14,7 +14,6 @@ export const dispatchBanJobTypePlugin: DispatchEligPlugin = {
   name: "Job Type Ban",
   description: "Excludes workers banned from the job's job type",
   requiredComponent: "dispatch.ban",
-  enforceOnAccept: true,
 
   getEligibilityCondition(context: EligibilityQueryContext, _config: Record<string, unknown>): EligibilityCondition | null {
     if (!context.jobTypeId) return null;

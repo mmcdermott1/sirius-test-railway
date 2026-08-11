@@ -86,7 +86,15 @@ export function registerDispatchesRoutes(
         res.status(400).json({ message: "Worker not found" });
         return;
       }
-      
+
+      // Server-side enforcement of the job's full eligibility criteria — the
+      // UI only offers eligible workers, but the route must not trust that.
+      const rejection = await eligibilityRejection(parsed.data.workerId, parsed.data.jobId, "create");
+      if (rejection) {
+        res.status(403).json(rejection);
+        return;
+      }
+
       const dispatch = await storage.dispatches.create(parsed.data);
       res.status(201).json(dispatch);
     } catch (error: any) {
@@ -100,22 +108,25 @@ export function registerDispatchesRoutes(
   });
 
   /**
-   * Generic eligibility point check for accepting a dispatch. Evaluates every
-   * eligibility plugin flagged `enforceOnAccept` (via denorm facts) and
-   * returns a 403 response body listing the failed criteria, or null when
-   * acceptance is allowed. Applies to everyone — staff must clear the
+   * Generic eligibility point check for creating or accepting a dispatch.
+   * Evaluates the FULL set of eligibility plugins enabled for the job (the
+   * same set the eligible-worker listing uses) and returns a 403 response
+   * body listing each failed plugin's name and message, or null when the
+   * worker is eligible. Applies to everyone — staff must clear the
    * underlying condition (e.g. lift a ban) instead.
    */
-  async function acceptEligibilityRejection(
+  async function eligibilityRejection(
     workerId: string,
     jobId: string,
+    action: "create" | "accept",
   ): Promise<Record<string, unknown> | null> {
     const { createDispatchEligibleWorkersStorage } = await import("../../storage/dispatch/eligible-workers");
     const result = await createDispatchEligibleWorkersStorage().checkWorkerAcceptance(jobId, workerId);
     if (result.allowed) return null;
     const reasons = result.failures.map((f) => `${f.pluginName}: ${f.explanation}`);
+    const verb = action === "create" ? "for" : "to accept";
     return {
-      message: `This worker is not eligible to accept this dispatch (${reasons.join("; ")})`,
+      message: `This worker is not eligible ${verb} this dispatch (${reasons.join("; ")})`,
       eligibilityFailures: result.failures,
     };
   }
@@ -141,7 +152,7 @@ export function registerDispatchesRoutes(
         // Same eligibility point check as /set-status — the generic update
         // route must not be a bypass for accepting an ineligible worker.
         if (status === "accepted" && existing.status !== "accepted") {
-          const rejection = await acceptEligibilityRejection(existing.workerId, existing.jobId);
+          const rejection = await eligibilityRejection(existing.workerId, existing.jobId, "accept");
           if (rejection) {
             res.status(403).json(rejection);
             return;
@@ -248,12 +259,12 @@ export function registerDispatchesRoutes(
         return;
       }
 
-      // Eligibility point check: enforce-on-accept criteria (e.g. bans)
-      // block acceptance for everyone; staff must clear them first.
+      // Eligibility point check: the job's full eligibility criteria block
+      // acceptance for everyone; staff must clear them (e.g. lift a ban) first.
       if (status === "accepted") {
         const dispatch = await storage.dispatches.get(id);
-        if (dispatch) {
-          const rejection = await acceptEligibilityRejection(dispatch.workerId, dispatch.jobId);
+        if (dispatch && dispatch.status !== "accepted") {
+          const rejection = await eligibilityRejection(dispatch.workerId, dispatch.jobId, "accept");
           if (rejection) {
             res.status(403).json(rejection);
             return;

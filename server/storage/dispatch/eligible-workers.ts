@@ -83,11 +83,11 @@ export interface DispatchEligibleWorkersStorage {
   getEligibleWorkersForJobSql(jobId: string, limit?: number, offset?: number, filters?: EligibleWorkersFilters): Promise<EligibleWorkersSqlResult | null>;
   checkWorkerEligibility(jobId: string, workerId: string): Promise<WorkerEligibilityCheckResult | null>;
   /**
-   * Accept-time enforcement: evaluate every registered, component-enabled
-   * eligibility plugin flagged `enforceOnAccept` for this worker+job. Unlike
-   * the listing query, this is NOT gated on per-job-type plugin configs —
-   * these criteria (bans) block acceptance for everyone, staff included,
-   * regardless of configuration (matching the historical point check).
+   * Point-in-time enforcement for dispatch create AND accept: evaluate the
+   * FULL set of eligibility plugins enabled for this job (the same
+   * per-job-type plugin-config set the eligible-worker listing query uses)
+   * for this worker+job. Criteria block everyone, staff included; staff must
+   * clear the underlying condition (e.g. lift a ban) instead of bypassing.
    */
   checkWorkerAcceptance(jobId: string, workerId: string): Promise<WorkerAcceptanceResult>;
 }
@@ -606,12 +606,34 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
         jobTypeId: job.jobTypeId,
       };
 
-      const failures: AcceptanceFailure[] = [];
-      const plugins = dispatchEligPluginRegistry
-        .getEnabledPlugins()
-        .filter((p) => p.enforceOnAccept);
+      // Same plugin set the eligible-worker listing query applies: the
+      // per-job-type plugin configs that are enabled for this job.
+      const pluginConfigStorage = createPluginConfigStorage();
+      let enabledPluginConfigs: EligibilityPluginConfig[] = [];
+      if (job.jobTypeId) {
+        const rows = await pluginConfigStorage.search("dispatch-eligibility", { jobType: job.jobTypeId });
+        enabledPluginConfigs = rows
+          .filter((r) => r.config.enabled)
+          .map((r) => ({
+            pluginId: r.config.pluginId,
+            enabled: true,
+            config: (r.config.data ?? {}) as Record<string, unknown>,
+          }));
+      }
 
-      for (const plugin of plugins) {
+      const failures: AcceptanceFailure[] = [];
+
+      for (const pluginConfig of enabledPluginConfigs) {
+        const plugin = dispatchEligPluginRegistry.getPlugin(pluginConfig.pluginId);
+        if (!plugin) {
+          logger.warn(`Plugin not found during acceptance check: ${pluginConfig.pluginId}`, {
+            service: "dispatch-eligible-workers",
+            jobId,
+            pluginId: pluginConfig.pluginId,
+          });
+          continue;
+        }
+
         // Prefer the plugin's live authoritative check: denorm facts are
         // updated asynchronously after saves, so fact-based evaluation here
         // would leave a stale-fact window right after a ban is created.
@@ -626,7 +648,7 @@ export function createDispatchEligibleWorkersStorage(): DispatchEligibleWorkersS
           }
           continue;
         }
-        const conditionResult = await Promise.resolve(plugin.getEligibilityCondition(context, {}));
+        const conditionResult = await Promise.resolve(plugin.getEligibilityCondition(context, pluginConfig.config));
         if (!conditionResult) continue;
         const conditions = Array.isArray(conditionResult) ? conditionResult : [conditionResult];
         for (const condition of conditions) {
