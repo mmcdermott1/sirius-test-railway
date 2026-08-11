@@ -101,7 +101,17 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
   },
 
   // Fully public — needed by logged-out pages (login screen, header badge)
-  system_mode: { readTier: "public", schema: z.enum(["dev", "test", "live"]) },
+  system_mode: {
+    readTier: "public",
+    schema: z.enum(["dev", "test", "live", "maintenance"]),
+    // Refresh the in-memory maintenance flag (and recycle idle pool
+    // connections) after a system_mode write commits. Dynamic import to
+    // avoid a module cycle with the storage layer.
+    onWrite: async () => {
+      const { refreshMaintenanceFlag } = await import("../../services/maintenance-mode");
+      await refreshMaintenanceFlag();
+    },
+  },
   site_name: { readTier: "public", schema: z.string() },
   site_title: { readTier: "public", schema: z.string().max(50) },
   site_footer: { readTier: "public", schema: z.string() },

@@ -8,6 +8,7 @@ import {
   validateVariableValue,
   runVariableOnWrite,
 } from "./variable-registry";
+import { allowInMaintenanceMode } from "../../storage/maintenance";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -109,9 +110,19 @@ export function registerVariableRoutes(
       }
 
       const existing = await storage.variables.getByName(name);
-      const variable = existing
-        ? await storage.variables.update(existing.id, { value: validation.value })
-        : await storage.variables.create({ name, value: validation.value });
+
+      // The system_mode write is the maintenance-mode escape route: exiting
+      // maintenance requires a write while the connections are read-only,
+      // so it goes through the sanctioned SET LOCAL override. All other
+      // variables write normally (and fail in maintenance, by design).
+      const writeVariable = async () =>
+        existing
+          ? storage.variables.update(existing.id, { value: validation.value })
+          : storage.variables.create({ name, value: validation.value });
+      const variable =
+        name === "system_mode"
+          ? await allowInMaintenanceMode(writeVariable)
+          : await writeVariable();
 
       await runVariableOnWrite(name);
       res.json(variable);

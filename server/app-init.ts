@@ -232,6 +232,15 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
   // SKIP_SCHEMA_DRIFT_CHECK=1 dev escape hatch.
   await enforceStartupSchemaDrift();
 
+  // Arm maintenance-mode enforcement (connection-level read-only lock while
+  // system_mode = "maintenance"). Armed ONLY here — standalone scripts that
+  // import the db module directly stay writable by design. Must run after
+  // migrations/drift (needs the variables table) and before routes/crons.
+  {
+    const { armMaintenanceEnforcement } = await import("./services/maintenance-mode");
+    await armMaintenanceEnforcement();
+  }
+
   // Initialize environment-defined filesystems (FILESYSTEMS env var).
   // Throws on malformed config; warns for any file_system_id referenced by
   // files rows but absent from the environment.

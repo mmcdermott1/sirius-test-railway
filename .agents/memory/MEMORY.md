@@ -1,3 +1,4 @@
+// hint: Logic changed on both sides. Requires understanding intent of each change.
 - [Employer compliance gating](employer-compliance-gating.md) — /employers/compliance is staff+ledger gated, never bulk.edit (bulk.edit is unsatisfiable: no staff.bulk perm, bulk component often off).
 - [Employer route registration order](employer-route-registration-order.md) — new literal /api/employers/<word> routes must live in routes.ts before its /:id, else captured as :id → 404.
 - [Wizard plugin migration](wizard-plugin-migration.md) — moving a wizard to wizardPluginRegistry needs every enumerating surface (reports dashboard, catalogue) to merge both registries; report cells carry display types (link/date/boolean).
@@ -63,4 +64,5 @@
 - [Tx race handling: ON CONFLICT, not catch](tx-race-onconflict-not-catch.md) — inside a Postgres transaction, catch-and-continue after a unique violation leaves the tx aborted; use ON CONFLICT DO NOTHING + returning() rowcount and undo side-effect inserts when losing the race.
 - [Worker-ban framework](worker-ban-framework.md) — soft-ref ban types + singleton behavior plugins; only unconditional behaviors get denorm facts; ban-type edits must re-emit WORKER_BAN_SAVED; guard ALL accept paths.
 - [Storage audit log args PII](storage-audit-log-args-pii.md) — logged storage methods persist raw args to winston_logs; redact payloads via logArgs, conditional-log via shouldLog; prune deletes must re-qualify atomically.
+- [Maintenance-mode write lock](maintenance-mode-write-lock.md) — system_mode=maintenance applies default_transaction_read_only per pool checkout (acquire hook, armed only in bootstrapApp); allowInMaintenanceMode is the ONLY escape.
 - [Wizard advance via navigate](wizard-advance-via-navigate.md) — advance programmatic wizard launches with dispatch/navigate, not a currentStep PATCH (else next step stays pending, UI treats it as inactive).

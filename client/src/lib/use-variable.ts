@@ -39,7 +39,7 @@ export function parseVariableJson(value: unknown): unknown {
   }
 }
 
-const VALID_MODES: SystemMode[] = ["dev", "test", "live"];
+const VALID_MODES: SystemMode[] = ["dev", "test", "live", "maintenance"];
 
 /** Current system mode from the public `system_mode` variable (default "dev"). */
 export function useSystemMode(): { mode: SystemMode; isLoading: boolean } {

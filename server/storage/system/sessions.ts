@@ -1,5 +1,6 @@
 import { createNoopValidator } from '../utils/validation';
 import { getClient } from '../transaction-context';
+import { allowInMaintenanceMode } from '../maintenance';
 import { sessions } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import type { StorageLoggingConfig } from "../middleware/logging";
@@ -27,6 +28,7 @@ export interface SessionStorage {
    * (admin) deletion.
    */
   deleteSession(sid: string, reason?: string): Promise<boolean>;
+
   countActiveSessions(): Promise<number>;
   /**
    * express-session store primitives (used by StorageSessionStore in
@@ -81,13 +83,20 @@ export function createSessionStorage(): SessionStorage {
       }));
     },
 
+    // Session writes are wrapped in allowInMaintenanceMode: login, rolling
+    // expiry, and logout must keep working while the site is in maintenance
+    // mode so admins can reach the system-mode escape route. This also
+    // (deliberately) covers the session-prune cron (deleteExpiredSession) —
+    // pruning during maintenance is harmless and keeps the table tidy.
     async deleteSession(sid: string, _reason?: string): Promise<boolean> {
-      const client = getClient();
-      const result = await client
-        .delete(sessions)
-        .where(eq(sessions.sid, sid))
-        .returning();
-      return result.length > 0;
+      return allowInMaintenanceMode(async () => {
+        const client = getClient();
+        const result = await client
+          .delete(sessions)
+          .where(eq(sessions.sid, sid))
+          .returning();
+        return result.length > 0;
+      });
     },
 
     async countActiveSessions(): Promise<number> {
@@ -112,27 +121,31 @@ export function createSessionStorage(): SessionStorage {
     },
 
     async upsertSession(sid: string, sess: unknown, expire: Date): Promise<{ created: boolean }> {
-      const client = getClient();
-      // `xmax = 0` distinguishes insert from update in the same statement:
-      // a freshly inserted row has no deleting/locking transaction recorded,
-      // while ON CONFLICT UPDATE leaves xmax set. Single round-trip, atomic.
-      const [row] = await client
-        .insert(sessions)
-        .values({ sid, sess, expire })
-        .onConflictDoUpdate({
-          target: sessions.sid,
-          set: { sess, expire },
-        })
-        .returning({ created: sql<boolean>`(xmax = 0)` });
-      return { created: row?.created === true };
+      return allowInMaintenanceMode(async () => {
+        const client = getClient();
+        // `xmax = 0` distinguishes insert from update in the same statement:
+        // a freshly inserted row has no deleting/locking transaction recorded,
+        // while ON CONFLICT UPDATE leaves xmax set. Single round-trip, atomic.
+        const [row] = await client
+          .insert(sessions)
+          .values({ sid, sess, expire })
+          .onConflictDoUpdate({
+            target: sessions.sid,
+            set: { sess, expire },
+          })
+          .returning({ created: sql<boolean>`(xmax = 0)` });
+        return { created: row?.created === true };
+      });
     },
 
     async touchSession(sid: string, expire: Date): Promise<void> {
-      const client = getClient();
-      await client
-        .update(sessions)
-        .set({ expire })
-        .where(eq(sessions.sid, sid));
+      return allowInMaintenanceMode(async () => {
+        const client = getClient();
+        await client
+          .update(sessions)
+          .set({ expire })
+          .where(eq(sessions.sid, sid));
+      });
     },
 
     async getExpiredSessionSids(): Promise<string[]> {
@@ -146,13 +159,15 @@ export function createSessionStorage(): SessionStorage {
     },
 
     async deleteExpiredSession(sid: string): Promise<boolean> {
-      const client = getClient();
-      const now = new Date();
-      const result = await client
-        .delete(sessions)
-        .where(sql`${sessions.sid} = ${sid} AND ${sessions.expire} < ${now}`)
-        .returning({ sid: sessions.sid });
-      return result.length > 0;
+      return allowInMaintenanceMode(async () => {
+        const client = getClient();
+        const now = new Date();
+        const result = await client
+          .delete(sessions)
+          .where(sql`${sessions.sid} = ${sid} AND ${sessions.expire} < ${now}`)
+          .returning({ sid: sessions.sid });
+        return result.length > 0;
+      });
     },
 
   };

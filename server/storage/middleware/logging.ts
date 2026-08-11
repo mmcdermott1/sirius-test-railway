@@ -50,18 +50,23 @@ export interface MethodLoggingConfig<T = any> {
   /** Function to capture state after the operation (e.g., return the result) 
    * @param beforeState - The state captured by the before() callback (if any), useful for determining create vs update
    */
+
   after?: (args: any[], result: any, storage: T, beforeState?: any) => Promise<any>;
   
   /** Function to extract a human-readable entity ID from arguments, result, or beforeState */
+
   getEntityId?: (args: any[], result?: any, beforeState?: any) => string | undefined | Promise<string | undefined>;
   
   /** Function to extract the host entity ID (parent entity: user, worker, contact, employer) */
+
   getHostEntityId?: (args: any[], result?: any, beforeState?: any) => string | undefined | Promise<string | undefined>;
   
   /** Custom function to generate a human-readable description of the operation */
+
   getDescription?: (args: any[], result: any, beforeState: any, afterState: any, storage: T) => Promise<string> | string;
   
   /** Whether to enable logging for this method (default: false) */
+
   enabled?: boolean;
 
   /**
@@ -71,6 +76,7 @@ export interface MethodLoggingConfig<T = any> {
    * actually inserted). Only consulted on success — failed operations still
    * produce their error log entry regardless of this predicate.
    */
+
   shouldLog?: (args: any[], result: any) => boolean;
 
   /**
@@ -79,6 +85,7 @@ export interface MethodLoggingConfig<T = any> {
    * sensitive payloads (e.g. full session data, credentials) while keeping
    * the identifying arguments. The live call always receives the real args.
    */
+
   logArgs?: (args: any[]) => any;
 
   // ---- defineLoggingConfig helper hints (consulted only when useDefaults is true) ----
@@ -90,6 +97,7 @@ export interface MethodLoggingConfig<T = any> {
    * function may return a value or a Promise; the middleware awaits the
    * result so configs can perform async related-entity lookups.
    */
+
   metadata?: (args: any[], result: any, beforeState?: any) => any | Promise<any>;
 
   /**
@@ -99,6 +107,7 @@ export interface MethodLoggingConfig<T = any> {
    * or `beforeState?.[field]` (when the before state is the raw row).
    * Per-method value wins over the module-level `hostEntityIdField`.
    */
+
   hostEntityIdField?: string;
 
   /**
@@ -106,6 +115,7 @@ export interface MethodLoggingConfig<T = any> {
    * depend on the method kind: `previousKey` for update, `fallbackId` for
    * create, `includeOnDelete` for delete.
    */
+
   state?: StateDescriptor;
 
   /**
@@ -123,6 +133,7 @@ export interface MethodLoggingConfig<T = any> {
    * configured the `[<id>]` bracket is always rendered, even if the
    * resolved id is empty — matching legacy hand-written descriptions.
    */
+
   describe?: DescribeShortcut;
 }
 

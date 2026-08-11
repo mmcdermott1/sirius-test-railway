@@ -359,7 +359,9 @@ export default function Header() {
               className={`text-xs uppercase font-medium ${
                 systemMode.mode === "dev"
                   ? "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                  : "bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200"
+                  : systemMode.mode === "maintenance"
+                    ? "bg-red-200 text-red-800 dark:bg-red-800 dark:text-red-200"
+                    : "bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200"
               }`}
               data-testid="badge-system-mode"
             >
