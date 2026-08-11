@@ -291,8 +291,26 @@ function StatusTransitionActions({ dispatchId, currentStatus }: { dispatchId: st
   );
 }
 
+interface ComponentConfig {
+  componentId: string;
+  enabled: boolean;
+}
+
 function DispatchDetailsContent() {
   const { dispatch } = useDispatchLayout();
+
+  const { data: componentConfigs = [] } = useQuery<ComponentConfig[]>({
+    queryKey: ["/api/components/config"],
+  });
+
+  const facilityComponentEnabled = componentConfigs.some(
+    (c) => c.componentId === "dispatch.facility" && c.enabled,
+  );
+
+  const { data: jobFacility } = useQuery<{ facilityId: string; facility?: { id: string; name: string } | null } | null>({
+    queryKey: ["/api/dispatch-jobs", dispatch.jobId, "facility"],
+    enabled: facilityComponentEnabled && !!dispatch.jobId,
+  });
 
   const workerName = dispatch.worker?.contact
     ? `${dispatch.worker.contact.given || ''} ${dispatch.worker.contact.family || ''}`.trim() || dispatch.worker.contact.displayName
@@ -375,6 +393,11 @@ function DispatchDetailsContent() {
                 {dispatch.job.payRate != null && (
                   <p className="text-sm text-muted-foreground" data-testid="text-pay-rate">
                     Pay Rate: ${parseFloat(dispatch.job.payRate).toFixed(2)}
+                  </p>
+                )}
+                {facilityComponentEnabled && jobFacility?.facility?.name && (
+                  <p className="text-sm text-muted-foreground" data-testid="text-job-facility">
+                    Facility: {jobFacility.facility.name}
                   </p>
                 )}
               </div>

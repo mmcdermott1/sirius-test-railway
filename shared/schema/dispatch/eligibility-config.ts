@@ -95,10 +95,4 @@ export interface DispatchJobData {
    * enabled and the job type's primary setting is "both".
    */
   allowEbaWorkers?: boolean;
-  /**
-   * Facility this job is at (`facilities.id`, facility component). Soft
-   * reference validated at the job routes; used by the worker-ban facility
-   * behavior's acceptance point check.
-   */
-  facilityId?: string;
 }

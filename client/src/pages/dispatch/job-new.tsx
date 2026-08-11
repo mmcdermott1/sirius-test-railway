@@ -91,7 +91,7 @@ export default function DispatchJobNewPage() {
   );
 
   const facilityComponentEnabled = componentConfigs.some(
-    (c) => c.componentId === "facility" && c.enabled,
+    (c) => c.componentId === "dispatch.facility" && c.enabled,
   );
 
   const { data: facilities = [] } = useQuery<{ id: string; name: string }[]>({
@@ -146,16 +146,10 @@ export default function DispatchJobNewPage() {
         payRate: payRateVal,
         startTime: data.startTime?.trim() || null,
         endTime: data.endTime?.trim() || null,
+        facilityId: selectedFacilityId || undefined,
         data:
-          selectedSkills.length > 0 || selectedFacilityId
-            ? {
-                ...(selectedSkills.length > 0
-                  ? { requiredSkills: selectedSkills }
-                  : {}),
-                ...(selectedFacilityId
-                  ? { facilityId: selectedFacilityId }
-                  : {}),
-              }
+          selectedSkills.length > 0
+            ? { requiredSkills: selectedSkills }
             : undefined,
       });
     },

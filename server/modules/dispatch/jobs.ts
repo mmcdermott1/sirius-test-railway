@@ -19,19 +19,19 @@ import { parseYmdParts } from "@shared/utils/date";
 const unifiedOptionsStorage = createUnifiedOptionsStorage();
 
 /**
- * Validates an optional `data.facilityId` on a dispatch job write. The value
- * is a soft reference to `facilities.id` (facility component) used by the
- * worker-ban facility behavior's acceptance check, so it must point at a
- * real facility and requires the component. Returns an error message or null.
+ * Validates a first-class `facilityId` on a dispatch job write. Stored in the
+ * `dispatch_job_facility` link table owned by the dispatch.facility component,
+ * so it must point at a real facility and requires that component. `null`
+ * (clear) and `undefined` (untouched) are always valid. Returns an error
+ * message or null.
  */
-async function validateJobFacility(data: unknown): Promise<string | null> {
-  const facilityId = (data as { facilityId?: unknown } | null | undefined)?.facilityId;
+async function validateJobFacility(facilityId: unknown): Promise<string | null> {
   if (facilityId === undefined || facilityId === null) return null;
   if (typeof facilityId !== "string" || facilityId.trim() === "") {
     return "facilityId must be a non-empty string";
   }
-  if (!(await isComponentEnabled("facility"))) {
-    return "The facility component is not enabled";
+  if (!(await isComponentEnabled("dispatch.facility"))) {
+    return "The dispatch.facility component is not enabled";
   }
   const facility = await storage.facilities.get(facilityId);
   if (!facility) return "Facility not found";
@@ -123,6 +123,30 @@ export function registerDispatchJobsRoutes(
     },
   );
 
+  // Facility linked to a job (dispatch.facility component). Returns the
+  // single link (with facility name) or null. Used by the job details page,
+  // the edit form pre-select, and the dispatch details "Job" card.
+  app.get(
+    "/api/dispatch-jobs/:id/facility",
+    dispatchComponent,
+    requireComponent("dispatch.facility"),
+    requireAccess("admin"),
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const job = await storage.dispatchJobs.get(id);
+        if (!job) {
+          res.status(404).json({ message: "Dispatch job not found" });
+          return;
+        }
+        const link = await storage.dispatchJobFacility.getByJob(id);
+        res.json(link ?? null);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to fetch dispatch job facility" });
+      }
+    },
+  );
+
   app.post(
     "/api/dispatch-jobs",
     dispatchComponent,
@@ -171,13 +195,14 @@ export function registerDispatchJobsRoutes(
           }
         }
 
-        const facilityError = await validateJobFacility(parsed.data.data);
+        const facilityId = body.facilityId as string | null | undefined;
+        const facilityError = await validateJobFacility(facilityId);
         if (facilityError) {
           res.status(400).json({ message: facilityError });
           return;
         }
 
-        const job = await storage.dispatchJobs.create(parsed.data);
+        const job = await storage.dispatchJobs.create(parsed.data, facilityId ?? undefined);
         res.status(201).json(job);
       } catch (error) {
         res.status(500).json({ message: "Failed to create dispatch job" });
@@ -211,6 +236,7 @@ export function registerDispatchJobsRoutes(
           startTime,
           endTime,
           data,
+          facilityId,
         } = req.body;
         const updates: any = {};
 
@@ -295,15 +321,18 @@ export function registerDispatchJobsRoutes(
         }
 
         if (data !== undefined) {
-          const facilityError = await validateJobFacility(data);
+          updates.data = data;
+        }
+
+        if (facilityId !== undefined) {
+          const facilityError = await validateJobFacility(facilityId);
           if (facilityError) {
             res.status(400).json({ message: facilityError });
             return;
           }
-          updates.data = data;
         }
 
-        const job = await storage.dispatchJobs.update(id, updates);
+        const job = await storage.dispatchJobs.update(id, updates, facilityId);
         res.json(job);
       } catch (error: any) {
         logger.error("Failed to update dispatch job", { error: error?.message, stack: error?.stack });

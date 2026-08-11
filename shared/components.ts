@@ -646,6 +646,20 @@ export const componentRegistry: ComponentDefinition[] = [
     }
   },
   {
+    id: "dispatch.facility",
+    name: "Dispatch Facilities",
+    description: "Link dispatch jobs to facilities",
+    enabledByDefault: false,
+    category: "dispatch",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/dispatch/facility-schema.ts",
+      tables: ["dispatch_job_facility"],
+      dependsOnComponents: ["dispatch", "facility"]
+    }
+  },
+  {
     id: "dispatch.department",
     name: "Dispatch Departments",
     description: "Worker department preferences and job departments for dispatch",

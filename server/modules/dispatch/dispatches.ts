@@ -3,7 +3,7 @@ import { storage } from "../../storage";
 import { PrimaryDispatchConflictError, PRIMARY_DISPATCH_CONFLICT_MESSAGE } from "../../storage/dispatch/dispatches";
 import { insertDispatchSchema, dispatchStatusEnum } from "@shared/schema";
 import { requireAccess, buildContext, getAccessStorage } from "../../services/access-policy-evaluator";
-import { requireComponent } from "../components";
+import { requireComponent, isComponentEnabled } from "../components";
 
 export function registerDispatchesRoutes(
   app: Express,
@@ -111,9 +111,16 @@ export function registerDispatchesRoutes(
   ): Promise<Record<string, unknown> | null> {
     const job = await storage.dispatchJobs.get(jobId);
     const { isBanned } = await import("../../plugins/worker-bans/service");
+    // Facility context comes from the dispatch_job_facility association
+    // (dispatch.facility component). Guarded: the table only exists while
+    // the component is enabled.
+    let facilityId: string | undefined;
+    if (job && (await isComponentEnabled("dispatch.facility"))) {
+      facilityId = (await storage.dispatchJobFacility.getByJob(jobId))?.facilityId;
+    }
     const verdict = await isBanned("dispatch.accept", workerId, {
       jobTypeId: job?.jobTypeId ?? null,
-      facilityId: (job?.data as { facilityId?: string } | null)?.facilityId,
+      facilityId,
     });
     if (!verdict.banned) return null;
     const reasons = verdict.matches.map((m) =>

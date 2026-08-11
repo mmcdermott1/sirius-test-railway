@@ -45,6 +45,13 @@ export {
 } from "./schema/dispatch/fore-schema";
 
 export {
+  dispatchJobFacility,
+  insertDispatchJobFacilitySchema,
+  type DispatchJobFacility,
+  type InsertDispatchJobFacility,
+} from "./schema/dispatch/facility-schema";
+
+export {
   dispatchJobEvent,
   insertDispatchJobEventSchema,
   type DispatchJobEvent,

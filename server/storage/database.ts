@@ -126,6 +126,7 @@ import { type FacilityStorage, createFacilityStorage, facilityLoggingConfig } fr
 import { type GbhetPensionStorage, createGbhetPensionStorage } from "./sitespecific/gbhet/pension";
 import { type DispatchStorage, createDispatchStorage, dispatchLoggingConfig } from "./dispatch/dispatches";
 import { type DispatchJobForeStorage, createDispatchJobForeStorage, dispatchJobForeLoggingConfig } from "./dispatch/fore";
+import { type DispatchJobFacilityStorage, createDispatchJobFacilityStorage, dispatchJobFacilityLoggingConfig } from "./dispatch/facility";
 import { type DispatchJobEventStorage, createDispatchJobEventStorage } from "./dispatch/job-events";
 import { type WorkerStewardAssignmentStorage, createWorkerStewardAssignmentStorage, workerStewardAssignmentLoggingConfig } from "./worker-steward-assignments";
 import { type BtuCsgStorage, createBtuCsgStorage, btuCsgLoggingConfig } from "./sitespecific/btu/csg";
@@ -243,6 +244,7 @@ export interface IStorage {
   dispatchJobGroups: DispatchJobGroupStorage;
   dispatches: DispatchStorage;
   dispatchJobFore: DispatchJobForeStorage;
+  dispatchJobFacility: DispatchJobFacilityStorage;
   dispatchJobEvents: DispatchJobEventStorage;
   workerStewardAssignments: WorkerStewardAssignmentStorage;
   btuCsg: BtuCsgStorage;
@@ -354,6 +356,7 @@ export class DatabaseStorage implements IStorage {
   dispatchJobGroups: DispatchJobGroupStorage;
   dispatches: DispatchStorage;
   dispatchJobFore: DispatchJobForeStorage;
+  dispatchJobFacility: DispatchJobFacilityStorage;
   dispatchJobEvents: DispatchJobEventStorage;
   workerStewardAssignments: WorkerStewardAssignmentStorage;
   btuCsg: BtuCsgStorage;
@@ -568,6 +571,7 @@ export class DatabaseStorage implements IStorage {
     this.dispatchJobGroups = withStorageLogging(createDispatchJobGroupStorage(), dispatchJobGroupLoggingConfig);
     this.dispatches = withStorageLogging(createDispatchStorage(), dispatchLoggingConfig);
     this.dispatchJobFore = withStorageLogging(createDispatchJobForeStorage(), dispatchJobForeLoggingConfig);
+    this.dispatchJobFacility = withStorageLogging(createDispatchJobFacilityStorage(), dispatchJobFacilityLoggingConfig);
     // No logging for dispatchJobEvents - written only by the dispatch_job_event denorm plugin (internal sync churn).
     this.dispatchJobEvents = createDispatchJobEventStorage();
     this.workerStewardAssignments = withStorageLogging(createWorkerStewardAssignmentStorage(), workerStewardAssignmentLoggingConfig);

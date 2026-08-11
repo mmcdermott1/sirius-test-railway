@@ -65,7 +65,8 @@ function DispatchJobEditContent() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>(jobData?.requiredSkills || []);
   // Absent flag = allow EBA workers (default behavior).
   const [allowEbaWorkers, setAllowEbaWorkers] = useState<boolean>(jobData?.allowEbaWorkers !== false);
-  const [selectedFacilityId, setSelectedFacilityId] = useState<string>(jobData?.facilityId || "");
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string>("");
+  const [facilityTouched, setFacilityTouched] = useState(false);
 
   const { data: employers = [] } = useQuery<Employer[]>({
     queryKey: ["/api/employers"],
@@ -92,13 +93,25 @@ function DispatchJobEditContent() {
   );
 
   const facilityComponentEnabled = componentConfigs.some(
-    (c) => c.componentId === "facility" && c.enabled
+    (c) => c.componentId === "dispatch.facility" && c.enabled
   );
 
   const { data: facilities = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/options/facility"],
     enabled: facilityComponentEnabled,
   });
+
+  // Pre-select the facility from the dispatch_job_facility association.
+  const { data: jobFacility, isSuccess: jobFacilityLoaded } = useQuery<{ facilityId: string } | null>({
+    queryKey: ["/api/dispatch-jobs", job.id, "facility"],
+    enabled: facilityComponentEnabled,
+  });
+
+  useEffect(() => {
+    if (jobFacilityLoaded && !facilityTouched) {
+      setSelectedFacilityId(jobFacility?.facilityId ?? "");
+    }
+  }, [jobFacilityLoaded, jobFacility, facilityTouched]);
 
   const { data: availableDepartments = [] } = useQuery<AvailableDepartment[]>({
     queryKey: ["/api/dispatch-departments/available"],
@@ -171,13 +184,6 @@ function DispatchJobEditContent() {
         // drop any stale value instead of carrying it forward.
         delete updatedJobData.allowEbaWorkers;
       }
-      if (facilityComponentEnabled) {
-        if (selectedFacilityId) {
-          updatedJobData.facilityId = selectedFacilityId;
-        } else {
-          delete updatedJobData.facilityId;
-        }
-      }
       const payRateVal = data.payRate && data.payRate.trim() !== "" ? data.payRate.trim() : null;
       return apiRequest("PUT", `/api/dispatch-jobs/${job.id}`, {
         ...data,
@@ -187,6 +193,9 @@ function DispatchJobEditContent() {
         startTime: data.startTime?.trim() || null,
         endTime: data.endTime?.trim() || null,
         status: data.status,
+        ...(facilityComponentEnabled && facilityTouched
+          ? { facilityId: selectedFacilityId || null }
+          : {}),
         data: updatedJobData,
       });
     },
@@ -206,6 +215,7 @@ function DispatchJobEditContent() {
         }
       }
       queryClient.invalidateQueries({ queryKey: ["/api/dispatch-jobs", job.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dispatch-jobs", job.id, "facility"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dispatch-jobs"] });
       toast({
         title: "Success",
@@ -382,7 +392,10 @@ function DispatchJobEditContent() {
                   <FormLabel>Facility</FormLabel>
                   <Select
                     value={selectedFacilityId || "__none__"}
-                    onValueChange={(v) => setSelectedFacilityId(v === "__none__" ? "" : v)}
+                    onValueChange={(v) => {
+                      setFacilityTouched(true);
+                      setSelectedFacilityId(v === "__none__" ? "" : v);
+                    }}
                   >
                     <SelectTrigger data-testid="select-facility">
                       <SelectValue placeholder="No facility" />
