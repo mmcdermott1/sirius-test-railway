@@ -17,13 +17,28 @@ import { queryClient, apiRequest, getApiErrorMessage } from "@/lib/queryClient";
 import { useMemo, useState } from "react";
 import { Ban, Plus, Trash2, Pencil } from "lucide-react";
 import type { WorkerBan } from "@shared/schema";
-import { format } from "date-fns";
+import { format, addDays, parseISO, isValid } from "date-fns";
 
 interface BanTypeOption {
   id: string;
   name: string;
   description: string | null;
-  data: { pluginIds?: string[] } | null;
+  data: { pluginIds?: string[]; defaultDurationDays?: number } | null;
+}
+
+/**
+ * End date implied by a ban type's default duration: start date + N days,
+ * or "" when the type has no default duration (indefinite).
+ */
+function defaultEndDateFor(
+  type: BanTypeOption | undefined,
+  startDate: string,
+): string {
+  const days = type?.data?.defaultDurationDays;
+  if (!days || !Number.isInteger(days) || days < 1 || !startDate) return "";
+  const start = parseISO(startDate);
+  if (!isValid(start)) return "";
+  return format(addDays(start, days), "yyyy-MM-dd");
 }
 
 interface BanPluginManifestEntry {
@@ -118,6 +133,9 @@ function BansContent() {
   const [formType, setFormType] = useState<string>("");
   const [formStartDate, setFormStartDate] = useState<string>("");
   const [formEndDate, setFormEndDate] = useState<string>("");
+  // Once the user manually edits the end date, type/start-date changes
+  // must never overwrite it with the type's default duration.
+  const [endDateTouched, setEndDateTouched] = useState(false);
   const [formMessage, setFormMessage] = useState<string>("");
   const [formData, setFormData] = useState<Record<string, string>>({});
 
@@ -233,9 +251,12 @@ function BansContent() {
 
   const openAddModal = () => {
     setEditingBan(null);
-    setFormType(banTypes[0]?.id ?? "");
-    setFormStartDate(format(new Date(), "yyyy-MM-dd"));
-    setFormEndDate("");
+    const initialType = banTypes[0]?.id ?? "";
+    const initialStart = format(new Date(), "yyyy-MM-dd");
+    setFormType(initialType);
+    setFormStartDate(initialStart);
+    setFormEndDate(defaultEndDateFor(typeById.get(initialType), initialStart));
+    setEndDateTouched(false);
     setFormMessage("");
     setFormData({});
     setIsModalOpen(true);
@@ -246,6 +267,7 @@ function BansContent() {
     setFormType(ban.type && typeById.has(ban.type) ? ban.type : "");
     setFormStartDate(ban.startDate ? format(new Date(ban.startDate), "yyyy-MM-dd") : "");
     setFormEndDate(ban.endDate ? format(new Date(ban.endDate), "yyyy-MM-dd") : "");
+    setEndDateTouched(true); // never auto-change an existing ban's end date
     setFormMessage(ban.message || "");
     const existingData: Record<string, string> = {};
     if (ban.data && typeof ban.data === "object") {
@@ -263,17 +285,28 @@ function BansContent() {
     setFormType("");
     setFormStartDate("");
     setFormEndDate("");
+    setEndDateTouched(false);
     setFormMessage("");
     setFormData({});
   };
 
   const handleTypeChange = (typeId: string) => {
     setFormType(typeId);
+    if (!editingBan && !endDateTouched) {
+      setFormEndDate(defaultEndDateFor(typeById.get(typeId), formStartDate));
+    }
     // Drop argument values that the new type's plugins don't declare.
     const keep = new Set(argumentFieldsFor(pluginsForType(typeId)).map((f) => f.name));
     setFormData((prev) =>
       Object.fromEntries(Object.entries(prev).filter(([k]) => keep.has(k))),
     );
+  };
+
+  const handleStartDateChange = (value: string) => {
+    setFormStartDate(value);
+    if (!editingBan && !endDateTouched) {
+      setFormEndDate(defaultEndDateFor(typeById.get(formType), value));
+    }
   };
 
   const handleSave = () => {
@@ -502,7 +535,7 @@ function BansContent() {
                 id="startDate"
                 type="date"
                 value={formStartDate}
-                onChange={(e) => setFormStartDate(e.target.value)}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 data-testid="input-ban-start-date"
               />
             </div>
@@ -512,7 +545,10 @@ function BansContent() {
                 id="endDate"
                 type="date"
                 value={formEndDate}
-                onChange={(e) => setFormEndDate(e.target.value)}
+                onChange={(e) => {
+                  setEndDateTouched(true);
+                  setFormEndDate(e.target.value);
+                }}
                 data-testid="input-ban-end-date"
               />
               <p className="text-xs text-muted-foreground">

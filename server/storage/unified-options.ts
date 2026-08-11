@@ -653,6 +653,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
       { name: "name", label: "Name", inputType: "text", required: true, placeholder: "e.g., Dispatch, Facility Ban", showInTable: true, columnHeader: "Name" },
       { name: "description", label: "Description", inputType: "textarea", required: false, placeholder: "Optional description of this ban type", showInTable: true, columnHeader: "Description" },
       { name: "pluginIds", label: "Ban Behaviors", inputType: "worker-ban-plugins", required: true, helperText: "What a ban of this type prohibits. Bans of this type apply every selected behavior.", showInTable: false, dataField: true },
+      { name: "defaultDurationDays", label: "Default duration (days)", inputType: "number", required: false, placeholder: "e.g., 7", helperText: "When set, new bans of this type pre-fill their end date to start date + this many days. Leave empty for no default (indefinite).", showInTable: true, columnHeader: "Default Duration", dataField: true },
       { name: "siriusId", label: "Sirius ID", inputType: "text", required: false, placeholder: "External ID", showInTable: true, columnHeader: "Sirius ID" },
     ],
   },

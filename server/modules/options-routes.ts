@@ -91,6 +91,12 @@ async function validateWorkerBanTypePlugins(data: unknown): Promise<string | nul
   if (unknown.length > 0) {
     return `Unknown ban behavior(s): ${unknown.join(", ")}`;
   }
+  const defaultDurationDays = (data as { defaultDurationDays?: unknown } | null | undefined)?.defaultDurationDays;
+  if (defaultDurationDays !== undefined && defaultDurationDays !== null) {
+    if (typeof defaultDurationDays !== "number" || !Number.isInteger(defaultDurationDays) || defaultDurationDays < 1) {
+      return "Default duration (days) must be a positive integer";
+    }
+  }
   return null;
 }
 
