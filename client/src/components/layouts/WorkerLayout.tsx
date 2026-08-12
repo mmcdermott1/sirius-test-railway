@@ -152,6 +152,20 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     retry: false,
   });
 
+  // The Identity > Dashboard tab should only appear when the worker actually
+  // has a linked user account. The tab registry has no data-driven predicates,
+  // so hide it client-side. Only fetch the (staff-gated) linkage lookup when
+  // access already granted the tab, so non-staff worker pages pay no extra query.
+  const dashboardTabGranted = useMemo(
+    () => tabs.some((t) => t.children?.some((c) => c.id === "dashboard")),
+    [tabs],
+  );
+  const { data: dashboardUser } = useQuery<{ hasUser: boolean }>({
+    queryKey: [`/api/workers/${id}/dashboard-user`],
+    enabled: !!id && dashboardTabGranted,
+    retry: false,
+  });
+
   const isLoading = workerLoading || tabsLoading;
   const isError = !!workerError;
 
@@ -168,7 +182,13 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     return getActiveRoot(activeTab);
   }, [activeTab, getActiveRoot]);
 
-  const subTabs = activeRoot?.children;
+  const subTabs = useMemo(() => {
+    const children = activeRoot?.children;
+    if (!children) return children;
+    // Hide the Dashboard tab until the linkage lookup confirms a linked user.
+    if (dashboardUser?.hasUser) return children;
+    return children.filter((t) => t.id !== "dashboard");
+  }, [activeRoot, dashboardUser]);
 
   if (workerError) {
     return (

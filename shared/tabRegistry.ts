@@ -121,6 +121,7 @@ export const workerTabTree: HierarchicalTab[] = [
       { id: 'work-status', label: 'Work Status', hrefTemplate: '/workers/{id}/work-status', permission: 'staff' },
       { id: 'member-status', label: 'Member Status', hrefTemplate: '/workers/{id}/member-status', permission: 'staff' },
       { id: 'user', label: 'User', hrefTemplate: '/workers/{id}/user', permission: 'staff' },
+      { id: 'dashboard', label: 'Dashboard', hrefTemplate: '/workers/{id}/dashboard', permission: 'staff' },
       { id: 'skills', label: 'Skills', hrefTemplate: '/workers/{id}/skills', policyId: 'worker.view', component: 'worker.skills' },
       { id: 'certifications', label: 'Certifications', hrefTemplate: '/workers/{id}/certifications', policyId: 'worker.view', component: 'worker.certifications' },
       { id: 'ratings', label: 'Ratings', hrefTemplate: '/workers/{id}/ratings', permission: 'staff', component: 'worker.ratings' },

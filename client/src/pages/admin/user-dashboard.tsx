@@ -2,15 +2,11 @@ import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Eye, AlertCircle, ArrowLeft } from "lucide-react";
-import Dashboard from "@/pages/dashboard";
-
-interface TargetUserSummary {
-  id: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-}
+import { AlertCircle, ArrowLeft } from "lucide-react";
+import {
+  TargetDashboardView,
+  type TargetUserSummary,
+} from "@/components/dashboard/target-dashboard-view";
 
 /**
  * Staff target-view of another user's dashboard (`/users/:id/dashboard`).
@@ -65,24 +61,5 @@ export default function UserDashboardPage() {
     );
   }
 
-  const name =
-    `${targetUser.firstName || ""} ${targetUser.lastName || ""}`.trim() ||
-    targetUser.email ||
-    targetUser.id;
-
-  return (
-    <div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        <Alert data-testid="alert-target-dashboard-banner">
-          <Eye className="h-4 w-4" />
-          <AlertTitle>Viewing dashboard of {name}</AlertTitle>
-          <AlertDescription>
-            You are seeing this user's dashboard exactly as they would see it.
-            Widget actions act on their data.
-          </AlertDescription>
-        </Alert>
-      </div>
-      <Dashboard targetUserId={targetUser.id} />
-    </div>
-  );
+  return <TargetDashboardView targetUser={targetUser} />;
 }
