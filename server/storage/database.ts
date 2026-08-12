@@ -133,6 +133,7 @@ import { type BtuCsgStorage, createBtuCsgStorage, btuCsgLoggingConfig } from "./
 import { type BtuEmployerMapStorage, createBtuEmployerMapStorage, btuEmployerMapLoggingConfig } from "./sitespecific/btu/employer-map";
 import { type BtuTerritoriesStorage, createBtuTerritoriesStorage } from "./sitespecific/btu/territories";
 import { type FreemanCrewleadsStorage, createFreemanCrewleadsStorage, freemanCrewleadsLoggingConfig } from "./sitespecific/freeman/crewleads";
+import { type T631InterviewsStorage, createT631InterviewsStorage, t631InterviewsLoggingConfig } from "./sitespecific/t631/interviews";
 import { type BtuSchoolTypesStorage, createBtuSchoolTypesStorage } from "./sitespecific/btu/school-types";
 import { type BtuRegionsStorage, createBtuRegionsStorage } from "./sitespecific/btu/regions";
 import { type BtuSchoolAttributesStorage, createBtuSchoolAttributesStorage } from "./sitespecific/btu/school-attributes";
@@ -256,6 +257,7 @@ export interface IStorage {
   baoImmediateEligibility: BaoImmediateEligibilityStorage;
   baoBeneficiaries: BaoBeneficiariesStorage;
   freemanCrewleads: FreemanCrewleadsStorage;
+  t631Interviews: T631InterviewsStorage;
   workerBans: WorkerBanStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
   workerDispatchDepartments: WorkerDispatchDepartmentStorage;
@@ -368,6 +370,7 @@ export class DatabaseStorage implements IStorage {
   baoImmediateEligibility: BaoImmediateEligibilityStorage;
   baoBeneficiaries: BaoBeneficiariesStorage;
   freemanCrewleads: FreemanCrewleadsStorage;
+  t631Interviews: T631InterviewsStorage;
   workerBans: WorkerBanStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
   workerDispatchDepartments: WorkerDispatchDepartmentStorage;
@@ -592,6 +595,10 @@ export class DatabaseStorage implements IStorage {
     this.freemanCrewleads = withStorageLogging(
       createFreemanCrewleadsStorage(),
       freemanCrewleadsLoggingConfig,
+    );
+    this.t631Interviews = withStorageLogging(
+      createT631InterviewsStorage(),
+      t631InterviewsLoggingConfig,
     );
     this.workerBans = withStorageLogging(createWorkerBanStorage(), workerBanLoggingConfig);
     this.workerDispatchDnc = withStorageLogging(createWorkerDispatchDncStorage(), workerDispatchDncLoggingConfig);

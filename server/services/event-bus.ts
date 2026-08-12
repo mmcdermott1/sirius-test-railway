@@ -31,6 +31,7 @@ export enum EventType {
   DISPATCH_SAVED = "dispatch.saved",
   DISPATCH_JOB_SAVED = "dispatch.job.saved",
   DISPATCH_FORE_SAVED = "dispatch.fore.saved",
+  SITESPECIFIC_T631_INTERVIEW_SAVED = "sitespecific.t631.interview.saved",
   DISPATCH_DEPARTMENT_SAVED = "dispatch.department.saved",
   WORKER_BAN_SAVED = "worker.ban.saved",
   WORKER_BAN_DENORM_FLIPPED = "worker.ban.denorm-flipped",
@@ -159,6 +160,12 @@ export interface DispatchDepartmentSavedPayload {
   departmentId: string;
   preference: string;
   isDeleted?: boolean;
+}
+
+export interface SitespecificT631InterviewSavedPayload {
+  interviewId: string;
+  workerId: string;
+  jobId: string;
 }
 
 export interface DispatchForeSavedPayload {
@@ -417,6 +424,7 @@ export interface EventPayloadMap {
   [EventType.DISPATCH_SAVED]: DispatchSavedPayload;
   [EventType.DISPATCH_JOB_SAVED]: DispatchJobSavedPayload;
   [EventType.DISPATCH_FORE_SAVED]: DispatchForeSavedPayload;
+  [EventType.SITESPECIFIC_T631_INTERVIEW_SAVED]: SitespecificT631InterviewSavedPayload;
   [EventType.DISPATCH_DEPARTMENT_SAVED]: DispatchDepartmentSavedPayload;
   [EventType.WORKER_BAN_SAVED]: WorkerBanSavedPayload;
   [EventType.WORKER_BAN_DENORM_FLIPPED]: WorkerBanDenormFlippedPayload;

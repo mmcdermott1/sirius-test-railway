@@ -65,4 +65,5 @@
 - [Worker-ban framework](worker-ban-framework.md) — soft-ref ban types + singleton behavior plugins; only unconditional behaviors get denorm facts; ban-type edits must re-emit WORKER_BAN_SAVED; guard ALL accept paths.
 - [Storage audit log args PII](storage-audit-log-args-pii.md) — logged storage methods persist raw args to winston_logs; redact payloads via logArgs, conditional-log via shouldLog; prune deletes must re-qualify atomically.
 - [Maintenance-mode write lock](maintenance-mode-write-lock.md) — system_mode=maintenance applies default_transaction_read_only per pool checkout (acquire hook, armed only in bootstrapApp); allowInMaintenanceMode is the ONLY escape.
+- [Denorm event ordering race](denorm-event-ordering-race.md) — registry runs compute() outside applyComputed's tx; stale snapshot can win last & be marked ok. Framework-wide, don't fix per-plugin.
 - [Wizard advance via navigate](wizard-advance-via-navigate.md) — advance programmatic wizard launches with dispatch/navigate, not a currentStep PATCH (else next step stays pending, UI treats it as inactive).

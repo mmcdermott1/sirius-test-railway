@@ -122,6 +122,8 @@ import "./plugins/dispatch/banFacility";
 import "./plugins/dispatch/banJobType";
 import "./plugins/dispatch/department";
 import "./plugins/dispatch/dnc";
+// Passed-interview facts for T631 (gated by sitespecific.t631.interviews).
+import "./plugins/dispatch/sitespecific-t631-interview";
 import "./plugins/dispatch/eba";
 import "./plugins/dispatch/hfe";
 import "./plugins/dispatch/hta-home-employer";
