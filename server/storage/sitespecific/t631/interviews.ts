@@ -15,6 +15,12 @@ export type { SitespecificT631JobInterview, InsertSitespecificT631JobInterview }
 export interface T631InterviewsStorage {
   tableExists(): Promise<boolean>;
   get(id: string): Promise<SitespecificT631JobInterview | undefined>;
+  /**
+   * Row-locked read (SELECT ... FOR UPDATE). Must be called inside a
+   * transaction; used by status transitions so a concurrent change can't
+   * slip a stale transition through the validate-then-update window.
+   */
+  getForUpdate(id: string): Promise<SitespecificT631JobInterview | undefined>;
   getByWorker(workerId: string): Promise<SitespecificT631JobInterview[]>;
   getByJob(jobId: string): Promise<SitespecificT631JobInterview[]>;
   create(record: InsertSitespecificT631JobInterview): Promise<SitespecificT631JobInterview>;
@@ -64,6 +70,17 @@ export function createT631InterviewsStorage(): T631InterviewsStorage {
         .select()
         .from(sitespecificT631JobInterviews)
         .where(eq(sitespecificT631JobInterviews.id, id));
+      return results[0];
+    },
+
+    async getForUpdate(id: string): Promise<SitespecificT631JobInterview | undefined> {
+      if (!(await this.tableExists())) throw new Error("COMPONENT_TABLE_NOT_FOUND");
+      const client = getClient();
+      const results = await client
+        .select()
+        .from(sitespecificT631JobInterviews)
+        .where(eq(sitespecificT631JobInterviews.id, id))
+        .for("update");
       return results[0];
     },
 

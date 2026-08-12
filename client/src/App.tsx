@@ -51,6 +51,8 @@ const WorkerDispatchStatus = lazy(() => import("@/pages/workers/dispatch-status"
 const WorkerDispatchDoNotCall = lazy(() => import("@/pages/workers/dispatch-do-not-call"));
 const WorkerDispatchDepartments = lazy(() => import("@/pages/workers/dispatch-departments"));
 const WorkerDispatchHoldForEmployer = lazy(() => import("@/pages/workers/dispatch-hold-for-employer"));
+const WorkerDispatchT631Interviews = lazy(() => import("@/pages/workers/dispatch-t631-interviews"));
+const DispatchJobT631InterviewsPage = lazy(() => import("@/pages/dispatch/job-t631-interviews"));
 const WorkerDispatchEba = lazy(() => import("@/pages/workers/dispatch-eba"));
 const WorkerDispatchAsi = lazy(() => import("@/pages/workers/dispatch-asi"));
 const WorkerBans = lazy(() => import("@/pages/workers/bans"));
@@ -1037,6 +1039,14 @@ function Router() {
         <ProtectedRoute tabId="dispatch-eba" entityType="worker">
           <AuthenticatedLayout>
             <WorkerDispatchEba />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/dispatch/sitespecific_t631_interviews">
+        <ProtectedRoute tabId="dispatch-t631-interviews" entityType="worker">
+          <AuthenticatedLayout>
+            <WorkerDispatchT631Interviews />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -2977,6 +2987,21 @@ function Router() {
             <DispatchJobEligibleWorkersPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
+      </Route>
+
+      {/* entityId passed explicitly: URL extraction can't parse /dispatch/job/:id */}
+      <Route path="/dispatch/job/:id/sitespecific_t631_interviews">
+        {(params) => (
+          <ProtectedRoute
+            tabId="sitespecific-t631-interviews"
+            entityType="dispatch_job"
+            entityId={params.id}
+          >
+            <AuthenticatedLayout>
+              <DispatchJobT631InterviewsPage />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        )}
       </Route>
 
       <Route path="/dispatch/job/:id/foreperson">

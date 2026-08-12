@@ -1,7 +1,24 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { z } from "zod";
 import { requireComponent } from "../../components";
 import { storage } from "../../../storage";
 import { insertSitespecificT631JobInterviewSchema } from "../../../../shared/schema/sitespecific/t631/interviews-schema";
+import type { SitespecificT631JobInterview } from "../../../../shared/schema/sitespecific/t631/interviews-schema";
+import { checkAccessInline } from "../../../services/access-policy-evaluator";
+import { getEffectiveUser } from "../../masquerade";
+import { runInTransaction } from "../../../storage/transaction-context";
+import {
+  INTERVIEW_STATUSES,
+  EMPLOYER_VISIBLE_STATUSES,
+  type InterviewPersona,
+  type InterviewStatus,
+  validateTransition,
+  validateCommentEdits,
+  mergeComments,
+  readComments,
+  allowedTargetStatuses,
+  editableCommentSlots,
+} from "./interview-rules";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (
@@ -9,6 +26,7 @@ type PermissionMiddleware = (
 ) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type AccessMiddleware = (
   policyId: string,
+  getEntityId?: (req: Request) => string | undefined | Promise<string | undefined>,
 ) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 
 export function registerT631InterviewsRoutes(
@@ -112,7 +130,13 @@ export function registerT631InterviewsRoutes(
           .partial()
           .omit({ workerId: true, jobId: true })
           .parse(req.body);
-        const record = await interviewsStorage.update(req.params.id, parsed);
+        // Same row lock as the persona transition endpoint so an admin edit
+        // can't race a concurrent transition from a stale read.
+        const record = await runInTransaction(async () => {
+          const locked = await interviewsStorage.getForUpdate(req.params.id);
+          if (!locked) return undefined;
+          return interviewsStorage.update(locked.id, parsed);
+        });
         if (!record) return res.status(404).json({ message: "Interview not found" });
         res.json(record);
       } catch (error: any) {
@@ -120,6 +144,280 @@ export function registerT631InterviewsRoutes(
           return res.status(400).json({ message: "Invalid data", errors: error.errors });
         }
         console.error("Failed to update T631 interview:", error);
+        res.status(500).json({ message: "Failed to update interview" });
+      }
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // Persona-scoped views + status transitions.
+  //
+  // Personas (a caller may hold several; capabilities are the union):
+  //   staff    — 'staff' policy
+  //   employer — contact linked to the job's employer (employer.mine)
+  //   worker   — the interview's worker is the caller's own worker record
+  // All rules live in ./interview-rules (pure, verifier-covered); routes
+  // only resolve WHO the caller is.
+  // ------------------------------------------------------------------
+
+  type ResolvedCaller = {
+    isStaff: boolean;
+    contactId?: string;
+    workerId?: string;
+  };
+
+  const resolveCaller = async (req: Request): Promise<ResolvedCaller> => {
+    const isStaff = (await checkAccessInline(req, "staff")).granted;
+    const user = (req as any).user;
+    const session = (req as any).session;
+    const { dbUser } = await getEffectiveUser(session, user);
+    if (!dbUser?.email) return { isStaff };
+    const contact = await storage.contacts?.getContactByEmail?.(dbUser.email);
+    if (!contact) return { isStaff };
+    const worker = await storage.workers.getWorkerByContactId(contact.id);
+    return { isStaff, contactId: contact.id, workerId: worker?.id };
+  };
+
+  // Employer persona = the SAME check the job tab policy delegates to
+  // (employer.mine: 'employer' permission + contact linked to the employer),
+  // so the direct API can't be more permissive than the protected UI.
+  // employer.mine also grants staff, so callers must subtract isStaff when
+  // they need "employer and not staff".
+  const isEmployerFor = async (
+    req: Request,
+    employerId: string | null | undefined,
+  ): Promise<boolean> => {
+    if (!employerId) return false;
+    return (await checkAccessInline(req, "employer.mine", employerId)).granted;
+  };
+
+  const personasForInterview = async (
+    req: Request,
+    caller: ResolvedCaller,
+    interview: Pick<SitespecificT631JobInterview, "workerId" | "jobId">,
+    jobEmployerId: string | null | undefined,
+  ): Promise<InterviewPersona[]> => {
+    const personas: InterviewPersona[] = [];
+    if (caller.isStaff) personas.push("staff");
+    else if (await isEmployerFor(req, jobEmployerId)) personas.push("employer");
+    if (caller.workerId && caller.workerId === interview.workerId) personas.push("worker");
+    return personas;
+  };
+
+  /** UI affordances the server actually enforces, per interview row. */
+  const viewerCapabilities = (personas: InterviewPersona[], status: InterviewStatus) => ({
+    personas,
+    allowedTargetStatuses: allowedTargetStatuses(personas, status),
+    editableCommentSlots: editableCommentSlots(personas),
+  });
+
+  // Interviews for one job: staff see all, linked employers see only
+  // accepted/passed/failed. Workers do not access the job-side view.
+  app.get(
+    "/api/sitespecific/t631/interviews/views/job/:jobId",
+    requireAuth,
+    componentMiddleware,
+    async (req, res) => {
+      try {
+        if (!(await interviewsStorage.tableExists())) return tableUnavailable(res);
+        const job = await storage.dispatchJobs.getWithRelations(req.params.jobId);
+        if (!job) return res.status(404).json({ message: "Dispatch job not found" });
+
+        const caller = await resolveCaller(req);
+        const isEmployer = !caller.isStaff && (await isEmployerFor(req, job.employerId));
+        if (!caller.isStaff && !isEmployer) {
+          return res.status(403).json({ message: "No access to interviews for this job" });
+        }
+
+        let interviews = await interviewsStorage.getByJob(job.id);
+        if (!caller.isStaff) {
+          interviews = interviews.filter((i) =>
+            EMPLOYER_VISIBLE_STATUSES.has(i.status as InterviewStatus),
+          );
+        }
+
+        const rows = await Promise.all(
+          interviews.map(async (interview) => {
+            const worker = await storage.workers.getWorker(interview.workerId);
+            const contact = worker ? await storage.contacts.getContact(worker.contactId) : undefined;
+            const phones = contact
+              ? await storage.contacts.phoneNumbers.getPhoneNumbersByContact(contact.id)
+              : [];
+            const primaryPhone =
+              phones.find((p: any) => p.isPrimary)?.phoneNumber ?? phones[0]?.phoneNumber ?? null;
+            const personas: InterviewPersona[] = caller.isStaff ? ["staff"] : ["employer"];
+            return {
+              id: interview.id,
+              workerId: interview.workerId,
+              jobId: interview.jobId,
+              status: interview.status,
+              comments: readComments(interview.data),
+              worker: worker
+                ? {
+                    id: worker.id,
+                    siriusId: worker.siriusId,
+                    name: contact?.displayName ?? "Unknown",
+                    email: contact?.email ?? null,
+                    phone: primaryPhone,
+                  }
+                : null,
+              viewer: viewerCapabilities(personas, interview.status as InterviewStatus),
+            };
+          }),
+        );
+
+        res.json({
+          job: { id: job.id, title: job.title, employerName: job.employer?.name ?? null },
+          viewer: { isStaff: caller.isStaff, isEmployer },
+          interviews: rows,
+        });
+      } catch (error) {
+        console.error("Failed to fetch T631 job interviews view:", error);
+        res.status(500).json({ message: "Failed to fetch interviews" });
+      }
+    },
+  );
+
+  // A worker's interviews: staff or the worker themselves (worker.view
+  // policy — providers get a read-only view with no capabilities).
+  app.get(
+    "/api/sitespecific/t631/interviews/views/worker/:workerId",
+    requireAuth,
+    componentMiddleware,
+    requireAccess("worker.view", (req) => req.params.workerId),
+    async (req, res) => {
+      try {
+        if (!(await interviewsStorage.tableExists())) return tableUnavailable(res);
+        const caller = await resolveCaller(req);
+        const isSelf = !!caller.workerId && caller.workerId === req.params.workerId;
+
+        const interviews = await interviewsStorage.getByWorker(req.params.workerId);
+        const rows = await Promise.all(
+          interviews.map(async (interview) => {
+            const job = await storage.dispatchJobs.getWithRelations(interview.jobId);
+            const facilityLink = job
+              ? await storage.dispatchJobFacility.getByJob(job.id).catch(() => undefined)
+              : undefined;
+            const personas: InterviewPersona[] = [];
+            if (caller.isStaff) personas.push("staff");
+            if (isSelf) personas.push("worker");
+            return {
+              id: interview.id,
+              workerId: interview.workerId,
+              jobId: interview.jobId,
+              status: interview.status,
+              comments: readComments(interview.data),
+              job: job
+                ? {
+                    id: job.id,
+                    title: job.title,
+                    employerName: job.employer?.name ?? null,
+                    facilityName: facilityLink?.facility?.name ?? null,
+                    startDate: job.startYmd ?? null,
+                    description: job.description ?? null,
+                  }
+                : null,
+              viewer: viewerCapabilities(personas, interview.status as InterviewStatus),
+            };
+          }),
+        );
+
+        res.json({
+          viewer: { isStaff: caller.isStaff, isSelf },
+          interviews: rows,
+        });
+      } catch (error) {
+        console.error("Failed to fetch T631 worker interviews view:", error);
+        res.status(500).json({ message: "Failed to fetch interviews" });
+      }
+    },
+  );
+
+  const transitionSchema = z
+    .object({
+      status: z.enum(INTERVIEW_STATUSES as [InterviewStatus, ...InterviewStatus[]]).optional(),
+      comments: z
+        .object({
+          worker: z.string().max(5000).optional(),
+          employer: z.string().max(5000).optional(),
+          staff: z.string().max(5000).optional(),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict();
+
+  // Status transition and/or comment save. Persona rules enforced here
+  // regardless of what the UI offered; the row is locked for the whole
+  // validate-then-update window so a concurrent transition can't let a
+  // stale one through.
+  app.post(
+    "/api/sitespecific/t631/interviews/:id/transition",
+    requireAuth,
+    componentMiddleware,
+    async (req, res) => {
+      try {
+        if (!(await interviewsStorage.tableExists())) return tableUnavailable(res);
+        const body = transitionSchema.parse(req.body);
+
+        const existing = await interviewsStorage.get(req.params.id);
+        if (!existing) return res.status(404).json({ message: "Interview not found" });
+        const job = await storage.dispatchJobs.get(existing.jobId);
+
+        const caller = await resolveCaller(req);
+        const personas = await personasForInterview(req, caller, existing, job?.employerId);
+        if (personas.length === 0) {
+          return res.status(403).json({ message: "No access to this interview" });
+        }
+        // Employers only ever SEE accepted/passed/failed — an employer-only
+        // caller must not learn about (or comment on) other statuses via the
+        // direct API. 404, not 403: the row is invisible to them.
+        const employerOnly = !personas.includes("staff") && !personas.includes("worker");
+
+        type TransitionResult =
+          | { error: 403 | 404; message: string }
+          | { error?: undefined; updated: SitespecificT631JobInterview };
+        const result = await runInTransaction<TransitionResult>(async () => {
+          const locked = await interviewsStorage.getForUpdate(req.params.id);
+          if (!locked) return { error: 404 as const, message: "Interview not found" };
+          if (
+            employerOnly &&
+            !EMPLOYER_VISIBLE_STATUSES.has(locked.status as InterviewStatus)
+          ) {
+            return { error: 404 as const, message: "Interview not found" };
+          }
+
+          const current = locked.status as InterviewStatus;
+          const transition = validateTransition(personas, current, body.status);
+          if (!transition.ok) return { error: 403 as const, message: transition.reason! };
+          const commentCheck = validateCommentEdits(personas, body.comments);
+          if (!commentCheck.ok) return { error: 403 as const, message: commentCheck.reason! };
+
+          const updated = await interviewsStorage.update(locked.id, {
+            status: body.status ?? current,
+            data: mergeComments(locked.data, body.comments),
+          });
+          if (!updated) return { error: 404 as const, message: "Interview not found" };
+          return { updated };
+        });
+
+        if (result.error !== undefined) {
+          return res.status(result.error).json({ message: result.message });
+        }
+        const updated = result.updated;
+        res.json({
+          id: updated.id,
+          workerId: updated.workerId,
+          jobId: updated.jobId,
+          status: updated.status,
+          comments: readComments(updated.data),
+          viewer: viewerCapabilities(personas, updated.status as InterviewStatus),
+        });
+      } catch (error: any) {
+        if (error?.name === "ZodError") {
+          return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        }
+        console.error("Failed to transition T631 interview:", error);
         res.status(500).json({ message: "Failed to update interview" });
       }
     },

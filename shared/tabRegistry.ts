@@ -190,6 +190,7 @@ export const workerTabTree: HierarchicalTab[] = [
       { id: 'dispatch-hfe', label: 'Employer Priority', hrefTemplate: '/workers/{id}/dispatch/hold-for-employer', policyId: 'worker.view', component: 'dispatch.hfe' },
       { id: 'dispatch-eba', label: 'Availability Dates', hrefTemplate: '/workers/{id}/dispatch/eba', policyId: 'worker.mine', component: 'dispatch.eba' },
       { id: 'dispatch-asi', label: 'Auto Sign-In', hrefTemplate: '/workers/{id}/dispatch/asi', policyId: 'worker.dispatch.asi', component: 'dispatch.asi' },
+      { id: 'dispatch-t631-interviews', label: 'Interviews', hrefTemplate: '/workers/{id}/dispatch/sitespecific_t631_interviews', policyId: 'worker.view', component: 'sitespecific.t631.interviews' },
     ]
   },
   { id: 'political', label: 'Political', hrefTemplate: '/workers/{id}/political', permission: 'staff', component: 'sitespecific.btu.political' },
@@ -355,6 +356,7 @@ export const dispatchJobTabTree: HierarchicalTab[] = [
     ]
   },
   { id: 'foreperson', label: 'Foreperson', hrefTemplate: '/dispatch/job/{id}/foreperson', permission: 'staff', component: 'dispatch.fore' },
+  { id: 'sitespecific-t631-interviews', label: 'Interviews', hrefTemplate: '/dispatch/job/{id}/sitespecific_t631_interviews', policyId: 'sitespecific.t631.job.interviews', component: 'sitespecific.t631.interviews' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/dispatch/job/{id}/edit', permission: 'staff', component: 'dispatch' },
 ];
 

@@ -66,4 +66,6 @@ import './bulk/edit';
 import './facility/view';
 import './facility/edit';
 
+import './sitespecific/t631/job-interviews';
+
 export { getAllPolicies, getPolicy, hasPolicy } from './index';
