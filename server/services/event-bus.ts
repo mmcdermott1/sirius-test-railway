@@ -166,6 +166,16 @@ export interface SitespecificT631InterviewSavedPayload {
   interviewId: string;
   workerId: string;
   jobId: string;
+  /** The interview's status after the save (or at deletion). */
+  status: string;
+  /**
+   * Status before the save: null on create (no prior row), the previous
+   * value on update/delete. Notifiers compare against `status` to detect
+   * real transitions. `undefined` only on legacy emits that predate the field.
+   */
+  previousStatus: string | null;
+  /** True when the save is a deletion (notifiers generally skip these). */
+  isDeleted: boolean;
 }
 
 export interface DispatchForeSavedPayload {

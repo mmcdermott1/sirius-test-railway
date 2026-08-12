@@ -237,7 +237,7 @@ const tagIdCache = new Map<string, string>();
  * directly. Users that can't be reached (missing user, no email, or no
  * matching contact) are logged and skipped rather than aborting the fan-out.
  */
-async function resolveStaffRecipients(
+export async function resolveStaffRecipients(
   userIds: string[],
   pluginId: string,
 ): Promise<NotifierRecipient[]> {
@@ -360,7 +360,7 @@ async function dispatchForConfig(
 
   for (const recipient of recipients) {
     for (const medium of active) {
-      const content = await plugin.getMessage(medium, recipient, ctx);
+      const content = await plugin.getMessage(medium, recipient, ctx, configData);
       if (!content) continue;
       const sent = await deliver(medium, recipient, content, pluginId, tagIds);
       // Flash a summary of what went out back to the user who triggered the

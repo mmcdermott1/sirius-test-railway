@@ -39,13 +39,20 @@ const tableName = getTableName(sitespecificT631JobInterviews);
  * the denorm plugin never recomputes from pre-commit data. Fire-and-forget:
  * a listener failure must not fail the committed write.
  */
-function emitInterviewSaved(interview: Pick<SitespecificT631JobInterview, "id" | "workerId" | "jobId">): void {
+function emitInterviewSaved(
+  interview: Pick<SitespecificT631JobInterview, "id" | "workerId" | "jobId" | "status">,
+  previousStatus: string | null,
+  isDeleted = false,
+): void {
   onAfterCommit(() => {
     eventBus
       .emit(EventType.SITESPECIFIC_T631_INTERVIEW_SAVED, {
         interviewId: interview.id,
         workerId: interview.workerId,
         jobId: interview.jobId,
+        status: interview.status,
+        previousStatus,
+        isDeleted,
       })
       .catch((error) => {
         storageLogger.error("Failed to emit t631 interview saved event", {
@@ -110,7 +117,8 @@ export function createT631InterviewsStorage(): T631InterviewsStorage {
         .values(record)
         .returning();
       const created = results[0];
-      emitInterviewSaved(created);
+      // Creation = arriving at a status with no prior row.
+      emitInterviewSaved(created, null);
       return created;
     },
 
@@ -120,13 +128,18 @@ export function createT631InterviewsStorage(): T631InterviewsStorage {
     ): Promise<SitespecificT631JobInterview | undefined> {
       if (!(await this.tableExists())) throw new Error("COMPONENT_TABLE_NOT_FOUND");
       const client = getClient();
+      // Pre-read for the event's previousStatus. Status-transition routes
+      // already hold a row lock (getForUpdate) in their transaction, so this
+      // read can't race those; a plain edit racing itself may at worst carry a
+      // slightly stale previousStatus in the emitted event.
+      const prior = await this.get(id);
       const results = await client
         .update(sitespecificT631JobInterviews)
         .set(record)
         .where(eq(sitespecificT631JobInterviews.id, id))
         .returning();
       const updated = results[0];
-      if (updated) emitInterviewSaved(updated);
+      if (updated) emitInterviewSaved(updated, prior?.status ?? null);
       return updated;
     },
 
@@ -140,7 +153,7 @@ export function createT631InterviewsStorage(): T631InterviewsStorage {
         .where(eq(sitespecificT631JobInterviews.id, id))
         .returning();
       const deleted = results[0];
-      if (deleted) emitInterviewSaved(deleted);
+      if (deleted) emitInterviewSaved(deleted, deleted.status, true);
       return deleted;
     },
   };

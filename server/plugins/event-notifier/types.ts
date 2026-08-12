@@ -135,12 +135,15 @@ export interface EventNotifierPlugin extends BasePluginMetadata {
   /**
    * Compose the message for one recipient on one medium. Return `null` to skip
    * that medium for that recipient (e.g. the recipient has no address on file,
-   * or the content does not apply).
+   * or the content does not apply). `configData` is the individual config's
+   * `data` payload, for notifiers whose message text is admin-configurable
+   * (e.g. a per-config subject/intro); plugins that don't need it ignore it.
    */
   getMessage(
     medium: NotificationMedium,
     recipient: NotifierRecipient,
     ctx: EventNotifierEventContext,
+    configData?: unknown,
   ): Promise<NotifierMessageContent | null>;
 }
 

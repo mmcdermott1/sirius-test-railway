@@ -87,12 +87,13 @@ function registerEventNotifierKind(): void {
           ],
         };
       }
-      // Staff-mode notifiers may only target staff/admin users. The recipients
-      // are operator-supplied (`data.staffRecipientUserIds`) and a direct API
+      // Staff recipients may only be staff/admin users. The recipients are
+      // operator-supplied (`data.staffRecipientUserIds`) and a direct API
       // write could otherwise smuggle in arbitrary user ids, so re-check
       // membership here at save time (the legacy staff-alert framework enforced
-      // the same constraint).
-      if (plugin.staffNotification) {
+      // the same constraint). Applies to staff-mode notifiers AND any config
+      // that carries a staff recipient list (e.g. per-config recipient kinds).
+      if (plugin.staffNotification || Array.isArray(cfg.staffRecipientUserIds)) {
         const ids = Array.isArray(cfg.staffRecipientUserIds)
           ? (cfg.staffRecipientUserIds as unknown[]).filter(
               (v): v is string => typeof v === "string",
@@ -276,3 +277,4 @@ import "./plugins/tos-absence-notifier";
 import "./plugins/edls-sheet-status-notifier";
 import "./plugins/dispatch-status-notifier";
 import "./plugins/dispatch-fore-notifier";
+import "./plugins/sitespecific-t631-interview";
