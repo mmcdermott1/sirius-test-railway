@@ -860,6 +860,20 @@ export const componentRegistry: ComponentDefinition[] = [
     category: "site-specific"
   },
   {
+    id: "sitespecific.t631.interviews",
+    name: "Teamsters 631 Interviews",
+    description: "Job interview tracking for Teamsters 631",
+    enabledByDefault: false,
+    category: "site-specific",
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/sitespecific/t631/interviews-schema.ts",
+      tables: ["sitespecific_t631_job_interviews"],
+      dependsOnComponents: ["dispatch"]
+    }
+  },
+  {
     id: "sitespecific.bao",
     name: "BAO Customization",
     description: "Custom functionality for Unite Here Local 11 Health Benefits Administration",
