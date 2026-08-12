@@ -19,6 +19,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { queryClient } from '@/lib/queryClient';
+import { sanitizeTrustedHtml } from '@/lib/sanitize-trusted-html';
+import { useSiteSettings, useVariableValue } from '@/lib/use-variable';
 
 const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -185,6 +187,18 @@ export default function LoginPage() {
 
   const localEnabled = !!providersData?.providers?.some((p) => p.type === 'local');
 
+  const { siteName } = useSiteSettings();
+  const loginTitleQuery = useVariableValue('login_page_title');
+  const loginIntroQuery = useVariableValue('login_page_intro');
+  const loginTitle =
+    typeof loginTitleQuery.data === 'string' && loginTitleQuery.data.trim()
+      ? loginTitleQuery.data
+      : `Welcome to ${siteName}`;
+  const loginIntroHtml =
+    typeof loginIntroQuery.data === 'string' && loginIntroQuery.data.trim()
+      ? sanitizeTrustedHtml(loginIntroQuery.data)
+      : null;
+
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
       const redirectTo = sessionStorage.getItem('redirectAfterLogin');
@@ -217,10 +231,20 @@ export default function LoginPage() {
               <LogIn className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Sirius</CardTitle>
-          <CardDescription>
-            Sign in to access the worker management system
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold" data-testid="text-login-title">{loginTitle}</CardTitle>
+          {loginIntroHtml ? (
+            <CardDescription>
+              <span
+                className="prose prose-sm max-w-none dark:prose-invert"
+                dangerouslySetInnerHTML={{ __html: loginIntroHtml }}
+                data-testid="text-login-intro"
+              />
+            </CardDescription>
+          ) : (
+            <CardDescription data-testid="text-login-intro">
+              Sign in to access all features.
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {localEnabled && <LocalLoginForm />}

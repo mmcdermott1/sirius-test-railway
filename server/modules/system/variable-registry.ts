@@ -10,6 +10,7 @@ import { dispatchDncNotificationConfigSchema } from "../dispatch/dnc-config";
 import { workerBanNotificationConfigSchema } from "../worker-ban-config";
 import { entityFilesConfigSchema } from "../../services/entity-files/config";
 import { invalidateTerminologyCache, loadTerminology } from "../terminology";
+import { sanitizeHelpHtml } from "../../help/sanitize";
 
 /**
  * Unified per-variable registry.
@@ -115,6 +116,13 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
   site_name: { readTier: "public", schema: z.string() },
   site_title: { readTier: "public", schema: z.string().max(50) },
   site_footer: { readTier: "public", schema: z.string() },
+  login_page_title: { readTier: "public", schema: z.string() },
+  // Defense in depth: sanitize at write time so raw API submissions can't
+  // persist unsafe markup; the client also sanitizes before rendering.
+  login_page_intro: {
+    readTier: "public",
+    schema: z.string().transform((html) => (html ? sanitizeHelpHtml(html) : html)),
+  },
   [TERMINOLOGY_VARIABLE_NAME]: {
     readTier: "public",
     schema: terminologyValueSchema,

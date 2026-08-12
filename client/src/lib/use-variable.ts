@@ -121,4 +121,6 @@ export const SITE_SETTING_VARIABLE_KEYS = [
   ["/api/variables/by-name", "site_name"],
   ["/api/variables/by-name", "site_title"],
   ["/api/variables/by-name", "site_footer"],
+  ["/api/variables/by-name", "login_page_title"],
+  ["/api/variables/by-name", "login_page_intro"],
 ] as const;
