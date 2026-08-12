@@ -284,6 +284,138 @@ export function registerT631InterviewsRoutes(
     },
   );
 
+  // Offers view: staff-only. Lists workers who WOULD be eligible for this
+  // job if the interview eligibility plugin were ignored, marked with any
+  // existing interview for the job so staff can see who's been offered.
+  app.get(
+    "/api/sitespecific/t631/interviews/views/job/:jobId/offers",
+    requireAuth,
+    componentMiddleware,
+    requireAccess("staff"),
+    async (req, res) => {
+      try {
+        if (!(await interviewsStorage.tableExists())) return tableUnavailable(res);
+        const job = await storage.dispatchJobs.getWithRelations(req.params.jobId);
+        if (!job) return res.status(404).json({ message: "Dispatch job not found" });
+        if (!(await jobInterviewsAvailable(storage, job))) {
+          return res.status(404).json({ message: "Interviews are not enabled for this job" });
+        }
+
+        const { limit: limitParam, offset: offsetParam, name: nameParam } = req.query;
+        const limit = Math.min(parseInt(limitParam as string) || 100, 500);
+        const offset = parseInt(offsetParam as string) || 0;
+        const filters: { name?: string; excludePluginIds: string[] } = {
+          // The whole point of this view: eligibility WITHOUT the interview
+          // requirement. All other plugins still apply. Dispatch create and
+          // accept are unaffected (they always run the full plugin set).
+          excludePluginIds: ["sitespecific_t631_interview"],
+        };
+        if (nameParam && typeof nameParam === "string" && nameParam.trim()) {
+          filters.name = nameParam.trim();
+        }
+
+        const { createDispatchEligibleWorkersStorage } = await import(
+          "../../../storage/dispatch/eligible-workers"
+        );
+        const eligible = await createDispatchEligibleWorkersStorage().getEligibleWorkersForJob(
+          job.id,
+          limit,
+          offset,
+          filters,
+        );
+
+        const interviews = await interviewsStorage.getByJob(job.id);
+        const byWorker = new Map(interviews.map((i) => [i.workerId, i]));
+
+        res.json({
+          job: { id: job.id, title: job.title, employerName: job.employer?.name ?? null },
+          total: eligible.total,
+          workers: eligible.workers.map((w) => {
+            const interview = byWorker.get(w.id);
+            return {
+              id: w.id,
+              siriusId: w.siriusId,
+              name: w.displayName,
+              interview: interview
+                ? { id: interview.id, status: interview.status }
+                : null,
+            };
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to fetch T631 interview offers view:", error);
+        res.status(500).json({ message: "Failed to fetch interview offers" });
+      }
+    },
+  );
+
+  // Staff offer creation: the generic POST above is admin-only, but the
+  // Offers subtab is a staff feature. Narrow scope: status is forced to
+  // "offered"; nothing else is settable.
+  app.post(
+    "/api/sitespecific/t631/interviews/views/job/:jobId/offers",
+    requireAuth,
+    componentMiddleware,
+    requireAccess("staff"),
+    async (req, res) => {
+      try {
+        if (!(await interviewsStorage.tableExists())) return tableUnavailable(res);
+        const job = await storage.dispatchJobs.getWithRelations(req.params.jobId);
+        if (!job) return res.status(404).json({ message: "Dispatch job not found" });
+        if (!(await jobInterviewsAvailable(storage, job))) {
+          return res.status(404).json({ message: "Interviews are not enabled for this job" });
+        }
+        const { workerId } = z.object({ workerId: z.string().min(1) }).strict().parse(req.body);
+
+        // Enforce the same eligibility contract the Offers list shows: the
+        // worker must be eligible under every enabled plugin EXCEPT the
+        // interview requirement. Direct API calls can't offer interviews to
+        // workers blocked by bans, skills, status, etc.
+        const worker = await storage.workers.getWorker(workerId);
+        if (!worker) return res.status(400).json({ message: "Worker does not exist" });
+        const { createDispatchEligibleWorkersStorage } = await import(
+          "../../../storage/dispatch/eligible-workers"
+        );
+        const eligible = await createDispatchEligibleWorkersStorage().getEligibleWorkersForJob(
+          job.id,
+          1,
+          0,
+          {
+            siriusId: worker.siriusId,
+            excludePluginIds: ["sitespecific_t631_interview"],
+          },
+        );
+        if (!eligible.workers.some((w) => w.id === workerId)) {
+          return res.status(422).json({
+            message:
+              "This worker is not eligible for the job (aside from the interview requirement), so an interview cannot be offered",
+          });
+        }
+
+        const record = await interviewsStorage.create({
+          workerId,
+          jobId: job.id,
+          status: "offered",
+        });
+        res.status(201).json(record);
+      } catch (error: any) {
+        if (error?.name === "ZodError") {
+          return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        }
+        if (error?.code === "23505") {
+          return res
+            .status(409)
+            .json({ message: "This worker already has an interview for this job" });
+        }
+        if (error?.code === "23503") {
+          return res.status(400).json({ message: "Worker does not exist" });
+        }
+        console.error("Failed to create T631 interview offer:", error);
+        res.status(500).json({ message: "Failed to create interview offer" });
+      }
+    },
+  );
+
   // Lightweight existence check used by WorkerLayout to hide the worker
   // Interviews tab when there are no interview rows. Same gating as the
   // worker view below.

@@ -33,6 +33,14 @@ export interface EligibleWorkersFilters {
   siriusId?: number;
   name?: string;
   excludeWithDispatches?: boolean; // Exclude workers who already have a dispatch for this job
+  /**
+   * INTERNAL (server-only callers): eligibility plugin ids to skip when
+   * building conditions — e.g. the interview Offers view lists workers who
+   * would be eligible if they passed the interview. Never expose this as a
+   * request parameter on generic endpoints; dispatch create/accept
+   * (checkWorkerAcceptance) always applies the full plugin set.
+   */
+  excludePluginIds?: string[];
 }
 
 export interface EligibleWorkersResult {
@@ -182,7 +190,10 @@ async function buildEligibleWorkersQuery(jobId: string, filters?: EligibleWorker
 
   const appliedConditions: Array<{ pluginId: string; condition: EligibilityCondition }> = [];
 
+  const excludedPluginIds = new Set(filters?.excludePluginIds ?? []);
+
   for (const pluginConfig of enabledPluginConfigs) {
+    if (excludedPluginIds.has(pluginConfig.pluginId)) continue;
     const plugin = dispatchEligPluginRegistry.getPlugin(pluginConfig.pluginId);
     if (!plugin) {
       logger.warn(`Plugin not found: ${pluginConfig.pluginId}`, {

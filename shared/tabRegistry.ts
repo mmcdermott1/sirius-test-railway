@@ -357,7 +357,20 @@ export const dispatchJobTabTree: HierarchicalTab[] = [
     ]
   },
   { id: 'foreperson', label: 'Foreperson', hrefTemplate: '/dispatch/job/{id}/foreperson', permission: 'staff', component: 'dispatch.fore' },
-  { id: 'sitespecific-t631-interviews', label: 'Interviews', hrefTemplate: '/dispatch/job/{id}/sitespecific_t631_interviews', policyId: 'sitespecific.t631.job.interviews', component: 'sitespecific.t631.interviews' },
+  {
+    id: 'sitespecific-t631-interviews',
+    label: 'Interviews',
+    hrefTemplate: '/dispatch/job/{id}/sitespecific_t631_interviews',
+    policyId: 'sitespecific.t631.job.interviews',
+    component: 'sitespecific.t631.interviews',
+    children: [
+      // List = the pre-existing interviews page; same relevance policy as the parent.
+      { id: 'sitespecific-t631-interviews-list', label: 'List', hrefTemplate: '/dispatch/job/{id}/sitespecific_t631_interviews', policyId: 'sitespecific.t631.job.interviews', component: 'sitespecific.t631.interviews' },
+      // Offers is staff-only (the parent policy also grants linked employers,
+      // so the child must gate on permission, not the policy).
+      { id: 'sitespecific-t631-interviews-offers', label: 'Offers', hrefTemplate: '/dispatch/job/{id}/sitespecific_t631_interviews/offers', permission: 'staff', component: 'sitespecific.t631.interviews' },
+    ]
+  },
   { id: 'edit', label: 'Edit', hrefTemplate: '/dispatch/job/{id}/edit', permission: 'staff', component: 'dispatch' },
 ];
 

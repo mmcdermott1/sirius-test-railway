@@ -139,7 +139,7 @@ export default function DispatchJobT631InterviewsPage() {
 
   if (hasPermission("staff")) {
     return (
-      <DispatchJobLayout activeTab="sitespecific-t631-interviews">
+      <DispatchJobLayout activeTab="sitespecific-t631-interviews-list">
         <JobInterviewsContent jobId={id!} />
       </DispatchJobLayout>
     );
