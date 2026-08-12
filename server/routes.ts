@@ -81,6 +81,7 @@ import { registerSessionRoutes } from "./modules/system/sessions";
 import { registerFloodEventRoutes } from "./modules/system/flood";
 import { registerEventsRoutes } from "./modules/events";
 import { registerDispatchJobsRoutes } from "./modules/dispatch/jobs";
+import { registerDispatchJobEmployerContactsRoutes } from "./modules/dispatch/job-employer-contacts";
 import { registerDispatchJobGroupsRoutes } from "./modules/dispatch/job-groups";
 import { registerFacilityRoutes } from "./modules/facility/facilities";
 import { registerContractRoutes } from "./modules/contract/contract";
@@ -1695,6 +1696,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
 
   // Register dispatch jobs routes
   registerDispatchJobsRoutes(app, requireAuth, requirePermission);
+  registerDispatchJobEmployerContactsRoutes(app, requireAuth, requireAccess);
 
   // Register dispatch job groups routes
   registerDispatchJobGroupsRoutes(app, requireAuth, requirePermission);

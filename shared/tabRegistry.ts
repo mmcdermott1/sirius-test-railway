@@ -371,6 +371,9 @@ export const dispatchJobTabTree: HierarchicalTab[] = [
       { id: 'sitespecific-t631-interviews-offers', label: 'Offers', hrefTemplate: '/dispatch/job/{id}/sitespecific_t631_interviews/offers', permission: 'staff', component: 'sitespecific.t631.interviews' },
     ]
   },
+  // Staff AND employer users linked to the job's employer (policy, not a
+  // staff permission — the policy delegates to employer.mine).
+  { id: 'dispatch-job-employer-contacts', label: 'Employer Contacts', hrefTemplate: '/dispatch/job/{id}/employer_contacts', policyId: 'dispatch.job.employer.contacts', component: 'dispatch' },
   { id: 'edit', label: 'Edit', hrefTemplate: '/dispatch/job/{id}/edit', permission: 'staff', component: 'dispatch' },
 ];
 

@@ -109,6 +109,7 @@ import "./components/sitespecific.t631.interviews/001_create_job_interviews";
 import "./components/dispatch.bullpen/001_create_dispatch_job_event";
 import "./components/dispatch.department/001_create_department_tables";
 import "./components/dispatch/002_worker_dispatch_elig_denorm_denorm_id";
+import "./components/dispatch/003_create_dispatch_job_employer_contacts";
 import "./components/trust.benefits/001_backfill_trust_eligibility_configs";
 import "./components/trust.benefits/002_create_trust_wmb_events";
 import "./components/contract/001_create_contract_tables";

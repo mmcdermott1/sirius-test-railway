@@ -55,6 +55,7 @@ const WorkerDispatchHoldForEmployer = lazy(() => import("@/pages/workers/dispatc
 const WorkerDispatchT631Interviews = lazy(() => import("@/pages/workers/dispatch-t631-interviews"));
 const DispatchJobT631InterviewsPage = lazy(() => import("@/pages/dispatch/job-t631-interviews"));
 const DispatchJobT631InterviewOffersPage = lazy(() => import("@/pages/dispatch/job-t631-interview-offers"));
+const DispatchJobEmployerContactsPage = lazy(() => import("@/pages/dispatch/job-employer-contacts"));
 const WorkerDispatchEba = lazy(() => import("@/pages/workers/dispatch-eba"));
 const WorkerDispatchAsi = lazy(() => import("@/pages/workers/dispatch-asi"));
 const WorkerBans = lazy(() => import("@/pages/workers/bans"));
@@ -3026,6 +3027,21 @@ function Router() {
           >
             <AuthenticatedLayout>
               <DispatchJobT631InterviewOffersPage />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        )}
+      </Route>
+
+      {/* entityId passed explicitly: URL extraction can't parse /dispatch/job/:id */}
+      <Route path="/dispatch/job/:id/employer_contacts">
+        {(params) => (
+          <ProtectedRoute
+            tabId="dispatch-job-employer-contacts"
+            entityType="dispatch_job"
+            entityId={params.id}
+          >
+            <AuthenticatedLayout>
+              <DispatchJobEmployerContactsPage />
             </AuthenticatedLayout>
           </ProtectedRoute>
         )}
