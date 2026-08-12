@@ -17,6 +17,7 @@ import { storage } from "../../server/storage";
 import { db } from "../../server/db";
 import { sql } from "drizzle-orm";
 import { runInTransaction } from "../../server/storage/transaction-context";
+import { jobInterviewsAvailable } from "../../shared/access-policies/sitespecific/t631/job-interviews";
 import {
   INTERVIEW_STATUSES,
   EMPLOYER_VISIBLE_STATUSES,
@@ -124,9 +125,33 @@ async function main() {
     `);
     workerId = (workerRes.rows[0] as any).id as string;
 
+    // --- tab relevance (jobInterviewsAvailable) ---
+    // plugin-enabled branch (stub storage: pure logic, no config fixtures)
+    const stubEnabled = {
+      pluginConfigs: { search: async () => [{ config: { pluginId: "sitespecific_t631_interview", enabled: true } }] },
+      t631Interviews: { getByJob: async () => [] },
+    };
+    check("available when interview plugin enabled on job type",
+      (await jobInterviewsAvailable(stubEnabled, { id: "x", jobTypeId: "jt" })) === true);
+    const stubDisabled = {
+      pluginConfigs: { search: async () => [{ config: { pluginId: "sitespecific_t631_interview", enabled: false } }] },
+      t631Interviews: { getByJob: async () => [] },
+    };
+    check("unavailable when plugin config exists but disabled (no rows)",
+      (await jobInterviewsAvailable(stubDisabled, { id: "x", jobTypeId: "jt" })) === false);
+
+    const jobRow = ((await db.execute(sql`SELECT job_type_id FROM dispatch_jobs WHERE id = ${jobId}`)).rows[0] as any);
+    const availBefore = await jobInterviewsAvailable(storage, { id: jobId, jobTypeId: jobRow.job_type_id });
+
     const created = await storage.t631Interviews.create({
       workerId, jobId, status: "offered", data: { comments: { staff: "seed" } },
     });
+
+    // existing-rows branch against the real DB: creating a row must make the
+    // job available even if the plugin isn't enabled for its job type.
+    check("available once an interview row exists (data stays reachable)",
+      (await jobInterviewsAvailable(storage, { id: jobId, jobTypeId: jobRow.job_type_id })) === true,
+      { availBefore });
 
     // mimic the /transition endpoint: lock, validate, update — atomically
     const result = await runInTransaction(async () => {

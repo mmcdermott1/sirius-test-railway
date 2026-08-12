@@ -166,6 +166,19 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
     retry: false,
   });
 
+  // Same pattern for Dispatch > Interviews: only show the tab when the
+  // worker actually has at least one interview row. Fetch only when access
+  // already granted the tab.
+  const interviewsTabGranted = useMemo(
+    () => tabs.some((t) => t.children?.some((c) => c.id === "dispatch-t631-interviews")),
+    [tabs],
+  );
+  const { data: interviewsExist } = useQuery<{ exists: boolean }>({
+    queryKey: [`/api/sitespecific/t631/interviews/views/worker/${id}/exists`],
+    enabled: !!id && interviewsTabGranted,
+    retry: false,
+  });
+
   const isLoading = workerLoading || tabsLoading;
   const isError = !!workerError;
 
@@ -183,12 +196,18 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
   }, [activeTab, getActiveRoot]);
 
   const subTabs = useMemo(() => {
-    const children = activeRoot?.children;
+    let children = activeRoot?.children;
     if (!children) return children;
     // Hide the Dashboard tab until the linkage lookup confirms a linked user.
-    if (dashboardUser?.hasUser) return children;
-    return children.filter((t) => t.id !== "dashboard");
-  }, [activeRoot, dashboardUser]);
+    if (!dashboardUser?.hasUser) {
+      children = children.filter((t) => t.id !== "dashboard");
+    }
+    // Hide the Interviews tab until the lookup confirms interview rows exist.
+    if (!interviewsExist?.exists) {
+      children = children.filter((t) => t.id !== "dispatch-t631-interviews");
+    }
+    return children;
+  }, [activeRoot, dashboardUser, interviewsExist]);
 
   if (workerError) {
     return (

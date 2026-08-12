@@ -271,6 +271,9 @@ export default function GenericPluginConfigsPage({
     mutationFn: async (id: string) => apiRequest("DELETE", `${pluginConfigsUrl(kind)}/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pluginConfigsQueryKey(kind) });
+      // Plugin configs can drive tab visibility (e.g. dispatch-eligibility
+      // gates the job Interviews tab) — drop cached tab-access results.
+      queryClient.invalidateQueries({ queryKey: ["/api/access/tabs"] });
       toast({ title: "Success", description: "Configuration deleted." });
     },
     onError: (error: unknown) => {
@@ -1018,6 +1021,9 @@ function GenericConfigDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pluginConfigsQueryKey(kind) });
+      // Plugin configs can drive tab visibility (e.g. dispatch-eligibility
+      // gates the job Interviews tab) — drop cached tab-access results.
+      queryClient.invalidateQueries({ queryKey: ["/api/access/tabs"] });
       toast({ title: "Success", description: `Configuration ${isEditMode ? "updated" : "created"}.` });
       onOpenChange(false);
     },

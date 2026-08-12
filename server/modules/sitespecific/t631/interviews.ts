@@ -7,6 +7,7 @@ import type { SitespecificT631JobInterview } from "../../../../shared/schema/sit
 import { checkAccessInline } from "../../../services/access-policy-evaluator";
 import { getEffectiveUser } from "../../masquerade";
 import { runInTransaction } from "../../../storage/transaction-context";
+import { jobInterviewsAvailable } from "../../../../shared/access-policies/sitespecific/t631/job-interviews";
 import {
   INTERVIEW_STATUSES,
   EMPLOYER_VISIBLE_STATUSES,
@@ -222,6 +223,11 @@ export function registerT631InterviewsRoutes(
         if (!(await interviewsStorage.tableExists())) return tableUnavailable(res);
         const job = await storage.dispatchJobs.getWithRelations(req.params.jobId);
         if (!job) return res.status(404).json({ message: "Dispatch job not found" });
+        // Mirror the tab policy: interviews must be relevant for this job
+        // (interview-required plugin on the job type, or existing rows).
+        if (!(await jobInterviewsAvailable(storage, job))) {
+          return res.status(404).json({ message: "Interviews are not enabled for this job" });
+        }
 
         const caller = await resolveCaller(req);
         const isEmployer = !caller.isStaff && (await isEmployerFor(req, job.employerId));
@@ -274,6 +280,26 @@ export function registerT631InterviewsRoutes(
       } catch (error) {
         console.error("Failed to fetch T631 job interviews view:", error);
         res.status(500).json({ message: "Failed to fetch interviews" });
+      }
+    },
+  );
+
+  // Lightweight existence check used by WorkerLayout to hide the worker
+  // Interviews tab when there are no interview rows. Same gating as the
+  // worker view below.
+  app.get(
+    "/api/sitespecific/t631/interviews/views/worker/:workerId/exists",
+    requireAuth,
+    componentMiddleware,
+    requireAccess("worker.view", (req) => req.params.workerId),
+    async (req, res) => {
+      try {
+        if (!(await interviewsStorage.tableExists())) return res.json({ exists: false });
+        const rows = await interviewsStorage.getByWorker(req.params.workerId);
+        res.json({ exists: rows.length > 0 });
+      } catch (error) {
+        console.error("Failed T631 worker interviews existence check:", error);
+        res.status(500).json({ message: "Failed to check interviews" });
       }
     },
   );
