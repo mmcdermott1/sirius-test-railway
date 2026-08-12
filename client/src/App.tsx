@@ -204,6 +204,8 @@ const BargainingUnitDeletePage = lazy(() => import("@/pages/bargaining-unit-dele
 const AdminUsersPage = lazy(() => import("@/pages/admin/users"));
 const UserAccountPage = lazy(() => import("@/pages/admin/user-account"));
 const UserLogs = lazy(() => import("@/pages/admin/user-logs"));
+
+const UserDashboardPage = lazy(() => import("@/pages/admin/user-dashboard"));
 const UserEmail = lazy(() => import("@/pages/admin/user-email"));
 const UserPhoneNumbers = lazy(() => import("@/pages/admin/user-phone-numbers"));
 const UserAddresses = lazy(() => import("@/pages/admin/user-addresses"));
@@ -3589,6 +3591,15 @@ function Router() {
         <ProtectedRoute tabId="details" entityType="user">
           <AuthenticatedLayout>
             <UserAccountPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Staff view of another user's dashboard */}
+      <Route path="/users/:id/dashboard">
+        <ProtectedRoute tabId="dashboard" entityType="user">
+          <AuthenticatedLayout>
+            <UserDashboardPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
