@@ -114,6 +114,19 @@ export function registerComponentRoutes(
     }
   });
 
+  // GET /api/components/env-vars - Declared environment variables (metadata +
+  // presence only, never values). Declarations link to components by
+  // convention: declaration.category === component.id. Admin-only because
+  // variable names/presence hint at the deployment's configuration.
+  app.get("/api/components/env-vars", requireAccess('admin'), async (_req, res) => {
+    try {
+      const { listEnvironmentVariables } = await import("../config/env-registry");
+      res.json(listEnvironmentVariables());
+    } catch (error) {
+      res.status(500).json({ message: "Failed to list environment variables" });
+    }
+  });
+
   // PUT /api/components/config/:componentId - Update component enabled state
   app.put("/api/components/config/:componentId", requireAccess('admin'), async (req, res) => {
     try {
