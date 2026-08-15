@@ -55,4 +55,5 @@ export type PluginKind =
   | "menu"
   | "system-status"
   | "trust-provider-edi"
-  | "worker-ban";
+  | "worker-ban"
+  | "token";

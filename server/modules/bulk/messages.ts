@@ -12,8 +12,18 @@ import { createBulkParticipantStorage } from "../../storage/bulk/participants";
 import { deliverToContact, deliverToParticipant, resolveAddressForMedium } from "./deliver";
 import { storageLogger } from "../../logger";
 import { resolveContactLinks, resolveContactLinksForMany } from "../contact-links";
-import { TOKEN_REGISTRY, TOKEN_REGISTRY_MAP, renderTemplate, extractTokenIds, findUnknownTokenIds, isKnownToken, buildSampleContext, buildContextFromSources, htmlToPlainText, type TokenSourceData } from "../../../shared/bulk-tokens";
-import { buildRecipientContext, detectAudienceScopes } from "./token-context";
+import { htmlToPlainText } from "../../../shared/html-to-text";
+import { extractTokenExpressions, parseTokenChain } from "@shared/tokens";
+import {
+  renderTokens,
+  createTokenEvalContext,
+  evaluateChain,
+  buildSegmentSpecs,
+  buildTokenCatalog,
+  validateTokenExpression,
+  describeChain,
+} from "../../plugins/tokens";
+import { detectAudienceScopes } from "./token-context";
 type RequireAccess = (policy: string) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
@@ -632,8 +642,11 @@ export function registerBulkMessageRoutes(
     }
   });
 
+  // Token catalog (picker entries) plus the segment graph the client
+  // uses for static chain validation. Both are derived live from the
+  // token plugin registry.
   app.get("/api/bulk-tokens", requireAuth, requireAccess('bulk.edit'), (_req, res) => {
-    res.json({ tokens: TOKEN_REGISTRY });
+    res.json({ tokens: buildTokenCatalog(), segments: buildSegmentSpecs() });
   });
 
   // Returns the registry filtered to scopes that apply to this
@@ -649,8 +662,8 @@ export function registerBulkMessageRoutes(
       const participants = await storage.bulkParticipants.getByMessageId(req.params.id);
       const contactIds = Array.from(new Set(participants.map((p) => p.contactId).filter(Boolean) as string[]));
       const scopes = await detectAudienceScopes(storage, contactIds);
-      const tokens = TOKEN_REGISTRY.filter((t) => scopes.has(t.scope));
-      res.json({ tokens, scopes: Array.from(scopes) });
+      const tokens = buildTokenCatalog().filter((t) => scopes.has(t.scope));
+      res.json({ tokens, segments: buildSegmentSpecs(), scopes: Array.from(scopes) });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to load tokens";
       res.status(500).json({ message });
@@ -678,8 +691,11 @@ export function registerBulkMessageRoutes(
       const postal = await storage.bulkMessagesPostal.getByBulkId(bulk.id);
       if (postal) templates.push(postal.description || "");
 
+      // Only cover expressions that parse + validate against the live
+      // registry; invalid ones are surfaced by the editor's warnings.
       const tokenIds = Array.from(new Set(
-        templates.flatMap((t) => extractTokenIds(t)).filter((id) => isKnownToken(id))
+        templates.flatMap((t) => extractTokenExpressions(t))
+          .filter((expr) => validateTokenExpression(expr).ok)
       ));
 
       const participants = await storage.bulkParticipants.getByMessageId(req.params.id);
@@ -687,115 +703,59 @@ export function registerBulkMessageRoutes(
         participants.map((p) => p.contactId).filter(Boolean) as string[]
       ));
 
+      const describe = (expr: string) => describeChain(expr) || { label: expr, defaultValue: "", example: "", scope: "system" };
+
       if (tokenIds.length === 0 || contactIds.length === 0) {
         return res.json({
           totalRecipients: contactIds.length,
-          perToken: tokenIds.map((id) => {
-            const def = TOKEN_REGISTRY_MAP[id];
-            return {
-              tokenId: id,
-              label: def?.label || id,
-              defaultValue: def?.defaultValue || "",
-              missingCount: 0,
-              missingSample: [] as { contactId: string; name: string }[],
-            };
-          }),
+          perToken: tokenIds.map((id) => ({
+            tokenId: id,
+            label: describe(id).label,
+            defaultValue: describe(id).defaultValue,
+            missingCount: 0,
+            missingSample: [] as { contactId: string; name: string }[],
+          })),
         });
       }
 
-      // Batch-load every data source once instead of per-recipient.
       const contactRows = await storage.bulkTokens.getContactsBasicByIds(contactIds);
-      const contactById = new Map(contactRows.map((c) => [c.id, c]));
       const nameById = new Map(
         contactRows.map((c) => [c.id, c.displayName || `${c.given || ''} ${c.family || ''}`.trim() || c.id]),
       );
 
-      const workerRows = await storage.bulkTokens.getWorkersByContactIds(contactIds);
-      const workerByContactId = new Map(workerRows.map((w) => [w.contactId, w]));
+      const parsedChains = tokenIds
+        .map((id) => ({ id, parsed: parseTokenChain(id) }))
+        .filter((c): c is { id: string; parsed: { ok: true; segments: import("@shared/tokens").TokenSegment[] } } => c.parsed.ok);
 
-      // Collect all employer ids the workers reference, then batch-load.
-      const workerEmployerIds = Array.from(new Set(
-        workerRows
-          .map((w) => w.homeEmployerId || (w.employerIds && w.employerIds[0]) || null)
-          .filter((id): id is string => !!id),
-      ));
-
-      // Fallback employer-contact links for contacts without a worker employer.
-      const contactsNeedingEmployerLink = contactIds.filter((cid) => {
-        const w = workerByContactId.get(cid);
-        if (!w) return true;
-        return !(w.homeEmployerId || (w.employerIds && w.employerIds[0]));
-      });
-      const ecRows = await storage.bulkTokens.getFirstEmployerLinksByContactIds(contactsNeedingEmployerLink);
-      const employerLinkByContactId = new Map<string, string>();
-      for (const r of ecRows) {
-        if (!employerLinkByContactId.has(r.contactId)) {
-          employerLinkByContactId.set(r.contactId, r.employerId);
-        }
-      }
-
-      const allEmployerIds = Array.from(new Set([
-        ...workerEmployerIds,
-        ...employerLinkByContactId.values(),
-      ]));
-      const employerRows = await storage.bulkTokens.getEmployersByIds(allEmployerIds);
-      const employerById = new Map(employerRows.map((e) => [e.id, e]));
-
-      const now = new Date();
       const missing: Record<string, { contactId: string; name: string }[]> = {};
       for (const id of tokenIds) missing[id] = [];
 
-      for (const cid of contactIds) {
-        const data: TokenSourceData = { now };
-        const c = contactById.get(cid);
-        if (c) {
-          data.contact = {
-            id: c.id,
-            given: c.given ?? null,
-            family: c.family ?? null,
-            displayName: c.displayName ?? null,
-            email: c.email ?? null,
-          };
-        }
-        const w = workerByContactId.get(cid);
-        let employerId: string | null = null;
-        if (w) {
-          data.worker = {
-            id: w.id,
-            given: c?.given ?? null,
-            family: c?.family ?? null,
-            jobTitle: w.jobTitle ?? null,
-            siriusId: w.siriusId ?? null,
-          };
-          employerId = w.homeEmployerId || (w.employerIds && w.employerIds[0]) || null;
-        }
-        if (!employerId) {
-          employerId = employerLinkByContactId.get(cid) || null;
-        }
-        if (employerId) {
-          const emp = employerById.get(employerId);
-          if (emp) data.employer = { id: emp.id, name: emp.name };
-        }
-
-        const ctx = buildContextFromSources(data);
-        for (const tid of tokenIds) {
-          const v = ctx[tid];
-          if (v == null || v === "") {
-            missing[tid].push({ contactId: cid, name: nameById.get(cid) || cid });
+      // Evaluate every used chain per recipient through the plugin
+      // evaluator. A shared memo cache dedupes cross-recipient lookups
+      // (option names, employers) — memo keys are fully qualified.
+      // Bounded parallelism keeps big recipient lists from turning the
+      // authoring endpoint into thousands of serial round-trips.
+      const sharedCache = new Map<string, unknown>();
+      const CONCURRENCY = 8;
+      for (let i = 0; i < contactIds.length; i += CONCURRENCY) {
+        await Promise.all(contactIds.slice(i, i + CONCURRENCY).map(async (cid) => {
+          const ctx = createTokenEvalContext(storage, cid, { cache: sharedCache });
+          for (const { id, parsed } of parsedChains) {
+            const result = await evaluateChain(parsed.segments, ctx);
+            if (result.status !== "ok" || result.value === "") {
+              missing[id].push({ contactId: cid, name: nameById.get(cid) || cid });
+            }
           }
-        }
+        }));
       }
 
-      const perToken = tokenIds.map((tid) => {
-        const def = TOKEN_REGISTRY_MAP[tid];
-        return {
-          tokenId: tid,
-          label: def?.label || tid,
-          defaultValue: def?.defaultValue || "",
-          missingCount: missing[tid].length,
-          missingSample: missing[tid].slice(0, 10),
-        };
-      });
+      const perToken = tokenIds.map((tid) => ({
+        tokenId: tid,
+        label: describe(tid).label,
+        defaultValue: describe(tid).defaultValue,
+        missingCount: missing[tid].length,
+        missingSample: missing[tid].slice(0, 10),
+      }));
 
       res.json({ totalRecipients: contactIds.length, perToken });
     } catch (error: unknown) {
@@ -825,17 +785,17 @@ export function registerBulkMessageRoutes(
         }
       }
 
-      const ctx = contactId ? await buildRecipientContext(storage, contactId) : buildSampleContext();
+      const ctx = createTokenEvalContext(storage, contactId, { sample: !contactId });
 
       const rendered: Record<string, { output: string; unknownTokens: string[]; missingValues: string[]; tokens: string[] }> = {};
       for (const [field, template] of Object.entries(fields)) {
         if (typeof template !== 'string') continue;
-        const result = renderTemplate(template, ctx, { escapeHtml: escapeHtmlFields.includes(field), strictUnknown: true });
+        const result = await renderTokens(template, ctx, { escapeHtml: escapeHtmlFields.includes(field), strictUnknown: true });
         rendered[field] = {
           output: result.output,
           unknownTokens: result.unknownTokens,
           missingValues: result.missingValues,
-          tokens: extractTokenIds(template),
+          tokens: extractTokenExpressions(template),
         };
       }
 
@@ -850,5 +810,3 @@ export function registerBulkMessageRoutes(
     }
   });
 }
-
-export { extractTokenIds, findUnknownTokenIds };

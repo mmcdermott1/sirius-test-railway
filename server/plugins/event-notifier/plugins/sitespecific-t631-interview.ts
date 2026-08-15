@@ -296,7 +296,7 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
         // editor) before embedding it in the outgoing email.
         const { sanitizeHelpHtml } = await import("../../../help/sanitize");
         const { htmlToPlainText } = await import(
-          "../../../../shared/bulk-tokens/html-to-text"
+          "../../../../shared/html-to-text"
         );
         const introHtml = cfg.emailIntroHtml ? sanitizeHelpHtml(cfg.emailIntroHtml) : "";
         const introText = introHtml ? htmlToPlainText(introHtml) : "";

@@ -40,6 +40,7 @@ import { initializeEventNotifierPluginSystem } from "./plugins/event-notifier";
 import { initializeWizardPluginSystem } from "./plugins/wizards";
 import { initializeTrustProviderEdiSystem } from "./plugins/trust/provider-edi";
 import { initializeMenuPluginSystem } from "./plugins/menu";
+import { initializeTokenPluginSystem } from "./plugins/tokens";
 import { initWorkerBanNotifications } from "./services/worker-ban-notifications";
 import { initSnapshotCapture } from "./services/snapshots/capture";
 import { initDispatchNotifications } from "./services/dispatch/notifications";
@@ -392,6 +393,11 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
   // Register menu plugins (pluggable main navigation)
   initializeMenuPluginSystem();
   logger.info("Menu plugins registered", { source: "startup" });
+
+  // Register token plugins (chained template tokens; kind + self-registering
+  // plugin imports, no config adapter)
+  initializeTokenPluginSystem();
+  logger.info("Token plugins registered", { source: "startup" });
 
   // Register flood events
   registerFloodEvents();

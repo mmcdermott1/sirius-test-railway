@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { TokenDefinition } from "@shared/bulk-tokens";
+import type { TokenCatalogEntry as TokenDefinition } from "@shared/tokens";
 
 const RECENT_KEY = "token-picker-recent";
 const RECENT_MAX = 5;
@@ -212,7 +212,7 @@ export function SlashTokenField(props: SlashTokenFieldProps) {
     const caret = el.selectionEnd ?? value.length;
     const before = value.slice(0, trigger);
     const after = value.slice(caret);
-    const snippet = `{{${t.id}}}`;
+    const snippet = t.insertText || `{{${t.id}}}`;
     const next = `${before}${snippet}${after}`;
     onChange(next);
     const recent = loadRecent();

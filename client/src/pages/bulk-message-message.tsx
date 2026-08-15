@@ -15,7 +15,8 @@ import { TokenPicker } from "@/components/bulk/TokenPicker";
 import { SlashTokenField } from "@/components/bulk/SlashTokenField";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { cn } from "@/lib/utils";
-import { findUnknownTokenIds, extractTokenIds, htmlToPlainText } from "@shared/bulk-tokens";
+import { analyzeTemplateTokens, type TokenSegmentSpec } from "@shared/tokens";
+import { htmlToPlainText } from "@shared/html-to-text";
 
 type TokenInsertTarget = HTMLInputElement | HTMLTextAreaElement;
 
@@ -55,8 +56,15 @@ function useTokenInserter() {
 
 function TokenWarnings({ templates }: { templates: Array<string | null | undefined> }) {
   const combined = templates.filter(Boolean).join("\n");
-  const unknown = findUnknownTokenIds(combined);
-  const known = extractTokenIds(combined).filter((t) => !unknown.includes(t));
+  // Segment graph from the server registry — used for static chain
+  // validation of the tokens used in the templates.
+  const { data } = useQuery<{ segments: TokenSegmentSpec[] }>({
+    queryKey: ["/api/bulk-tokens"],
+  });
+  const { valid, invalid } = analyzeTemplateTokens(combined, data?.segments || []);
+  // Until the segment graph loads, everything parseable shows as "used".
+  const unknown = data?.segments ? invalid : [];
+  const known = data?.segments ? valid : [...valid, ...invalid.map((i) => i.expr)];
   if (unknown.length === 0 && known.length === 0) return null;
   return (
     <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-1" data-testid="text-token-summary">
@@ -68,7 +76,10 @@ function TokenWarnings({ templates }: { templates: Array<string | null | undefin
       {unknown.length > 0 && (
         <div className="flex items-start gap-1.5 text-amber-700 dark:text-amber-400" data-testid="text-token-unknown">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span><span className="font-medium">Unknown tokens:</span> {unknown.map((t) => `{{${t}}}`).join(", ")} — these will be replaced with "[unknown token: ...]" when sent.</span>
+          <span>
+            <span className="font-medium">Invalid tokens:</span>{" "}
+            {unknown.map((t) => `{{${t.expr}}} (${t.error})`).join(", ")} — these will be replaced with "[unknown token: ...]" when sent.
+          </span>
         </div>
       )}
     </div>

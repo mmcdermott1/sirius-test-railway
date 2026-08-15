@@ -1,8 +1,7 @@
 import type { IStorage } from "../../storage";
 import { sendInapp, type SendInappResult } from "../../services/comm/senders/inapp";
 import type { DeliverContactResult } from "./deliver";
-import { renderTemplate } from "../../../shared/bulk-tokens";
-import { buildRecipientContext } from "./token-context";
+import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
 
 export async function resolveUserId(storage: IStorage, contactId: string): Promise<string | null> {
   const contact = await storage.contacts.getContact(contactId);
@@ -26,11 +25,11 @@ export async function deliverInapp(
   if (!targetUserId) {
     return { success: false, error: "Contact does not have a linked user account (required for in-app messages)", errorCode: "NO_USER" };
   }
-  const ctx = await buildRecipientContext(storage, contactId);
-  const renderedTitle = renderTemplate(inappContent.title || "", ctx, { strictUnknown: true }).output;
-  const renderedBody = renderTemplate(inappContent.body || "", ctx, { strictUnknown: true }).output;
+  const ctx = createTokenEvalContext(storage, contactId, { audience: "inapp" });
+  const renderedTitle = (await renderTokens(inappContent.title || "", ctx, { strictUnknown: true })).output;
+  const renderedBody = (await renderTokens(inappContent.body || "", ctx, { strictUnknown: true })).output;
   const renderedLinkLabel = inappContent.linkLabel
-    ? renderTemplate(inappContent.linkLabel, ctx, { strictUnknown: true }).output
+    ? (await renderTokens(inappContent.linkLabel, ctx, { strictUnknown: true })).output
     : undefined;
   const result: SendInappResult = await sendInapp({
     contactId,

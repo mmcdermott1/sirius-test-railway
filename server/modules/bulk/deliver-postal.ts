@@ -2,8 +2,13 @@ import type { IStorage } from "../../storage";
 import { sendPostal, type SendPostalResult } from "../../services/comm/senders/postal";
 import type { PostalAddress } from "../../services/comm/providers/postal";
 import type { DeliverContactResult } from "./deliver";
-import { renderTemplate, TOKEN_REGISTRY } from "../../../shared/bulk-tokens";
-import { buildRecipientContext } from "./token-context";
+import {
+  renderTokens,
+  createTokenEvalContext,
+  evaluateChain,
+  buildTokenCatalog,
+} from "../../plugins/tokens";
+import { parseTokenChain } from "@shared/tokens";
 
 export async function resolvePostalAddress(storage: IStorage, contactId: string): Promise<PostalAddress | null> {
   const addresses = await storage.contacts.addresses.getContactPostalByContact(contactId);
@@ -48,15 +53,22 @@ export async function deliverPostal(
     zip: postalContent.fromZip || "",
     country: postalContent.fromCountry || "US",
   } : undefined;
-  const ctx = await buildRecipientContext(storage, contactId);
+  const ctx = createTokenEvalContext(storage, contactId, { audience: "postal" });
   const renderedDescription = postalContent.description
-    ? renderTemplate(postalContent.description, ctx, { strictUnknown: true }).output
+    ? (await renderTokens(postalContent.description, ctx, { strictUnknown: true })).output
     : undefined;
   const baseMerge = (postalContent.mergeVariables as Record<string, string>) || {};
+  // Expose every catalog token as a Lob merge variable, keyed by its
+  // canonical chain id, so postal templates can reference any of them.
   const tokenMerge: Record<string, string> = {};
-  for (const def of TOKEN_REGISTRY) {
-    const v = ctx[def.id];
-    tokenMerge[def.id] = v != null && v !== "" ? String(v) : def.defaultValue;
+  for (const entry of buildTokenCatalog()) {
+    const parsed = parseTokenChain(entry.id);
+    if (!parsed.ok) continue;
+    const result = await evaluateChain(parsed.segments, ctx);
+    tokenMerge[entry.id] =
+      result.status === "ok" && result.value !== ""
+        ? result.value
+        : entry.defaultValue;
   }
   const mergedVariables = { ...tokenMerge, ...baseMerge };
   const result: SendPostalResult = await sendPostal({

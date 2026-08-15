@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Braces, Search, Clock } from "lucide-react";
-import type { TokenDefinition } from "@shared/bulk-tokens";
+import type { TokenCatalogEntry as TokenDefinition } from "@shared/tokens";
 
 interface TokenPickerProps {
   onInsert: (snippet: string) => void;
@@ -61,12 +61,12 @@ export function TokenPicker({ onInsert }: TokenPickerProps) {
     const next = [t.id, ...recent.filter((id) => id !== t.id)].slice(0, RECENT_MAX);
     setRecent(next);
     saveRecent(next);
-    onInsert(`{{${t.id}}}`);
+    onInsert(t.insertText || `{{${t.id}}}`);
     setOpen(false);
   };
 
-  const scopeOrder: Array<TokenDefinition["scope"]> = ["contact", "worker", "employer", "system"];
-  const scopeLabel: Record<TokenDefinition["scope"], string> = {
+  const scopeOrder: string[] = ["contact", "worker", "employer", "system"];
+  const scopeLabel: Record<string, string> = {
     contact: "Contact",
     worker: "Worker",
     employer: "Employer",

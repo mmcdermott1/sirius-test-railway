@@ -1,8 +1,7 @@
 import type { IStorage } from "../../storage";
 import { sendSms, type SendSmsResult } from "../../services/comm/senders/sms";
 import type { DeliverContactResult } from "./deliver";
-import { renderTemplate } from "../../../shared/bulk-tokens";
-import { buildRecipientContext } from "./token-context";
+import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
 
 export async function resolvePhoneNumber(storage: IStorage, contactId: string): Promise<string | null> {
   const phones = await storage.contacts.phoneNumbers.getPhoneNumbersByContact(contactId);
@@ -28,8 +27,8 @@ export async function deliverSms(
   if (!phone) {
     return { success: false, error: "Contact has no phone number", errorCode: "NO_ADDRESS" };
   }
-  const ctx = await buildRecipientContext(storage, contactId);
-  const renderedBody = renderTemplate(smsContent.body || "", ctx, { strictUnknown: true }).output;
+  const ctx = createTokenEvalContext(storage, contactId, { audience: "sms" });
+  const renderedBody = (await renderTokens(smsContent.body || "", ctx, { strictUnknown: true })).output;
   const result: SendSmsResult = await sendSms({
     contactId,
     toPhoneNumber: phone,

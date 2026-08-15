@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type { TokenDefinition } from "@shared/bulk-tokens";
+import { TOKEN_PATTERN, type TokenCatalogEntry as TokenDefinition } from "@shared/tokens";
 
 const SPECIAL_CHARACTERS = [
   { name: 'Copyright', symbol: '©' },
@@ -116,7 +116,6 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-const TOKEN_PATTERN = /\{\{([a-zA-Z0-9_.-]+)\}\}/g;
 
 function buildChipHtml(id: string, tokens: TokenDefinition[]): string {
   const t = tokens.find((x) => x.id === id);
@@ -437,7 +436,7 @@ export function SimpleHtmlEditor({
   const insertTokenAtSlash = (t: TokenDefinition) => {
     const ctx = slashContext.current;
     if (!ctx) return;
-    const snippet = `{{${t.id}}}`;
+    const snippet = t.insertText || `{{${t.id}}}`;
 
     if (ctx.mode === "rich" && ctx.node && typeof ctx.slashOffset === "number") {
       const sel = window.getSelection();

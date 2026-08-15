@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
-import { htmlToPlainText } from "@shared/bulk-tokens";
+import { htmlToPlainText } from "@shared/html-to-text";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Bell, 

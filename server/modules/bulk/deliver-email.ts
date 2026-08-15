@@ -1,8 +1,7 @@
 import type { IStorage } from "../../storage";
 import { sendEmail, type SendEmailResult } from "../../services/comm/senders/email";
 import type { DeliverContactResult } from "./deliver";
-import { renderTemplate } from "../../../shared/bulk-tokens";
-import { buildRecipientContext } from "./token-context";
+import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
 
 export async function resolveEmailAddress(storage: IStorage, contactId: string): Promise<{ address: string; name?: string } | null> {
   const contact = await storage.contacts.getContact(contactId);
@@ -26,13 +25,13 @@ export async function deliverEmail(
   if (!resolved) {
     return { success: false, error: "Contact has no email address", errorCode: "NO_ADDRESS" };
   }
-  const ctx = await buildRecipientContext(storage, contactId);
-  const renderedSubject = renderTemplate(emailContent.subject || "", ctx, { strictUnknown: true }).output;
+  const ctx = createTokenEvalContext(storage, contactId, { audience: "email" });
+  const renderedSubject = (await renderTokens(emailContent.subject || "", ctx, { strictUnknown: true })).output;
   const renderedText = emailContent.bodyText
-    ? renderTemplate(emailContent.bodyText, ctx, { strictUnknown: true }).output
+    ? (await renderTokens(emailContent.bodyText, ctx, { strictUnknown: true })).output
     : undefined;
   const renderedHtml = emailContent.bodyHtml
-    ? renderTemplate(emailContent.bodyHtml, ctx, { escapeHtml: true, strictUnknown: true }).output
+    ? (await renderTokens(emailContent.bodyHtml, ctx, { escapeHtml: true, strictUnknown: true })).output
     : undefined;
   const result: SendEmailResult = await sendEmail({
     contactId,
