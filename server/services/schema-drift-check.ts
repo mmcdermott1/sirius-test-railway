@@ -26,6 +26,7 @@ import * as mainSchema from "../../shared/schema";
 import { tableExists, listAllPublicTables } from "../storage/utils";
 import { logger } from "../logger";
 import { bootStatus } from "./boot-status";
+import { getEnvironmentVariable } from "../config/env-registry";
 
 const NAME_SYM_DESC = "drizzle:Name";
 
@@ -248,7 +249,7 @@ function formatAggregate(r: AggregateDriftReport): string {
  * drift is detected. Honors `SKIP_SCHEMA_DRIFT_CHECK=1` as a dev escape hatch.
  */
 export async function enforceStartupSchemaDrift(): Promise<void> {
-  if (process.env.SKIP_SCHEMA_DRIFT_CHECK === "1") {
+  if (getEnvironmentVariable("SKIP_SCHEMA_DRIFT_CHECK") === "1") {
     bootStatus.driftCheck = "skipped";
     logger.warn("Schema drift check SKIPPED via SKIP_SCHEMA_DRIFT_CHECK=1", {
       source: "startup",

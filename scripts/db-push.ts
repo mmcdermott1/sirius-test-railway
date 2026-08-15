@@ -44,6 +44,7 @@ import { writeFileSync, unlinkSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import * as fullSchema from "../shared/schema";
 import { getSchemaManagingComponents } from "../shared/components";
+import { getEnvironmentVariable, getRawProcessEnv } from "../server/config/env-registry";
 
 const RUNTIME_SCHEMA_FILE = resolve(process.cwd(), ".drizzle-runtime-schema.ts");
 const RUNTIME_CONFIG_FILE = resolve(process.cwd(), ".drizzle-runtime.json");
@@ -292,7 +293,7 @@ function runDrizzleKit(extraArgs: string[]): Promise<number> {
   return new Promise((res, rej) => {
     const child = spawn("drizzle-kit", ["push", ...extraArgs], {
       stdio: "inherit",
-      env: process.env,
+      env: getRawProcessEnv(), // sanctioned child-process env passthrough
     });
     child.on("error", rej);
     child.on("exit", (code) => res(code ?? 0));
@@ -300,7 +301,7 @@ function runDrizzleKit(extraArgs: string[]): Promise<number> {
 }
 
 async function main() {
-  if (process.env.ALLOW_DB_PUSH !== "1") {
+  if (getEnvironmentVariable("ALLOW_DB_PUSH") !== "1") {
     console.error(
       [
         "",
@@ -325,7 +326,7 @@ async function main() {
     process.exit(2);
   }
 
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = getEnvironmentVariable("DATABASE_URL");
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is not set");
   }

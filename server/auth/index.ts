@@ -13,6 +13,7 @@ import type {
 import type { AuthProviderType } from "@shared/schema";
 import { logger } from "../logger";
 import { loadProvider } from "./provider-loader";
+import { getEnvironmentVariable } from "../config/env-registry";
 
 const getStorage = () => require("../storage").storage;
 
@@ -70,7 +71,7 @@ export function getSession(): RequestHandler {
   // pruned by the `session-prune` cron plugin.
   const sessionStore = new StorageSessionStore({ ttlMs: sessionTtl });
 
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = getEnvironmentVariable("NODE_ENV") === "production";
 
   return session({
     secret: config.sessionSecret,

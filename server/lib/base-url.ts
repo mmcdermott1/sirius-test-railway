@@ -1,3 +1,4 @@
+import { getEnvironmentVariable } from "../config/env-registry";
 /**
  * Absolute base URL of this deployment, for links that leave the app
  * (email, SMS). In-app messages navigate with relative paths instead.
@@ -6,8 +7,8 @@
  */
 export function absoluteBaseUrl(): string {
   const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
+    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
+    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
     "localhost:5000";
   return `https://${domain}`;
 }

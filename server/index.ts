@@ -5,6 +5,7 @@ import { resolve } from "path";
 import { setupVite, serveStatic, log } from "./vite";
 import { logger } from "./logger";
 import { bootstrapApp } from "./app-init";
+import { getEnvironmentVariable } from "./config/env-registry";
 
 // Dev-only guardrail: remove any stale `dist/` build before booting.
 // `npm run dev` (tsx server/index.ts) loads source directly and never
@@ -16,7 +17,7 @@ import { bootstrapApp } from "./app-init";
 // months-old bundle). Removing it here ensures dev never coexists
 // with stale compiled artifacts. Production deploys run `npm run build`
 // before `npm run start`, so this has no effect on production.
-if (process.env.NODE_ENV !== "production") {
+if (getEnvironmentVariable("NODE_ENV") !== "production") {
   const distDir = resolve(import.meta.dirname, "..", "dist");
   if (existsSync(distDir)) {
     try {
@@ -78,7 +79,7 @@ app.get('/', (req, res, next) => {
 const server = createServer(app);
 
 // Start listening IMMEDIATELY so health checks pass during initialization
-const port = parseInt(process.env.PORT || '5000', 10);
+const port = parseInt(getEnvironmentVariable("PORT") || '5000', 10);
 server.listen({
   port,
   host: "0.0.0.0",

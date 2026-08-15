@@ -1,18 +1,19 @@
 import { sql } from "drizzle-orm";
 import { registerSystemStatusPlugin } from "../registry";
 import type { StatusMessage } from "../types";
+import { getEnvironmentVariable } from "../../../../config/env-registry";
 
 /**
  * Describe the configured database connection WITHOUT leaking credentials:
  * only the driver family, host, port, and database name are surfaced.
  */
 function describeConnection(): string {
-  const url = process.env.DATABASE_URL;
+  const url = getEnvironmentVariable("DATABASE_URL");
   if (!url) return "DATABASE_URL is not set";
   try {
     const parsed = new URL(url);
     const host = parsed.hostname;
-    const override = process.env.DATABASE_DRIVER;
+    const override = getEnvironmentVariable("DATABASE_DRIVER");
     const driver =
       override === "neon" || override === "pg"
         ? override

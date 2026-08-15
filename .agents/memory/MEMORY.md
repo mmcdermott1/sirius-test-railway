@@ -1,4 +1,5 @@
 // hint: Logic changed on both sides. Requires understanding intent of each change.
+- [Env-var registry](env-var-registry.md) — all env reads go through getEnvironmentVariable (server/config/env-registry.ts, pure leaf); check-env-registry flags process-env even in comments.
 - [Employer compliance gating](employer-compliance-gating.md) — /employers/compliance is staff+ledger gated, never bulk.edit (bulk.edit is unsatisfiable: no staff.bulk perm, bulk component often off).
 - [Employer route registration order](employer-route-registration-order.md) — new literal /api/employers/<word> routes must live in routes.ts before its /:id, else captured as :id → 404.
 - [Wizard plugin migration](wizard-plugin-migration.md) — moving a wizard to wizardPluginRegistry needs every enumerating surface (reports dashboard, catalogue) to merge both registries; report cells carry display types (link/date/boolean).

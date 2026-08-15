@@ -198,6 +198,24 @@ never at the top level of `scripts/`. The top level of `scripts/` is
 reserved for the durable tooling that the app and its checks depend on
 (`migrate/`, `db-push.ts`, `check-migrations.ts`, etc.).
 
+## Environment variables (registry required)
+
+All environment variables the app reads must be declared in the central
+registry (`server/config/env-registry.ts`) with a description, secret flag,
+and category (core, platform, or a component id), and read through
+`getEnvironmentVariable()`. Direct `process.env` access is only allowed
+inside the registry module. Component-owned modules register their own
+variables at module load; dynamically-named lookups (FILESYSTEMS `*_secret`
+settings, payment-gateway `secretName`, address-validation `apiKeyName`)
+register at parse/resolve time as secrets. Client-side
+`import.meta.env.VITE_*` reads are exempt (compile-time substitution).
+
+The author-time check enforces the rule (covers untracked files):
+
+    npx tsx scripts/dev/check-env-registry.ts
+
+Registry + enforcement tests: `npx tsx scripts/dev/test-env-registry.ts`.
+
 Because files in `scripts/oneoffs/` are one level deeper, their
 relative imports use `../../` (e.g. `../../server/storage/database`,
 `../../shared/schema`), and they run via

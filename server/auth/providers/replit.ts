@@ -7,6 +7,7 @@ import type { AuthProvider, ReplitProviderConfig, AuthenticatedUser, AuthIdentit
 import { storage } from "../../storage";
 import { storageLogger, logger } from "../../logger";
 import { getRequestContext } from "../../middleware/request-context";
+import { getEnvironmentVariable } from "../../config/env-registry";
 
 const getOidcConfig = memoize(
   async (issuerUrl: string, clientId: string) => {
@@ -142,8 +143,8 @@ function logLoginEvent(user: any, externalId: string, accountLinked: boolean) {
 }
 
 export function createProvider(config: ReplitProviderConfig): AuthProvider {
-  const issuerUrl = config.issuerUrl || process.env.ISSUER_URL || "https://replit.com/oidc";
-  const clientId = config.clientId || process.env.REPL_ID!;
+  const issuerUrl = config.issuerUrl || getEnvironmentVariable("ISSUER_URL") || "https://replit.com/oidc";
+  const clientId = config.clientId || getEnvironmentVariable("REPL_ID")!;
   const registeredStrategies = new Set<string>();
 
   let oidcConfig: Awaited<ReturnType<typeof getOidcConfig>> | null = null;

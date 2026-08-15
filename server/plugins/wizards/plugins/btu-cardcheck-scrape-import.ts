@@ -7,6 +7,12 @@ import { insertFileSchema } from "@shared/schema";
 import { logger } from "../../../logger";
 import { sendInapp } from "../../../services/comm/senders/inapp";
 import { sendEmail } from "../../../services/comm/senders/email";
+import { getEnvironmentVariable, registerEnvironmentVariables } from "../../../config/env-registry";
+
+registerEnvironmentVariables([
+  { name: "BTU_SCRAPER_USERNAME", description: "Login username for the BTU cardcheck scraper.", secret: false, category: "sitespecific.btu" },
+  { name: "BTU_SCRAPER_PASSWORD", description: "Login password for the BTU cardcheck scraper.", secret: true, category: "sitespecific.btu" },
+]);
 
 const SERVICE = "btu-cardcheck-scrape-import-plugin";
 const CHROMIUM_PATH =
@@ -40,8 +46,8 @@ async function launchBrowser(): Promise<Browser> {
 }
 
 async function loginToSite(page: Page): Promise<void> {
-  const username = process.env.BTU_SCRAPER_USERNAME;
-  const password = process.env.BTU_SCRAPER_PASSWORD;
+  const username = getEnvironmentVariable("BTU_SCRAPER_USERNAME");
+  const password = getEnvironmentVariable("BTU_SCRAPER_PASSWORD");
   if (!username || !password) {
     throw new Error(
       "BTU_SCRAPER_USERNAME and BTU_SCRAPER_PASSWORD environment variables are required",

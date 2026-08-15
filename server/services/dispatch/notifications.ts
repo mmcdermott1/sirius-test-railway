@@ -13,6 +13,7 @@ import type {
   NotificationMedia,
 } from "@shared/schema/dispatch/eligibility-config";
 import type { Comm } from "@shared/schema";
+import { getEnvironmentVariable } from "../../config/env-registry";
 
 const SERVICE_NAME = "dispatch-notifications";
 const COMPONENT_ID = "dispatch";
@@ -107,8 +108,8 @@ async function getJobNotificationConfig(
   }
 
   const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
+    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
+    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
     "localhost:5000";
   const dispatchUrl = `https://${domain}/dispatch/${dispatchId}`;
 

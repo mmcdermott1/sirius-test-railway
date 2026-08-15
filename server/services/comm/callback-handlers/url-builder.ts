@@ -1,14 +1,15 @@
+import { getEnvironmentVariable } from "../../../config/env-registry";
 export function getPublicBaseUrl(): string | undefined {
-  if (process.env.REPLIT_DEV_DOMAIN) {
-    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  if (getEnvironmentVariable("REPLIT_DEV_DOMAIN")) {
+    return `https://${getEnvironmentVariable("REPLIT_DEV_DOMAIN")}`;
   }
   
-  if (process.env.REPLIT_DEPLOYMENT_DOMAIN) {
-    return `https://${process.env.REPLIT_DEPLOYMENT_DOMAIN}`;
+  if (getEnvironmentVariable("REPLIT_DEPLOYMENT_DOMAIN")) {
+    return `https://${getEnvironmentVariable("REPLIT_DEPLOYMENT_DOMAIN")}`;
   }
   
-  if (process.env.PUBLIC_URL) {
-    return process.env.PUBLIC_URL;
+  if (getEnvironmentVariable("PUBLIC_URL")) {
+    return getEnvironmentVariable("PUBLIC_URL");
   }
   
   return undefined;

@@ -10,6 +10,7 @@ import type {
   ClerkProviderConfig,
 } from "./types";
 import type { AuthProviderType } from "@shared/schema";
+import { getEnvironmentVariable } from "../config/env-registry";
 
 const baseProviderSchema = z.object({
   enabled: z.boolean().default(true),
@@ -82,16 +83,16 @@ function parseProviderFromEnv(type: AuthProviderType): ProviderConfig | null {
       const config: ReplitProviderConfig = {
         type: "replit",
         enabled: true,
-        issuerUrl: process.env.REPLIT_ISSUER_URL || process.env.ISSUER_URL,
-        clientId: process.env.REPLIT_CLIENT_ID || process.env.REPL_ID,
+        issuerUrl: getEnvironmentVariable("REPLIT_ISSUER_URL") || getEnvironmentVariable("ISSUER_URL"),
+        clientId: getEnvironmentVariable("REPLIT_CLIENT_ID") || getEnvironmentVariable("REPL_ID"),
       };
       return config;
     }
 
     case "okta": {
-      const issuerUrl = process.env.OKTA_ISSUER_URL;
-      const clientId = process.env.OKTA_CLIENT_ID;
-      const clientSecret = process.env.OKTA_CLIENT_SECRET;
+      const issuerUrl = getEnvironmentVariable("OKTA_ISSUER_URL");
+      const clientId = getEnvironmentVariable("OKTA_CLIENT_ID");
+      const clientSecret = getEnvironmentVariable("OKTA_CLIENT_SECRET");
       if (!issuerUrl || !clientId || !clientSecret) {
         return null;
       }
@@ -101,15 +102,15 @@ function parseProviderFromEnv(type: AuthProviderType): ProviderConfig | null {
         issuerUrl,
         clientId,
         clientSecret,
-        callbackPath: process.env.OKTA_CALLBACK_PATH,
+        callbackPath: getEnvironmentVariable("OKTA_CALLBACK_PATH"),
       };
       return config;
     }
 
     case "saml": {
-      const entryPoint = process.env.SAML_ENTRY_POINT;
-      const issuer = process.env.SAML_ISSUER;
-      const cert = process.env.SAML_CERT;
+      const entryPoint = getEnvironmentVariable("SAML_ENTRY_POINT");
+      const issuer = getEnvironmentVariable("SAML_ISSUER");
+      const cert = getEnvironmentVariable("SAML_CERT");
       if (!entryPoint || !issuer || !cert) {
         return null;
       }
@@ -119,17 +120,17 @@ function parseProviderFromEnv(type: AuthProviderType): ProviderConfig | null {
         entryPoint,
         issuer,
         cert,
-        callbackPath: process.env.SAML_CALLBACK_PATH,
+        callbackPath: getEnvironmentVariable("SAML_CALLBACK_PATH"),
       };
       return config;
     }
 
     case "oauth": {
-      const authorizationUrl = process.env.OAUTH_AUTHORIZATION_URL;
-      const tokenUrl = process.env.OAUTH_TOKEN_URL;
-      const userInfoUrl = process.env.OAUTH_USERINFO_URL;
-      const clientId = process.env.OAUTH_CLIENT_ID;
-      const clientSecret = process.env.OAUTH_CLIENT_SECRET;
+      const authorizationUrl = getEnvironmentVariable("OAUTH_AUTHORIZATION_URL");
+      const tokenUrl = getEnvironmentVariable("OAUTH_TOKEN_URL");
+      const userInfoUrl = getEnvironmentVariable("OAUTH_USERINFO_URL");
+      const clientId = getEnvironmentVariable("OAUTH_CLIENT_ID");
+      const clientSecret = getEnvironmentVariable("OAUTH_CLIENT_SECRET");
       if (!authorizationUrl || !tokenUrl || !userInfoUrl || !clientId || !clientSecret) {
         return null;
       }
@@ -141,8 +142,8 @@ function parseProviderFromEnv(type: AuthProviderType): ProviderConfig | null {
         userInfoUrl,
         clientId,
         clientSecret,
-        scope: process.env.OAUTH_SCOPE,
-        callbackPath: process.env.OAUTH_CALLBACK_PATH,
+        scope: getEnvironmentVariable("OAUTH_SCOPE"),
+        callbackPath: getEnvironmentVariable("OAUTH_CALLBACK_PATH"),
       };
       return config;
     }
@@ -153,20 +154,20 @@ function parseProviderFromEnv(type: AuthProviderType): ProviderConfig | null {
       // to switch it off without editing AUTH_PROVIDER.
       const config: LocalProviderConfig = {
         type: "local",
-        enabled: process.env.AUTH_LOCAL_ENABLED !== "false",
-        pepper: process.env.AUTH_LOCAL_PEPPER,
+        enabled: getEnvironmentVariable("AUTH_LOCAL_ENABLED") !== "false",
+        pepper: getEnvironmentVariable("AUTH_LOCAL_PEPPER"),
       };
       return config.enabled ? config : null;
     }
 
     case "clerk": {
-      const isProd = process.env.NODE_ENV === "production";
+      const isProd = getEnvironmentVariable("NODE_ENV") === "production";
       const publishableKey = isProd
-        ? (process.env.CLERK_PUBLISHABLE_KEY_PROD || process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY)
-        : (process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY);
+        ? (getEnvironmentVariable("CLERK_PUBLISHABLE_KEY_PROD") || getEnvironmentVariable("CLERK_PUBLISHABLE_KEY") || getEnvironmentVariable("VITE_CLERK_PUBLISHABLE_KEY"))
+        : (getEnvironmentVariable("CLERK_PUBLISHABLE_KEY") || getEnvironmentVariable("VITE_CLERK_PUBLISHABLE_KEY"));
       const secretKey = isProd
-        ? (process.env.CLERK_SECRET_KEY_PROD || process.env.CLERK_SECRET_KEY)
-        : process.env.CLERK_SECRET_KEY;
+        ? (getEnvironmentVariable("CLERK_SECRET_KEY_PROD") || getEnvironmentVariable("CLERK_SECRET_KEY"))
+        : getEnvironmentVariable("CLERK_SECRET_KEY");
       if (!publishableKey || !secretKey) {
         return null;
       }
@@ -185,7 +186,7 @@ function parseProviderFromEnv(type: AuthProviderType): ProviderConfig | null {
 }
 
 export function loadAuthConfig(): AuthConfig {
-  const authProviderEnv = process.env.AUTH_PROVIDER || "replit";
+  const authProviderEnv = getEnvironmentVariable("AUTH_PROVIDER") || "replit";
   const enabledProviders = authProviderEnv.split(",").map((p) => p.trim()) as AuthProviderType[];
 
   const providers: ProviderConfig[] = [];
@@ -207,7 +208,7 @@ export function loadAuthConfig(): AuthConfig {
   }
 
   const defaultProvider =
-    (process.env.AUTH_DEFAULT_PROVIDER as AuthProviderType) ||
+    (getEnvironmentVariable("AUTH_DEFAULT_PROVIDER") as AuthProviderType) ||
     providers.find((p) => p.isDefault)?.type ||
     providers[0]?.type;
 
@@ -218,7 +219,7 @@ export function loadAuthConfig(): AuthConfig {
     }
   }
 
-  let sessionSecret = process.env.SESSION_SECRET;
+  let sessionSecret = getEnvironmentVariable("SESSION_SECRET");
   if (!sessionSecret) {
     // A real SESSION_SECRET always wins. When it is absent, allow a stable
     // fallback only if explicitly opted in via ALLOW_INSECURE_SESSION_SECRET.
@@ -227,8 +228,8 @@ export function loadAuthConfig(): AuthConfig {
     // SESSION_SECRET and cannot be changed from this repo. The fallback is a
     // fixed constant so it is shared across the separate ui/api containers —
     // a random per-process value would invalidate sessions across services.
-    const allowInsecure = process.env.ALLOW_INSECURE_SESSION_SECRET === "1";
-    if (process.env.NODE_ENV === "production" && !allowInsecure) {
+    const allowInsecure = getEnvironmentVariable("ALLOW_INSECURE_SESSION_SECRET") === "1";
+    if (getEnvironmentVariable("NODE_ENV") === "production" && !allowInsecure) {
       throw new Error("SESSION_SECRET environment variable is required in production");
     }
     if (allowInsecure) {
@@ -244,7 +245,10 @@ export function loadAuthConfig(): AuthConfig {
 
   const config: AuthConfig = {
     sessionSecret,
-    sessionTtl: process.env.SESSION_TTL ? parseInt(process.env.SESSION_TTL, 10) : undefined,
+    sessionTtl: (() => {
+      const ttl = getEnvironmentVariable("SESSION_TTL");
+      return ttl ? parseInt(ttl, 10) : undefined;
+    })(),
     providers,
     defaultProvider,
   };

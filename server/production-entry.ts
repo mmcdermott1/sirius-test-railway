@@ -15,6 +15,7 @@ import { createServer } from "http";
 import { existsSync, readdirSync, statSync } from "fs";
 import { resolve, join } from "path";
 import { bootStatus } from "./services/boot-status";
+import { getEnvironmentVariable } from "./config/env-registry";
 
 /**
  * Stale-build guardrail (see task #138).
@@ -38,8 +39,8 @@ import { bootStatus } from "./services/boot-status";
  * the deployed container at all.
  */
 function assertBuildIsFresh(): void {
-  if (process.env.REPLIT_DEPLOYMENT === "1") return;
-  if (process.env.SKIP_DIST_FRESHNESS_CHECK === "1") return;
+  if (getEnvironmentVariable("REPLIT_DEPLOYMENT") === "1") return;
+  if (getEnvironmentVariable("SKIP_DIST_FRESHNESS_CHECK") === "1") return;
 
   try {
     const projectRoot = resolve(import.meta.dirname, "..");
@@ -106,7 +107,7 @@ let appReady = false;
  */
 let initError: Error | null = null;
 
-const exposeBootErrors = () => process.env.EXPOSE_BOOT_ERRORS === "1";
+const exposeBootErrors = () => getEnvironmentVariable("EXPOSE_BOOT_ERRORS") === "1";
 
 function initFailedJson() {
   return exposeBootErrors()
@@ -206,7 +207,7 @@ app.use('/', (req, res, next) => {
   res.status(503).json({ message: 'Application is starting, please wait...' });
 });
 
-const port = parseInt(process.env.PORT || '5000', 10);
+const port = parseInt(getEnvironmentVariable("PORT") || '5000', 10);
 
 server.listen({
   port,

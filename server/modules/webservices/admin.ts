@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "../../storage";
 import { insertWsBundleSchema, insertWsClientSchema, insertWsClientIpRuleSchema } from "@shared/schema";
+import { getEnvironmentVariable } from "../../config/env-registry";
 
 export interface BundleEndpointMetadata {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -462,7 +463,7 @@ export function registerWebServiceAdminRoutes(
         ? "?" + new URLSearchParams(queryParams).toString()
         : "";
       
-      const internalUrl = `http://localhost:${process.env.PORT || 5000}${fullPath}${queryString}`;
+      const internalUrl = `http://localhost:${getEnvironmentVariable("PORT") || 5000}${fullPath}${queryString}`;
 
       // Make the internal request with auth headers
       const headers: Record<string, string> = {

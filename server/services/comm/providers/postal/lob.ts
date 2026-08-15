@@ -12,6 +12,11 @@ import type {
 import { buildCanonicalAddress } from './index';
 import { storage } from '../../../../storage';
 import { getConfigKey } from '../base';
+import { getEnvironmentVariable, registerEnvironmentVariables } from "../../../../config/env-registry";
+
+registerEnvironmentVariables([
+  { name: "LOB_API_KEY", description: "Lob API key for the postal mail provider.", secret: true, category: "core" },
+]);
 
 interface LobVerificationResponse {
   id: string;
@@ -207,7 +212,7 @@ export class LobPostalProvider implements PostalTransport {
 
   private async getApiKey(): Promise<string | null> {
     if (this.apiKey) return this.apiKey;
-    return process.env.LOB_API_KEY || null;
+    return getEnvironmentVariable("LOB_API_KEY") || null;
   }
 
   async verifyAddress(address: PostalAddress): Promise<AddressVerificationResult> {

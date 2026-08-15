@@ -37,11 +37,17 @@
 
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { getEnvironmentVariable, registerEnvironmentVariables } from "../../server/config/env-registry";
+
+registerEnvironmentVariables([
+  { name: "REPO", description: "GitHub repo the Freeman auto-approver watches (owner/name).", secret: false, category: "sitespecific.freeman" },
+  { name: "POLL_INTERVAL", description: "Seconds between GitHub polls for the Freeman auto-approver.", secret: false, category: "sitespecific.freeman" },
+]);
 
 const execFileAsync = promisify(execFile);
 
-const REPO = process.env.REPO || "Freeman-DevOps-Organization/fm-application-fls";
-const POLL_INTERVAL_SECONDS = Math.max(5, Number(process.env.POLL_INTERVAL) || 15);
+const REPO = getEnvironmentVariable("REPO") || "Freeman-DevOps-Organization/fm-application-fls";
+const POLL_INTERVAL_SECONDS = Math.max(5, Number(getEnvironmentVariable("POLL_INTERVAL")) || 15);
 const ALLOWED_ENVIRONMENT = "Development";
 
 interface WorkflowRun {

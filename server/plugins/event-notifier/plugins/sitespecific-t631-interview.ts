@@ -3,7 +3,6 @@ import {
   type SitespecificT631InterviewSavedPayload,
 } from "../../../services/event-bus";
 import { registerEventNotifier } from "../registry";
-import { templatesSchemaBlock } from "../template-schema";
 import { resolveStaffRecipients } from "../dispatcher";
 import {
   EMPLOYER_VISIBLE_STATUSES,
@@ -107,6 +106,25 @@ function defaultTemplates(configData?: unknown): NotifierChannelTemplates {
   };
 }
 
+/** Schema for one token-template field, wired to the token-template widget. */
+function templateField(
+  title: string,
+  defaultPath: string,
+  mode: "line" | "multiline" | "html" = "line",
+): Record<string, unknown> {
+  return {
+    type: "string",
+    title,
+    "x-widget": "token-template",
+    "x-token-template-mode": mode,
+    "x-token-catalog-url": `/api/event-notifier/token-catalog/${PLUGIN_ID}`,
+    "x-token-default-path": defaultPath,
+    // The default link target varies with the recipient kind, so the
+    // editor re-fetches placeholders when this field changes.
+    "x-token-defaults-deps": ["recipientKind"],
+  };
+}
+
 /**
  * Notifies configured recipients when a T631 job interview transitions INTO
  * the config's target status. Each config targets one status and one recipient
@@ -157,17 +175,43 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
         "x-widget": "staff-recipients",
       },
       // Per-channel message templates. Every field is a token template;
-      // blank fields fall back to the notifier's default. The default
-      // link target varies with the recipient kind, so the editor
-      // re-fetches placeholders when that field changes.
-      templates: templatesSchemaBlock(PLUGIN_ID, {
-        exampleTokens: [
-          '{{event.field(name="status")}}',
-          '{{event.worker.contact.field(name="display_name")}}',
-          '{{event.dispatch_job.field(name="title")}}',
-        ],
-        defaultsDeps: ["recipientKind"],
-      }),
+      // blank fields fall back to the notifier's default. The client
+      // widget shows live token warnings + the default as placeholder.
+      templates: {
+        type: "object",
+        title: "Message templates",
+        description:
+          "Customize the message per channel with tokens like " +
+          '{{event.field(name="status")}}, {{event.worker.contact.field(name="display_name")}}, ' +
+          '{{event.dispatch_job.field(name="title")}} and {{system.base_url}}. ' +
+          "Leave a field blank to use the default.",
+        properties: {
+          email: {
+            type: "object",
+            title: "Email",
+            properties: {
+              subject: templateField("Subject", "email.subject"),
+              bodyHtml: templateField("Body (HTML)", "email.bodyHtml", "html"),
+            },
+          },
+          sms: {
+            type: "object",
+            title: "SMS",
+            properties: {
+              message: templateField("Message", "sms.message", "multiline"),
+            },
+          },
+          inapp: {
+            type: "object",
+            title: "In-app",
+            properties: {
+              title: templateField("Title", "inapp.title"),
+              body: templateField("Body", "inapp.body", "multiline"),
+              linkUrl: templateField("Link URL (relative)", "inapp.linkUrl"),
+            },
+          },
+        },
+      },
     },
     // Employers only ever see interviews in EMPLOYER_VISIBLE_STATUSES (the
     // T631 routes hide the rest), so an employer-targeted config may not

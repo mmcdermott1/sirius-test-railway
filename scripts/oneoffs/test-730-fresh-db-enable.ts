@@ -24,6 +24,7 @@ import {
   generateCreateStatements,
   sortTablesByDependencies,
 } from "../../server/services/component-schema-push";
+import { getEnvironmentVariable } from "../../server/config/env-registry";
 
 function getSym(obj: any, description: string): symbol | undefined {
   return Object.getOwnPropertySymbols(obj).find((s) => s.description === description);
@@ -58,7 +59,7 @@ function check(cond: boolean, msg: string) {
 }
 
 async function run() {
-  const base = new URL(process.env.DATABASE_URL!);
+  const base = new URL(getEnvironmentVariable("DATABASE_URL")!);
   base.pathname = "/scratch_730";
   const client = new pg.Client({ connectionString: base.toString() });
   await client.connect();

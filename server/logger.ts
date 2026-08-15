@@ -1,7 +1,8 @@
 import winston from "winston";
 import { LogsTransport } from "./services/logs-transport";
+import { getEnvironmentVariable } from "./config/env-registry";
 
-const isDevelopment = process.env.NODE_ENV === "development";
+const isDevelopment = getEnvironmentVariable("NODE_ENV") === "development";
 
 // Custom format for console output
 const consoleFormat = winston.format.combine(
@@ -43,7 +44,7 @@ const storageTransports: winston.transport[] = [
 ];
 
 // Add custom logs transport for storage operations (writes via logs storage, emits LOG events)
-if (process.env.DATABASE_URL) {
+if (getEnvironmentVariable("DATABASE_URL")) {
   try {
     const logsTransport = new LogsTransport({
       level: "info",

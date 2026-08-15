@@ -1,13 +1,18 @@
 import type { Request } from 'express';
 import type { CommStatusHandler, CommStatusUpdate } from './index';
 import twilio from 'twilio';
+import { getEnvironmentVariable, registerEnvironmentVariables } from "../../../config/env-registry";
+
+registerEnvironmentVariables([
+  { name: "TWILIO_AUTH_TOKEN", description: "Twilio auth token for the SMS provider (also validates status callbacks).", secret: true, category: "core" },
+]);
 
 export class TwilioStatusHandler implements CommStatusHandler {
   readonly providerId = 'twilio';
   readonly medium = 'sms' as const;
 
   async validateRequest(req: Request): Promise<{ valid: boolean; error?: string }> {
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const authToken = getEnvironmentVariable("TWILIO_AUTH_TOKEN");
     
     if (!authToken) {
       console.warn('TWILIO_AUTH_TOKEN not set - skipping signature validation');

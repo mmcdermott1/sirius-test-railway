@@ -23,8 +23,9 @@ import pg from 'pg';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import ws from "ws";
 import * as schema from "@shared/schema";
+import { getEnvironmentVariable } from "../config/env-registry";
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = getEnvironmentVariable("DATABASE_URL");
 if (!databaseUrl) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?",
@@ -34,7 +35,7 @@ if (!databaseUrl) {
 type DriverKind = "neon" | "pg";
 
 function detectDriver(url: string): DriverKind {
-  const override = process.env.DATABASE_DRIVER;
+  const override = getEnvironmentVariable("DATABASE_DRIVER");
   if (override === "neon" || override === "pg") return override;
   if (override) {
     throw new Error(

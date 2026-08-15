@@ -18,9 +18,14 @@ import "../../server/plugins/system/denorm/plugins/dispatch/sitespecific-t631-in
 import { getDenormPlugin } from "../../server/plugins/system/denorm/registry";
 import { applyComputed } from "../../server/plugins/system/denorm/apply";
 import { t631InterviewPlugin } from "../../server/plugins/dispatch/eligibility/plugins/sitespecific-t631-interview";
+import { getEnvironmentVariable, registerEnvironmentVariables } from "../../server/config/env-registry";
 
-if (process.env.NODE_ENV !== "development" && process.env.VERIFY_ALLOW_DESTRUCTIVE !== "1") {
-  console.error(`Refusing to run in NODE_ENV=${process.env.NODE_ENV ?? "(unset)"} — development only. Set VERIFY_ALLOW_DESTRUCTIVE=1 to override.`);
+registerEnvironmentVariables([
+  { name: "VERIFY_ALLOW_DESTRUCTIVE", description: "Set to 1 to let destructive verify scripts run outside development.", secret: false, category: "core" },
+]);
+
+if (getEnvironmentVariable("NODE_ENV") !== "development" && getEnvironmentVariable("VERIFY_ALLOW_DESTRUCTIVE") !== "1") {
+  console.error(`Refusing to run in NODE_ENV=${getEnvironmentVariable("NODE_ENV") ?? "(unset)"} — development only. Set VERIFY_ALLOW_DESTRUCTIVE=1 to override.`);
   process.exit(1);
 }
 

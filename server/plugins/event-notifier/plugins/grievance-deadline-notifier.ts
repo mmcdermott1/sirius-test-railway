@@ -10,6 +10,7 @@ import {
   type NotifierMessageContent,
   type NotifierRecipient,
 } from "../types";
+import { getEnvironmentVariable } from "../../../config/env-registry";
 
 function payloadOf(ctx: EventNotifierEventContext): GrievanceDeadlineReminderPayload {
   return ctx.payload as GrievanceDeadlineReminderPayload;
@@ -52,8 +53,8 @@ function composeTitle(
  */
 function absoluteGrievanceUrl(grievanceId: string): string {
   const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
+    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
+    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
     "localhost:5000";
   return `https://${domain}/grievance/${grievanceId}`;
 }

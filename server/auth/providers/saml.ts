@@ -5,6 +5,7 @@ import type { AuthProvider, SamlProviderConfig, AuthenticatedUser } from "../typ
 import { storage } from "../../storage";
 import { storageLogger, logger } from "../../logger";
 import { getRequestContext } from "../../middleware/request-context";
+import { getEnvironmentVariable } from "../../config/env-registry";
 
 const STRATEGY_NAME = "saml";
 
@@ -179,7 +180,7 @@ class SamlAuthProvider implements AuthProvider {
   }
 
   async setup(app: Express): Promise<void> {
-    const host = process.env.REPLIT_DEV_DOMAIN || process.env.REPL_SLUG + "." + process.env.REPL_OWNER + ".repl.co";
+    const host = getEnvironmentVariable("REPLIT_DEV_DOMAIN") || getEnvironmentVariable("REPL_SLUG") + "." + getEnvironmentVariable("REPL_OWNER") + ".repl.co";
     const protocol = "https";
     this.callbackUrl = `${protocol}://${host}${this.config.callbackPath || "/api/auth/saml/callback"}`;
 

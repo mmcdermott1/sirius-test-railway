@@ -12,6 +12,7 @@ import {
 } from "../types";
 import { optionsGrievanceRoles } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { getEnvironmentVariable } from "../../../config/env-registry";
 
 function payloadOf(ctx: EventNotifierEventContext): GrievanceAssignmentSavedPayload {
   return ctx.payload as GrievanceAssignmentSavedPayload;
@@ -74,8 +75,8 @@ function bodyFor(
  */
 function absoluteGrievanceUrl(grievanceId: string): string {
   const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
+    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
+    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
     "localhost:5000";
   return `https://${domain}/grievance/${grievanceId}`;
 }

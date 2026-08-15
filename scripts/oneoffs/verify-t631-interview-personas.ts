@@ -29,9 +29,14 @@ import {
   readComments,
   type InterviewStatus,
 } from "../../server/modules/sitespecific/t631/interview-rules";
+import { getEnvironmentVariable, registerEnvironmentVariables } from "../../server/config/env-registry";
 
-if (process.env.NODE_ENV !== "development" && process.env.VERIFY_ALLOW_DESTRUCTIVE !== "1") {
-  console.error(`Refusing to run in NODE_ENV=${process.env.NODE_ENV ?? "(unset)"} — development only. Set VERIFY_ALLOW_DESTRUCTIVE=1 to override.`);
+registerEnvironmentVariables([
+  { name: "VERIFY_ALLOW_DESTRUCTIVE", description: "Set to 1 to let destructive verify scripts run outside development.", secret: false, category: "core" },
+]);
+
+if (getEnvironmentVariable("NODE_ENV") !== "development" && getEnvironmentVariable("VERIFY_ALLOW_DESTRUCTIVE") !== "1") {
+  console.error(`Refusing to run in NODE_ENV=${getEnvironmentVariable("NODE_ENV") ?? "(unset)"} — development only. Set VERIFY_ALLOW_DESTRUCTIVE=1 to override.`);
   process.exit(1);
 }
 

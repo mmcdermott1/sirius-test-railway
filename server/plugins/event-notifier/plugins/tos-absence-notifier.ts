@@ -10,6 +10,7 @@ import {
   type NotifierMessageContent,
   type NotifierRecipient,
 } from "../types";
+import { getEnvironmentVariable } from "../../../config/env-registry";
 
 function payloadOf(ctx: EventNotifierEventContext): TosAbsenceReminderPayload {
   return ctx.payload as TosAbsenceReminderPayload;
@@ -22,8 +23,8 @@ function payloadOf(ctx: EventNotifierEventContext): TosAbsenceReminderPayload {
  */
 function absoluteWorkerUrl(workerId: string): string {
   const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
+    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
+    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
     "localhost:5000";
   return `https://${domain}/workers/${workerId}`;
 }
