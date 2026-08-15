@@ -196,11 +196,17 @@ export async function evaluateChain(
     // the RESOLVED entity's kind — the produced type is declared by the
     // notifier that built the event entity, not by the plugin.
     if (plugin.metadata.dynamicOutput) {
-      const e = entity as { kind?: unknown } | null;
-      if (!e || typeof e !== "object" || typeof e.kind !== "string") {
+      // In sample mode the entity is always {} (no real DB resolve), so
+      // fall back to the context's event kind when available — this lets
+      // {{event.*}} chains advance to the right entity type and return
+      // sample values instead of "missing" in preview/coverage runs.
+      const e = ctx.sample
+        ? (ctx.event ?? null)
+        : (entity as { kind?: unknown } | null);
+      if (!e || typeof e !== "object" || typeof (e as Record<string, unknown>).kind !== "string") {
         return { status: "missing", defaultValue: plugin.metadata.defaultValue ?? "" };
       }
-      currentType = e.kind;
+      currentType = (e as Record<string, unknown>).kind as string;
     } else {
       currentType = plugin.metadata.outputType;
     }

@@ -96,4 +96,162 @@ export function registerEventNotifierMetaRoutes(
       }
     }
   );
+
+  /**
+   * Live preview endpoint: renders the effective per-channel templates for a
+   * token-templated notifier against a sample event entity + optional real
+   * recipient contact.  Returns per-channel, per-field rendered strings along
+   * with unknown/missing token metadata so the editor can surface warnings.
+   *
+   * POST body (JSON):
+   *   `configData` — the full configData including any in-progress `templates`
+   *     overrides.  Using POST (not GET query params) avoids browser/proxy
+   *     request-target limits that would truncate large HTML email bodies.
+   *   `contactId` — optional staff/admin contact id; when supplied the
+   *     recipient-rooted tokens resolve against that contact's real data.
+   *     Only contacts belonging to a staff or admin user may be supplied
+   *     (prevents arbitrary PII disclosure through the preview endpoint).
+   *
+   * The rendered output matches what `composeFromTemplates` produces at
+   * delivery time: email HTML is sanitized via `sanitizeHelpHtml`, and
+   * in-app link URLs that are not safe same-app-relative paths are dropped,
+   * so preview and delivered message always agree.
+   */
+  app.post(
+    "/api/event-notifier/preview/:pluginId",
+    requireAuth,
+    requireAccess("admin"),
+    async (req: Request, res: Response) => {
+      try {
+        const { eventNotifierRegistry } = await import(
+          "../plugins/event-notifier/registry"
+        );
+        const plugin = eventNotifierRegistry.get(req.params.pluginId);
+        if (!plugin?.tokenTemplates) {
+          return res
+            .status(404)
+            .json({ message: "Notifier not found or not token-templated" });
+        }
+        const { isPluginComponentEnabledSync } = await import("../plugins/_core");
+        if (!isPluginComponentEnabledSync(plugin)) {
+          return res.status(404).json({ message: "Notifier component is disabled" });
+        }
+
+        const body = req.body ?? {};
+
+        // configData carries in-progress template overrides from the editor.
+        const configData: unknown = body.configData ?? undefined;
+
+        // Optional contactId: must belong to a staff/admin user to prevent
+        // leaking arbitrary contact PII through the preview endpoint.
+        let contactId: string | undefined;
+        if (typeof body.contactId === "string" && body.contactId) {
+          const staffUsers = await storage.users.getUsersWithAnyPermission(["staff", "admin"]);
+          const staffContactIds = new Set<string>();
+          for (const user of staffUsers) {
+            if (user.email) {
+              const contact = await storage.contacts.getContactByEmail(user.email);
+              if (contact) staffContactIds.add(contact.id);
+            }
+          }
+          if (staffContactIds.has(body.contactId)) {
+            contactId = body.contactId;
+          } else {
+            return res.status(403).json({ message: "contactId must belong to a staff or admin user" });
+          }
+        }
+
+        const { resolveTemplates, isSafeRelativePath } = await import("../plugins/event-notifier/token-templates");
+        const { renderTokens, createTokenEvalContext } = await import("../plugins/tokens");
+
+        const templates = resolveTemplates(plugin, configData);
+        const eventEntityKind = plugin.tokenTemplates.eventEntityKind;
+
+        // Build a sample event entity with the correct kind so {{event.*}}
+        // chains can advance to the right entity type and produce sample
+        // values (rather than "missing") for every leaf token.
+        const sampleEventEntity = { kind: eventEntityKind, row: {} };
+
+        const cache = new Map<string, unknown>();
+        const useRealRecipient = !!contactId;
+
+        const renderField = async (
+          template: string,
+          escapeHtml: boolean,
+        ): Promise<{ rendered: string; unknownTokens: string[]; missingValues: string[] }> => {
+          const ctx = createTokenEvalContext(storage, contactId, {
+            sample: !useRealRecipient,
+            cache,
+            event: sampleEventEntity,
+          });
+          const result = await renderTokens(template, ctx, {
+            strictUnknown: true,
+            escapeHtml,
+          });
+          return {
+            rendered: result.output,
+            unknownTokens: result.unknownTokens,
+            missingValues: result.missingValues,
+          };
+        };
+
+        type FieldPreview = { rendered: string; unknownTokens: string[]; missingValues: string[] };
+        const channels: Record<string, Record<string, FieldPreview>> = {};
+
+        if (templates.email) {
+          const subject = await renderField(templates.email.subject, false);
+          // Mirror composeFromTemplates exactly: token values are HTML-escaped
+          // during rendering, then the full output is run through sanitizeHelpHtml
+          // to strip disallowed tags/attributes. The preview must show the same
+          // markup the recipient will receive — returning unsanitized HTML would
+          // both diverge from delivery and introduce an XSS sink in the admin UI.
+          const rawBodyHtml = await renderField(templates.email.bodyHtml, true);
+          const { sanitizeHelpHtml } = await import("../help/sanitize");
+          channels.email = {
+            subject,
+            bodyHtml: { ...rawBodyHtml, rendered: sanitizeHelpHtml(rawBodyHtml.rendered) },
+          };
+        }
+        if (templates.sms) {
+          channels.sms = {
+            message: await renderField(templates.sms.message, false),
+          };
+        }
+        if (templates.inapp) {
+          const title = await renderField(templates.inapp.title, false);
+          const bodyField = await renderField(templates.inapp.body, false);
+
+          // Mirror composeFromTemplates: drop in-app link URLs that are not
+          // safe same-app-relative paths. An unsafe rendered URL (e.g. from a
+          // token that substituted an absolute URL) would be dropped at
+          // delivery time, so the preview must agree rather than displaying a
+          // link the recipient will never receive.
+          let linkUrl: FieldPreview | undefined;
+          if (templates.inapp.linkUrl) {
+            const raw = await renderField(templates.inapp.linkUrl, false);
+            const safeUrl = isSafeRelativePath(raw.rendered) ? raw.rendered : "";
+            linkUrl = { ...raw, rendered: safeUrl };
+          }
+          let linkLabel: FieldPreview | undefined;
+          if (templates.inapp.linkLabel && linkUrl?.rendered) {
+            linkLabel = await renderField(templates.inapp.linkLabel, false);
+          }
+
+          channels.inapp = { title, body: bodyField };
+          if (linkUrl !== undefined) channels.inapp.linkUrl = linkUrl;
+          if (linkLabel !== undefined) channels.inapp.linkLabel = linkLabel;
+        }
+
+        res.json({
+          sample: !useRealRecipient,
+          contactId: contactId ?? null,
+          channels,
+        });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to render preview" });
+      }
+    }
+  );
 }
