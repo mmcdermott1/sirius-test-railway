@@ -29,6 +29,11 @@ const DEFAULT_MESSAGE =
 export default function AuthErrorPage() {
   const params = new URLSearchParams(window.location.search);
   const code = params.get("error") ?? "";
+  // Short opaque reference persisted server-side with the failure details;
+  // admins can look it up in the system logs. Reject anything that doesn't
+  // look like one of our generated references.
+  const rawRef = params.get("ref") ?? "";
+  const reference = /^SAML-[A-Z0-9-]{1,24}$/.test(rawRef) ? rawRef : "";
   const message = ERROR_MESSAGES[code] ?? DEFAULT_MESSAGE;
 
   return (
@@ -50,6 +55,17 @@ export default function AuthErrorPage() {
           {code && (
             <p className="mt-2 text-xs text-gray-400 font-mono" data-testid="text-auth-error-code">
               Error code: {code}
+            </p>
+          )}
+          {reference && (
+            <p className="mt-1 text-xs text-gray-400 font-mono" data-testid="text-auth-error-reference">
+              Reference: {reference}
+            </p>
+          )}
+          {reference && (
+            <p className="mt-2 text-xs text-gray-500" data-testid="text-auth-error-reference-hint">
+              Give this reference to an administrator — the failure details are
+              recorded in the system logs.
             </p>
           )}
           <div className="mt-6">

@@ -9,6 +9,77 @@ import { getEnvironmentVariable } from "../../config/env-registry";
 
 const STRATEGY_NAME = "saml";
 
+/**
+ * Map common node-saml validation errors to a human-readable reason an
+ * administrator can act on without server-log access. Falls back to the raw
+ * message (which contains no assertion contents — node-saml messages are
+ * short diagnostics).
+ */
+function categorizeSamlError(message: string): { category: string; reason: string } {
+  const m = message.toLowerCase();
+  if (m.includes("audience")) {
+    return { category: "audience_mismatch", reason: "Audience mismatch: the identity provider's Audience URI (SP Entity ID) does not match this application's issuer. Make both sides identical." };
+  }
+  if (m.includes("signature")) {
+    return { category: "invalid_signature", reason: "Signature validation failed: the response/assertion signature does not verify against the configured IdP certificate, or a required signature is missing. Check the certificate pasted in SAML_CERT and that the IdP signs the assertion." };
+  }
+  if (m.includes("cert")) {
+    return { category: "certificate_problem", reason: "Certificate problem: the configured IdP signing certificate is missing or invalid (SAML_CERT)." };
+  }
+  if (m.includes("expired") || m.includes("not yet valid") || m.includes("notbefore")) {
+    return { category: "assertion_timing", reason: "Assertion timing rejected (expired or not yet valid): usually clock skew between the identity provider and this server, or a stale/replayed response." };
+  }
+  if (m.includes("recipient") || m.includes("destination")) {
+    return { category: "recipient_mismatch", reason: "Recipient/Destination mismatch: the identity provider is posting to a different callback URL than this application expects. The Single sign-on (ACS) URL must exactly match the application's callback URL." };
+  }
+  if (m.includes("inresponseto")) {
+    return { category: "in_response_to", reason: "InResponseTo validation failed: the response does not match an outstanding login request (IdP-initiated flow or an expired login attempt)." };
+  }
+  if (m.includes("missing") && m.includes("assertion")) {
+    return { category: "missing_assertion", reason: "The sign-in response contained no SAML assertion (malformed or truncated response from the identity provider)." };
+  }
+  if (m.includes("status")) {
+    return { category: "idp_status_error", reason: "The identity provider returned a non-success SAML status. Check the IdP-side assignment/configuration for this user and application." };
+  }
+  return { category: "unrecognized", reason: "Unrecognized SAML error — see the redacted diagnostic in the log entry's metadata." };
+}
+
+/**
+ * Bounded, redacted diagnostic for the "unrecognized" bucket. The raw message
+ * can incorporate IdP-controlled text (e.g. SamlStatusError embeds the IdP's
+ * StatusMessage), so emails and long digit runs are masked and the result is
+ * truncated before it is persisted.
+ */
+function redactDiagnostic(message: string): string {
+  return message
+    .replace(/[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+/g, "[email]")
+    .replace(/\d{5,}/g, "[digits]")
+    .slice(0, 300);
+}
+
+/**
+ * Persist a sanitized SAML failure so admins can diagnose IdP configuration
+ * problems from the in-app log viewer (Config → Logs, module "auth"), and
+ * return a short reference id surfaced on the public error page.
+ */
+function recordSamlFailure(operation: string, error: unknown, req: Request): string {
+  const reference = `SAML-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const err = error instanceof Error ? error : new Error(String(error));
+  const reason = humanizeSamlError(err.message || "Unknown error");
+  const context = getRequestContext();
+  storageLogger.error(`SAML sign-in failure [${reference}]`, {
+    module: "auth",
+    operation,
+    description: reason,
+    ip_address: context?.ipAddress ?? req.ip,
+    // Raw diagnostics land in meta (shown in the log detail dialog).
+    reference,
+    errorName: err.name,
+    errorMessage: err.message,
+  });
+  return reference;
+}
+
 interface SamlProfile {
   nameID?: string;
   nameIDFormat?: string;
@@ -314,7 +385,8 @@ class SamlAuthProvider implements AuthProvider {
       })(req, res, (err: any) => {
         if (err) {
           logger.error("SAML callback error", { error: err });
-          return res.redirect("/auth-error?error=saml_callback_failed");
+          const reference = recordSamlFailure("saml_callback_failed", err, req);
+          return res.redirect(`/auth-error?error=saml_callback_failed&ref=${reference}`);
         }
 
         if (!req.user) {
@@ -324,7 +396,8 @@ class SamlAuthProvider implements AuthProvider {
         req.login(req.user, (loginErr) => {
           if (loginErr) {
             logger.error("SAML session login error", { error: loginErr });
-            return res.redirect("/auth-error?error=session_failed");
+            const reference = recordSamlFailure("session_failed", loginErr, req);
+            return res.redirect(`/auth-error?error=session_failed&ref=${reference}`);
           }
 
           res.redirect("/");
