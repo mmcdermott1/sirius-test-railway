@@ -1,21 +1,16 @@
+import { contactPostal } from "@shared/schema";
 import { registerTokenPlugin } from "../registry";
 import { memo, tokenEntityOf, type TokenEntity } from "../types";
 
-const ADDRESS_FIELDS = [
-  "street",
-  "city",
-  "state",
-  "postal_code",
-  "zip",
-  "country",
-  "full",
-];
-
 /**
- * {{contact.address(primary="true").field(name="street")}} — the
- * recipient's postal address. primary="true" (default) requires the
- * primary active address; primary="false" accepts any active address.
- * Fields: street, city, state, postal_code (alias zip), country, full.
+ * {{contact.address(primary="true").field(name=…)}} — the recipient's
+ * postal address. primary="true" (default) requires the primary active
+ * address; primary="false" accepts any active address.
+ *
+ * All real columns of contact_postal are addressable by their schema
+ * name (snake_case or camelCase). Derived extras:
+ *   zip  — alias for postal_code
+ *   full — one-line composed address (street, city, state, postal_code)
  */
 registerTokenPlugin({
   metadata: {
@@ -25,7 +20,8 @@ registerTokenPlugin({
     segmentName: "address",
     inputTypes: ["contact", "worker"],
     outputType: "address",
-    entityFields: ADDRESS_FIELDS,
+    entityTable: contactPostal,
+    entityFields: ["zip", "full"],
     args: {
       primary: {
         default: "true",
@@ -47,20 +43,14 @@ registerTokenPlugin({
     const primary = addresses.find((a) => a.isPrimary && a.isActive);
     const addr = primaryOnly ? primary : primary || addresses.find((a) => a.isActive);
     if (!addr) return null;
+    const full =
+      [addr.street, addr.city, addr.state, addr.postalCode]
+        .filter(Boolean)
+        .join(", ") || null;
     const out: TokenEntity = {
       kind: "address",
-      row: {
-        street: addr.street,
-        city: addr.city,
-        state: addr.state,
-        postalCode: addr.postalCode,
-        zip: addr.postalCode,
-        country: addr.country ?? null,
-        full:
-          [addr.street, addr.city, addr.state, addr.postalCode]
-            .filter(Boolean)
-            .join(", ") || null,
-      },
+      row: { ...addr, zip: addr.postalCode, full },
+      table: contactPostal,
     };
     return out;
   },
