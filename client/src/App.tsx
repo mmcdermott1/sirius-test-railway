@@ -18,6 +18,7 @@ import { ServerInjections } from "@/components/ServerInjections";
 
 // Essential pages loaded eagerly for fast initial render
 import LoginPage from "@/pages/login";
+import AuthErrorPage from "@/pages/auth-error";
 import UnauthorizedPage from "@/pages/unauthorized";
 import NotFound from "@/pages/not-found";
 import VerifyWorkerPage from "@/pages/verify-worker";
@@ -489,6 +490,7 @@ function Router() {
         <Route path="/verify-worker" component={VerifyWorkerPage} />
         <Route path="/register" component={RegisterPage} />
         <Route path="/unauthorized" component={UnauthorizedPage} />
+        <Route path="/auth-error" component={AuthErrorPage} />
         <Route path="/sms/optin/:token" component={SmsOptinPage} />
 
       {/* Protected routes */}

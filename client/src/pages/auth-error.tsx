@@ -1,0 +1,64 @@
+import { Link } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
+
+/**
+ * Landing page for server-side authentication failures. Auth providers
+ * redirect here with ?error=<code> (e.g. the SAML callback handler);
+ * without this route those redirects fell through to the 404 page.
+ */
+const ERROR_MESSAGES: Record<string, string> = {
+  saml_failed:
+    "Sign-in with your identity provider failed. The sign-in response could not be verified.",
+  saml_callback_failed:
+    "Something went wrong while processing the sign-in response from your identity provider.",
+  saml_wrong_binding:
+    "Your identity provider sent the sign-in response in an unsupported way (Redirect binding). Configure it to use the HTTP-POST binding for this application's callback URL.",
+  saml_not_configured:
+    "Single sign-on is not configured in this environment. Contact an administrator.",
+  access_denied:
+    "Your sign-in succeeded, but this account is not authorized to access this application. Contact an administrator.",
+  session_failed:
+    "Sign-in succeeded but your session could not be created. Please try again.",
+};
+
+const DEFAULT_MESSAGE =
+  "Sign-in failed. Please try again, or contact an administrator if the problem persists.";
+
+export default function AuthErrorPage() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("error") ?? "";
+  const message = ERROR_MESSAGES[code] ?? DEFAULT_MESSAGE;
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+      <Card className="w-full max-w-md mx-4">
+        <CardContent className="pt-6">
+          <div className="flex mb-4 gap-2 items-center">
+            <AlertCircle className="h-8 w-8 text-red-500 shrink-0" />
+            <h1
+              className="text-xl md:text-2xl font-bold text-gray-900"
+              data-testid="text-auth-error-title"
+            >
+              Sign-in problem
+            </h1>
+          </div>
+          <p className="text-sm text-gray-600" data-testid="text-auth-error-message">
+            {message}
+          </p>
+          {code && (
+            <p className="mt-2 text-xs text-gray-400 font-mono" data-testid="text-auth-error-code">
+              Error code: {code}
+            </p>
+          )}
+          <div className="mt-6">
+            <Button asChild data-testid="button-auth-error-login">
+              <Link href="/login">Back to sign-in</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

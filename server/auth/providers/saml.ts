@@ -253,6 +253,28 @@ class SamlAuthProvider implements AuthProvider {
 
     const callbackPath = this.config.callbackPath || "/api/auth/saml/callback";
     app.post(callbackPath, this.getCallbackHandler());
+    // The ACS only accepts SAML assertions via POST. Browsers still arrive
+    // here with GET — Okta "Embed link" apps, bookmarked callback URLs, or a
+    // redirect-binding misconfiguration — and without this handler the GET
+    // fell through to the SPA catch-all and rendered a bare 404 page. Kick
+    // those into the normal SP-initiated login instead: it round-trips
+    // through the IdP and comes back as a proper POST.
+    app.get(callbackPath, (req, res) => {
+      if (req.isAuthenticated?.()) return res.redirect("/");
+      // An IdP misconfigured to use the Redirect binding delivers its
+      // response as GET ?SAMLResponse=... — bouncing that to login would
+      // loop forever (login → IdP → same GET). Terminal error instead.
+      if (typeof req.query.SAMLResponse === "string") {
+        logger.warn("SAML response received via GET (Redirect binding); ACS requires POST", {
+          service: "saml-auth",
+        });
+        return res.redirect("/auth-error?error=saml_wrong_binding");
+      }
+      logger.info("GET on SAML callback path; redirecting to SP-initiated login", {
+        service: "saml-auth",
+      });
+      res.redirect("/api/auth/saml/login");
+    });
 
     app.get("/api/auth/saml/metadata", (req, res) => {
       res.type("application/xml");

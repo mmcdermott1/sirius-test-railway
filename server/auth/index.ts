@@ -152,6 +152,28 @@ export async function setupAuth(app: Express): Promise<void> {
     }
   }
 
+  // Fallback for the SAML callback path when the SAML provider is NOT
+  // configured (e.g. env vars missing in this environment). Registered after
+  // provider setup, so a configured SAML provider's own routes win. Without
+  // this, hits fell through to the SPA catch-all as a confusing 404 page.
+  if (!providerRegistry.get("saml")) {
+    // Honor a custom SAML_CALLBACK_PATH so a configured-but-uninitializable
+    // SAML setup (e.g. missing cert) still lands here, not the SPA 404.
+    // Guard against non-local values: only a local absolute path is routable.
+    const { getEnvironmentVariable } = await import("../config/env-registry");
+    const custom = getEnvironmentVariable("SAML_CALLBACK_PATH");
+    const samlCallbackPath =
+      custom && custom.startsWith("/") && !custom.startsWith("//")
+        ? custom
+        : "/api/auth/saml/callback";
+    app.all(samlCallbackPath, (_req, res) => {
+      logger.warn("SAML callback hit but no SAML provider is configured", {
+        service: "saml-auth",
+      });
+      res.redirect("/auth-error?error=saml_not_configured");
+    });
+  }
+
   app.get("/api/login", (req, res, next) => {
     const requestedProvider = req.query.provider as AuthProviderType | undefined;
     const provider = requestedProvider
