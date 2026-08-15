@@ -1,11 +1,7 @@
+import { employers } from "@shared/schema";
 import { registerTokenPlugin } from "../registry";
-import { memo, type EmployerEntity } from "../types";
-import { loadWorker } from "./worker";
-
-function employerOf(entity: unknown): EmployerEntity | null {
-  const e = entity as EmployerEntity | null;
-  return e?.kind === "employer" ? e : null;
-}
+import { memo, tokenEntityOf, type TokenEntity } from "../types";
+import { loadWorkerEntity } from "./worker";
 
 /**
  * Root: {{employer...}} — the recipient's employer, resolved via the
@@ -20,41 +16,57 @@ registerTokenPlugin({
     segmentName: "employer",
     inputTypes: ["root"],
     outputType: "employer",
+    entityTable: employers,
   },
   async resolve(_entity, _args, ctx) {
     if (!ctx.contactId) return null;
     const contactId = ctx.contactId;
-    const employer = await memo(ctx, `employer:${contactId}`, async () => {
-      const worker = await loadWorker(ctx, contactId);
+    const row = await memo(ctx, `employer-row:${contactId}`, async () => {
+      const worker = await loadWorkerEntity(ctx, contactId);
       const employerId =
-        worker?.homeEmployerId ||
-        (worker?.employerIds && worker.employerIds[0]) ||
+        (worker?.row.homeEmployerId as string | null) ||
+        (Array.isArray(worker?.row.employerIds)
+          ? (worker.row.employerIds[0] as string | undefined)
+          : undefined) ||
         null;
       if (employerId) {
-        const emp = await ctx.storage.bulkTokens.getEmployerById(employerId);
+        const emp = await ctx.storage.bulkTokens.getEmployerRow(employerId);
         if (emp) return emp;
       }
-      const linked = await ctx.storage.bulkTokens.getFirstEmployerLinkForContact(contactId);
+      const linked =
+        await ctx.storage.bulkTokens.getFirstEmployerLinkRowForContact(contactId);
       return linked ?? null;
     });
-    if (!employer) return null;
-    const entity: EmployerEntity = { kind: "employer", employer };
-    return entity;
+    if (!row) return null;
+    const out: TokenEntity = { kind: "employer", row, table: employers };
+    return out;
   },
 });
 
+/** {{worker.home_employer.field(name="name")}} — the worker's home employer. */
 registerTokenPlugin({
   metadata: {
-    id: "token.leaf.employerName",
-    name: "Employer name",
-    shortLabel: "name",
-    description: "Name of the worker's home employer (or first linked employer)",
-    segmentName: "name",
-    inputTypes: ["employer"],
-    outputType: "value",
-    example: "Acme Construction",
+    id: "token.worker.home_employer",
+    name: "Home employer",
+    description: "The worker's home employer (falling back to first employment)",
+    segmentName: "home_employer",
+    inputTypes: ["worker"],
+    outputType: "employer",
+    entityTable: employers,
   },
-  async resolve(entity) {
-    return employerOf(entity)?.employer.name ?? null;
+  async resolve(entity, _args, ctx) {
+    const w = tokenEntityOf(entity, "worker");
+    if (!w) return null;
+    const employerId =
+      w.row.homeEmployerId ??
+      (Array.isArray(w.row.employerIds) ? w.row.employerIds[0] : null) ??
+      null;
+    if (typeof employerId !== "string") return null;
+    const row = await memo(ctx, `employer-row-by-id:${employerId}`, async () => {
+      return (await ctx.storage.bulkTokens.getEmployerRow(employerId)) ?? null;
+    });
+    if (!row) return null;
+    const out: TokenEntity = { kind: "employer", row, table: employers };
+    return out;
   },
 });

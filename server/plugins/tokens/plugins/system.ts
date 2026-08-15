@@ -1,10 +1,10 @@
 import { registerTokenPlugin } from "../registry";
-import type { SystemEntity } from "../types";
+import { tokenEntityOf } from "../types";
 import { formatPhpDate, fmtDateShort } from "../php-date";
 
 function nowOf(entity: unknown, fallback: Date): Date {
-  const e = entity as SystemEntity | null;
-  return e?.kind === "system" ? e.now : fallback;
+  const e = tokenEntityOf(entity, "system");
+  return e?.row.now instanceof Date ? e.row.now : fallback;
 }
 
 /** Root: {{system...}} — server-side values independent of the recipient. */
@@ -18,8 +18,7 @@ registerTokenPlugin({
     outputType: "system",
   },
   async resolve(_entity, _args, ctx) {
-    const entity: SystemEntity = { kind: "system", now: ctx.now };
-    return entity;
+    return { kind: "system", row: { now: ctx.now } };
   },
 });
 

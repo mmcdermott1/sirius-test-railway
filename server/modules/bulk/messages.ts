@@ -19,6 +19,7 @@ import {
   createTokenEvalContext,
   evaluateChain,
   buildSegmentSpecs,
+  buildFieldCatalog,
   buildTokenCatalog,
   validateTokenExpression,
   describeChain,
@@ -646,7 +647,7 @@ export function registerBulkMessageRoutes(
   // uses for static chain validation. Both are derived live from the
   // token plugin registry.
   app.get("/api/bulk-tokens", requireAuth, requireAccess('bulk.edit'), (_req, res) => {
-    res.json({ tokens: buildTokenCatalog(), segments: buildSegmentSpecs() });
+    res.json({ tokens: buildTokenCatalog(), segments: buildSegmentSpecs(), fields: buildFieldCatalog() });
   });
 
   // Returns the registry filtered to scopes that apply to this
@@ -663,7 +664,7 @@ export function registerBulkMessageRoutes(
       const contactIds = Array.from(new Set(participants.map((p) => p.contactId).filter(Boolean) as string[]));
       const scopes = await detectAudienceScopes(storage, contactIds);
       const tokens = buildTokenCatalog().filter((t) => scopes.has(t.scope));
-      res.json({ tokens, segments: buildSegmentSpecs(), scopes: Array.from(scopes) });
+      res.json({ tokens, segments: buildSegmentSpecs(), fields: buildFieldCatalog(), scopes: Array.from(scopes) });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to load tokens";
       res.status(500).json({ message });

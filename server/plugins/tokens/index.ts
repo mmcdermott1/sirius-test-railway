@@ -9,6 +9,7 @@ export {
   evaluateChain,
   createTokenEvalContext,
   buildSegmentSpecs,
+  buildFieldCatalog,
   buildTokenCatalog,
   validateTokenExpression,
   describeChain,
@@ -22,7 +23,7 @@ function registerTokenKind(): void {
     registry: tokenPluginRegistry,
     label: "Tokens",
     description:
-      "Chained template tokens ({{worker.jobTitle}}, {{contact.address.field(name=\"street\")}}) resolved per recipient when messages are rendered.",
+      "Chained template tokens ({{worker.field(name=\"job_title\")}}, {{contact.address.field(name=\"street\")}}) resolved per recipient when messages are rendered.",
     // Token authoring surfaces (bulk messages) are gated by bulk.edit;
     // the kind itself carries the same policy for manifest visibility.
     requiredPolicy: "bulk.edit",
@@ -46,6 +47,7 @@ export function initializeTokenPluginSystem(): void {
 }
 
 // Plugin registrations (side-effect imports — each file self-registers).
+import "./plugins/field";
 import "./plugins/contact";
 import "./plugins/worker";
 import "./plugins/employer";

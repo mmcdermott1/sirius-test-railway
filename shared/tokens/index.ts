@@ -147,18 +147,42 @@ export type ChainValidation =
   | { ok: false; error: string };
 
 /**
+ * Per-entity-type valid field names for the generic `field(name=…)`
+ * segment, derived on the server from the live Drizzle schema. `open`
+ * marks entity types whose field set can't be enumerated — for those,
+ * any raw string is accepted (same posture as date format strings).
+ */
+export type TokenFieldCatalog = Record<
+  string,
+  { names: string[]; open?: boolean }
+>;
+
+/** Normalize snake_case / camelCase to a canonical comparable form. */
+export function normalizeFieldName(name: string): string {
+  return name.replace(/_/g, "").toLowerCase();
+}
+
+/**
  * Walk a parsed chain over the segment graph: every segment must exist
  * for the current entity type, args must be known and required args
  * present (after defaults), and the chain must end in "value".
+ * A segment spec with inputType "*" applies to every entity type
+ * except "root". When `fields` is provided, the `name` argument of a
+ * `field` segment is checked against the current entity type's field
+ * list (unless that type is open).
  */
 export function validateChain(
   segments: TokenSegment[],
   specs: TokenSegmentSpec[],
+  fields?: TokenFieldCatalog,
 ): ChainValidation {
   let currentType = "root";
   for (const seg of segments) {
     const spec = specs.find(
-      (sp) => sp.name === seg.name && sp.inputTypes.includes(currentType),
+      (sp) =>
+        sp.name === seg.name &&
+        (sp.inputTypes.includes(currentType) ||
+          (sp.inputTypes.includes("*") && currentType !== "root" && currentType !== "value")),
     );
     if (!spec) {
       const anyName = specs.some((sp) => sp.name === seg.name);
@@ -178,6 +202,18 @@ export function validateChain(
     for (const [key, as] of Object.entries(argSpecs)) {
       if (as.required && seg.args[key] === undefined && as.default === undefined) {
         return { ok: false, error: `missing required argument '${key}' on '${seg.name}'` };
+      }
+    }
+    if (seg.name === "field" && seg.args.name !== undefined && fields) {
+      const catalog = fields[currentType];
+      if (catalog && !catalog.open) {
+        const wanted = normalizeFieldName(seg.args.name);
+        if (!catalog.names.some((n) => normalizeFieldName(n) === wanted)) {
+          return {
+            ok: false,
+            error: `'${seg.args.name}' is not a field of ${currentType}`,
+          };
+        }
       }
     }
     currentType = spec.outputType;
@@ -202,6 +238,7 @@ export interface TemplateTokenAnalysis {
 export function analyzeTemplateTokens(
   template: string | null | undefined,
   specs: TokenSegmentSpec[],
+  fields?: TokenFieldCatalog,
 ): TemplateTokenAnalysis {
   const valid: string[] = [];
   const invalid: Array<{ expr: string; error: string }> = [];
@@ -211,7 +248,7 @@ export function analyzeTemplateTokens(
       invalid.push({ expr, error: parsed.error });
       continue;
     }
-    const v = validateChain(parsed.segments, specs);
+    const v = validateChain(parsed.segments, specs, fields);
     if (!v.ok) {
       invalid.push({ expr, error: v.error });
       continue;

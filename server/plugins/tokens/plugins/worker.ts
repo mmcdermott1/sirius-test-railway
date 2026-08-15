@@ -1,31 +1,29 @@
+import {
+  workers,
+  contacts,
+  bargainingUnits,
+  optionsWorkerWs,
+} from "@shared/schema";
+import { WORKER_EXTRA_FIELDS } from "../../../storage/bulk/tokens";
 import { registerTokenPlugin } from "../registry";
-import { memo, type WorkerEntity, type TokenEvalContext } from "../types";
-import { fmtDateShort } from "../php-date";
-import { loadContact } from "./contact";
+import { memo, tokenEntityOf, type TokenEntity, type TokenEvalContext } from "../types";
 
-async function loadWorker(
+export async function loadWorkerEntity(
   ctx: TokenEvalContext,
   contactId: string,
-): Promise<WorkerEntity["worker"] | null> {
-  return memo(ctx, `worker:${contactId}`, async () => {
-    const row = await ctx.storage.bulkTokens.getWorkerByContactId(contactId);
-    return row ?? null;
+): Promise<TokenEntity | null> {
+  const row = await memo(ctx, `worker-row:${contactId}`, async () => {
+    return (await ctx.storage.bulkTokens.getWorkerRowByContactId(contactId)) ?? null;
   });
+  if (!row) return null;
+  return { kind: "worker", row, table: workers };
 }
 
-export { loadWorker };
-
-function workerOf(entity: unknown): WorkerEntity | null {
-  const e = entity as WorkerEntity | null;
-  return e?.kind === "worker" ? e : null;
-}
-
-function titleCase(s: string | null | undefined): string {
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
-
-/** Root: {{worker...}} — the recipient's worker record (with contact). */
+/**
+ * Root: {{worker...}} — the recipient's full worker record, plus
+ * employment/status denorm extras (job_title, home_employer_id, ws_id,
+ * ms_ids, employer_ids).
+ */
 registerTokenPlugin({
   metadata: {
     id: "token.worker",
@@ -34,186 +32,167 @@ registerTokenPlugin({
     segmentName: "worker",
     inputTypes: ["root"],
     outputType: "worker",
+    entityTable: workers,
+    entityFields: WORKER_EXTRA_FIELDS,
   },
   async resolve(_entity, _args, ctx) {
     if (!ctx.contactId) return null;
-    const worker = await loadWorker(ctx, ctx.contactId);
-    if (!worker) return null;
-    const contact = await loadContact(ctx, ctx.contactId);
-    const entity: WorkerEntity = { kind: "worker", worker, contact };
-    return entity;
+    return loadWorkerEntity(ctx, ctx.contactId);
   },
 });
 
+/** {{worker.bargaining_unit.field(name="name")}} */
 registerTokenPlugin({
   metadata: {
-    id: "token.leaf.jobTitle",
-    name: "Job title",
-    shortLabel: "job title",
-    description: "Most recent job title on the worker",
-    segmentName: "jobTitle",
-    inputTypes: ["worker"],
-    outputType: "value",
-    example: "Lead Carpenter",
-  },
-  async resolve(entity) {
-    return workerOf(entity)?.worker.jobTitle ?? null;
-  },
-});
-
-registerTokenPlugin({
-  metadata: {
-    id: "token.leaf.siriusId",
-    name: "Worker ID",
-    shortLabel: "ID",
-    description: "Sirius worker ID number",
-    segmentName: "siriusId",
-    inputTypes: ["worker"],
-    outputType: "value",
-    example: "10241",
-  },
-  async resolve(entity) {
-    const id = workerOf(entity)?.worker.siriusId;
-    return id == null ? null : String(id);
-  },
-});
-
-registerTokenPlugin({
-  metadata: {
-    id: "token.leaf.workStatus",
-    name: "Work status",
-    shortLabel: "work status",
-    description: "Current work status (e.g. Active, Out-of-Work)",
-    segmentName: "workStatus",
-    inputTypes: ["worker"],
-    outputType: "value",
-    example: "Active",
-  },
-  async resolve(entity, _args, ctx) {
-    const wsId = workerOf(entity)?.worker.wsId;
-    if (!wsId) return null;
-    return memo(ctx, `ws-name:${wsId}`, () =>
-      ctx.storage.bulkTokens.getWorkStatusName(wsId),
-    );
-  },
-});
-
-registerTokenPlugin({
-  metadata: {
-    id: "token.leaf.memberStatus",
-    name: "Member status",
-    shortLabel: "member status",
-    description: "Member status (multiple values joined with /)",
-    segmentName: "memberStatus",
-    inputTypes: ["worker"],
-    outputType: "value",
-    example: "In Good Standing",
-  },
-  async resolve(entity, _args, ctx) {
-    const msIds = workerOf(entity)?.worker.msIds;
-    if (!msIds || msIds.length === 0) return null;
-    const names = await memo(ctx, `ms-names:${[...msIds].sort().join(",")}`, () =>
-      ctx.storage.bulkTokens.getMemberStatusNames(msIds),
-    );
-    return names.length > 0 ? names.join(" / ") : null;
-  },
-});
-
-registerTokenPlugin({
-  metadata: {
-    id: "token.leaf.bargainingUnit",
+    id: "token.worker.bargaining_unit",
     name: "Bargaining unit",
-    shortLabel: "bargaining unit",
-    description: "Name of the worker's bargaining unit",
-    segmentName: "bargainingUnit",
+    description: "The worker's bargaining unit",
+    segmentName: "bargaining_unit",
     inputTypes: ["worker"],
-    outputType: "value",
-    example: "Local 123",
+    outputType: "bargaining_unit",
+    entityTable: bargainingUnits,
   },
   async resolve(entity, _args, ctx) {
-    const buId = workerOf(entity)?.worker.bargainingUnitId;
-    if (!buId) return null;
-    return memo(ctx, `bu-name:${buId}`, () =>
-      ctx.storage.bulkTokens.getBargainingUnitName(buId),
+    const w = tokenEntityOf(entity, "worker");
+    const buId = w?.row.bargainingUnitId;
+    if (typeof buId !== "string") return null;
+    const row = await memo(ctx, `bu-row:${buId}`, async () => {
+      return (await ctx.storage.bulkTokens.getBargainingUnitRow(buId)) ?? null;
+    });
+    if (!row) return null;
+    const out: TokenEntity = { kind: "bargaining_unit", row, table: bargainingUnits };
+    return out;
+  },
+});
+
+/** {{worker.work_status.field(name="name")}} */
+registerTokenPlugin({
+  metadata: {
+    id: "token.worker.work_status",
+    name: "Work status",
+    description: "The worker's current work status option",
+    segmentName: "work_status",
+    inputTypes: ["worker"],
+    outputType: "work_status",
+    entityTable: optionsWorkerWs,
+  },
+  async resolve(entity, _args, ctx) {
+    const w = tokenEntityOf(entity, "worker");
+    const wsId = w?.row.wsId;
+    if (typeof wsId !== "string") return null;
+    const row = await memo(ctx, `ws-row:${wsId}`, async () => {
+      return (await ctx.storage.bulkTokens.getWorkStatusRow(wsId)) ?? null;
+    });
+    if (!row) return null;
+    const out: TokenEntity = { kind: "work_status", row, table: optionsWorkerWs };
+    return out;
+  },
+});
+
+/**
+ * {{worker.member_status.field(name="name")}} — member statuses are a
+ * set; `name` joins the option names with " / ".
+ */
+registerTokenPlugin({
+  metadata: {
+    id: "token.worker.member_status",
+    name: "Member status",
+    description: "The worker's member statuses (multiple values joined with /)",
+    segmentName: "member_status",
+    inputTypes: ["worker"],
+    outputType: "member_status",
+    entityFields: ["name"],
+  },
+  async resolve(entity, _args, ctx) {
+    const w = tokenEntityOf(entity, "worker");
+    const msIds = w?.row.msIds;
+    if (!Array.isArray(msIds) || msIds.length === 0) return null;
+    const ids = msIds.filter((v): v is string => typeof v === "string");
+    const names = await memo(ctx, `ms-names:${[...ids].sort().join(",")}`, () =>
+      ctx.storage.bulkTokens.getMemberStatusNames(ids),
     );
+    if (names.length === 0) return null;
+    const out: TokenEntity = {
+      kind: "member_status",
+      row: { name: names.join(" / ") },
+    };
+    return out;
   },
 });
 
-async function latestCardcheck(entity: unknown, ctx: TokenEvalContext) {
-  const w = workerOf(entity)?.worker;
-  if (!w) return null;
-  return memo(ctx, `cardcheck:${w.id}`, async () => {
-    const row = await ctx.storage.bulkTokens.getLatestCardcheckForWorker(w.id);
-    return row ?? null;
-  });
-}
-
+/**
+ * {{worker.cardcheck.field(name="type"|"status"|"signed_date")}} — the
+ * worker's most recent cardcheck.
+ */
 registerTokenPlugin({
   metadata: {
-    id: "token.leaf.cardcheckType",
-    name: "Cardcheck type",
-    shortLabel: "cardcheck type",
-    description: "Name of the most recent cardcheck definition for the worker",
-    segmentName: "cardcheckType",
+    id: "token.worker.cardcheck",
+    name: "Cardcheck",
+    description: "The worker's most recent cardcheck",
+    segmentName: "cardcheck",
     inputTypes: ["worker"],
-    outputType: "value",
-    example: "Authorization Card",
+    outputType: "cardcheck",
+    entityFields: ["type", "status", "signed_date"],
   },
   async resolve(entity, _args, ctx) {
-    return (await latestCardcheck(entity, ctx))?.type ?? null;
+    const w = tokenEntityOf(entity, "worker");
+    const workerId = w?.row.id;
+    if (typeof workerId !== "string") return null;
+    const cc = await memo(ctx, `cardcheck:${workerId}`, async () => {
+      return (await ctx.storage.bulkTokens.getLatestCardcheckForWorker(workerId)) ?? null;
+    });
+    if (!cc) return null;
+    const status = cc.status
+      ? cc.status.charAt(0).toUpperCase() + cc.status.slice(1).toLowerCase()
+      : null;
+    const out: TokenEntity = {
+      kind: "cardcheck",
+      row: { type: cc.type, status, signedDate: cc.signedDate },
+    };
+    return out;
   },
 });
 
+/**
+ * {{worker.building_rep.field(name="display_name")}} — the contact
+ * record of the steward assigned to the worker's employer and
+ * bargaining unit (excluding the worker themself).
+ */
 registerTokenPlugin({
   metadata: {
-    id: "token.leaf.cardcheckStatus",
-    name: "Cardcheck status",
-    shortLabel: "cardcheck status",
-    description: "Status of the most recent cardcheck (Pending, Signed, Revoked)",
-    segmentName: "cardcheckStatus",
-    inputTypes: ["worker"],
-    outputType: "value",
-    example: "Signed",
-  },
-  async resolve(entity, _args, ctx) {
-    return titleCase((await latestCardcheck(entity, ctx))?.status) || null;
-  },
-});
-
-registerTokenPlugin({
-  metadata: {
-    id: "token.leaf.cardcheckSignedDate",
-    name: "Cardcheck signed date",
-    shortLabel: "cardcheck signed date",
-    description: "Signed date of the most recent cardcheck",
-    segmentName: "cardcheckSignedDate",
-    inputTypes: ["worker"],
-    outputType: "value",
-    example: "Apr 17, 2026",
-  },
-  async resolve(entity, _args, ctx) {
-    return fmtDateShort((await latestCardcheck(entity, ctx))?.signedDate) || null;
-  },
-});
-
-registerTokenPlugin({
-  metadata: {
-    id: "token.leaf.buildingRep",
+    id: "token.worker.building_rep",
     name: "Building rep",
-    shortLabel: "building rep",
-    description: "Steward assigned to this worker's bargaining unit and employer",
-    segmentName: "buildingRep",
+    description: "Contact of the steward for this worker's bargaining unit and employer",
+    segmentName: "building_rep",
     inputTypes: ["worker"],
-    outputType: "value",
-    example: "Jamie Rivera",
+    outputType: "contact",
+    entityTable: contacts,
   },
   async resolve(entity, _args, ctx) {
-    const w = workerOf(entity)?.worker;
+    const w = tokenEntityOf(entity, "worker");
     if (!w) return null;
-    const employerId = w.homeEmployerId || (w.employerIds && w.employerIds[0]) || null;
-    if (!employerId || !w.bargainingUnitId) return null;
-    return memo(ctx, `building-rep:${employerId}:${w.bargainingUnitId}:${w.id}`, () =>
-      ctx.storage.bulkTokens.getBuildingRepName(employerId, w.bargainingUnitId!, w.id),
+    const buId = w.row.bargainingUnitId;
+    const employerId =
+      w.row.homeEmployerId ??
+      (Array.isArray(w.row.employerIds) ? w.row.employerIds[0] : null) ??
+      null;
+    if (typeof employerId !== "string" || typeof buId !== "string") return null;
+    const workerId = typeof w.row.id === "string" ? w.row.id : null;
+    const row = await memo(
+      ctx,
+      `building-rep:${employerId}:${buId}:${workerId}`,
+      async () => {
+        return (
+          (await ctx.storage.bulkTokens.getBuildingRepContactRow(
+            employerId,
+            buId,
+            workerId,
+          )) ?? null
+        );
+      },
     );
+    if (!row) return null;
+    const out: TokenEntity = { kind: "contact", row, table: contacts };
+    return out;
   },
 });

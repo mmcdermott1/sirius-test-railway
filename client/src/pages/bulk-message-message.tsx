@@ -15,7 +15,7 @@ import { TokenPicker } from "@/components/bulk/TokenPicker";
 import { SlashTokenField } from "@/components/bulk/SlashTokenField";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { cn } from "@/lib/utils";
-import { analyzeTemplateTokens, type TokenSegmentSpec } from "@shared/tokens";
+import { analyzeTemplateTokens, type TokenSegmentSpec, type TokenFieldCatalog } from "@shared/tokens";
 import { htmlToPlainText } from "@shared/html-to-text";
 
 type TokenInsertTarget = HTMLInputElement | HTMLTextAreaElement;
@@ -58,10 +58,10 @@ function TokenWarnings({ templates }: { templates: Array<string | null | undefin
   const combined = templates.filter(Boolean).join("\n");
   // Segment graph from the server registry — used for static chain
   // validation of the tokens used in the templates.
-  const { data } = useQuery<{ segments: TokenSegmentSpec[] }>({
+  const { data } = useQuery<{ segments: TokenSegmentSpec[]; fields?: TokenFieldCatalog }>({
     queryKey: ["/api/bulk-tokens"],
   });
-  const { valid, invalid } = analyzeTemplateTokens(combined, data?.segments || []);
+  const { valid, invalid } = analyzeTemplateTokens(combined, data?.segments || [], data?.fields);
   // Until the segment graph loads, everything parseable shows as "used".
   const unknown = data?.segments ? invalid : [];
   const known = data?.segments ? valid : [...valid, ...invalid.map((i) => i.expr)];

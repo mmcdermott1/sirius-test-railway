@@ -26,6 +26,9 @@ export function findSegmentPlugin(
     .find(
       (p) =>
         p.metadata.segmentName === name &&
-        p.metadata.inputTypes.includes(inputType),
+        (p.metadata.inputTypes.includes(inputType) ||
+          (p.metadata.inputTypes.includes("*") &&
+            inputType !== "root" &&
+            inputType !== "value")),
     );
 }

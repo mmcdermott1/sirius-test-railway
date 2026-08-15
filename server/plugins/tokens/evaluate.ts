@@ -2,11 +2,14 @@ import {
   TOKEN_PATTERN,
   parseTokenChain,
   validateChain,
+  normalizeFieldName,
   escapeHtml,
   type TokenSegment,
   type TokenSegmentSpec,
+  type TokenFieldCatalog,
   type TokenCatalogEntry,
 } from "@shared/tokens";
+import { getTableColumns } from "drizzle-orm";
 import type { IStorage } from "../../storage";
 import { tokenPluginRegistry, findSegmentPlugin } from "./registry";
 import type {
@@ -25,6 +28,39 @@ export function buildSegmentSpecs(): TokenSegmentSpec[] {
     label: p.metadata.name,
     description: p.metadata.description,
   }));
+}
+
+/**
+ * Valid field(name=…) names per entity type, derived from the LIVE
+ * Drizzle schema of each entity plugin's declared table (plus derived
+ * extras). Never hardcoded — new columns are picked up automatically.
+ */
+let fieldCatalogCache: TokenFieldCatalog | null = null;
+
+/** Cached field catalog — the registry and schema are static after boot. */
+function getFieldCatalog(): TokenFieldCatalog {
+  return (fieldCatalogCache ??= buildFieldCatalog());
+}
+
+export function buildFieldCatalog(): TokenFieldCatalog {
+  const catalog: TokenFieldCatalog = {};
+  for (const p of tokenPluginRegistry.listEnabledSync()) {
+    const type = p.metadata.outputType;
+    if (type === "value") continue;
+    const entry = (catalog[type] ??= { names: [] });
+    if (p.metadata.entityTable) {
+      for (const col of Object.values(getTableColumns(p.metadata.entityTable))) {
+        if (!entry.names.includes(col.name)) entry.names.push(col.name);
+      }
+    }
+    for (const name of p.metadata.entityFields ?? []) {
+      if (!entry.names.includes(name)) entry.names.push(name);
+    }
+    if (p.metadata.entityFieldsOpen || (!p.metadata.entityTable && !p.metadata.entityFields)) {
+      entry.open = true;
+    }
+  }
+  return catalog;
 }
 
 export function createTokenEvalContext(
@@ -111,8 +147,27 @@ export async function evaluateChain(
         };
       }
     }
+    // Enforce schema field validation on the render path too — an
+    // unknown field of a closed entity type is an INVALID token (same
+    // outcome as editor warnings/coverage), not a silent default.
+    if (seg.name === "field" && args.name !== undefined) {
+      const catalog = getFieldCatalog()[currentType];
+      if (catalog && !catalog.open) {
+        const wanted = normalizeFieldName(args.name);
+        if (!catalog.names.some((n) => normalizeFieldName(n) === wanted)) {
+          return {
+            status: "invalid",
+            error: `'${args.name}' is not a field of ${currentType}`,
+          };
+        }
+      }
+    }
     if (ctx.sample && plugin.metadata.outputType === "value") {
-      const example = plugin.metadata.example ?? plugin.metadata.defaultValue ?? "";
+      const example =
+        plugin.sampleValue?.(args) ??
+        plugin.metadata.example ??
+        plugin.metadata.defaultValue ??
+        "";
       return { status: "ok", value: example };
     }
     if (!ctx.sample && entity === null && currentType !== "root") {
@@ -233,13 +288,13 @@ function leafPluginFor(segments: TokenSegment[]): TokenPlugin | undefined {
   return leaf;
 }
 
-/** Validate one expression against the live registry. */
+/** Validate one expression against the live registry and schema. */
 export function validateTokenExpression(
   expr: string,
 ): { ok: true } | { ok: false; error: string } {
   const parsed = parseTokenChain(expr);
   if (!parsed.ok) return { ok: false, error: parsed.error };
-  const v = validateChain(parsed.segments, buildSegmentSpecs());
+  const v = validateChain(parsed.segments, buildSegmentSpecs(), buildFieldCatalog());
   if (!v.ok) return { ok: false, error: v.error };
   return { ok: true };
 }
@@ -252,67 +307,78 @@ export function describeChain(
   if (!parsed.ok) return null;
   const leaf = leafPluginFor(parsed.segments);
   if (!leaf) return null;
+  const last = parsed.segments[parsed.segments.length - 1];
+  const label =
+    last?.name === "field" && last.args.name
+      ? `${last.args.name} field`
+      : leaf.metadata.name;
   return {
-    label: leaf.metadata.name,
-    defaultValue: leaf.metadata.defaultValue ?? "",
+    label,
+    defaultValue: last?.args.default ?? leaf.metadata.defaultValue ?? "",
     example: leaf.metadata.example ?? "",
     scope: parsed.segments[0]?.name ?? "system",
   };
 }
 
 /**
- * Build the picker catalog by walking root → (intermediate) → value
- * chains over the enabled registry. Depth is capped at 3 segments;
- * leaves with required args contribute their declared catalogVariants
- * instead of a single generic entry.
+ * Build the picker catalog by walking root → (relation)* chains over
+ * the enabled registry. Entity segments contribute ONE entry each — a
+ * `field(name="")` template the author completes — so the catalog
+ * never needs updating when the schema changes. Plain value leaves
+ * (system.year etc.) contribute a direct entry. Depth is capped at 3
+ * segments.
  */
 export function buildTokenCatalog(): TokenCatalogEntry[] {
   const enabled = tokenPluginRegistry
     .listEnabledSync()
     .filter((p) => !p.metadata.hiddenFromCatalog);
+  const fieldCatalog = buildFieldCatalog();
   const roots = enabled.filter((p) => p.metadata.inputTypes.includes("root"));
   const entries: TokenCatalogEntry[] = [];
 
-  const emitLeafEntries = (prefix: string, scope: string, rootLabel: string, type: TokenEntityType, depth: number) => {
+  const emitEntityEntry = (prefix: string, scope: string, label: string, type: TokenEntityType) => {
+    const fields = fieldCatalog[type];
+    const description = fields?.names.length
+      ? `Fields: ${fields.names.join(", ")}`
+      : "Any field of this record";
+    const id = `${prefix}.field(name="")`;
+    entries.push({
+      id,
+      label: `${label} field…`,
+      description,
+      scope,
+      insertText: `{{${prefix}.field(name="")}}`,
+      defaultValue: "",
+      example: "",
+    });
+  };
+
+  const walk = (prefix: string, scope: string, rootLabel: string, type: TokenEntityType, depth: number) => {
+    if (type !== "value" && type !== "system") {
+      emitEntityEntry(prefix, scope, rootLabel, type);
+    }
     for (const p of enabled) {
       if (!p.metadata.inputTypes.includes(type)) continue;
       if (p.metadata.outputType === "value") {
         const hasRequired = Object.values(p.metadata.args || {}).some(
           (a) => a.required && a.default === undefined,
         );
-        if (hasRequired) {
-          for (const variant of p.metadata.catalogVariants || []) {
-            const argText = Object.entries(variant.args)
-              .map(([k, v]) => `${k}="${v}"`)
-              .join(", ");
-            const id = `${prefix}.${p.metadata.segmentName}(${argText})`;
-            entries.push({
-              id,
-              label: `${rootLabel} ${variant.label}`,
-              description: variant.description ?? p.metadata.description ?? "",
-              scope,
-              insertText: `{{${id}}}`,
-              defaultValue: p.metadata.defaultValue ?? "",
-              example: variant.example ?? p.metadata.example ?? "",
-            });
-          }
-        } else {
-          const id = `${prefix}.${p.metadata.segmentName}`;
-          entries.push({
-            id,
-            label: `${rootLabel} ${p.metadata.shortLabel ?? p.metadata.name}`,
-            description: p.metadata.description ?? "",
-            scope,
-            insertText: `{{${id}}}`,
-            defaultValue: p.metadata.defaultValue ?? "",
-            example: p.metadata.example ?? "",
-          });
-        }
+        if (hasRequired) continue; // field(...) is covered by entity entries
+        const id = `${prefix}.${p.metadata.segmentName}`;
+        entries.push({
+          id,
+          label: `${rootLabel} ${p.metadata.shortLabel ?? p.metadata.name}`,
+          description: p.metadata.description ?? "",
+          scope,
+          insertText: `{{${id}}}`,
+          defaultValue: p.metadata.defaultValue ?? "",
+          example: p.metadata.example ?? "",
+        });
       } else if (depth < 2 && !p.metadata.inputTypes.includes("root")) {
-        emitLeafEntries(
+        walk(
           `${prefix}.${p.metadata.segmentName}`,
           scope,
-          rootLabel,
+          `${rootLabel} ${p.metadata.shortLabel ?? p.metadata.name.toLowerCase()}`,
           p.metadata.outputType,
           depth + 1,
         );
@@ -321,7 +387,7 @@ export function buildTokenCatalog(): TokenCatalogEntry[] {
   };
 
   for (const root of roots) {
-    emitLeafEntries(
+    walk(
       root.metadata.segmentName,
       root.metadata.segmentName,
       root.metadata.name,

@@ -1,29 +1,46 @@
 import type { IStorage } from "../../storage";
 import type { BasePluginMetadata } from "../_core/types";
 import type { TokenArgSpec } from "@shared/tokens";
+import type { AnyPgTable } from "drizzle-orm/pg-core";
 
 /**
  * Entity types flowing through a token chain. "root" is the implicit
- * type at the start of every chain; "value" terminates it. Kind-specific
- * plugins may introduce further types (e.g. "address").
+ * type at the start of every chain; "value" terminates it. Every other
+ * type names an entity kind produced by an entity/relation segment
+ * (e.g. "contact", "worker", "bargaining_unit", "address").
  */
-export type TokenEntityType =
-  | "root"
-  | "contact"
-  | "worker"
-  | "employer"
-  | "system"
-  | "address"
-  | "value";
+export type TokenEntityType = string;
+
+/**
+ * The object produced by every entity/relation segment. `row` holds the
+ * full underlying record (all columns — template authors are trusted);
+ * `table` is the Drizzle table it came from, when there is one, so the
+ * generic `field` segment can resolve column names and follow foreign
+ * keys to option display names.
+ */
+export interface TokenEntity {
+  kind: TokenEntityType;
+  row: Record<string, unknown>;
+  table?: AnyPgTable;
+}
+
+export function tokenEntityOf(entity: unknown, kind: string): TokenEntity | null {
+  const e = entity as TokenEntity | null;
+  return e && typeof e === "object" && e.kind === kind && e.row ? e : null;
+}
 
 export interface TokenPluginMetadata extends BasePluginMetadata {
   /**
-   * Segment name as written in templates (e.g. "firstName"). Not
+   * Segment name as written in templates (e.g. "field"). Not
    * necessarily unique — the same name may exist for different input
    * types — which is why `id` (unique) is a separate field.
    */
   segmentName: string;
-  /** Entity types this segment can be applied to; "root" starts chains. */
+  /**
+   * Entity types this segment can be applied to; "root" starts chains.
+   * "*" means any entity type except root (used by the generic field
+   * segment).
+   */
   inputTypes: TokenEntityType[];
   /** Entity type produced; "value" means a final string. */
   outputType: TokenEntityType;
@@ -33,7 +50,7 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
   defaultValue?: string;
   /** Example value used for sample previews (leaf segments). */
   example?: string;
-  /** Short label fragment used to build catalog labels (leaf segments). */
+  /** Short label fragment used to build catalog labels. */
   shortLabel?: string;
   /**
    * When true, the resolved value is trusted HTML and is NOT escaped in
@@ -49,15 +66,16 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
    */
   audiences?: string[];
   /**
-   * Extra catalog entries for leaves whose required args make a single
-   * generic entry useless (e.g. field(name="street")).
+   * For entity-producing segments: the Drizzle table whose columns are
+   * the valid `field(name=…)` names for the produced entity. Field
+   * lists ship to the client for author-time validation and are always
+   * derived from the live schema — never hardcoded.
    */
-  catalogVariants?: Array<{
-    args: Record<string, string>;
-    label: string;
-    description?: string;
-    example?: string;
-  }>;
+  entityTable?: AnyPgTable;
+  /** Extra field names beyond the table's columns (derived/denorm). */
+  entityFields?: string[];
+  /** The produced entity's field set can't be enumerated; accept any name. */
+  entityFieldsOpen?: boolean;
   /** Hide from the generated picker catalog (still evaluatable). */
   hiddenFromCatalog?: boolean;
 }
@@ -111,56 +129,9 @@ export interface TokenPlugin {
     args: Record<string, string>,
     ctx: TokenEvalContext,
   ): Promise<unknown>;
-}
-
-// ── Entity wrappers produced/consumed by the built-in plugins ──
-
-export interface ContactEntity {
-  kind: "contact";
-  contact: {
-    id: string;
-    given: string | null;
-    family: string | null;
-    displayName: string | null;
-    email: string | null;
-    birthDate: string | null;
-    genderName: string | null;
-  };
-}
-
-export interface WorkerEntity {
-  kind: "worker";
-  worker: {
-    id: string;
-    contactId: string;
-    jobTitle: string | null;
-    siriusId: number | null;
-    homeEmployerId: string | null;
-    employerIds: string[] | null;
-    wsId: string | null;
-    msIds: string[] | null;
-    bargainingUnitId: string | null;
-  };
-  contact: ContactEntity["contact"] | null;
-}
-
-export interface EmployerEntity {
-  kind: "employer";
-  employer: { id: string; name: string };
-}
-
-export interface SystemEntity {
-  kind: "system";
-  now: Date;
-}
-
-export interface AddressEntity {
-  kind: "address";
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string | null;
-  };
+  /**
+   * Sample-mode value for leaf segments whose example depends on args
+   * (e.g. the generic field segment). Falls back to metadata.example.
+   */
+  sampleValue?(args: Record<string, string>): string;
 }
