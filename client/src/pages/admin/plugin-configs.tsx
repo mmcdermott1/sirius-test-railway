@@ -1169,6 +1169,7 @@ function GenericConfigDialog({
               schema={settingsSchema}
               uiSchema={settingsUiSchema}
               formData={settings}
+              formContext={{ configData: settings }}
               showErrorList="top"
               onChange={(e: IChangeEvent) => setSettings(e.formData as Record<string, unknown>)}
               onSubmit={(e: IChangeEvent) => handleSubmit(e.formData as Record<string, unknown>)}

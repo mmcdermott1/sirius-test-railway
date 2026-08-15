@@ -15,6 +15,7 @@ import { IconWidget } from "./widgets/IconWidget";
 import { ColorWidget } from "./widgets/ColorWidget";
 import { EnumSelectWidget } from "./widgets/EnumSelectWidget";
 import { HtmlEditorWidget } from "./widgets/HtmlEditorWidget";
+import { TokenTemplateWidget } from "./widgets/TokenTemplateWidget";
 import { ArrayTableField } from "./fields/ArrayTableField";
 import { StaffRecipientsField } from "./fields/StaffRecipientsField";
 import { SystemRolesField } from "./fields/SystemRolesField";
@@ -34,6 +35,12 @@ export interface SchemaFormContext {
   selfItems?: Array<{ id: string; name: string }>;
   /** Id of the row currently being edited (excluded from self-pickers). */
   editingId?: string | null;
+  /**
+   * The live form data of the config being edited (for widgets whose
+   * behavior depends on sibling fields, e.g. TokenTemplateWidget's
+   * recipient-kind-dependent default placeholders).
+   */
+  configData?: Record<string, unknown>;
 }
 
 export interface SchemaFormProps<T = Record<string, unknown>>
@@ -92,6 +99,20 @@ function buildVendorUiSchema(
       widget = "icon";
     } else if (subAny["x-widget"] === "color") {
       widget = "color";
+    } else if (subAny["x-widget"] === "token-template") {
+      // Assign directly (leave `widget` unset) so the generic
+      // assignment below can't overwrite the ui:options built here.
+      out[name] = {
+        ...existing,
+        "ui:widget": "tokenTemplate",
+        "ui:options": {
+          ...((existing["ui:options"] as Record<string, unknown>) ?? {}),
+          catalogUrl: subAny["x-token-catalog-url"],
+          mode: subAny["x-token-template-mode"] ?? "line",
+          defaultPath: subAny["x-token-default-path"],
+          defaultsDeps: subAny["x-token-defaults-deps"],
+        },
+      };
     }
     if (field && !existing["ui:field"]) {
       out[name] = { ...existing, "ui:field": field };
@@ -121,6 +142,7 @@ const baseWidgets = {
   icon: IconWidget,
   color: ColorWidget,
   htmlEditor: HtmlEditorWidget,
+  tokenTemplate: TokenTemplateWidget,
 } as unknown as RegistryWidgetsType;
 
 const baseFields = {

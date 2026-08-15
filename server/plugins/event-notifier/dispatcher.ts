@@ -358,9 +358,44 @@ async function dispatchForConfig(
 
   const tagIds = await resolveTagIds(plugin.id, plugin.name);
 
+  // Token-templated notifiers: the framework composes messages from the
+  // config's (or default) per-channel templates. The event entity is
+  // built once per config-dispatch; a shared render cache memoizes
+  // entity lookups across recipients and media.
+  let eventEntity: import("../tokens/types").TokenEntity | null = null;
+  let templates: import("./types").NotifierChannelTemplates | null = null;
+  let renderCache: Map<string, unknown> | null = null;
+  if (plugin.tokenTemplates) {
+    const { resolveTemplates } = await import("./token-templates");
+    eventEntity = await plugin.tokenTemplates.buildEventEntity(ctx);
+    if (!eventEntity) {
+      logger.warn("Event-notifier could not load the event entity; skipping", {
+        service: SERVICE,
+        pluginId: plugin.id,
+        event: ctx.event,
+      });
+      return;
+    }
+    templates = resolveTemplates(plugin, configData);
+    renderCache = new Map();
+  }
+
   for (const recipient of recipients) {
     for (const medium of active) {
-      const content = await plugin.getMessage(medium, recipient, ctx, configData);
+      let content: NotifierMessageContent | null = null;
+      if (plugin.tokenTemplates && eventEntity && templates && renderCache) {
+        const { composeFromTemplates } = await import("./token-templates");
+        content = await composeFromTemplates(
+          plugin,
+          medium,
+          recipient,
+          eventEntity,
+          templates,
+          renderCache,
+        );
+      } else if (plugin.getMessage) {
+        content = await plugin.getMessage(medium, recipient, ctx, configData);
+      }
       if (!content) continue;
       const sent = await deliver(medium, recipient, content, pluginId, tagIds);
       // Flash a summary of what went out back to the user who triggered the

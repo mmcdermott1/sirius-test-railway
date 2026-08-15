@@ -33,5 +33,13 @@ export const eventNotifierRegistry = new PluginRegistry<
  * module top level. Mirrors `registerClientInjection` / `registerChargePlugin`.
  */
 export function registerEventNotifier(plugin: EventNotifierPlugin): void {
+  // Contract: a notifier composes messages EITHER via token templates
+  // (framework-rendered) or via its own getMessage. A plugin with
+  // neither would silently deliver nothing — fail loudly at boot.
+  if (!plugin.tokenTemplates && typeof plugin.getMessage !== "function") {
+    throw new Error(
+      `Event notifier "${plugin.id}" must declare tokenTemplates or implement getMessage`,
+    );
+  }
   eventNotifierRegistry.register(plugin);
 }

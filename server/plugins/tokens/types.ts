@@ -78,6 +78,16 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
   entityFieldsOpen?: boolean;
   /** Hide from the generated picker catalog (still evaluatable). */
   hiddenFromCatalog?: boolean;
+  /**
+   * The produced entity type is not statically known: after `resolve`,
+   * the chain's current type advances to the RESOLVED entity's `kind`
+   * instead of `outputType`. Used by the generic `event` root, whose
+   * entity kind is declared per notifier. Dynamic-output segments are
+   * excluded from the static bulk-messaging segment graph (their type
+   * can't be validated without an event context); surfaces that know
+   * the concrete kind use `buildSegmentSpecsForEvent`.
+   */
+  dynamicOutput?: boolean;
 }
 
 /**
@@ -94,6 +104,12 @@ export interface TokenEvalContext {
   sample?: boolean;
   /** Audience the rendered output is destined for (see `audiences`). */
   audience?: string;
+  /**
+   * The event entity for `{{event...}}` chains (token-templated event
+   * notifiers). Absent outside notifier rendering, in which case the
+   * `event` root resolves as missing.
+   */
+  event?: TokenEntity;
   /** Cross-segment memo cache. */
   cache: Map<string, unknown>;
   /**

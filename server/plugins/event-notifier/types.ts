@@ -1,6 +1,7 @@
 import type { JsonSchema, UiSchema } from "@shared/json-schema-form";
 import type { EventType } from "../../services/event-bus";
 import type { BasePluginMetadata } from "../_core";
+import type { TokenEntity } from "../tokens/types";
 
 /**
  * The communication media an event-notifier can fan out to. Each maps to one
@@ -65,6 +66,53 @@ export interface EventNotifierEventContext {
 }
 
 /**
+ * Per-channel message templates for a token-templated notifier. Every
+ * value is a token template string rendered per recipient (recipient
+ * roots like `contact.`/`worker.` mean the recipient; `event.` means
+ * the entity the event is about; `{{system.base_url}}` is the absolute
+ * origin on email/SMS and empty in-app).
+ */
+export interface NotifierChannelTemplates {
+  email?: {
+    subject: string;
+    /** HTML body; token values are HTML-escaped on render. */
+    bodyHtml: string;
+  };
+  sms?: { message: string };
+  inapp?: {
+    title: string;
+    body: string;
+    /** Relative link (in-app navigation); rendered as a template too. */
+    linkUrl?: string;
+    linkLabel?: string;
+  };
+}
+
+/**
+ * Opt-in declaration that a notifier's messages are composed by the
+ * FRAMEWORK from token templates instead of the plugin's `getMessage`.
+ * Custom per-channel templates live in the config's `data.templates`
+ * (same shape as {@link NotifierChannelTemplates}); a blank/absent
+ * custom field falls back to the default from `defaultTemplates`.
+ */
+export interface NotifierTokenTemplates {
+  /** The entity kind `{{event...}}` resolves to (token entity kind). */
+  eventEntityKind: string;
+  /**
+   * Load the event's entity (full row) for a fired event. Returning
+   * null aborts message composition for this config (already-deleted
+   * rows etc.) — nothing is sent.
+   */
+  buildEventEntity(ctx: EventNotifierEventContext): Promise<TokenEntity | null>;
+  /**
+   * The default per-channel templates. Receives the config's `data` so
+   * defaults can vary with config choices (e.g. link target per
+   * recipient kind).
+   */
+  defaultTemplates(configData?: unknown): NotifierChannelTemplates;
+}
+
+/**
  * An event-notifier plugin. It subscribes to one or more event-bus events and
  * fans each fired event out to the comm send functions for every active
  * medium. The framework (the event-notifier "send wrapper") owns subscription,
@@ -104,6 +152,15 @@ export interface EventNotifierPlugin extends BasePluginMetadata {
   /** Optional RJSF UI hints paired with {@link configSchema}. */
   uiSchema?: UiSchema;
 
+  /**
+   * Opt-in token-template message composition. When declared, the
+   * dispatcher renders the per-channel templates (custom from
+   * `data.templates`, else the declared defaults) and the plugin's
+   * {@link getMessage} is not called. Notifiers without this
+   * declaration are untouched.
+   */
+  tokenTemplates?: NotifierTokenTemplates;
+
   /** Event-bus events this notifier subscribes to. */
   subscribedEvents: EventType[];
   /** The media this notifier is capable of producing a message for. */
@@ -138,8 +195,10 @@ export interface EventNotifierPlugin extends BasePluginMetadata {
    * or the content does not apply). `configData` is the individual config's
    * `data` payload, for notifiers whose message text is admin-configurable
    * (e.g. a per-config subject/intro); plugins that don't need it ignore it.
+   * Optional for notifiers that declare {@link tokenTemplates} — the
+   * framework composes their messages instead.
    */
-  getMessage(
+  getMessage?(
     medium: NotificationMedium,
     recipient: NotifierRecipient,
     ctx: EventNotifierEventContext,

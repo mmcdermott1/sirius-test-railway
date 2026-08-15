@@ -20,14 +20,37 @@ import type {
 
 /** Build the serializable segment graph for static validation / pickers. */
 export function buildSegmentSpecs(): TokenSegmentSpec[] {
-  return tokenPluginRegistry.listEnabledSync().map((p) => ({
+  // Dynamic-output segments (the `event` root) are excluded: their
+  // produced type depends on the event context, which bulk messaging
+  // never has, so bulk templates treat `event` as unknown.
+  return tokenPluginRegistry
+    .listEnabledSync()
+    .filter((p) => !p.metadata.dynamicOutput)
+    .map(specOf);
+}
+
+function specOf(p: TokenPlugin): TokenSegmentSpec {
+  return {
     name: p.metadata.segmentName,
     inputTypes: p.metadata.inputTypes,
     outputType: p.metadata.outputType,
     args: p.metadata.args,
     label: p.metadata.name,
     description: p.metadata.description,
-  }));
+  };
+}
+
+/**
+ * Segment graph for a surface that renders with a known event entity
+ * kind (token-templated event notifiers): dynamic-output roots are
+ * included with the concrete `eventKind` as their output type, so
+ * `{{event.…}}` chains validate statically.
+ */
+export function buildSegmentSpecsForEvent(eventKind: TokenEntityType): TokenSegmentSpec[] {
+  return tokenPluginRegistry.listEnabledSync().map((p) => {
+    const spec = specOf(p);
+    return p.metadata.dynamicOutput ? { ...spec, outputType: eventKind } : spec;
+  });
 }
 
 /**
@@ -66,7 +89,12 @@ export function buildFieldCatalog(): TokenFieldCatalog {
 export function createTokenEvalContext(
   storage: IStorage,
   contactId?: string,
-  options?: { sample?: boolean; audience?: string; cache?: Map<string, unknown> },
+  options?: {
+    sample?: boolean;
+    audience?: string;
+    cache?: Map<string, unknown>;
+    event?: import("./types").TokenEntity;
+  },
 ): TokenEvalContext {
   return {
     storage,
@@ -74,6 +102,7 @@ export function createTokenEvalContext(
     now: new Date(),
     sample: options?.sample,
     audience: options?.audience,
+    event: options?.event,
     cache: options?.cache ?? new Map(),
     vars: {},
   };
@@ -172,11 +201,22 @@ export async function evaluateChain(
     }
     if (!ctx.sample && entity === null && currentType !== "root") {
       // an intermediate segment resolved to nothing — chain is missing
-      return { status: "missing", defaultValue: leafDefault(segments) };
+      return { status: "missing", defaultValue: leafDefault(segments, ctx.event?.kind) };
     }
     entity = ctx.sample ? {} : await plugin.resolve(entity, args, ctx);
     ctx.vars.entity = entity;
-    currentType = plugin.metadata.outputType;
+    // Dynamic-output segments (the `event` root) advance the chain to
+    // the RESOLVED entity's kind — the produced type is declared by the
+    // notifier that built the event entity, not by the plugin.
+    if (plugin.metadata.dynamicOutput) {
+      const e = entity as { kind?: unknown } | null;
+      if (!e || typeof e !== "object" || typeof e.kind !== "string") {
+        return { status: "missing", defaultValue: plugin.metadata.defaultValue ?? "" };
+      }
+      currentType = e.kind;
+    } else {
+      currentType = plugin.metadata.outputType;
+    }
   }
 
   if (currentType !== "value") {
@@ -189,7 +229,7 @@ export async function evaluateChain(
   return { status: "ok", value: String(entity) };
 }
 
-function leafDefault(segments: TokenSegment[]): string {
+function leafDefault(segments: TokenSegment[], eventKind?: string): string {
   // Find the leaf plugin's default by walking the types statically.
   let currentType: TokenEntityType = "root";
   let def = "";
@@ -197,7 +237,12 @@ function leafDefault(segments: TokenSegment[]): string {
     const plugin = findSegmentPlugin(seg.name, currentType);
     if (!plugin) break;
     def = plugin.metadata.defaultValue ?? "";
-    currentType = plugin.metadata.outputType;
+    if (plugin.metadata.dynamicOutput) {
+      if (!eventKind) break; // can't advance statically without a kind
+      currentType = eventKind;
+    } else {
+      currentType = plugin.metadata.outputType;
+    }
   }
   return def;
 }
@@ -263,7 +308,7 @@ export async function renderTokens(
         } else {
           value = result.value;
         }
-        const leaf = leafPluginFor(parsed.segments);
+        const leaf = leafPluginFor(parsed.segments, ctx.event?.kind);
         replacement =
           options.escapeHtml && !leaf?.metadata.emitsHtml
             ? escapeHtml(value)
@@ -276,14 +321,24 @@ export async function renderTokens(
   return { output, unknownTokens, missingValues };
 }
 
-function leafPluginFor(segments: TokenSegment[]): TokenPlugin | undefined {
+function leafPluginFor(
+  segments: TokenSegment[],
+  eventKind?: string,
+): TokenPlugin | undefined {
   let currentType: TokenEntityType = "root";
   let leaf: TokenPlugin | undefined;
   for (const seg of segments) {
     const plugin = findSegmentPlugin(seg.name, currentType);
     if (!plugin) return undefined;
     leaf = plugin;
-    currentType = plugin.metadata.outputType;
+    if (plugin.metadata.dynamicOutput) {
+      // Without a concrete kind the leaf can't be resolved statically;
+      // callers treat `undefined` conservatively (values get escaped).
+      if (!eventKind) return undefined;
+      currentType = eventKind;
+    } else {
+      currentType = plugin.metadata.outputType;
+    }
   }
   return leaf;
 }
@@ -295,6 +350,25 @@ export function validateTokenExpression(
   const parsed = parseTokenChain(expr);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const v = validateChain(parsed.segments, buildSegmentSpecs(), buildFieldCatalog());
+  if (!v.ok) return { ok: false, error: v.error };
+  return { ok: true };
+}
+
+/**
+ * Validate one expression for a surface whose `event` root resolves to
+ * a known entity kind (token-templated event notifiers).
+ */
+export function validateTokenExpressionForEvent(
+  expr: string,
+  eventKind: TokenEntityType,
+): { ok: true } | { ok: false; error: string } {
+  const parsed = parseTokenChain(expr);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const v = validateChain(
+    parsed.segments,
+    buildSegmentSpecsForEvent(eventKind),
+    buildFieldCatalog(),
+  );
   if (!v.ok) return { ok: false, error: v.error };
   return { ok: true };
 }

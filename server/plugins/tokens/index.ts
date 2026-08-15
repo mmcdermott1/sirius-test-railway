@@ -9,9 +9,11 @@ export {
   evaluateChain,
   createTokenEvalContext,
   buildSegmentSpecs,
+  buildSegmentSpecsForEvent,
   buildFieldCatalog,
   buildTokenCatalog,
   validateTokenExpression,
+  validateTokenExpressionForEvent,
   describeChain,
 } from "./evaluate";
 
@@ -53,3 +55,5 @@ import "./plugins/worker";
 import "./plugins/employer";
 import "./plugins/system";
 import "./plugins/address";
+import "./plugins/event";
+import "./plugins/sitespecific-t631-interview";

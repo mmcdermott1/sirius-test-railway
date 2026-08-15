@@ -118,6 +118,60 @@ function registerEventNotifierKind(): void {
           }
         }
       }
+      // Token-templated notifiers: validate every custom template's tokens at
+      // save time against the notifier's event entity kind, so an invalid
+      // token surfaces to the author instead of rendering as "[unknown
+      // token: …]" in an outgoing message. Applies to direct API writes too.
+      if (plugin.tokenTemplates) {
+        const templates = cfg.templates;
+        if (templates && typeof templates === "object") {
+          const { extractTokenExpressions } = await import("@shared/tokens");
+          const { validateTokenExpressionForEvent } = await import("../tokens");
+          const errors: string[] = [];
+          for (const [channel, fields] of Object.entries(
+            templates as Record<string, unknown>,
+          )) {
+            if (!fields || typeof fields !== "object") continue;
+            for (const [field, value] of Object.entries(
+              fields as Record<string, unknown>,
+            )) {
+              if (typeof value !== "string") continue;
+              for (const expr of extractTokenExpressions(value)) {
+                const v = validateTokenExpressionForEvent(
+                  expr,
+                  plugin.tokenTemplates.eventEntityKind,
+                );
+                if (!v.ok) {
+                  errors.push(`${channel}.${field}: {{${expr}}} — ${v.error}`);
+                }
+              }
+            }
+          }
+          // The in-app link template must itself start as a relative
+          // path — it may not begin with a token or an absolute/scheme
+          // URL. (Render-time enforcement in composeFromTemplates is
+          // the backstop for token-substituted values.)
+          const inapp = (templates as Record<string, unknown>).inapp;
+          const linkUrl =
+            inapp && typeof inapp === "object"
+              ? (inapp as Record<string, unknown>).linkUrl
+              : undefined;
+          if (typeof linkUrl === "string" && linkUrl.trim() !== "") {
+            const { isSafeRelativePath } = await import("./token-templates");
+            if (!isSafeRelativePath(linkUrl.trim())) {
+              errors.push(
+                'inapp.linkUrl: must be a relative path starting with "/" (not "//" or an absolute URL)',
+              );
+            }
+          }
+          if (errors.length > 0) {
+            return {
+              valid: false,
+              errors: errors.map((e) => `Invalid template token (${e})`),
+            };
+          }
+        }
+      }
       if (!plugin.configSchema) return { valid: true };
       const { validateAgainstSchema } = await import(
         "../../lib/json-schema-validator"

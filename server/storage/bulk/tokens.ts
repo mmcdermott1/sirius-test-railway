@@ -37,6 +37,8 @@ export interface BulkTokensStorage {
   }>>;
   /** Full workers row plus employment/status denorm extras. */
   getWorkerRowByContactId(contactId: string): Promise<Row | undefined>;
+  /** Same shape as getWorkerRowByContactId, keyed by worker id. */
+  getWorkerRowById(workerId: string): Promise<Row | undefined>;
   getEmployerRow(employerId: string): Promise<Row | undefined>;
   getFirstEmployerLinkRowForContact(contactId: string): Promise<Row | undefined>;
   getBargainingUnitRow(buId: string): Promise<Row | undefined>;
@@ -118,6 +120,23 @@ export function createBulkTokensStorage(): BulkTokensStorage {
         .select()
         .from(workers)
         .where(eq(workers.contactId, contactId))
+        .limit(1);
+      const worker = rows[0];
+      if (!worker) return undefined;
+      const extraRows = await client
+        .select(workerExtras)
+        .from(workers)
+        .where(eq(workers.id, worker.id))
+        .limit(1);
+      return { ...worker, ...(extraRows[0] || {}) };
+    },
+
+    async getWorkerRowById(workerId) {
+      const client = getClient();
+      const rows = await client
+        .select()
+        .from(workers)
+        .where(eq(workers.id, workerId))
         .limit(1);
       const worker = rows[0];
       if (!worker) return undefined;

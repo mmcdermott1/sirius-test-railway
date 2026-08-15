@@ -8,11 +8,11 @@ import {
   EMPLOYER_VISIBLE_STATUSES,
   type InterviewStatus,
 } from "../../../modules/sitespecific/t631/interview-rules";
+import { T631_INTERVIEW_ENTITY_KIND } from "../../tokens/plugins/sitespecific-t631-interview";
 import {
   type EventNotifierEventContext,
   type EventNotifierPlugin,
-  type NotificationMedium,
-  type NotifierMessageContent,
+  type NotifierChannelTemplates,
   type NotifierRecipient,
 } from "../types";
 
@@ -34,9 +34,6 @@ interface InterviewNotifierConfig {
   targetStatus: string;
   recipientKind: "worker" | "employer" | "staff";
   staffRecipientUserIds: string[];
-  emailSubject: string;
-  emailIntroHtml: string;
-  textIntro: string;
 }
 
 /** Read + normalize the admin's per-config settings off `data`. */
@@ -55,78 +52,86 @@ function configOf(configData: unknown): InterviewNotifierConfig {
           (v): v is string => typeof v === "string",
         )
       : [],
-    emailSubject: typeof data.emailSubject === "string" ? data.emailSubject.trim() : "",
-    emailIntroHtml:
-      typeof data.emailIntroHtml === "string" ? data.emailIntroHtml.trim() : "",
-    textIntro: typeof data.textIntro === "string" ? data.textIntro.trim() : "",
   };
 }
 
 /**
- * Absolute base URL for links that leave the app (email/SMS). In-app messages
- * navigate with a relative path instead. Mirrors the domain resolution used by
- * the other notifiers in this directory.
+ * The page a recipient is linked to, as a token template. Workers land
+ * on their own interviews tab; employer contacts and staff land on the
+ * job's interviews page. `{{system.base_url}}` makes email/SMS links
+ * absolute and leaves in-app links relative.
  */
-function absoluteUrl(relative: string): string {
-  const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}${relative}`;
-}
-
-/**
- * The page a recipient is linked to. Workers land on their own interviews tab;
- * employer contacts and staff land on the job's interviews page.
- */
-function linkFor(
-  recipientKind: InterviewNotifierConfig["recipientKind"],
-  payload: SitespecificT631InterviewSavedPayload,
-): { relative: string; label: string } {
+function linkPathTemplate(recipientKind: InterviewNotifierConfig["recipientKind"]): {
+  path: string;
+  label: string;
+} {
   if (recipientKind === "worker") {
     return {
-      relative: `/workers/${payload.workerId}/dispatch/sitespecific_t631_interviews`,
+      path: '/workers/{{event.worker.field(name="id")}}/dispatch/sitespecific_t631_interviews',
       label: "View Interview",
     };
   }
   return {
-    relative: `/dispatch/job/${payload.jobId}/sitespecific_t631_interviews`,
+    path: '/dispatch/job/{{event.dispatch_job.field(name="id")}}/sitespecific_t631_interviews',
     label: "View Interviews",
   };
 }
 
-/** Escape a string for embedding into generated HTML. */
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+const SENTENCE =
+  'The interview for {{event.worker.contact.field(name="display_name")}} ' +
+  'on the job "{{event.dispatch_job.field(name="title")}}" ' +
+  'is now {{event.field(name="status")}}.';
+
+const TITLE = 'Interview {{event.field(name="status")}}';
+
+/** Default per-channel templates; the link target varies with the recipient kind. */
+function defaultTemplates(configData?: unknown): NotifierChannelTemplates {
+  const { path, label } = linkPathTemplate(configOf(configData).recipientKind);
+  return {
+    email: {
+      subject: TITLE,
+      bodyHtml:
+        `<p>${SENTENCE}</p>` +
+        `<p><a href="{{system.base_url}}${path}">${label}</a></p>`,
+    },
+    sms: {
+      message: `${SENTENCE} View: {{system.base_url}}${path}`,
+    },
+    inapp: {
+      title: TITLE,
+      body: SENTENCE,
+      linkUrl: path,
+      linkLabel: label,
+    },
+  };
 }
 
-/**
- * Generated sentence describing the transition, appended after the admin's
- * intro on every medium. Names the worker and job so the message is meaningful
- * without opening the app.
- */
-async function generatedText(
-  payload: SitespecificT631InterviewSavedPayload,
-): Promise<string> {
-  const { storage } = await import("../../../storage");
-  const [workerName, job] = await Promise.all([
-    storage.workers.getWorkerDisplayName(payload.workerId),
-    storage.dispatchJobs.get(payload.jobId),
-  ]);
-  const jobTitle = job?.title || "a dispatch job";
-  return `The interview for ${workerName} on the job "${jobTitle}" is now ${statusLabel(payload.status)}.`;
+/** Schema for one token-template field, wired to the token-template widget. */
+function templateField(
+  title: string,
+  defaultPath: string,
+  mode: "line" | "multiline" | "html" = "line",
+): Record<string, unknown> {
+  return {
+    type: "string",
+    title,
+    "x-widget": "token-template",
+    "x-token-template-mode": mode,
+    "x-token-catalog-url": `/api/event-notifier/token-catalog/${PLUGIN_ID}`,
+    "x-token-default-path": defaultPath,
+    // The default link target varies with the recipient kind, so the
+    // editor re-fetches placeholders when this field changes.
+    "x-token-defaults-deps": ["recipientKind"],
+  };
 }
 
 /**
  * Notifies configured recipients when a T631 job interview transitions INTO
  * the config's target status. Each config targets one status and one recipient
  * kind (the interview's worker, the job's associated employer contacts, or
- * specific staff users), with admin-customizable subject/intro text per
- * medium; the generated transition sentence and a link are always appended.
+ * specific staff users). Message content is composed by the framework from
+ * token templates (`tokenTemplates`): the defaults above, overridden per
+ * config via `data.templates`.
  *
  * `shouldDispatch` fires only on real transitions into the target status
  * (creation at that status counts; same-status re-saves and deletes never
@@ -169,22 +174,43 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
         items: { type: "string" },
         "x-widget": "staff-recipients",
       },
-      emailSubject: {
-        type: "string",
-        title: "Email subject",
-        description: "Subject line for email notifications. Leave blank for a default.",
-      },
-      emailIntroHtml: {
-        type: "string",
-        title: "Email intro (HTML)",
+      // Per-channel message templates. Every field is a token template;
+      // blank fields fall back to the notifier's default. The client
+      // widget shows live token warnings + the default as placeholder.
+      templates: {
+        type: "object",
+        title: "Message templates",
         description:
-          "Rich-text intro placed at the top of email notifications. Generated text with a link is appended after it.",
-      },
-      textIntro: {
-        type: "string",
-        title: "SMS / in-app intro (plain text)",
-        description:
-          "Plain-text intro for SMS and in-app notifications. Generated text with a link is appended after it.",
+          "Customize the message per channel with tokens like " +
+          '{{event.field(name="status")}}, {{event.worker.contact.field(name="display_name")}}, ' +
+          '{{event.dispatch_job.field(name="title")}} and {{system.base_url}}. ' +
+          "Leave a field blank to use the default.",
+        properties: {
+          email: {
+            type: "object",
+            title: "Email",
+            properties: {
+              subject: templateField("Subject", "email.subject"),
+              bodyHtml: templateField("Body (HTML)", "email.bodyHtml", "html"),
+            },
+          },
+          sms: {
+            type: "object",
+            title: "SMS",
+            properties: {
+              message: templateField("Message", "sms.message", "multiline"),
+            },
+          },
+          inapp: {
+            type: "object",
+            title: "In-app",
+            properties: {
+              title: templateField("Title", "inapp.title"),
+              body: templateField("Body", "inapp.body", "multiline"),
+              linkUrl: templateField("Link URL (relative)", "inapp.linkUrl"),
+            },
+          },
+        },
       },
     },
     // Employers only ever see interviews in EMPLOYER_VISIBLE_STATUSES (the
@@ -201,9 +227,24 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
       },
     ],
   },
-  uiSchema: {
-    emailIntroHtml: { "ui:widget": "htmlEditor" },
-    textIntro: { "ui:widget": "textarea" },
+
+  tokenTemplates: {
+    eventEntityKind: T631_INTERVIEW_ENTITY_KIND,
+    async buildEventEntity(ctx) {
+      const payload = payloadOf(ctx);
+      const { storage } = await import("../../../storage");
+      const { sitespecificT631JobInterviews } = await import(
+        "../../../../shared/schema/sitespecific/t631/interviews-schema"
+      );
+      const row = await storage.t631Interviews.get(payload.interviewId);
+      if (!row) return null;
+      return {
+        kind: T631_INTERVIEW_ENTITY_KIND,
+        row: row as unknown as Record<string, unknown>,
+        table: sitespecificT631JobInterviews,
+      };
+    },
+    defaultTemplates,
   },
 
   shouldDispatch(ctx, configData): boolean {
@@ -274,61 +315,6 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
       if (!byContact.has(r.contactId)) byContact.set(r.contactId, r);
     }
     return Array.from(byContact.values());
-  },
-
-  async getMessage(
-    medium: NotificationMedium,
-    _recipient: NotifierRecipient,
-    ctx: EventNotifierEventContext,
-    configData?: unknown,
-  ): Promise<NotifierMessageContent | null> {
-    const payload = payloadOf(ctx);
-    const cfg = configOf(configData);
-    const generated = await generatedText(payload);
-    const link = linkFor(cfg.recipientKind, payload);
-    const external = absoluteUrl(link.relative);
-    const defaultTitle = `Interview ${statusLabel(payload.status)}`;
-
-    switch (medium) {
-      case "email": {
-        // The admin's HTML intro comes from the rich-text editor; re-sanitize
-        // server-side (defense in depth — a direct API write bypasses the
-        // editor) before embedding it in the outgoing email.
-        const { sanitizeHelpHtml } = await import("../../../help/sanitize");
-        const { htmlToPlainText } = await import(
-          "../../../../shared/html-to-text"
-        );
-        const introHtml = cfg.emailIntroHtml ? sanitizeHelpHtml(cfg.emailIntroHtml) : "";
-        const introText = introHtml ? htmlToPlainText(introHtml) : "";
-        const bodyHtml =
-          (introHtml ? `${introHtml}\n` : "") +
-          `<p>${escapeHtml(generated)}</p>` +
-          `<p><a href="${escapeHtml(external)}">${escapeHtml(link.label)}</a></p>`;
-        const bodyText =
-          (introText ? `${introText}\n\n` : "") +
-          `${generated}\n\n${link.label}: ${external}`;
-        return {
-          subject: cfg.emailSubject || defaultTitle,
-          bodyText,
-          bodyHtml,
-        };
-      }
-      case "sms": {
-        const intro = cfg.textIntro ? `${cfg.textIntro} ` : "";
-        return { message: `${intro}${generated} View: ${external}` };
-      }
-      case "inapp": {
-        const intro = cfg.textIntro ? `${cfg.textIntro} ` : "";
-        return {
-          title: defaultTitle,
-          body: `${intro}${generated}`,
-          linkUrl: link.relative,
-          linkLabel: link.label,
-        };
-      }
-      default:
-        return null;
-    }
   },
 };
 
