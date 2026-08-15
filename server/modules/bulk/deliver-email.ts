@@ -25,7 +25,7 @@ export async function deliverEmail(
   if (!resolved) {
     return { success: false, error: "Contact has no email address", errorCode: "NO_ADDRESS" };
   }
-  const ctx = createTokenEvalContext(storage, contactId, { audience: "email" });
+  const ctx = createTokenEvalContext(storage, contactId);
   const renderedSubject = (await renderTokens(emailContent.subject || "", ctx, { strictUnknown: true })).output;
   const renderedText = emailContent.bodyText
     ? (await renderTokens(emailContent.bodyText, ctx, { strictUnknown: true })).output

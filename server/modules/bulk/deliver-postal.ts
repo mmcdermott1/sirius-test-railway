@@ -53,7 +53,7 @@ export async function deliverPostal(
     zip: postalContent.fromZip || "",
     country: postalContent.fromCountry || "US",
   } : undefined;
-  const ctx = createTokenEvalContext(storage, contactId, { audience: "postal" });
+  const ctx = createTokenEvalContext(storage, contactId);
   const renderedDescription = postalContent.description
     ? (await renderTokens(postalContent.description, ctx, { strictUnknown: true })).output
     : undefined;

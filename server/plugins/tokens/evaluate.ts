@@ -91,7 +91,6 @@ export function createTokenEvalContext(
   contactId?: string,
   options?: {
     sample?: boolean;
-    audience?: string;
     cache?: Map<string, unknown>;
     event?: import("./types").TokenEntity;
   },
@@ -101,7 +100,6 @@ export function createTokenEvalContext(
     contactId,
     now: new Date(),
     sample: options?.sample,
-    audience: options?.audience,
     event: options?.event,
     cache: options?.cache ?? new Map(),
     vars: {},
@@ -129,8 +127,6 @@ export type ChainEvalResult =
 /**
  * Evaluate a parsed chain to a final string. Fold left: each segment's
  * plugin receives the previous entity and produces the next one.
- * Audience-gated segments resolve as missing (never as an error) so
- * hidden data degrades to the default instead of leaking or breaking.
  */
 export async function evaluateChain(
   segments: TokenSegment[],
@@ -149,15 +145,6 @@ export async function evaluateChain(
       };
     }
     leaf = plugin;
-    // Fail closed: an audience-restricted plugin only resolves when the
-    // context declares an audience that the plugin allows. A context
-    // without an audience (preview, coverage) degrades to the default.
-    if (
-      plugin.metadata.audiences &&
-      (!ctx.audience || !plugin.metadata.audiences.includes(ctx.audience))
-    ) {
-      return { status: "missing", defaultValue: plugin.metadata.defaultValue ?? "" };
-    }
     const declaredArgs = plugin.metadata.args || {};
     for (const key of Object.keys(seg.args)) {
       if (!declaredArgs[key]) {

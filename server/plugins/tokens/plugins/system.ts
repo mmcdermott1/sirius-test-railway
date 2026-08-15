@@ -41,27 +41,24 @@ registerTokenPlugin({
 
 /**
  * {{system.base_url}} — the absolute origin (https://…) for links that
- * leave the app. Audience-aware: email and SMS render the deployment's
- * absolute origin; in-app renders an empty string so templated links
- * like `{{system.base_url}}/workers/…` stay relative (in-app messages
- * navigate in place). A context without an audience renders empty too
- * (fail closed — never leak an absolute origin to an unknown surface).
+ * leave the app. Always returns the deployment's absolute site origin,
+ * regardless of delivery medium. In-app notifier templates that need
+ * relative paths should use a plain relative path in their linkUrl
+ * slot instead of this token.
  */
 registerTokenPlugin({
   metadata: {
     id: "token.leaf.baseUrl",
     name: "Base URL",
     shortLabel: "base URL",
-    description:
-      "Absolute site origin for email/SMS links; empty for in-app (links stay relative)",
+    description: "Absolute site origin for use in links",
     segmentName: "base_url",
     inputTypes: ["system"],
     outputType: "value",
     defaultValue: "",
     example: "https://example.com",
   },
-  async resolve(_entity, _args, ctx) {
-    if (ctx.audience !== "email" && ctx.audience !== "sms") return "";
+  async resolve(_entity, _args, _ctx) {
     const { absoluteBaseUrl } = await import("../../../lib/base-url");
     return absoluteBaseUrl();
   },

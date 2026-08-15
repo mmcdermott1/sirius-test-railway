@@ -25,7 +25,7 @@ export async function deliverInapp(
   if (!targetUserId) {
     return { success: false, error: "Contact does not have a linked user account (required for in-app messages)", errorCode: "NO_USER" };
   }
-  const ctx = createTokenEvalContext(storage, contactId, { audience: "inapp" });
+  const ctx = createTokenEvalContext(storage, contactId);
   const renderedTitle = (await renderTokens(inappContent.title || "", ctx, { strictUnknown: true })).output;
   const renderedBody = (await renderTokens(inappContent.body || "", ctx, { strictUnknown: true })).output;
   const renderedLinkLabel = inappContent.linkLabel

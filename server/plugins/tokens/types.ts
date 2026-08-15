@@ -59,13 +59,6 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
    */
   emitsHtml?: boolean;
   /**
-   * Optional audience gate. When set and the evaluation context carries
-   * an audience not in this list, the segment resolves as missing (the
-   * chain renders its default) instead of leaking data to the wrong
-   * audience.
-   */
-  audiences?: string[];
-  /**
    * For entity-producing segments: the Drizzle table whose columns are
    * the valid `field(name=…)` names for the produced entity. Field
    * lists ship to the client for author-time validation and are always
@@ -98,24 +91,28 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
 export interface TokenEvalContext {
   storage: IStorage;
   /** Recipient contact — undefined in sample mode. */
+
   contactId?: string;
+
   now: Date;
   /** Sample mode: leaves render their example instead of hitting the DB. */
+
   sample?: boolean;
-  /** Audience the rendered output is destined for (see `audiences`). */
-  audience?: string;
   /**
    * The event entity for `{{event...}}` chains (token-templated event
    * notifiers). Absent outside notifier rendering, in which case the
    * `event` root resolves as missing.
    */
+
   event?: TokenEntity;
   /** Cross-segment memo cache. */
+
   cache: Map<string, unknown>;
   /**
    * Free-form context bag updated as the chain advances. `entity`
    * always holds the current object.
    */
+
   vars: Record<string, unknown>;
 }
 

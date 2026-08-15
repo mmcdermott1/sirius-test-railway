@@ -72,8 +72,7 @@ export function resolveTemplates(
  * effective templates. Rendering is strict: invalid tokens surface as a
  * visible "[unknown token: …]" marker (author-time validation should
  * have caught them) and are logged. The render context carries the
- * recipient (recipient roots), the event entity (`event.` root) and the
- * medium as the audience (audience-gated tokens fail closed).
+ * recipient (recipient roots) and the event entity (`event.` root).
  */
 export async function composeFromTemplates(
   plugin: EventNotifierPlugin,
@@ -91,7 +90,6 @@ export async function composeFromTemplates(
     // A fresh context per rendered string is cheap; the shared cache
     // carries memoized lookups across strings, recipients and media.
     const ctx = createTokenEvalContext(storage, recipient.contactId, {
-      audience: medium,
       cache,
       event: eventEntity,
     });
