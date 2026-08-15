@@ -3,11 +3,11 @@ import {
   type EdlsSheetSavedPayload,
 } from "../../../services/event-bus";
 import { registerEventNotifier } from "../registry";
+import { templatesSchemaBlock } from "../template-schema";
 import {
   type EventNotifierEventContext,
   type EventNotifierPlugin,
-  type NotificationMedium,
-  type NotifierMessageContent,
+  type NotifierChannelTemplates,
   type NotifierRecipient,
 } from "../types";
 
@@ -36,7 +36,12 @@ const RECIPIENT_SHEET_SUPERVISOR = "sheet_supervisor";
 const RECIPIENT_SHEET_ASSIGNEE = "sheet_assignee";
 const RECIPIENT_CREW_SUPERVISORS = "crew_supervisors";
 
-const STATUS_LABELS: Record<string, string> = {
+const PLUGIN_ID = "edls-sheet-status-notifier";
+
+/** Display labels for sheet statuses, merged onto the event entity as
+ * `status_label` so the default wording matches the pre-token notifier
+ * ("Locked", not "lock"). Raw `status` stays available for templates. */
+export const EDLS_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
   request: "Request",
   lock: "Locked",
@@ -44,21 +49,46 @@ const STATUS_LABELS: Record<string, string> = {
   reserved: "Reserved",
 };
 
-function statusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status;
+export function edlsStatusLabel(status: string): string {
+  return EDLS_STATUS_LABELS[status] ?? status;
 }
 
-/**
- * Absolute URL to the sheet detail page. In-app messages navigate with a
- * relative path, but email/SMS leave the app so they need a fully-qualified
- * link. Mirrors the domain resolution used by the other notifiers.
- */
-function absoluteSheetUrl(sheetId: string): string {
-  const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}/edls/sheet/${sheetId}`;
+/** Legacy display name for a sheet: the (non-blank) title, else
+ * `Sheet <id-prefix>` — merged onto the event entity as `display_title`. */
+export function edlsSheetDisplayTitle(sheetId: string, title: string): string {
+  return title && title.trim() ? title : `Sheet ${sheetId.slice(0, 8)}`;
+}
+
+/** Default per-channel templates, rendered against a payload snapshot of
+ * the transition (an intervening save must not change the message). */
+const TITLE = '{{event.field(name="display_title")}}';
+const SENTENCE =
+  'The EDLS sheet "{{event.field(name="display_title")}}" ' +
+  '({{event.field(name="ymd_display")}}) has reached the status ' +
+  '"{{event.field(name="status_label")}}".';
+const LINK_PATH = '/edls/sheet/{{event.field(name="id")}}';
+const LINK_LABEL = "View Sheet";
+
+function defaultTemplates(): NotifierChannelTemplates {
+  return {
+    email: {
+      subject: TITLE,
+      bodyHtml:
+        `<p>${SENTENCE}<br><br>` +
+        `View the sheet: ` +
+        `<a href="{{system.base_url}}${LINK_PATH}">` +
+        `{{system.base_url}}${LINK_PATH}</a></p>`,
+    },
+    sms: {
+      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+    },
+    inapp: {
+      title: TITLE,
+      body: SENTENCE,
+      linkUrl: LINK_PATH,
+      linkLabel: LINK_LABEL,
+    },
+  };
 }
 
 /**
@@ -123,7 +153,46 @@ export const edlsSheetStatusNotifier: EventNotifierPlugin = {
           ],
         },
       },
+      templates: templatesSchemaBlock(PLUGIN_ID, {
+        exampleTokens: [
+          '{{event.field(name="title")}}',
+          '{{event.field(name="status")}}',
+        ],
+      }),
     },
+  },
+
+  tokenTemplates: {
+    eventEntityKind: "edls_sheet",
+    async buildEventEntity(ctx) {
+      const { sheetId, newStatus, title, ymd } = payloadOf(ctx);
+      const { storage } = await import("../../../storage");
+      const { edlsSheets } = await import(
+        "../../../../shared/schema/edls/schema"
+      );
+      // Render the transition this event describes, not the live row: an
+      // intervening save (or delete) must not change — or swallow — the
+      // notification. The live row only backfills fields the payload
+      // doesn't carry (employer, department, …) for custom templates.
+      const row = await storage.edlsSheets.get(sheetId);
+      return {
+        kind: "edls_sheet",
+        row: {
+          ...((row as unknown as Record<string, unknown>) ?? {}),
+          id: sheetId,
+          status: newStatus,
+          statusLabel: edlsStatusLabel(newStatus),
+          title,
+          displayTitle: edlsSheetDisplayTitle(sheetId, title),
+          ymd,
+          // The legacy body interpolated the raw payload date string
+          // ("2026-01-08"); the ymd date column would auto-format.
+          ymdDisplay: ymd,
+        },
+        table: edlsSheets,
+      };
+    },
+    defaultTemplates,
   },
 
   shouldDispatch(ctx, configData): boolean {
@@ -188,42 +257,6 @@ export const edlsSheetStatusNotifier: EventNotifierPlugin = {
       if (r && !byContact.has(r.contactId)) byContact.set(r.contactId, r);
     }
     return Array.from(byContact.values());
-  },
-
-  async getMessage(
-    medium: NotificationMedium,
-    _recipient: NotifierRecipient,
-    ctx: EventNotifierEventContext,
-  ): Promise<NotifierMessageContent | null> {
-    const { sheetId, newStatus, title: sheetTitle, ymd } = payloadOf(ctx);
-    const name =
-      sheetTitle && sheetTitle.trim()
-        ? sheetTitle
-        : `Sheet ${sheetId.slice(0, 8)}`;
-    const body = `The EDLS sheet "${name}" (${ymd}) has reached the status "${statusLabel(newStatus)}".`;
-    const linkUrl = `/edls/sheet/${sheetId}`;
-    const absoluteUrl = absoluteSheetUrl(sheetId);
-
-    switch (medium) {
-      case "inapp":
-        return {
-          title: name,
-          body,
-          linkUrl,
-          linkLabel: "View Sheet",
-        };
-      case "email":
-        return {
-          subject: name,
-          bodyText: `${body}\n\nView the sheet: ${absoluteUrl}`,
-        };
-      case "sms":
-        return {
-          message: `${body} View: ${absoluteUrl}`,
-        };
-      default:
-        return null;
-    }
   },
 };
 

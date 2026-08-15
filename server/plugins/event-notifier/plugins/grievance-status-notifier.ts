@@ -3,11 +3,11 @@ import {
   type GrievanceStatusHistorySavedPayload,
 } from "../../../services/event-bus";
 import { registerEventNotifier } from "../registry";
+import { templatesSchemaBlock } from "../template-schema";
 import {
   type EventNotifierEventContext,
   type EventNotifierPlugin,
-  type NotificationMedium,
-  type NotifierMessageContent,
+  type NotifierChannelTemplates,
   type NotifierRecipient,
 } from "../types";
 
@@ -34,31 +34,42 @@ function configuredIds(configData: unknown, key: string): string[] {
   return ids.filter((v): v is string => typeof v === "string");
 }
 
-/**
- * Compose the grievance's display title, mirroring the client's
- * `grievanceTitle`: denorm name, else "<Category> Grievance", else
- * "Grievance <id-prefix>".
- */
-function composeTitle(
-  grievanceId: string,
-  info: { name: string | null; categoryName: string | null } | undefined,
-): string {
-  if (info?.name && info.name.trim()) return info.name;
-  if (info?.categoryName) return `${info.categoryName} Grievance`;
-  return `Grievance ${grievanceId.slice(0, 8)}`;
-}
+const PLUGIN_ID = "grievance-status-notifier";
 
 /**
- * Absolute URL to the grievance detail page. In-app messages navigate with a
- * relative path, but email/SMS leave the app so they need a fully-qualified
- * link. Mirrors the domain resolution used by the other grievance notifiers.
+ * Default per-channel templates. The event entity is a snapshot of the
+ * grievance's new current status entry (built from the event payload, so
+ * it can't race a later transition); `status_id` auto-renders the status
+ * option's name, and `event.grievance` reaches the grievance row (whose
+ * `name` is the denorm display name).
  */
-function absoluteGrievanceUrl(grievanceId: string): string {
-  const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}/grievance/${grievanceId}`;
+const TITLE = '{{event.field(name="grievance_title")}}';
+const SENTENCE =
+  'The grievance "{{event.field(name="grievance_title")}}" ' +
+  'has reached the status "{{event.field(name="status_name")}}".';
+const LINK_PATH = '/grievance/{{event.grievance.field(name="id")}}';
+const LINK_LABEL = "View Grievance";
+
+function defaultTemplates(): NotifierChannelTemplates {
+  return {
+    email: {
+      subject: TITLE,
+      bodyHtml:
+        `<p>${SENTENCE}<br><br>` +
+        `View the grievance: ` +
+        `<a href="{{system.base_url}}${LINK_PATH}">` +
+        `{{system.base_url}}${LINK_PATH}</a></p>`,
+    },
+    sms: {
+      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+    },
+    inapp: {
+      title: TITLE,
+      body: SENTENCE,
+      linkUrl: LINK_PATH,
+      linkLabel: LINK_LABEL,
+    },
+  };
 }
 
 /**
@@ -107,7 +118,50 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
         items: { type: "string" },
         "x-options-resource": "grievance-role",
       },
+      templates: templatesSchemaBlock(PLUGIN_ID, {
+        exampleTokens: [
+          '{{event.grievance.field(name="name")}}',
+          '{{event.field(name="status_id")}}',
+        ],
+      }),
     },
+  },
+
+  tokenTemplates: {
+    eventEntityKind: "grievance_status_history",
+    async buildEventEntity(ctx) {
+      const { grievanceId, newStatusId, newStatusName } = payloadOf(ctx);
+      // The payload carries no history-entry id, and the grievance's
+      // is_current row may have moved on by delivery time — so render
+      // against a snapshot of the transition the event describes.
+      // `status_name` rides on the payload (the option could be renamed
+      // or deleted before delivery); fall back to neutral phrasing.
+      if (!newStatusId) return null;
+      const { grievanceStatusHistory } = await import(
+        "../../../../shared/schema/grievance/schema"
+      );
+      const { storage } = await import("../../../storage");
+      const { composeGrievanceDisplayTitle } = await import(
+        "../../tokens/plugins/grievance"
+      );
+      const titleInfo =
+        await storage.grievances.getAssignmentTitleInfo(grievanceId);
+      return {
+        kind: "grievance_status_history",
+        row: {
+          grievanceId,
+          statusId: newStatusId,
+          isCurrent: true,
+          statusName:
+            newStatusName && newStatusName.trim()
+              ? newStatusName
+              : "a new status",
+          grievanceTitle: composeGrievanceDisplayTitle(grievanceId, titleInfo),
+        },
+        table: grievanceStatusHistory,
+      };
+    },
+    defaultTemplates,
   },
 
   shouldDispatch(ctx, configData): boolean {
@@ -149,46 +203,6 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
       if (r && !byContact.has(r.contactId)) byContact.set(r.contactId, r);
     }
     return Array.from(byContact.values());
-  },
-
-  async getMessage(
-    medium: NotificationMedium,
-    _recipient: NotifierRecipient,
-    ctx: EventNotifierEventContext,
-  ): Promise<NotifierMessageContent | null> {
-    const { grievanceId, newStatusName } = payloadOf(ctx);
-    const { storage } = await import("../../../storage");
-    const info = await storage.grievances.getAssignmentTitleInfo(grievanceId);
-    const grievanceTitle = composeTitle(grievanceId, info);
-    // The status name rides on the event payload; fall back to neutral phrasing
-    // if the status option can't be named (e.g. it was removed).
-    const status =
-      newStatusName && newStatusName.trim() ? newStatusName : "a new status";
-    const body = `The grievance "${grievanceTitle}" has reached the status "${status}".`;
-    const linkUrl = `/grievance/${grievanceId}`;
-    const absoluteUrl = absoluteGrievanceUrl(grievanceId);
-    const title = grievanceTitle;
-
-    switch (medium) {
-      case "inapp":
-        return {
-          title,
-          body,
-          linkUrl,
-          linkLabel: "View Grievance",
-        };
-      case "email":
-        return {
-          subject: title,
-          bodyText: `${body}\n\nView the grievance: ${absoluteUrl}`,
-        };
-      case "sms":
-        return {
-          message: `${body} View: ${absoluteUrl}`,
-        };
-      default:
-        return null;
-    }
   },
 };
 

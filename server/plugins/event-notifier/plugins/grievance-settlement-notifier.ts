@@ -3,11 +3,11 @@ import {
   type GrievanceSettlementSavedPayload,
 } from "../../../services/event-bus";
 import { registerEventNotifier } from "../registry";
+import { templatesSchemaBlock } from "../template-schema";
 import {
   type EventNotifierEventContext,
   type EventNotifierPlugin,
-  type NotificationMedium,
-  type NotifierMessageContent,
+  type NotifierChannelTemplates,
   type NotifierRecipient,
 } from "../types";
 
@@ -31,26 +31,20 @@ function configuredRoleIds(configData: unknown): string[] {
   return ids.filter((v): v is string => typeof v === "string");
 }
 
-/**
- * Compose the grievance's display title, mirroring the client's
- * `grievanceTitle`: denorm name, else "<Category> Grievance", else
- * "Grievance <id-prefix>".
- */
-function composeTitle(
-  grievanceId: string,
-  info: { name: string | null; categoryName: string | null } | undefined,
-): string {
-  if (info?.name && info.name.trim()) return info.name;
-  if (info?.categoryName) return `${info.categoryName} Grievance`;
-  return `Grievance ${grievanceId.slice(0, 8)}`;
-}
+const PLUGIN_ID = "grievance-settlement-notifier";
 
 /**
- * Format a settlement amount as US currency. Whole-dollar amounts drop the
- * cents ("$100"), fractional amounts keep them ("$100.50"). Returns null when
- * the amount is missing or unparsable so the message can omit the figure.
+ * Default per-channel templates. The event entity is the settlement row
+ * (reconstructed from the payload for deletes, whose row is gone by
+ * delivery time) with the event's `operation` (created/updated/deleted)
+ * merged on, so the default sentence stays grammatical for all three.
  */
-function formatAmount(amount: string | null): string | null {
+const TITLE = '{{event.field(name="grievance_title")}}';
+const SENTENCE = '{{event.field(name="summary")}}';
+
+/** Settlement amount as US currency ("$100", "$100.50"); null when the
+ * amount is missing or unparsable (the sentence then omits it). */
+export function formatAmount(amount: string | null | undefined): string | null {
   if (amount == null) return null;
   const num = Number(amount);
   if (!Number.isFinite(num)) return null;
@@ -64,14 +58,15 @@ function formatAmount(amount: string | null): string | null {
 }
 
 /**
- * Human-readable body line for each operation. Includes the settlement amount
- * when known; otherwise it drops the dollar figure but keeps the sentence
- * grammatical.
+ * The exact legacy sentence for each operation — merged onto the event
+ * entity as `summary` so the default templates reproduce the pre-token
+ * wording verbatim (word order, unquoted title, and the amount clause
+ * dropped entirely when the amount is missing).
  */
-function bodyFor(
+export function settlementSummary(
   operation: GrievanceSettlementSavedPayload["operation"],
   grievanceTitle: string,
-  amount: string | null,
+  amount: string | null | undefined,
 ): string {
   const money = formatAmount(amount);
   const settlement = money ? `A settlement of ${money}` : `A settlement`;
@@ -85,18 +80,30 @@ function bodyFor(
       return `${settlement} on the grievance ${grievanceTitle} was updated.`;
   }
 }
+const LINK_PATH =
+  '/grievance/{{event.grievance.field(name="id")}}/settlements';
+const LINK_LABEL = "View Settlements";
 
-/**
- * Absolute URL to the grievance's settlement tab. In-app messages navigate with
- * a relative path, but email/SMS leave the app so they need a fully-qualified
- * link. Mirrors the domain resolution used by the other grievance notifiers.
- */
-function absoluteSettlementUrl(grievanceId: string): string {
-  const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}/grievance/${grievanceId}/settlements`;
+function defaultTemplates(): NotifierChannelTemplates {
+  return {
+    email: {
+      subject: TITLE,
+      bodyHtml:
+        `<p>${SENTENCE}<br><br>` +
+        `View the settlement: ` +
+        `<a href="{{system.base_url}}${LINK_PATH}">` +
+        `{{system.base_url}}${LINK_PATH}</a></p>`,
+    },
+    sms: {
+      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+    },
+    inapp: {
+      title: TITLE,
+      body: SENTENCE,
+      linkUrl: LINK_PATH,
+      linkLabel: LINK_LABEL,
+    },
+  };
 }
 
 /**
@@ -132,7 +139,57 @@ export const grievanceSettlementNotifier: EventNotifierPlugin = {
         items: { type: "string" },
         "x-options-resource": "grievance-role",
       },
+      templates: templatesSchemaBlock(PLUGIN_ID, {
+        exampleTokens: [
+          '{{event.grievance.field(name="name")}}',
+          '{{event.field(name="amount")}}',
+          '{{event.field(name="operation")}}',
+        ],
+      }),
     },
+  },
+
+  tokenTemplates: {
+    eventEntityKind: "grievance_settlement",
+    async buildEventEntity(ctx) {
+      const { grievanceId, settlementId, operation, amount } = payloadOf(ctx);
+      const { storage } = await import("../../../storage");
+      const { grievanceSettlements } = await import(
+        "../../../../shared/schema/grievance/settlement-schema"
+      );
+      const { composeGrievanceDisplayTitle } = await import(
+        "../../tokens/plugins/grievance"
+      );
+      // For deletes the row is gone by delivery time — reconstruct a
+      // minimal snapshot from the payload so delete notices still render.
+      const [row, titleInfo] = await Promise.all([
+        operation === "deleted"
+          ? undefined
+          : storage.grievanceSettlements.get(grievanceId, settlementId),
+        storage.grievances.getAssignmentTitleInfo(grievanceId),
+      ]);
+      const base = (row ?? { id: settlementId, grievanceId, amount }) as Record<
+        string,
+        unknown
+      >;
+      const grievanceTitle = composeGrievanceDisplayTitle(
+        grievanceId,
+        titleInfo,
+      );
+      return {
+        kind: "grievance_settlement",
+        row: {
+          ...base,
+          operation,
+          grievanceTitle,
+          // The payload's amount reflects the change being notified (the
+          // loaded row could already carry a later edit's amount).
+          summary: settlementSummary(operation, grievanceTitle, amount),
+        },
+        table: grievanceSettlements,
+      };
+    },
+    defaultTemplates,
   },
 
   async getRecipients(ctx, configData): Promise<NotifierRecipient[]> {
@@ -162,42 +219,6 @@ export const grievanceSettlementNotifier: EventNotifierPlugin = {
       if (r && !byContact.has(r.contactId)) byContact.set(r.contactId, r);
     }
     return Array.from(byContact.values());
-  },
-
-  async getMessage(
-    medium: NotificationMedium,
-    _recipient: NotifierRecipient,
-    ctx: EventNotifierEventContext,
-  ): Promise<NotifierMessageContent | null> {
-    const { grievanceId, operation, amount } = payloadOf(ctx);
-    const { storage } = await import("../../../storage");
-    const info = await storage.grievances.getAssignmentTitleInfo(grievanceId);
-    const grievanceTitle = composeTitle(grievanceId, info);
-    const body = bodyFor(operation, grievanceTitle, amount);
-    const linkUrl = `/grievance/${grievanceId}/settlements`;
-    const absoluteUrl = absoluteSettlementUrl(grievanceId);
-    const title = grievanceTitle;
-
-    switch (medium) {
-      case "inapp":
-        return {
-          title,
-          body,
-          linkUrl,
-          linkLabel: "View Settlements",
-        };
-      case "email":
-        return {
-          subject: title,
-          bodyText: `${body}\n\nView the settlement: ${absoluteUrl}`,
-        };
-      case "sms":
-        return {
-          message: `${body} View: ${absoluteUrl}`,
-        };
-      default:
-        return null;
-    }
   },
 };
 
