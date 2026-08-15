@@ -1,7 +1,14 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { WidgetProps } from "@rjsf/utils";
-import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Loader2,
+  Pencil,
+  RotateCcw,
+} from "lucide-react";
 import {
   analyzeTemplateTokens,
   type TokenSegmentSpec,
@@ -123,6 +130,9 @@ export function TokenTemplateWidget(props: WidgetProps) {
   });
 
   const text = typeof value === "string" ? value : "";
+  // Mirror the server's `pick()` semantics: a whitespace-only value is
+  // NOT an override — dispatch will still use the default.
+  const hasOverride = text.trim() !== "";
   const placeholder = defaultAtPath(data?.defaults, defaultPath);
   const { invalid } = analyzeTemplateTokens(text, data?.segments || [], data?.fields);
   // Until the segment graph loads, don't flag anything.
@@ -213,10 +223,47 @@ export function TokenTemplateWidget(props: WidgetProps) {
           placeholder={placeholder || undefined}
         />
       )}
-      {placeholder && !text && (
-        <p className="text-xs text-muted-foreground">
-          Blank — the default shown above is used.
-        </p>
+      {placeholder && !hasOverride && (
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted-foreground">
+            Blank — the default shown above is used.
+          </p>
+          {!isDisabled && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+              data-testid={`button-edit-default-${id}`}
+              onClick={() => onChange(placeholder)}
+            >
+              <Pencil className="h-3 w-3" />
+              Edit default
+            </Button>
+          )}
+        </div>
+      )}
+      {placeholder && hasOverride && (
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted-foreground">
+            {text === placeholder
+              ? "Fixed copy of the default — future default changes won't apply."
+              : "Custom template."}
+          </p>
+          {!isDisabled && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+              data-testid={`button-reset-default-${id}`}
+              onClick={() => onChange("")}
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset to default
+            </Button>
+          )}
+        </div>
       )}
       {unknown.length > 0 && (
         <div
