@@ -22,6 +22,11 @@ the barrel:
 A plugin with no `requiredComponent` passes `isPluginComponentEnabledSync`
 without an initialized component cache, so backfill/recompute run standalone.
 
+A simpler variant that also works (system-status details tests): a static
+`import "../../server/storage"` as the very FIRST import of the script fixes
+the evaluation order, letting later static imports of plugin registries and
+even dynamic imports of route modules load cleanly.
+
 **Alternate pattern that works even when narrow imports still cycle:** make
 the script's top-level import-free and use *sequential dynamic imports*,
 loading the storage barrel first and awaiting it before importing anything

@@ -4,7 +4,7 @@ import { systemStatusPluginRegistry } from "./registry";
 
 export * from "./types";
 export { systemStatusPluginRegistry, registerSystemStatusPlugin } from "./registry";
-export { collectStatus, rescanPlugin, rescanAll } from "./collector";
+export { collectStatus, rescanPlugin, rescanAll, getPluginDetails } from "./collector";
 
 let kindRegistered = false;
 function registerSystemStatusKind(): void {
@@ -47,3 +47,4 @@ import "./plugins/database-disk";
 import "./plugins/filesystems";
 import "./plugins/comm-sms";
 import "./plugins/sitespecific-t631-client";
+import "./plugins/environment-variables";

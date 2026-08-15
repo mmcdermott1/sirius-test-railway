@@ -13,12 +13,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Activity,
   AlertTriangle,
   CheckCircle2,
   Info,
+  List,
   RefreshCw,
   XCircle,
 } from "lucide-react";
@@ -36,6 +44,7 @@ interface SystemStatusEntry {
   name: string;
   description: string;
   canRescan: boolean;
+  hasDetails: boolean;
   worstPriority: StatusPriority;
   result: {
     pluginId: string;
@@ -43,6 +52,98 @@ interface SystemStatusEntry {
     scannedAt: string;
     durationMs: number;
   };
+}
+
+interface StatusDetailRow {
+  label: string;
+  description?: string;
+  value?: string;
+  badges?: string[];
+  priority?: StatusPriority;
+}
+
+interface StatusDetails {
+  groups: { title: string; rows: StatusDetailRow[] }[];
+}
+
+/**
+ * Details drill-down dialog. Fetches fresh on every open (staleTime 0,
+ * gcTime 0 — never served from cache, matching the server's no-store).
+ */
+function DetailsDialog({
+  entry,
+  onClose,
+}: {
+  entry: SystemStatusEntry;
+  onClose: () => void;
+}) {
+  const { data, isLoading, error } = useQuery<StatusDetails>({
+    queryKey: [`/api/system-status/${entry.id}/details`],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+  });
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{entry.name} — Details</DialogTitle>
+          <DialogDescription>
+            Loaded fresh just now; this data is never cached.
+          </DialogDescription>
+        </DialogHeader>
+        {isLoading && (
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        )}
+        {error != null && (
+          <p className="text-sm text-destructive">
+            {getApiErrorMessage(error, "Failed to load details")}
+          </p>
+        )}
+        {data?.groups.map((group) => (
+          <div key={group.title} data-testid={`group-details-${group.title}`}>
+            <h3 className="text-sm font-semibold mb-2">{group.title}</h3>
+            <div className="divide-y rounded-md border">
+              {group.rows.map((row) => (
+                <div
+                  key={row.label}
+                  className="p-2 text-sm"
+                  data-testid={`row-details-${row.label}`}
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {row.priority && row.priority !== "info" && (
+                      <PriorityIcon priority={row.priority} />
+                    )}
+                    <span className="font-mono font-medium">{row.label}</span>
+                    {row.badges?.map((badge) => (
+                      <Badge
+                        key={badge}
+                        variant={badge === "unset" ? "secondary" : "outline"}
+                        className="text-xs"
+                      >
+                        {badge}
+                      </Badge>
+                    ))}
+                  </div>
+                  {row.description && (
+                    <div className="text-muted-foreground">{row.description}</div>
+                  )}
+                  {row.value !== undefined && (
+                    <div className="font-mono text-xs break-all mt-1">{row.value}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function PriorityIcon({ priority }: { priority: StatusPriority }) {
@@ -84,6 +185,7 @@ export default function SystemStatusPage() {
   usePageTitle("System Status");
   const { toast } = useToast();
   const [rescanningId, setRescanningId] = useState<string | null>(null);
+  const [detailsEntry, setDetailsEntry] = useState<SystemStatusEntry | null>(null);
 
   const { data: entries, isLoading } = useQuery<SystemStatusEntry[]>({
     queryKey: ["/api/system-status"],
@@ -209,6 +311,17 @@ export default function SystemStatusPage() {
                     {entry.result.durationMs}ms)
                   </span>
                 )}
+                {entry.hasDetails && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDetailsEntry(entry)}
+                    data-testid={`button-details-${entry.id}`}
+                  >
+                    <List className="h-3.5 w-3.5 mr-1.5" />
+                    Details
+                  </Button>
+                )}
                 {entry.canRescan && (
                   <Button
                     variant="outline"
@@ -250,6 +363,10 @@ export default function SystemStatusPage() {
           </CardContent>
         </Card>
       ))}
+
+      {detailsEntry && (
+        <DetailsDialog entry={detailsEntry} onClose={() => setDetailsEntry(null)} />
+      )}
 
       {entries && entries.length === 0 && (
         <Card>
