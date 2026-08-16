@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Pencil, Trash2, Info } from "lucide-react";
+import { Lock, Pencil, Trash2, Info, Search } from "lucide-react";
 
 interface EnvVarInfo {
   name: string;
@@ -43,6 +43,7 @@ export default function EnvPage() {
   const { toast } = useToast();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [filter, setFilter] = useState("");
 
   const { data: vars, isLoading } = useQuery<EnvVarInfo[]>({
     queryKey: ["/api/admin/env"],
@@ -86,7 +87,14 @@ export default function EnvPage() {
     if (editing && !vars?.some((v) => v.name === editing)) setEditing(null);
   }, [vars, editing]);
 
-  const categories = Array.from(new Set((vars ?? []).map((v) => v.category)));
+  const needle = filter.trim().toLowerCase();
+  const filtered = (vars ?? []).filter(
+    (v) =>
+      needle === "" ||
+      v.name.toLowerCase().includes(needle) ||
+      v.description.toLowerCase().includes(needle),
+  );
+  const categories = Array.from(new Set(filtered.map((v) => v.category)));
 
   return (
     <div className="space-y-6" data-testid="page-config-env">
@@ -107,6 +115,17 @@ export default function EnvPage() {
         </AlertDescription>
       </Alert>
 
+      <div className="relative max-w-sm">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter by name…"
+          className="pl-8"
+          data-testid="env-filter"
+        />
+      </div>
+
       {isLoading && (
         <div className="space-y-3">
           <Skeleton className="h-24 w-full" />
@@ -114,16 +133,22 @@ export default function EnvPage() {
         </div>
       )}
 
+      {!isLoading && needle !== "" && filtered.length === 0 && (
+        <p className="text-sm text-muted-foreground" data-testid="env-filter-empty">
+          No matching variables.
+        </p>
+      )}
+
       {categories.map((category) => (
         <Card key={category}>
           <CardHeader>
             <CardTitle>{CATEGORY_LABELS[category] ?? category}</CardTitle>
             <CardDescription>
-              {(vars ?? []).filter((v) => v.category === category).length} variables
+              {filtered.filter((v) => v.category === category).length} variables
             </CardDescription>
           </CardHeader>
           <CardContent className="divide-y">
-            {(vars ?? [])
+            {filtered
               .filter((v) => v.category === category)
               .map((v) => {
                 const isEditing = editing === v.name;
