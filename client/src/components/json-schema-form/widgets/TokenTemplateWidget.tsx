@@ -1,27 +1,12 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { WidgetProps } from "@rjsf/utils";
-import {
-  AlertTriangle,
-  Eye,
-  EyeOff,
-  Loader2,
-  Maximize2,
-  Pencil,
-  RotateCcw,
-} from "lucide-react";
-import {
-  analyzeTemplateTokens,
-  type TokenCatalogEntry,
-  type TokenSegmentSpec,
-  type TokenFieldCatalog,
+import { Maximize2, RotateCcw } from "lucide-react";
+import type {
+  TokenCatalogEntry,
+  TokenFieldCatalog,
+  TokenSegmentSpec,
 } from "@shared/tokens";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  SimpleHtmlEditor,
-  sanitizeContractHtml,
-} from "@/components/ui/simple-html-editor";
 import { Button } from "@/components/ui/button";
 import { NotifierTemplateStudio } from "@/components/template-studio/NotifierTemplateStudio";
 
@@ -32,27 +17,6 @@ interface TokenCatalogResponse {
   defaults?: Record<string, Record<string, string>>;
   tokens?: TokenCatalogEntry[];
   realRecordPreview?: boolean;
-}
-
-interface FieldPreview {
-  rendered: string;
-  unknownTokens: string[];
-  missingValues: string[];
-}
-
-interface PreviewResponse {
-  sample: boolean;
-  contactId: string | null;
-  channels: {
-    email?: { subject: FieldPreview; bodyHtml: FieldPreview };
-    sms?: { message: FieldPreview };
-    inapp?: {
-      title: FieldPreview;
-      body: FieldPreview;
-      linkUrl?: FieldPreview;
-      linkLabel?: FieldPreview;
-    };
-  };
 }
 
 /** Read "email.subject"-style paths out of the defaults payload. */
@@ -75,48 +39,32 @@ function pluginIdFromCatalogUrl(catalogUrl: string): string | null {
   return match ? match[1] : null;
 }
 
-/**
- * Resolve a "channel.field" path (e.g. "email.subject") into the rendered
- * value from a preview response.
- */
-function fieldFromPreview(
-  preview: PreviewResponse,
-  defaultPath: string | undefined,
-): FieldPreview | null {
-  if (!defaultPath) return null;
-  const [channel, field] = defaultPath.split(".");
-  if (!channel || !field) return null;
-  const ch = preview.channels[channel as keyof typeof preview.channels] as
-    | Record<string, FieldPreview>
-    | undefined;
-  return ch?.[field] ?? null;
+/** Return the first non-empty line of a string, truncated to maxLen chars. */
+function firstLineTruncated(text: string, maxLen = 80): string {
+  const firstLine = text.split("\n").find((l) => l.trim()) ?? text;
+  return firstLine.length > maxLen ? firstLine.slice(0, maxLen) + "…" : firstLine;
 }
 
 /**
- * Token-template editor for event-notifier config forms. Renders a
- * single-line input, textarea, or HTML editor (per `x-token-template-mode`),
- * validates the tokens in the value against the notifier's segment
- * graph (from `x-token-catalog-url`) live, and shows the notifier's
- * default template as the placeholder — a blank field means "use the
- * default", so clearing the field is the reset.
+ * Token-template widget — compact, read-only summary + "Open in Template Studio".
  *
- * When the admin expands the preview section the current template (or the
- * default, when blank) is rendered server-side against a sample event entity
- * so they can see the final output before saving.
+ * Each token field shows:
+ *   - A single truncated line of the current raw value (or a subtle "Using
+ *     default: …" indicator when blank).
+ *   - An "Open in Template Studio" button as the ONLY edit path.
+ *   - A small "Reset to default" affordance when there is a custom override.
+ *
+ * The inline editor, "Edit default" toggle, and per-field preview have all
+ * been removed — preview lives inside the Studio.
  */
 export function TokenTemplateWidget(props: WidgetProps) {
   const { id, value, onChange, disabled, readonly, options, registry } = props;
   const catalogUrl = typeof options.catalogUrl === "string" ? options.catalogUrl : "";
-  const mode = typeof options.mode === "string" ? options.mode : "line";
   const defaultPath =
     typeof options.defaultPath === "string" ? options.defaultPath : undefined;
 
-  // Defaults can depend on other config fields (x-token-defaults-deps
-  // names them, e.g. ["recipientKind"]). Read those from the live form
-  // data (via formContext) and pass them to the catalog endpoint so the
-  // placeholders show the defaults dispatch would actually use. The
-  // query key includes only this small subset, so it refetches only
-  // when a dependency actually changes.
+  // Defaults can depend on other config fields. Read those from the live form
+  // data (via formContext) and pass them to the catalog endpoint.
   const configData =
     (registry?.formContext as { configData?: Record<string, unknown> } | undefined)
       ?.configData ?? {};
@@ -142,67 +90,11 @@ export function TokenTemplateWidget(props: WidgetProps) {
   // NOT an override — dispatch will still use the default.
   const hasOverride = text.trim() !== "";
   const placeholder = defaultAtPath(data?.defaults, defaultPath);
-  const { invalid } = analyzeTemplateTokens(text, data?.segments || [], data?.fields);
-  // Until the segment graph loads, don't flag anything.
-  const unknown = data?.segments ? invalid : [];
   const isDisabled = disabled || readonly;
-
-  // ── Preview ────────────────────────────────────────────────────────────────
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const pluginId = useMemo(() => pluginIdFromCatalogUrl(catalogUrl), [catalogUrl]);
-
-  // Debounce the live configData so the preview endpoint is not called on
-  // every keystroke — wait 400 ms after the last change before firing.
-  const configDataJson = JSON.stringify(configData);
-  const [debouncedConfigJson, setDebouncedConfigJson] = useState(configDataJson);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!previewOpen) return;
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      setDebouncedConfigJson(configDataJson);
-    }, 400);
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
-  }, [configDataJson, previewOpen]);
-
-  // When the panel is first opened, show the current config immediately.
-  useEffect(() => {
-    if (previewOpen) setDebouncedConfigJson(configDataJson);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewOpen]);
-
-  // POST the configData in the request body — avoids browser/proxy URL-length
-  // limits that would truncate large HTML email body templates if sent as a
-  // query parameter.
-  const previewPostUrl = pluginId ? `/api/event-notifier/preview/${pluginId}` : null;
-
-  const { data: previewData, isFetching: previewLoading, error: previewError } =
-    useQuery<PreviewResponse>({
-      queryKey: ["event-notifier-preview", pluginId, debouncedConfigJson],
-      enabled: previewOpen && !!previewPostUrl,
-      staleTime: 0,
-      queryFn: async () => {
-        const res = await fetch(previewPostUrl!, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ configData: JSON.parse(debouncedConfigJson) }),
-          credentials: "include",
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error((body as { message?: string }).message ?? `Preview failed (${res.status})`);
-        }
-        return res.json() as Promise<PreviewResponse>;
-      },
-    });
-
-  const previewField = previewData ? fieldFromPreview(previewData, defaultPath) : null;
-  const isHtml = mode === "html";
 
   // ── Template Studio (full-screen editor) ──────────────────────────────────
   const [studioOpen, setStudioOpen] = useState(false);
+  const pluginId = useMemo(() => pluginIdFromCatalogUrl(catalogUrl), [catalogUrl]);
   const channel = defaultPath?.split(".")[0];
   const updateConfigData = (
     registry?.formContext as
@@ -211,208 +103,57 @@ export function TokenTemplateWidget(props: WidgetProps) {
   )?.updateConfigData;
   const canOpenStudio = !!pluginId && !!channel && !!updateConfigData && !isDisabled;
 
-  return (
-    <div className="space-y-1.5">
-      {mode === "html" ? (
-        <>
-          <SimpleHtmlEditor
-            data-testid={`editor-${id}`}
-            value={text}
-            onChange={(v: string) => onChange(v)}
-            disabled={isDisabled}
-          />
-          {/* Quick fix: never show the default's raw HTML as placeholder
-              text — when blank, render the default visually instead. */}
-          {placeholder && !hasOverride && (
-            <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                Default template (used while blank)
-              </p>
-              <div
-                className="prose prose-sm max-w-none dark:prose-invert opacity-80"
-                data-testid={`default-template-${id}`}
-                dangerouslySetInnerHTML={{ __html: sanitizeContractHtml(placeholder) }}
-              />
-            </div>
-          )}
-        </>
-      ) : mode === "multiline" ? (
-        <Textarea
-          id={id}
-          data-testid={`input-${id}`}
-          value={text}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={isDisabled}
-          placeholder={placeholder || undefined}
-          rows={3}
-        />
-      ) : (
-        <Input
-          id={id}
-          data-testid={`input-${id}`}
-          value={text}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={isDisabled}
-          placeholder={placeholder || undefined}
-        />
-      )}
-      {placeholder && !hasOverride && (
-        <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">
-            Blank — the default shown above is used.
-          </p>
-          {!isDisabled && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
-              data-testid={`button-edit-default-${id}`}
-              onClick={() => onChange(placeholder)}
-            >
-              <Pencil className="h-3 w-3" />
-              Edit default
-            </Button>
-          )}
-        </div>
-      )}
-      {placeholder && hasOverride && (
-        <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">
-            {text === placeholder
-              ? "Fixed copy of the default — future default changes won't apply."
-              : "Custom template."}
-          </p>
-          {!isDisabled && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
-              data-testid={`button-reset-default-${id}`}
-              onClick={() => onChange("")}
-            >
-              <RotateCcw className="h-3 w-3" />
-              Reset to default
-            </Button>
-          )}
-        </div>
-      )}
-      {unknown.length > 0 && (
-        <div
-          className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
-          data-testid={`text-token-unknown-${id}`}
-        >
-          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>
-            <span className="font-medium">Invalid tokens:</span>{" "}
-            {unknown.map((t) => `{{${t.expr}}} (${t.error})`).join(", ")} — these
-            will render as "[unknown token: …]" when sent.
-          </span>
-        </div>
-      )}
+  // ── Compact summary display ───────────────────────────────────────────────
+  const summaryText: string = hasOverride
+    ? firstLineTruncated(text)
+    : placeholder
+      ? `Using default: ${firstLineTruncated(placeholder)}`
+      : "No template set";
+  const summaryIsDefault = !hasOverride;
 
-      {/* Preview toggle — only shown for token-templated fields */}
-      {pluginId && defaultPath && (
-        <div>
+  return (
+    <div className="space-y-1" data-testid={`token-field-${id}`}>
+      {/* Read-only summary line */}
+      <div
+        className={`flex items-center gap-2 min-h-[2rem] rounded-md border px-3 py-1.5 text-sm bg-muted/30 ${
+          summaryIsDefault ? "text-muted-foreground" : "text-foreground"
+        }`}
+        data-testid={`summary-${id}`}
+      >
+        <span className="flex-1 truncate font-mono text-xs leading-5">
+          {summaryText}
+        </span>
+
+        {/* Reset affordance — only when there is an active override */}
+        {hasOverride && !isDisabled && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
-            onClick={() => setPreviewOpen((o) => !o)}
+            className="h-5 px-1 text-xs text-muted-foreground hover:text-foreground shrink-0 gap-1"
+            data-testid={`button-reset-default-${id}`}
+            onClick={() => onChange("")}
+            title="Reset to default"
           >
-            {previewOpen ? (
-              <EyeOff className="h-3 w-3" />
-            ) : (
-              <Eye className="h-3 w-3" />
-            )}
-            {previewOpen ? "Hide preview" : "Preview rendered output"}
+            <RotateCcw className="h-3 w-3" />
+            Reset
           </Button>
-          {canOpenStudio && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
-              data-testid={`button-open-studio-${id}`}
-              onClick={() => setStudioOpen(true)}
-            >
-              <Maximize2 className="h-3 w-3" />
-              Open in Template Studio
-            </Button>
-          )}
+        )}
+      </div>
 
-          {previewOpen && (
-            <div
-              className="mt-1 rounded-md border bg-muted/40 p-3 text-sm"
-              data-testid={`preview-${id}`}
-            >
-              {previewLoading && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Rendering preview…
-                </div>
-              )}
-              {previewError && !previewLoading && (
-                <p className="text-xs text-destructive">
-                  Preview unavailable:{" "}
-                  {previewError instanceof Error
-                    ? previewError.message
-                    : "Unknown error"}
-                </p>
-              )}
-              {previewData && !previewLoading && (
-                <>
-                  {previewField ? (
-                    <>
-                      {isHtml ? (
-                        <div
-                          className="prose prose-sm max-w-none dark:prose-invert"
-                          // The server sanitizes HTML before returning it in
-                          // the preview; treating it as safe here is intentional.
-                          // eslint-disable-next-line react/no-danger
-                          dangerouslySetInnerHTML={{ __html: previewField.rendered }}
-                        />
-                      ) : (
-                        <p className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
-                          {previewField.rendered || (
-                            <span className="text-muted-foreground italic">(empty)</span>
-                          )}
-                        </p>
-                      )}
-                      {previewField.missingValues.length > 0 && (
-                        <p className="mt-1.5 text-xs text-muted-foreground">
-                          <span className="font-medium">Sample values used:</span>{" "}
-                          {previewField.missingValues.map((t) => `{{${t}}}`).join(", ")}
-                        </p>
-                      )}
-                      {previewField.unknownTokens.length > 0 && (
-                        <div className="mt-1.5 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400">
-                          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                          <span>
-                            <span className="font-medium">Invalid tokens in preview:</span>{" "}
-                            {previewField.unknownTokens.map((t) => `{{${t}}}`).join(", ")}
-                          </span>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">
-                      No preview available for this field.
-                    </p>
-                  )}
-                  {previewData.sample && (
-                    <p className="mt-2 text-xs text-muted-foreground border-t pt-1.5">
-                      Rendered with sample data — actual values depend on the
-                      recipient and event.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
+      {/* Studio button — the only edit path */}
+      {canOpenStudio && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+          data-testid={`button-open-studio-${id}`}
+          onClick={() => setStudioOpen(true)}
+        >
+          <Maximize2 className="h-3 w-3" />
+          Open in Template Studio
+        </Button>
       )}
 
       {canOpenStudio && studioOpen && (
