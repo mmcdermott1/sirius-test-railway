@@ -186,6 +186,28 @@ export default function EnvPage() {
                             not set.
                           </p>
                         )}
+                        {envLocked && v.overridable && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                            <Lock className="h-3 w-3 mt-0.5 shrink-0" />
+                            Set in the deployment environment — that value wins. To manage it
+                            here, set it to <code className="font-mono">__UNSET__</code> (or
+                            empty) in your deployment settings, then restart the app.
+                          </p>
+                        )}
+                        {envLocked && !v.overridable && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                            <Lock className="h-3 w-3 mt-0.5 shrink-0" />
+                            Set in the deployment environment and managed there only — this
+                            variable cannot be overridden in-app.
+                          </p>
+                        )}
+                        {!v.overridable && !envLocked && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                            <Lock className="h-3 w-3 mt-0.5 shrink-0" />
+                            Managed through the deployment pipeline only — cannot be overridden
+                            in-app.
+                          </p>
+                        )}
                         {v.hasShadowedOverride && (
                           <p className="text-xs text-amber-600 mt-1">
                             A stored override exists but is shadowed by the environment value.

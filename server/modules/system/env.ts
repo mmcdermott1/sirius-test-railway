@@ -10,7 +10,7 @@ import {
   listEnvironmentVariables,
 } from "../../config/env-registry";
 import {
-  ENV_OVERRIDES_VARIABLE,
+  envOverrideVariableName,
   getEnvOverrideMap,
 } from "../../services/env-overrides";
 import { validateVariableValue, runVariableOnWrite } from "./variable-registry";
@@ -57,45 +57,8 @@ export function registerEnvRoutes(app: Express) {
     }
   });
 
-  // Serialize override read-modify-writes within this instance so two
-  // concurrent admin edits can't lose each other's change. The map is always
-  // re-read fresh from the DB inside the critical section (never the cache).
-  let writeChain: Promise<unknown> = Promise.resolve();
-  const withWriteLock = <T>(fn: () => Promise<T>): Promise<T> => {
-    const run = writeChain.then(fn, fn);
-    writeChain = run.catch(() => {});
-    return run;
-  };
-
-  const readCurrentOverrides = async (): Promise<Record<string, string>> => {
-    const row = await storage.variables.getByName(ENV_OVERRIDES_VARIABLE);
-    const out: Record<string, string> = {};
-    const value = row?.value;
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-        if (typeof v === "string") out[k] = v;
-      }
-    }
-    return out;
-  };
-
-  const writeOverrides = async (next: Record<string, string>): Promise<void> => {
-    const validation = validateVariableValue(ENV_OVERRIDES_VARIABLE, next);
-    if (!validation.ok) {
-      const messages = validation.errors.map((e) => e.message).join("; ");
-      throw Object.assign(new Error(messages || "Invalid override map"), { status: 400 });
-    }
-    const existing = await storage.variables.getByName(ENV_OVERRIDES_VARIABLE);
-    if (existing) {
-      await storage.variables.update(existing.id, { value: validation.value });
-    } else {
-      await storage.variables.create({
-        name: ENV_OVERRIDES_VARIABLE,
-        value: validation.value,
-      });
-    }
-    await runVariableOnWrite(ENV_OVERRIDES_VARIABLE);
-  };
+  // Each override lives in its own variables row named ENV_{NAME}, so
+  // writes are simple per-row upserts — no shared-map read-modify-write.
 
   app.put("/api/admin/env/:name", requireAccess("admin"), async (req, res) => {
     try {
@@ -125,11 +88,20 @@ export function registerEnvRoutes(app: Express) {
         });
         return;
       }
-      await withWriteLock(async () => {
-        const next = await readCurrentOverrides();
-        next[name] = value;
-        await writeOverrides(next);
-      });
+      const rowName = envOverrideVariableName(name);
+      const validation = validateVariableValue(rowName, value);
+      if (!validation.ok) {
+        const messages = validation.errors.map((e) => e.message).join("; ");
+        res.status(400).json({ message: messages || "Invalid override value" });
+        return;
+      }
+      const existing = await storage.variables.getByName(rowName);
+      if (existing) {
+        await storage.variables.update(existing.id, { value: validation.value });
+      } else {
+        await storage.variables.create({ name: rowName, value: validation.value });
+      }
+      await runVariableOnWrite(rowName);
       res.json({ ok: true });
     } catch (error: any) {
       res
@@ -141,17 +113,14 @@ export function registerEnvRoutes(app: Express) {
   app.delete("/api/admin/env/:name", requireAccess("admin"), async (req, res) => {
     try {
       const { name } = req.params;
-      const found = await withWriteLock(async () => {
-        const next = await readCurrentOverrides();
-        if (!(name in next)) return false;
-        delete next[name];
-        await writeOverrides(next);
-        return true;
-      });
-      if (!found) {
+      const rowName = envOverrideVariableName(name);
+      const existing = await storage.variables.getByName(rowName);
+      if (!existing) {
         res.status(404).json({ message: "No override set for this variable" });
         return;
       }
+      await storage.variables.delete(existing.id);
+      await runVariableOnWrite(rowName);
       res.json({ ok: true });
     } catch (error: any) {
       res

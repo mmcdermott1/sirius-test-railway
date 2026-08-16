@@ -3,42 +3,52 @@ import { logger } from "../logger";
 import { setEnvironmentVariableOverrideSource } from "../config/env-registry";
 
 /**
- * DB-backed environment-variable overrides (Task #1080).
+ * DB-backed environment-variable overrides (Task #1080, redesigned per
+ * owner direction in Task #1096).
  *
- * A single `variables` row named `env_overrides` holds a JSON map of
- * { VARIABLE_NAME: "value" }. This module loads it into an in-memory cache
- * and installs a synchronous lookup into the env registry so that
- * `getEnvironmentVariable` can fall back to the override when the variable
- * is absent from the real process environment (a real env value always
- * wins — the deployment pipeline "locks" the variable).
+ * Each override lives in its OWN `variables` row named `ENV_{NAME}` —
+ * e.g. overriding `REPLIT_ID` means a variables row named `ENV_REPLIT_ID`
+ * whose value is the override string. This module loads all `ENV_`-prefixed
+ * rows into an in-memory cache and installs a synchronous lookup into the
+ * env registry so that `getEnvironmentVariable` falls back to the override
+ * when the variable is absent from the real process environment (a real,
+ * non-empty, non-__UNSET__ env value always wins).
  *
- * The cache is refreshed after every committed write to the row (via the
- * variable registry's onWrite hook), so overrides take effect for
+ * The cache is refreshed after every committed write to an `ENV_*` row
+ * (via the variable registry's onWrite hook), so overrides take effect for
  * subsequent reads without a restart. Consumers that read env only at boot
  * (e.g. the SAML strategy) still need an app restart to pick up changes.
  */
 
-export const ENV_OVERRIDES_VARIABLE = "env_overrides";
+/** Prefix for per-variable override rows in the variables table. */
+export const ENV_OVERRIDE_PREFIX = "ENV_";
+
+/** The variables-table row name that stores the override for `name`. */
+export function envOverrideVariableName(name: string): string {
+  return `${ENV_OVERRIDE_PREFIX}${name}`;
+}
+
+/** True when a variables-table row name is an env override row. */
+export function isEnvOverrideVariableName(rowName: string): boolean {
+  return rowName.startsWith(ENV_OVERRIDE_PREFIX) && rowName.length > ENV_OVERRIDE_PREFIX.length;
+}
 
 let cache = new Map<string, string>();
 
-function parseOverrides(value: unknown): Map<string, string> {
+/** Reload the cache from all ENV_* rows in the variables table. */
+export async function refreshEnvOverrides(): Promise<void> {
+  const rows = await storage.variables.getByNamePrefix(ENV_OVERRIDE_PREFIX);
   const next = new Map<string, string>();
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    for (const [name, v] of Object.entries(value as Record<string, unknown>)) {
-      if (typeof v === "string") next.set(name, v);
+  for (const row of rows) {
+    if (!isEnvOverrideVariableName(row.name)) continue;
+    if (typeof row.value === "string") {
+      next.set(row.name.slice(ENV_OVERRIDE_PREFIX.length), row.value);
     }
   }
-  return next;
+  cache = next;
 }
 
-/** Reload the cache from the variables table. */
-export async function refreshEnvOverrides(): Promise<void> {
-  const row = await storage.variables.getByName(ENV_OVERRIDES_VARIABLE);
-  cache = parseOverrides(row?.value);
-}
-
-/** Current override map (names → values). For the admin endpoints only. */
+/** Current override map (env names → values). For the admin endpoints only. */
 export function getEnvOverrideMap(): ReadonlyMap<string, string> {
   return cache;
 }

@@ -12,10 +12,11 @@ import {
 import { allowInMaintenanceMode } from "../../storage/maintenance";
 
 // Internal aggregate variables that must only be mutated through their
-// dedicated (serialized) API, never the generic variable write routes.
-// env_overrides: written via /api/admin/env under a write lock; a generic
-// write could clobber the map (or persist a redacted read back verbatim).
-const GENERIC_WRITE_BLOCKED = new Set(["env_overrides"]);
+// dedicated API, never the generic variable write routes. Currently empty:
+// env overrides moved to per-variable ENV_{NAME} rows (owner design, Task
+// #1096) which are freely writable through the generic routes (validated
+// by the variable registry's dynamic ENV_* entry).
+const GENERIC_WRITE_BLOCKED = new Set<string>([]);
 
 function isGenericWriteBlocked(name: string): boolean {
   return GENERIC_WRITE_BLOCKED.has(name);
@@ -288,7 +289,13 @@ export function registerVariableRoutes(
         return;
       }
 
-      await runVariableOnWrite(effectiveName);
+      // Run the hook for BOTH names on a rename: the old name's hook must
+      // also fire (e.g. renaming an ENV_* row out of the namespace must
+      // refresh the env-override cache so the removed override stops
+      // applying immediately).
+      for (const hookName of Array.from(new Set([current.name, effectiveName]))) {
+        await runVariableOnWrite(hookName);
+      }
       res.json(redactVariableForRead(variable));
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {

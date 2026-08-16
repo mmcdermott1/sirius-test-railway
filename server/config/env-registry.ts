@@ -63,59 +63,88 @@ export function setEnvironmentVariableOverrideSource(
 }
 
 /**
- * Variables that can never be usefully or safely overridden from the
- * database: anything needed to REACH the database, plus security-critical
- * boot configuration. Platform-injected variables are excluded by category.
+ * Variables that can never be safely overridden from the database:
+ * anything needed to *reach* the database (chicken-and-egg: the override
+ * store lives in the DB), the session-signing secret (allowing an app-admin
+ * to rotate it would be a privilege escalation), and boot/diagnostic escape
+ * hatches that must travel through the deployment pipeline only.
+ *
+ * OWNER DECISION (2026-08-16): The original denylist also included
+ * authentication-provider config (SAML_*, OKTA_*, AUTH_*, OAUTH_*, CLERK_*,
+ * etc.) via ENV_OVERRIDE_DENY_PREFIXES. Those prefix rules have been removed
+ * so that SAML/Okta/OAuth variables can be set in-app without a redeploy.
+ * The security tradeoff is explicitly accepted: an app-admin can now update
+ * IdP URLs and callback paths through the UI. The truly destructive items
+ * (DB credentials, session key, boot escape hatches) remain in the denylist
+ * below. Re-enable selective prefix rules here if a narrower trust boundary
+ * is later required.
  */
-const ENV_OVERRIDE_DENYLIST = new Set<string>([
-  "NODE_ENV",
-  "PORT",
-  "DATABASE_URL",
-  "DATABASE_DRIVER",
-  "DB_HOST",
-  "DB_PORT",
-  "DB_NAME",
-  "DB_USER",
-  "DB_USERNAME",
-  "DB_PASSWORD",
-  "DB_SECRET",
-  "DB_SSLMODE",
-  "SESSION_SECRET",
-  "SESSION_TTL",
-  "ALLOW_INSECURE_SESSION_SECRET",
-  // Boot/debug escape hatches: deployment-pipeline decisions only.
-  "ALLOW_EMPTY_DB_BOOTSTRAP",
-  "ALLOW_DB_PUSH",
-  "SKIP_SCHEMA_DRIFT_CHECK",
-  "SKIP_DIST_FRESHNESS_CHECK",
-  "EXPOSE_BOOT_ERRORS",
-]);
+// OWNER DECISION (2026-08-16): NO denylist. Every registered variable is
+// overridable from the variables table when it is not set in the real
+// environment (set = present, non-empty, and not __UNSET__). The owner has
+// explicitly and repeatedly directed that no variable be privileged: the
+// ONLY lock is a real environment value winning over the stored override.
+// The original denylist is kept below, commented, for historical reference.
+// const ENV_OVERRIDE_DENYLIST = new Set<string>([
+//   "NODE_ENV",
+//   "PORT",
+//   "DATABASE_URL",
+//   "DATABASE_DRIVER",
+//   "DB_HOST",
+//   "DB_PORT",
+//   "DB_NAME",
+//   "DB_USER",
+//   "DB_USERNAME",
+//   "DB_PASSWORD",
+//   "DB_SECRET",
+//   "DB_SSLMODE",
+//   "SESSION_SECRET",
+//   "ALLOW_INSECURE_SESSION_SECRET",
+//   // Boot/debug escape hatches: deployment-pipeline decisions only.
+//   "ALLOW_EMPTY_DB_BOOTSTRAP",
+//   "ALLOW_DB_PUSH",
+//   "SKIP_SCHEMA_DRIFT_CHECK",
+//   "SKIP_DIST_FRESHNESS_CHECK",
+//   "EXPOSE_BOOT_ERRORS",
+// ]);
 
 /**
- * Authentication bootstrap configuration is never overridable: a DB write
- * could silently redirect sign-in/token traffic or swap provider trust
- * credentials (and persists across restarts). These settings must come from
- * the deployment pipeline only.
+ * Authentication bootstrap configuration was previously blocked here to
+ * prevent an app-admin from redirecting IdP traffic via a DB write.
+ *
+ * OWNER DECISION (2026-08-16): Removed. SAML_*, AUTH_*, OKTA_*, OAUTH_*,
+ * CLERK_*, SESSION_TTL, and DB_* *configuration* variables (not DB credentials
+ * — formerly in ENV_OVERRIDE_DENYLIST above) are now overridable in-app.
+ * Re-add prefix entries below to restore narrower restrictions if needed.
  */
-const ENV_OVERRIDE_DENY_PREFIXES = [
-  "AUTH_",
-  "LOCAL_AUTH_",
-  "OKTA_",
-  "SAML_",
-  "OAUTH_",
-  "CLERK_",
-  "VITE_CLERK_",
-  "SESSION_",
-  "DB_",
-];
+// const ENV_OVERRIDE_DENY_PREFIXES = [
+//   "AUTH_",
+//   "LOCAL_AUTH_",
+//   "OKTA_",
+//   "SAML_",
+//   "OAUTH_",
+//   "CLERK_",
+//   "VITE_CLERK_",
+//   "SESSION_",
+//   "DB_",
+// ];
 
-/** Whether a registered variable may be overridden from the database. */
+/**
+ * Whether a registered variable may be overridden from the database.
+ *
+ * OWNER DECISION (2026-08-16): every registered variable is overridable.
+ * The only runtime lock is a real environment value (non-empty, not
+ * __UNSET__) winning over the stored override — enforced by the
+ * precedence rules in getEnvironmentVariable, not here.
+ */
 export function isEnvironmentVariableOverridable(name: string): boolean {
-  const decl = registry.get(name);
-  if (!decl) return false;
-  if (decl.category === "platform") return false;
-  if (ENV_OVERRIDE_DENYLIST.has(name)) return false;
-  return !ENV_OVERRIDE_DENY_PREFIXES.some((p) => name.startsWith(p));
+  return registry.has(name);
+  // Original restrictions (removed per owner decision, see above):
+  // const decl = registry.get(name);
+  // if (!decl) return false;
+  // if (decl.category === "platform") return false;
+  // if (ENV_OVERRIDE_DENYLIST.has(name)) return false;
+  // return !ENV_OVERRIDE_DENY_PREFIXES.some((p) => name.startsWith(p));
 }
 
 /**
@@ -177,6 +206,16 @@ export function registerEnvironmentVariables(
   decls: readonly EnvironmentVariableDeclaration[],
 ): void {
   for (const decl of decls) registerEnvironmentVariable(decl);
+}
+
+/**
+ * Whether a registered variable is declared secret. Unregistered names
+ * return true (redact defensively — an unknown ENV_* override row may
+ * hold anything).
+ */
+export function isEnvironmentVariableSecret(name: string): boolean {
+  const decl = registry.get(name);
+  return decl ? decl.secret : true;
 }
 
 export function isEnvironmentVariableRegistered(name: string): boolean {

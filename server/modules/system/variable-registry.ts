@@ -11,8 +11,7 @@ import { workerBanNotificationConfigSchema } from "../worker-ban-config";
 import { entityFilesConfigSchema } from "../../services/entity-files/config";
 import { authSettingsSchema } from "../../auth/auth-settings";
 import {
-  isEnvironmentVariableRegistered,
-  isEnvironmentVariableOverridable,
+  isEnvironmentVariableSecret,
   ENV_RELEASE_SENTINEL,
 } from "../../config/env-registry";
 import { invalidateTerminologyCache, loadTerminology } from "../terminology";
@@ -103,43 +102,6 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
   // Role existence is additionally validated by PUT /api/admin/auth-settings.
   auth_settings: { schema: authSettingsSchema },
 
-  // In-app environment-variable overrides (admin read/write). Keys must be
-  // registered, overridable variable names; values are strings. The cache in
-  // env-overrides.ts is refreshed after every committed write.
-  env_overrides: {
-    // Never return override values through the generic variable reads:
-    // any key may hold a secret (the dedicated /api/admin/env endpoints
-    // apply per-variable secret masking instead).
-    redactRead: (value) => {
-      if (!value || typeof value !== "object" || Array.isArray(value)) return value;
-      return Object.fromEntries(Object.keys(value).map((k) => [k, "[redacted]"]));
-    },
-    schema: z.record(z.string()).superRefine((map, ctx) => {
-      for (const [name, value] of Object.entries(map)) {
-        if (value === ENV_RELEASE_SENTINEL || value === "") {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `"${name}": the release sentinel / empty string cannot be stored as an override`,
-          });
-        }
-        if (!isEnvironmentVariableRegistered(name)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `"${name}" is not a registered environment variable`,
-          });
-        } else if (!isEnvironmentVariableOverridable(name)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `"${name}" cannot be overridden from the database`,
-          });
-        }
-      }
-    }),
-    onWrite: async () => {
-      const { refreshEnvOverrides } = await import("../../services/env-overrides");
-      await refreshEnvOverrides();
-    },
-  },
 
   // Entity file attachments framework: per-context {file_system, directory,
   // allowed?} map (admin read/write). Validated against the registered
@@ -192,8 +154,48 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
   site_menu_plugin: { readTier: "authenticated", schema: z.string() },
 };
 
+/**
+ * Per-variable environment overrides: any variables row named `ENV_{NAME}`
+ * stores the in-app override for env variable NAME (owner design, Task
+ * #1096). Admin read/write. The value must be a non-empty string that is
+ * not the release sentinel; there is NO restriction on WHICH names may be
+ * overridden — precedence rules alone decide whether the override applies
+ * (a real, non-empty, non-__UNSET__ process-env value always wins).
+ */
+const ENV_OVERRIDE_ROW_PREFIX = "ENV_";
+
+function buildEnvOverrideEntry(rowName: string): VariableRegistryEntry {
+  const envName = rowName.slice(ENV_OVERRIDE_ROW_PREFIX.length);
+  return {
+    // Values may hold secrets (e.g. ENV_SENDGRID_API_KEY): redact generic
+    // reads when the underlying env declaration is marked secret. Unknown
+    // (unregistered) names are redacted defensively.
+    redactRead: (value) =>
+      isEnvironmentVariableSecret(envName) ? "[redacted]" : value,
+    schema: z
+      .string()
+      .min(1, "An override value must be a non-empty string")
+      .refine((v) => v !== ENV_RELEASE_SENTINEL, {
+        message: "The release sentinel cannot be stored as an override",
+      }),
+    onWrite: async () => {
+      const { refreshEnvOverrides } = await import("../../services/env-overrides");
+      await refreshEnvOverrides();
+    },
+  };
+}
+
+function resolveEntry(name: string): VariableRegistryEntry | undefined {
+  const entry = VARIABLE_REGISTRY[name];
+  if (entry) return entry;
+  if (name.startsWith(ENV_OVERRIDE_ROW_PREFIX) && name.length > ENV_OVERRIDE_ROW_PREFIX.length) {
+    return buildEnvOverrideEntry(name);
+  }
+  return undefined;
+}
+
 export function getVariableRegistryEntry(name: string): VariableRegistryEntry | undefined {
-  return VARIABLE_REGISTRY[name];
+  return resolveEntry(name);
 }
 
 export type VariableAccessDecision =
@@ -240,7 +242,7 @@ export async function checkVariableReadAccess(
   req: Request,
   name: string,
 ): Promise<VariableAccessDecision> {
-  const entry = VARIABLE_REGISTRY[name];
+  const entry = resolveEntry(name);
   return checkTier(req, entry?.readTier ?? "admin", entry?.component);
 }
 
@@ -253,7 +255,7 @@ export async function checkVariableWriteAccess(
   req: Request,
   name: string,
 ): Promise<VariableAccessDecision> {
-  const entry = VARIABLE_REGISTRY[name];
+  const entry = resolveEntry(name);
   const tier = entry?.writeTier ?? "admin";
   return checkTier(req, tier === "public" ? "admin" : tier, entry?.component);
 }
@@ -270,7 +272,7 @@ export type VariableValueValidation =
  * name. Variables without a registered schema accept any value.
  */
 export function validateVariableValue(name: string, value: unknown): VariableValueValidation {
-  const entry = VARIABLE_REGISTRY[name];
+  const entry = resolveEntry(name);
   if (!entry?.schema) {
     return { ok: true, value: value as VariableJsonValue };
   }
@@ -287,11 +289,11 @@ export function validateVariableValue(name: string, value: unknown): VariableVal
  * record before returning it from any generic read endpoint.
  */
 export function redactVariableForRead<T extends { name: string; value: unknown }>(variable: T): T {
-  const entry = VARIABLE_REGISTRY[variable.name];
+  const entry = resolveEntry(variable.name);
   if (!entry?.redactRead) return variable;
   return { ...variable, value: entry.redactRead(variable.value) };
 }
 
 export async function runVariableOnWrite(name: string): Promise<void> {
-  await VARIABLE_REGISTRY[name]?.onWrite?.();
+  await resolveEntry(name)?.onWrite?.();
 }
