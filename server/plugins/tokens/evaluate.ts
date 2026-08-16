@@ -37,7 +37,20 @@ function specOf(p: TokenPlugin): TokenSegmentSpec {
     args: p.metadata.args,
     label: p.metadata.name,
     description: p.metadata.description,
+    defaultLeaf: p.metadata.defaultLeaf,
   };
+}
+
+/**
+ * Return the default-leaf field name declared for the given entity kind,
+ * or undefined if the kind has no default leaf. Looks up the first
+ * registered plugin whose outputType matches and declares a defaultLeaf.
+ */
+function getDefaultLeafForKind(kind: TokenEntityType): string | undefined {
+  return tokenPluginRegistry
+    .listEnabledSync()
+    .find((p) => p.metadata.outputType === kind && p.metadata.defaultLeaf !== undefined)
+    ?.metadata.defaultLeaf;
 }
 
 /**
@@ -213,6 +226,33 @@ export async function evaluateChain(
   }
 
   if (currentType !== "value") {
+    // Default-leaf desugaring: if the chain ends in an entity kind that
+    // has a declared default leaf, implicitly evaluate field(name=<leaf>)
+    // without requiring the author to write it explicitly.
+    const defaultLeafName = getDefaultLeafForKind(currentType);
+    if (defaultLeafName !== undefined) {
+      const fieldPlugin = findSegmentPlugin("field", currentType);
+      if (fieldPlugin) {
+        const args = applyArgDefaults(fieldPlugin, { name: defaultLeafName });
+        if (ctx.sample) {
+          const example =
+            fieldPlugin.sampleValue?.(args) ??
+            fieldPlugin.metadata.example ??
+            fieldPlugin.metadata.defaultValue ??
+            "";
+          return { status: "ok", value: example };
+        }
+        if (entity === null) {
+          return { status: "missing", defaultValue: fieldPlugin.metadata.defaultValue ?? "" };
+        }
+        const resolved = await fieldPlugin.resolve(entity, args, ctx);
+        const defaultValue = fieldPlugin.metadata.defaultValue ?? "";
+        if (resolved === null || resolved === undefined || resolved === "") {
+          return { status: "missing", defaultValue };
+        }
+        return { status: "ok", value: String(resolved) };
+      }
+    }
     return { status: "invalid", error: "chain does not end in a value" };
   }
   const defaultValue = leaf?.metadata.defaultValue ?? "";
@@ -235,6 +275,15 @@ function leafDefault(segments: TokenSegment[], eventKind?: string): string {
       currentType = eventKind;
     } else {
       currentType = plugin.metadata.outputType;
+    }
+  }
+  // If the chain ends at an entity kind with a default leaf, the effective
+  // default comes from the field plugin (which has no per-field default).
+  if (currentType !== "value") {
+    const defaultLeafName = getDefaultLeafForKind(currentType);
+    if (defaultLeafName !== undefined) {
+      const fieldPlugin = findSegmentPlugin("field", currentType);
+      if (fieldPlugin) return fieldPlugin.metadata.defaultValue ?? def;
     }
   }
   return def;
@@ -333,6 +382,11 @@ function leafPluginFor(
       currentType = plugin.metadata.outputType;
     }
   }
+  // When the chain ends at an entity kind with a default leaf, the
+  // effective leaf for rendering purposes is the generic field plugin.
+  if (currentType !== "value" && getDefaultLeafForKind(currentType) !== undefined) {
+    return findSegmentPlugin("field", currentType) ?? leaf;
+  }
   return leaf;
 }
 
@@ -375,10 +429,21 @@ export function describeChain(
   const leaf = leafPluginFor(parsed.segments);
   if (!leaf) return null;
   const last = parsed.segments[parsed.segments.length - 1];
-  const label =
-    last?.name === "field" && last.args.name
-      ? `${last.args.name} field`
-      : leaf.metadata.name;
+  // Determine the output type of the last written segment so we can check
+  // for a default-leaf desugaring when the chain doesn't end in "field".
+  let lastOutputType: TokenEntityType = "root";
+  for (const seg of parsed.segments) {
+    const p = findSegmentPlugin(seg.name, lastOutputType);
+    if (!p) break;
+    lastOutputType = p.metadata.dynamicOutput ? lastOutputType : p.metadata.outputType;
+  }
+  let label: string;
+  if (last?.name === "field" && last.args.name) {
+    label = `${last.args.name} field`;
+  } else {
+    const dl = getDefaultLeafForKind(lastOutputType);
+    label = dl !== undefined ? `${dl} field` : leaf.metadata.name;
+  }
   return {
     label,
     defaultValue: last?.args.default ?? leaf.metadata.defaultValue ?? "",
@@ -408,6 +473,21 @@ export function buildTokenCatalog(): TokenCatalogEntry[] {
     const description = fields?.names.length
       ? `Fields: ${fields.names.join(", ")}`
       : "Any field of this record";
+    // Short-form entry: when a default leaf is declared for this entity kind,
+    // emit a directly-insertable entry (e.g. `worker.contact` →
+    // the contact's display_name) in addition to the template entry.
+    const dl = getDefaultLeafForKind(type);
+    if (dl !== undefined) {
+      entries.push({
+        id: prefix,
+        label: `${label} (${dl})`,
+        description: `${dl} — default field (insert as {{${prefix}}})`,
+        scope,
+        insertText: `{{${prefix}}}`,
+        defaultValue: "",
+        example: "",
+      });
+    }
     const id = `${prefix}.field(name="")`;
     entries.push({
       id,

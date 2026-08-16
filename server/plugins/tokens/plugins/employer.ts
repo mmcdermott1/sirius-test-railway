@@ -17,6 +17,7 @@ registerTokenPlugin({
     inputTypes: ["root"],
     outputType: "employer",
     entityTable: employers,
+    defaultLeaf: "name",
   },
   async resolve(_entity, _args, ctx) {
     if (!ctx.contactId) return null;
@@ -43,7 +44,7 @@ registerTokenPlugin({
   },
 });
 
-/** {{worker.home_employer.field(name="name")}} — the worker's home employer. */
+/** {{worker.home_employer}} — the worker's home employer name (default leaf). */
 registerTokenPlugin({
   metadata: {
     id: "token.worker.home_employer",
@@ -53,6 +54,7 @@ registerTokenPlugin({
     inputTypes: ["worker"],
     outputType: "employer",
     entityTable: employers,
+    defaultLeaf: "name",
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");

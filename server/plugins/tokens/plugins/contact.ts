@@ -23,6 +23,7 @@ registerTokenPlugin({
     inputTypes: ["root"],
     outputType: "contact",
     entityTable: contacts,
+    defaultLeaf: "display_name",
   },
   async resolve(_entity, _args, ctx) {
     if (!ctx.contactId) return null;
@@ -41,6 +42,7 @@ registerTokenPlugin({
     outputType: "contact",
     entityTable: contacts,
     hiddenFromCatalog: true,
+    defaultLeaf: "display_name",
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");

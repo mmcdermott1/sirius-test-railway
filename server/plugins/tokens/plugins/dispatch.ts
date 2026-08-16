@@ -33,6 +33,7 @@ registerTokenPlugin({
     entityTable: dispatchJobs,
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
+    defaultLeaf: "title",
   },
   async resolve(entity, _args, ctx) {
     const e = tokenEntityOf(entity, DISPATCH_FORE_ENTITY_KIND);

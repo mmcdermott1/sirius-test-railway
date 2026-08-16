@@ -69,6 +69,16 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
   entityFields?: string[];
   /** The produced entity's field set can't be enumerated; accept any name. */
   entityFieldsOpen?: boolean;
+  /**
+   * For entity-producing segments: when a chain ends at the produced
+   * entity kind (no explicit leaf), implicitly append
+   * `field(name=<defaultLeaf>)` so authors can write e.g.
+   * `{{event.worker.contact}}` instead of
+   * `{{event.worker.contact.field(name="display_name")}}`.
+   * Declare on any ONE plugin that produces the kind; evaluation and
+   * validation look up the first match by outputType.
+   */
+  defaultLeaf?: string;
   /** Hide from the generated picker catalog (still evaluatable). */
   hiddenFromCatalog?: boolean;
   /**

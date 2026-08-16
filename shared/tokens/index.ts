@@ -140,6 +140,12 @@ export interface TokenSegmentSpec {
   args?: Record<string, TokenArgSpec>;
   label?: string;
   description?: string;
+  /**
+   * When set on an entity-producing segment spec, a chain that ends at
+   * this segment's output type is treated as valid: the runtime
+   * implicitly appends `field(name=<defaultLeaf>)`.
+   */
+  defaultLeaf?: string;
 }
 
 export type ChainValidation =
@@ -219,6 +225,31 @@ export function validateChain(
     currentType = spec.outputType;
   }
   if (currentType !== "value") {
+    // Allow chains that end in an entity kind with a declared default leaf.
+    // Find any spec that produces this type and declares a defaultLeaf.
+    let defaultLeaf: string | undefined;
+    for (const sp of specs) {
+      if (sp.defaultLeaf && sp.outputType === currentType) {
+        defaultLeaf = sp.defaultLeaf;
+        break;
+      }
+    }
+    if (defaultLeaf !== undefined) {
+      // Optionally validate that the default leaf field actually exists.
+      if (fields) {
+        const catalog = fields[currentType];
+        if (catalog && !catalog.open) {
+          const wanted = normalizeFieldName(defaultLeaf);
+          if (!catalog.names.some((n) => normalizeFieldName(n) === wanted)) {
+            return {
+              ok: false,
+              error: `default field '${defaultLeaf}' is not a field of ${currentType}`,
+            };
+          }
+        }
+      }
+      return { ok: true, outputType: "value" };
+    }
     return {
       ok: false,
       error: `chain ends in '${currentType}' — add a segment that produces a value`,
