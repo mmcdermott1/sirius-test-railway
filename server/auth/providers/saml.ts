@@ -6,8 +6,10 @@ import { storage } from "../../storage";
 import { storageLogger, logger } from "../../logger";
 import { getRequestContext } from "../../middleware/request-context";
 import { getEnvironmentVariable } from "../../config/env-registry";
+import { isComponentEnabledSync } from "../../services/component-cache";
 
 const STRATEGY_NAME = "saml";
+const SAML_DEBUG_MODULE = "saml_debug";
 
 /**
  * Map common node-saml validation errors to a human-readable reason an
@@ -55,6 +57,70 @@ function decodeSamlResponse(raw: unknown): string | undefined {
 }
 
 /**
+ * When the "debug" component is enabled, write a full SAML login capture to
+ * the system logs (module "saml_debug") so admins can inspect exactly what
+ * the IdP is sending — including all attribute keys the app currently ignores.
+ *
+ * Wrapped in try/catch so a logging failure can never break authentication.
+ * Gated with a sync component check so toggling the component takes effect
+ * immediately without a restart.
+ *
+ * Retention: configure a log-cleanup retention policy for module "saml_debug"
+ * with ~7 days. The log-cleanup cron plugin is disabled by default — enable it
+ * under Config → Cron Jobs and add the policy there.
+ */
+function captureSamlDebugLog(
+  req: Request,
+  outcome: "success" | "access_denied" | "saml_error",
+  options: {
+    profile?: SamlProfile | null;
+    matchedEmail?: string;
+    matchedUserId?: string | number;
+    externalId?: string;
+    errorCategory?: string;
+    errorMessage?: string;
+  } = {}
+): void {
+  try {
+    if (!isComponentEnabledSync("debug")) return;
+
+    const context = getRequestContext();
+    const samlResponseRaw = (req.body as Record<string, unknown> | undefined)?.SAMLResponse;
+    const relayState =
+      typeof (req.body as any)?.RelayState === "string"
+        ? (req.body as any).RelayState
+        : undefined;
+
+    storageLogger.info(`SAML debug capture [${outcome}]`, {
+      module: SAML_DEBUG_MODULE,
+      operation: outcome,
+      description: `SAML login attempt outcome: ${outcome}`,
+      ip_address: context?.ipAddress ?? req.ip,
+      // Full profile — all IdP-sent attributes, not just the ones
+      // extractProfileData reads. This is the primary diagnostic payload.
+      profileAttributes: options.profile ? { ...options.profile } : null,
+      // Raw SAMLResponse so admins can decode/inspect the assertion XML
+      samlResponseBase64:
+        typeof samlResponseRaw === "string" ? samlResponseRaw : undefined,
+      samlResponseXml: decodeSamlResponse(samlResponseRaw),
+      // Useful request context
+      relayState,
+      matchedEmail: options.matchedEmail,
+      matchedUserId:
+        options.matchedUserId !== undefined
+          ? String(options.matchedUserId)
+          : undefined,
+      externalId: options.externalId,
+      // Error context (only populated for saml_error outcome)
+      errorCategory: options.errorCategory,
+      errorMessage: options.errorMessage,
+    });
+  } catch {
+    // Never break authentication due to debug logging failures
+  }
+}
+
+/**
  * Persist a sanitized SAML failure so admins can diagnose IdP configuration
  * problems from the in-app log viewer (Config → Logs, module "auth"), and
  * return a short reference id and the sanitized category, both surfaced on
@@ -86,6 +152,13 @@ function recordSamlFailure(
     relayState: typeof (req.body as any)?.RelayState === "string" ? (req.body as any).RelayState : undefined,
     samlResponseXml: decodeSamlResponse(samlResponseRaw),
     samlResponseBase64: typeof samlResponseRaw === "string" ? samlResponseRaw : undefined,
+  });
+  // Debug capture: log raw SAMLResponse + error context under saml_debug.
+  // Profile is unavailable here (the assertion failed before parsing), but the
+  // raw response and error category are still useful for diagnosis.
+  captureSamlDebugLog(req, "saml_error", {
+    errorCategory: category,
+    errorMessage: err.message,
   });
   return { reference, category };
 }
@@ -351,10 +424,22 @@ class SamlAuthProvider implements AuthProvider {
                 externalId: result.externalId,
               }, req);
               (req as any)._samlAccessDeniedRef = reference;
+              captureSamlDebugLog(req, "access_denied", {
+                profile: samlProfile,
+                matchedEmail: result.email,
+                externalId: result.externalId,
+              });
               return done(null, undefined);
             }
 
             const { externalId, email, firstName, lastName } = extractProfileData(samlProfile);
+
+            captureSamlDebugLog(req, "success", {
+              profile: samlProfile,
+              matchedEmail: email,
+              matchedUserId: result.user?.id,
+              externalId,
+            });
 
             const sessionUser: AuthenticatedUser = {
               claims: {
