@@ -1,7 +1,9 @@
 #!/usr/bin/env npx tsx
 /**
- * Tests for the system-status details() drill-down framework (Task #1052)
- * and the environment-variables status plugin.
+ * Tests for the system-status details() drill-down framework (Task #1052).
+ * (The environment-variables status plugin was removed when in-app env
+ * overrides landed; a synthetic details-bearing plugin exercises the
+ * framework, obfuscation, and HTTP routes instead.)
  *
  * Run: npx tsx scripts/dev/test-system-status-details.ts
  * Exits 0 when all assertions pass, 1 otherwise.
@@ -23,12 +25,7 @@ import {
 } from "../../server/plugins/system/status/collector";
 import { systemStatusPluginRegistry } from "../../server/plugins/system/status/registry";
 import type { SystemStatusPlugin } from "../../server/plugins/system/status/types";
-import {
-  getRawProcessEnv,
-  registerEnvironmentVariable,
-  setEnvironmentVariable,
-} from "../../server/config/env-registry";
-import "../../server/plugins/system/status/plugins/environment-variables";
+import { registerSystemStatusPlugin } from "../../server/plugins/system/status/registry";
 
 let failures = 0;
 async function check(name: string, fn: () => void | Promise<void>): Promise<void> {
@@ -44,13 +41,38 @@ function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg);
 }
 
-const envPlugin = systemStatusPluginRegistry.get("environment-variables")!;
+// Synthetic details-bearing plugin standing in for the removed
+// environment-variables plugin: same obfuscation contract (secret values
+// never appear in scan or details payloads).
+const SECRET_VALUE = "super-secret-value-123";
+const detailsPlugin: SystemStatusPlugin = {
+  id: "test-details",
+  name: "Details",
+  description: "synthetic details-bearing plugin",
+  async scan() {
+    return [{ priority: "info" as const, title: "2 test variables" }];
+  },
+  async details() {
+    return {
+      groups: [
+        {
+          title: "core",
+          rows: [
+            { label: "TEST_SSD_SECRET", value: "••••••••", badges: ["secret"] },
+            { label: "TEST_SSD_PLAIN", value: "visible-value" },
+          ],
+        },
+      ],
+    };
+  },
+};
+registerSystemStatusPlugin(detailsPlugin);
 
 async function main() {
   console.log("[test-system-status-details] collector framework");
 
   await check("hasDetails is true for plugins with details()", async () => {
-    const [entry] = await collectStatus([envPlugin]);
+    const [entry] = await collectStatus([detailsPlugin]);
     assert(entry.hasDetails === true, "hasDetails should be true");
   });
 
@@ -135,79 +157,21 @@ async function main() {
     assert(threw, "expected a timeout error");
   });
 
-  console.log("[test-system-status-details] environment-variables plugin");
+  console.log("[test-system-status-details] synthetic details plugin");
 
-  registerEnvironmentVariable({
-    name: "TEST_SSD_SECRET",
-    description: "secret test variable",
-    secret: true,
-    category: "core",
-  });
-  setEnvironmentVariable("TEST_SSD_SECRET", "super-secret-value-123");
-  registerEnvironmentVariable({
-    name: "TEST_SSD_PLAIN",
-    description: "plain test variable",
-    secret: false,
-    category: "core",
-  });
-  setEnvironmentVariable("TEST_SSD_PLAIN", "visible-value");
-  registerEnvironmentVariable({
-    name: "TEST_SSD_LONG",
-    description: "long test variable",
-    secret: false,
-    category: "core",
-  });
-  setEnvironmentVariable("TEST_SSD_LONG", "x".repeat(500));
-  registerEnvironmentVariable({
-    name: "TEST_SSD_REQ_UNSET",
-    description: "required but unset",
-    secret: false,
-    category: "core",
-    required: true,
-  });
-  delete (getRawProcessEnv() as Record<string, string | undefined>).TEST_SSD_REQ_UNSET;
-
-  await check("scan reports counts and required-but-unset warning", async () => {
-    const messages = await envPlugin.scan();
-    const summary = messages[0];
-    assert(/\d+ registered variable/.test(summary.title), "summary counts missing");
-    const warning = messages.find(
-      (m) => m.priority === "warning" && m.title.includes("TEST_SSD_REQ_UNSET"),
-    );
-    assert(warning, "missing required-but-unset warning");
-    const json = JSON.stringify(messages);
-    assert(!json.includes("super-secret-value-123"), "scan leaked a secret value");
-    assert(!json.includes("visible-value"), "scan should not include values at all");
-  });
-
-  await check("details obfuscates secrets, shows/truncates non-secrets", async () => {
-    const details = await envPlugin.details!();
+  await check("details payload keeps secrets obfuscated", async () => {
+    const details = await detailsPlugin.details!();
     const rows = details.groups.flatMap((g) => g.rows);
     const secret = rows.find((r) => r.label === "TEST_SSD_SECRET")!;
     assert(secret, "secret row missing");
     assert(secret.value === "••••••••", `secret not obfuscated: ${secret.value}`);
     assert(secret.badges?.includes("secret"), "missing secret badge");
     assert(
-      !JSON.stringify(details).includes("super-secret-value-123"),
+      !JSON.stringify(details).includes(SECRET_VALUE),
       "details leaked a secret value",
     );
     const plain = rows.find((r) => r.label === "TEST_SSD_PLAIN")!;
     assert(plain.value === "visible-value", "non-secret value not shown");
-    const long = rows.find((r) => r.label === "TEST_SSD_LONG")!;
-    assert(long.value!.length < 200 && long.value!.includes("…"), "long value not truncated");
-    const unset = rows.find((r) => r.label === "TEST_SSD_REQ_UNSET")!;
-    assert(unset.value === undefined, "unset var should have no value");
-    assert(unset.badges?.includes("unset"), "missing unset badge");
-    assert(unset.priority === "warning", "required-unset row should warn");
-  });
-
-  await check("details groups are keyed by category", async () => {
-    const details = await envPlugin.details!();
-    const titles = details.groups.map((g) => g.title);
-    assert(titles.includes("core"), "core group missing");
-    assert(titles.includes("platform"), "platform group missing");
-    const sorted = [...titles].sort((a, b) => a.localeCompare(b));
-    assert(JSON.stringify(titles) === JSON.stringify(sorted), "groups not sorted");
   });
 
   console.log("[test-system-status-details] HTTP routes");
@@ -244,20 +208,20 @@ async function main() {
 
   await check("details endpoint requires auth", async () => {
     authAllowed = false;
-    const res = await fetch(`${base}/api/system-status/environment-variables/details`);
+    const res = await fetch(`${base}/api/system-status/test-details/details`);
     assert(res.status === 401, `expected 401, got ${res.status}`);
     authAllowed = true;
   });
 
   await check("details endpoint responds no-store with obfuscated payload", async () => {
-    const res = await fetch(`${base}/api/system-status/environment-variables/details`);
+    const res = await fetch(`${base}/api/system-status/test-details/details`);
     assert(res.status === 200, `expected 200, got ${res.status}`);
     assert(
       res.headers.get("cache-control") === "no-store",
       `expected no-store, got ${res.headers.get("cache-control")}`,
     );
     const body = await res.text();
-    assert(!body.includes("super-secret-value-123"), "endpoint leaked a secret value");
+    assert(!body.includes(SECRET_VALUE), "endpoint leaked a secret value");
     assert(body.includes("TEST_SSD_SECRET"), "payload missing expected row");
   });
 
@@ -278,11 +242,11 @@ async function main() {
     const res = await fetch(`${base}/api/system-status`);
     assert(res.status === 200, `expected 200, got ${res.status}`);
     const entries = (await res.json()) as { id: string; hasDetails: boolean }[];
-    const env = entries.find((e) => e.id === "environment-variables");
-    assert(env, "environment-variables entry missing from collect");
+    const env = entries.find((e) => e.id === "test-details");
+    assert(env, "test-details entry missing from collect");
     assert(env!.hasDetails === true, "hasDetails not advertised");
     assert(
-      !JSON.stringify(entries).includes("super-secret-value-123"),
+      !JSON.stringify(entries).includes(SECRET_VALUE),
       "collect leaked a secret value",
     );
   });

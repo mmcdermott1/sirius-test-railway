@@ -1,4 +1,5 @@
 // hint: Logic changed on both sides. Requires understanding intent of each change.
+- [In-app env overrides](env-overrides-framework.md) — env always wins (`!== undefined` incl. ""); auth/session/DB prefixes never overridable; env_overrides row blocked from generic variable writes + redacted reads.
 - [Env-var registry](env-var-registry.md) — all env reads go through getEnvironmentVariable (server/config/env-registry.ts, pure leaf); check-env-registry flags process-env even in comments.
 - [Employer compliance gating](employer-compliance-gating.md) — /employers/compliance is staff+ledger gated, never bulk.edit (bulk.edit is unsatisfiable: no staff.bulk perm, bulk component often off).
 - [Employer route registration order](employer-route-registration-order.md) — new literal /api/employers/<word> routes must live in routes.ts before its /:id, else captured as :id → 404.

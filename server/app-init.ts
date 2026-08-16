@@ -242,6 +242,15 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
     await armMaintenanceEnforcement();
   }
 
+  // Load DB-backed environment-variable overrides and install the sync
+  // fallback into the env registry (real env values always win). Must run
+  // after migrations (needs the variables table) and before any init step
+  // that reads overridable variables (e.g. FILESYSTEMS, auth setup).
+  {
+    const { initEnvOverrides } = await import("./services/env-overrides");
+    await initEnvOverrides();
+  }
+
   // Initialize environment-defined filesystems (FILESYSTEMS env var).
   // Throws on malformed config; warns for any file_system_id referenced by
   // files rows but absent from the environment.

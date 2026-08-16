@@ -10,6 +10,10 @@ import { dispatchDncNotificationConfigSchema } from "../dispatch/dnc-config";
 import { workerBanNotificationConfigSchema } from "../worker-ban-config";
 import { entityFilesConfigSchema } from "../../services/entity-files/config";
 import { authSettingsSchema } from "../../auth/auth-settings";
+import {
+  isEnvironmentVariableRegistered,
+  isEnvironmentVariableOverridable,
+} from "../../config/env-registry";
 import { invalidateTerminologyCache, loadTerminology } from "../terminology";
 import { sanitizeHelpHtml } from "../../help/sanitize";
 
@@ -40,6 +44,12 @@ export interface VariableRegistryEntry {
   component?: string;
   schema?: z.ZodTypeAny;
   onWrite?: () => void | Promise<void>;
+  /**
+   * Optional server-side redaction applied to the variable's VALUE on every
+   * generic read (list, by-id, by-name) before it leaves the server. Use for
+   * variables whose value can embed secrets (e.g. env_overrides).
+   */
+  redactRead?: (value: unknown) => unknown;
 }
 
 /** Terminology value: only registered term keys, both forms trimmed+required. */
@@ -91,6 +101,38 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
   // Auth settings: provisioning modes + SAML role mappings (admin read/write).
   // Role existence is additionally validated by PUT /api/admin/auth-settings.
   auth_settings: { schema: authSettingsSchema },
+
+  // In-app environment-variable overrides (admin read/write). Keys must be
+  // registered, overridable variable names; values are strings. The cache in
+  // env-overrides.ts is refreshed after every committed write.
+  env_overrides: {
+    // Never return override values through the generic variable reads:
+    // any key may hold a secret (the dedicated /api/admin/env endpoints
+    // apply per-variable secret masking instead).
+    redactRead: (value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+      return Object.fromEntries(Object.keys(value).map((k) => [k, "[redacted]"]));
+    },
+    schema: z.record(z.string()).superRefine((map, ctx) => {
+      for (const name of Object.keys(map)) {
+        if (!isEnvironmentVariableRegistered(name)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `"${name}" is not a registered environment variable`,
+          });
+        } else if (!isEnvironmentVariableOverridable(name)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `"${name}" cannot be overridden from the database`,
+          });
+        }
+      }
+    }),
+    onWrite: async () => {
+      const { refreshEnvOverrides } = await import("../../services/env-overrides");
+      await refreshEnvOverrides();
+    },
+  },
 
   // Entity file attachments framework: per-context {file_system, directory,
   // allowed?} map (admin read/write). Validated against the registered
@@ -233,6 +275,16 @@ export function validateVariableValue(name: string, value: unknown): VariableVal
 }
 
 /** Run the variable's onWrite hook (if any) after a successful write/delete. */
+/**
+ * Apply the registry's per-variable read redaction (if any) to a variable
+ * record before returning it from any generic read endpoint.
+ */
+export function redactVariableForRead<T extends { name: string; value: unknown }>(variable: T): T {
+  const entry = VARIABLE_REGISTRY[variable.name];
+  if (!entry?.redactRead) return variable;
+  return { ...variable, value: entry.redactRead(variable.value) };
+}
+
 export async function runVariableOnWrite(name: string): Promise<void> {
   await VARIABLE_REGISTRY[name]?.onWrite?.();
 }

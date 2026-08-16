@@ -9,6 +9,7 @@ import { z } from "zod";
 import { registerUserRoutes } from "./modules/users";
 import { registerVariableRoutes } from "./modules/system/variables";
 import { registerAuthSettingsRoutes } from "./modules/auth-settings";
+import { registerEnvRoutes } from "./modules/system/env";
 import { registerDenormRoutes } from "./modules/system/denorm";
 import { registerContactPostalRoutes } from "./modules/contact-postal";
 import { registerPhoneNumberRoutes } from "./modules/phone-numbers";
@@ -1691,6 +1692,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Register generic variable management routes (MUST come after specific routes)
   registerVariableRoutes(app, requireAuth, requirePermission);
   registerAuthSettingsRoutes(app);
+  registerEnvRoutes(app);
   registerDenormRoutes(app, requireAuth, requirePermission);
 
   // Register events routes

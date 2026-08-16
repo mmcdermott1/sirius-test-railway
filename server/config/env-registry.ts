@@ -48,6 +48,86 @@ const registry = new Map<string, EnvironmentVariableDeclaration>();
 const overrides = new Map<string, (value: string | undefined) => string | undefined>();
 
 /**
+ * DB-backed override source (Task #1080). Installed at boot (after the
+ * database is up) by `server/services/env-overrides.ts`; consulted ONLY when
+ * the variable is absent from the real process environment, so a value set
+ * in the deployment pipeline always "locks" the variable. Must be a
+ * synchronous lookup (in-memory cache) — this module stays a pure leaf.
+ */
+let dbOverrideSource: ((name: string) => string | undefined) | null = null;
+
+export function setEnvironmentVariableOverrideSource(
+  fn: ((name: string) => string | undefined) | null,
+): void {
+  dbOverrideSource = fn;
+}
+
+/**
+ * Variables that can never be usefully or safely overridden from the
+ * database: anything needed to REACH the database, plus security-critical
+ * boot configuration. Platform-injected variables are excluded by category.
+ */
+const ENV_OVERRIDE_DENYLIST = new Set<string>([
+  "NODE_ENV",
+  "PORT",
+  "DATABASE_URL",
+  "DATABASE_DRIVER",
+  "DB_HOST",
+  "DB_PORT",
+  "DB_NAME",
+  "DB_USER",
+  "DB_USERNAME",
+  "DB_PASSWORD",
+  "DB_SECRET",
+  "DB_SSLMODE",
+  "SESSION_SECRET",
+  "SESSION_TTL",
+  "ALLOW_INSECURE_SESSION_SECRET",
+  // Boot/debug escape hatches: deployment-pipeline decisions only.
+  "ALLOW_EMPTY_DB_BOOTSTRAP",
+  "ALLOW_DB_PUSH",
+  "SKIP_SCHEMA_DRIFT_CHECK",
+  "SKIP_DIST_FRESHNESS_CHECK",
+  "EXPOSE_BOOT_ERRORS",
+]);
+
+/**
+ * Authentication bootstrap configuration is never overridable: a DB write
+ * could silently redirect sign-in/token traffic or swap provider trust
+ * credentials (and persists across restarts). These settings must come from
+ * the deployment pipeline only.
+ */
+const ENV_OVERRIDE_DENY_PREFIXES = [
+  "AUTH_",
+  "LOCAL_AUTH_",
+  "OKTA_",
+  "SAML_",
+  "OAUTH_",
+  "CLERK_",
+  "VITE_CLERK_",
+  "SESSION_",
+  "DB_",
+];
+
+/** Whether a registered variable may be overridden from the database. */
+export function isEnvironmentVariableOverridable(name: string): boolean {
+  const decl = registry.get(name);
+  if (!decl) return false;
+  if (decl.category === "platform") return false;
+  if (ENV_OVERRIDE_DENYLIST.has(name)) return false;
+  return !ENV_OVERRIDE_DENY_PREFIXES.some((p) => name.startsWith(p));
+}
+
+/**
+ * True when the variable is present in the real process env. Presence is
+ * `!== undefined` (an empty string counts as set) to match the getter's
+ * fallback rule exactly — an empty env value wins over any override.
+ */
+export function isEnvironmentVariableSetInProcess(name: string): boolean {
+  return process.env[name] !== undefined;
+}
+
+/**
  * Declare an environment variable. Idempotent: re-registering the same name
  * replaces the declaration (last one wins), so modules that share a variable
  * can each register it at load time without ordering hazards.
@@ -87,6 +167,9 @@ export function getEnvironmentVariable(name: string): string | undefined {
     );
   }
   let value: string | undefined = process.env[name];
+  if (value === undefined && dbOverrideSource && isEnvironmentVariableOverridable(name)) {
+    value = dbOverrideSource(name);
+  }
   if (decl.transform) value = decl.transform(value);
   const override = overrides.get(name);
   if (override) value = override(value);
@@ -138,6 +221,10 @@ export interface EnvironmentVariableInfo {
   required: boolean;
   /** Whether the variable currently has a non-empty value. Never the value. */
   isSet: boolean;
+  /** Where the current value comes from (null when unset). */
+  source: "environment" | "override" | null;
+  /** Whether a DB override is allowed for this variable. */
+  overridable: boolean;
 }
 
 /**
@@ -146,14 +233,29 @@ export interface EnvironmentVariableInfo {
  */
 export function listEnvironmentVariables(): EnvironmentVariableInfo[] {
   return Array.from(registry.values())
-    .map((d) => ({
-      name: d.name,
-      description: d.description,
-      secret: d.secret,
-      category: d.category,
-      required: d.required === true,
-      isSet: process.env[d.name] !== undefined && process.env[d.name] !== "",
-    }))
+    .map((d) => {
+      // Presence must match the getter's fallback rule (`!== undefined`):
+      // an empty env value still wins over an override, so it is "set".
+      const envSet = process.env[d.name] !== undefined;
+      const overridable = isEnvironmentVariableOverridable(d.name);
+      const overrideValue =
+        !envSet && overridable && dbOverrideSource ? dbOverrideSource(d.name) : undefined;
+      const source: EnvironmentVariableInfo["source"] = envSet
+        ? "environment"
+        : overrideValue !== undefined
+          ? "override"
+          : null;
+      return {
+        name: d.name,
+        description: d.description,
+        secret: d.secret,
+        category: d.category,
+        required: d.required === true,
+        isSet: source !== null,
+        source,
+        overridable,
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

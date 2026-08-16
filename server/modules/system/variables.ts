@@ -7,8 +7,19 @@ import {
   checkVariableWriteAccess,
   validateVariableValue,
   runVariableOnWrite,
+  redactVariableForRead,
 } from "./variable-registry";
 import { allowInMaintenanceMode } from "../../storage/maintenance";
+
+// Internal aggregate variables that must only be mutated through their
+// dedicated (serialized) API, never the generic variable write routes.
+// env_overrides: written via /api/admin/env under a write lock; a generic
+// write could clobber the map (or persist a redacted read back verbatim).
+const GENERIC_WRITE_BLOCKED = new Set(["env_overrides"]);
+
+function isGenericWriteBlocked(name: string): boolean {
+  return GENERIC_WRITE_BLOCKED.has(name);
+}
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
@@ -21,7 +32,7 @@ export function registerVariableRoutes(
   app.get("/api/variables", requireAccess('admin'), async (req, res) => {
     try {
       const variables = await storage.variables.getAll();
-      res.json(variables);
+      res.json(variables.map(redactVariableForRead));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch variables" });
     }
@@ -54,7 +65,7 @@ export function registerVariableRoutes(
         return;
       }
 
-      res.json(variable);
+      res.json(redactVariableForRead(variable));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch variable" });
     }
@@ -79,7 +90,7 @@ export function registerVariableRoutes(
         return;
       }
 
-      res.json(variable);
+      res.json(redactVariableForRead(variable));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch variable" });
     }
@@ -91,6 +102,11 @@ export function registerVariableRoutes(
   app.put("/api/variables/by-name/:name", async (req, res) => {
     try {
       const { name } = req.params;
+
+      if (isGenericWriteBlocked(name)) {
+        res.status(403).json({ message: "This variable is managed through a dedicated API" });
+        return;
+      }
 
       const decision = await checkVariableWriteAccess(req, name);
       if (!decision.granted) {
@@ -124,8 +140,12 @@ export function registerVariableRoutes(
           ? await allowInMaintenanceMode(writeVariable)
           : await writeVariable();
 
+      if (!variable) {
+        res.status(500).json({ message: "Failed to save variable" });
+        return;
+      }
       await runVariableOnWrite(name);
-      res.json(variable);
+      res.json(redactVariableForRead(variable));
     } catch (error) {
       res.status(500).json({ message: "Failed to save variable" });
     }
@@ -137,6 +157,11 @@ export function registerVariableRoutes(
   app.delete("/api/variables/by-name/:name", async (req, res) => {
     try {
       const { name } = req.params;
+
+      if (isGenericWriteBlocked(name)) {
+        res.status(403).json({ message: "This variable is managed through a dedicated API" });
+        return;
+      }
 
       const decision = await checkVariableWriteAccess(req, name);
       if (!decision.granted) {
@@ -162,6 +187,11 @@ export function registerVariableRoutes(
     try {
       const validatedData = insertVariableSchema.parse(req.body);
       
+      if (isGenericWriteBlocked(validatedData.name)) {
+        res.status(403).json({ message: "This variable is managed through a dedicated API" });
+        return;
+      }
+
       const existingVariable = await storage.variables.getByName(validatedData.name);
       if (existingVariable) {
         res.status(409).json({ message: "Variable name already exists" });
@@ -218,6 +248,14 @@ export function registerVariableRoutes(
         return;
       }
 
+      if (
+        isGenericWriteBlocked(current.name) ||
+        (validatedData.name && isGenericWriteBlocked(validatedData.name))
+      ) {
+        res.status(403).json({ message: "This variable is managed through a dedicated API" });
+        return;
+      }
+
       // Validate the FINAL persisted value against the registry schema for
       // the variable's effective (possibly renamed) name — including
       // rename-only updates, where the existing stored value must satisfy
@@ -251,7 +289,7 @@ export function registerVariableRoutes(
       }
 
       await runVariableOnWrite(effectiveName);
-      res.json(variable);
+      res.json(redactVariableForRead(variable));
     } catch (error) {
       if (error instanceof Error && error.name === "ZodError") {
         res.status(400).json({ message: "Invalid variable data" });
@@ -267,6 +305,12 @@ export function registerVariableRoutes(
     try {
       const { id } = req.params;
       const current = await storage.variables.get(id);
+
+      if (current && isGenericWriteBlocked(current.name)) {
+        res.status(403).json({ message: "This variable is managed through a dedicated API" });
+        return;
+      }
+
       const deleted = await storage.variables.delete(id);
       
       if (!deleted) {
