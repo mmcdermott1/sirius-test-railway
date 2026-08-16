@@ -41,7 +41,7 @@ registerTokenPlugin({
   },
 });
 
-/** {{worker.bargaining_unit.field(name="name")}} */
+/** {{worker.bargaining_unit.field(name="name")}} or short form {{worker.bargaining_unit}} */
 registerTokenPlugin({
   metadata: {
     id: "token.worker.bargaining_unit",
@@ -51,6 +51,7 @@ registerTokenPlugin({
     inputTypes: ["worker"],
     outputType: "bargaining_unit",
     entityTable: bargainingUnits,
+    defaultLeaf: "name",
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");
@@ -65,7 +66,7 @@ registerTokenPlugin({
   },
 });
 
-/** {{worker.work_status.field(name="name")}} */
+/** {{worker.work_status.field(name="name")}} or short form {{worker.work_status}} */
 registerTokenPlugin({
   metadata: {
     id: "token.worker.work_status",
@@ -75,6 +76,7 @@ registerTokenPlugin({
     inputTypes: ["worker"],
     outputType: "work_status",
     entityTable: optionsWorkerWs,
+    defaultLeaf: "name",
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");
@@ -102,6 +104,7 @@ registerTokenPlugin({
     inputTypes: ["worker"],
     outputType: "member_status",
     entityFields: ["name"],
+    defaultLeaf: "name",
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");
