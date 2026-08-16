@@ -127,9 +127,60 @@ function extractProfileData(profile: SamlProfile): {
   return { externalId, email, firstName, lastName, displayName };
 }
 
-async function checkUserAccess(
-  profile: SamlProfile
-): Promise<{ allowed: boolean; user?: any }> {
+/** Typed reasons a user can be denied access after a successful IdP sign-in. */
+type AccessDenialReason =
+  | "missing_external_id"
+  | "identity_found_but_user_missing"
+  | "inactive_account"
+  | "missing_email"
+  | "no_provisioned_account";
+
+type CheckUserAccessResult =
+  | { allowed: true; user: any }
+  | { allowed: false; reason: AccessDenialReason; email?: string; externalId?: string };
+
+/**
+ * Persist an admin-visible access-denial log entry (module "auth") so
+ * administrators can diagnose why a user who successfully authenticated at
+ * the IdP was still turned away. Returns a short reference id that is
+ * surfaced on the public auth-error page.
+ */
+function recordAccessDenied(
+  reason: AccessDenialReason,
+  profile: { email?: string; externalId?: string },
+  req: Request
+): string {
+  const reference = `SAML-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const context = getRequestContext();
+
+  const reasonMessages: Record<AccessDenialReason, string> = {
+    missing_external_id:
+      "SAML profile contained no nameID/externalId — cannot identify the user.",
+    identity_found_but_user_missing:
+      "A SAML identity record was found but the linked user account no longer exists.",
+    inactive_account:
+      "The account associated with this SAML identity is inactive. Re-activate it in Users to allow sign-in.",
+    missing_email:
+      "SAML profile contains no email address and no existing identity link — cannot provision or match an account.",
+    no_provisioned_account:
+      "No pre-provisioned account found for this email address. Create a user account with a matching email to grant access.",
+  };
+
+  storageLogger.error(`SAML access denied [${reference}]`, {
+    module: "auth",
+    operation: "access_denied",
+    description: reasonMessages[reason],
+    ip_address: context?.ipAddress ?? req.ip,
+    reference,
+    category: reason,
+    attemptedEmail: profile.email,
+    attemptedExternalId: profile.externalId,
+  });
+
+  return reference;
+}
+
+async function checkUserAccess(profile: SamlProfile): Promise<CheckUserAccessResult> {
   const { externalId, email, firstName, lastName, displayName } = extractProfileData(profile);
 
   logger.info("SAML Auth attempt", {
@@ -142,7 +193,7 @@ async function checkUserAccess(
 
   if (!externalId) {
     logger.warn("SAML profile missing nameID", { profile });
-    return { allowed: false };
+    return { allowed: false, reason: "missing_external_id", email };
   }
 
   let identity = await storage.authIdentities.getByProviderAndExternalId("saml", externalId);
@@ -151,12 +202,12 @@ async function checkUserAccess(
     const user = await storage.users.getUser(identity.userId);
     if (!user) {
       logger.warn("SAML auth identity found but user missing", { identityId: identity.id });
-      return { allowed: false };
+      return { allowed: false, reason: "identity_found_but_user_missing", email, externalId };
     }
 
     if (!user.isActive) {
       logger.info("User account is inactive", { userId: user.id });
-      return { allowed: false };
+      return { allowed: false, reason: "inactive_account", email, externalId };
     }
 
     await storage.authIdentities.update(identity.id, {
@@ -179,19 +230,19 @@ async function checkUserAccess(
 
   if (!email) {
     logger.info("SAML profile missing email, cannot link account", { externalId });
-    return { allowed: false };
+    return { allowed: false, reason: "missing_email", externalId };
   }
 
   const user = await storage.users.getUserByEmail(email);
 
   if (!user) {
     logger.info("No provisioned account found for SAML email", { email });
-    return { allowed: false };
+    return { allowed: false, reason: "no_provisioned_account", email, externalId };
   }
 
   if (!user.isActive) {
     logger.info("User account is inactive", { userId: user.id });
-    return { allowed: false };
+    return { allowed: false, reason: "inactive_account", email, externalId };
   }
 
   logger.info("Linking SAML account to provisioned user", { userId: user.id, email });
@@ -270,8 +321,12 @@ class SamlAuthProvider implements AuthProvider {
         wantAssertionsSigned: true,
         signatureAlgorithm: "sha256",
         identifierFormat: "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+        // passReqToCallback lets the verify functions receive req so that
+        // recordAccessDenied can capture IP/context and store the reference id
+        // on the request for the outer callback handler to read.
+        passReqToCallback: true,
       },
-      (profile: Profile | null, done: (err: Error | null, user?: Record<string, unknown>) => void) => {
+      (req: Request, profile: Profile | null, done: (err: Error | null, user?: Record<string, unknown>) => void) => {
         (async () => {
           try {
             if (!profile) {
@@ -279,9 +334,16 @@ class SamlAuthProvider implements AuthProvider {
             }
             
             const samlProfile = profile as unknown as SamlProfile;
-            const { allowed, user } = await checkUserAccess(samlProfile);
+            const result = await checkUserAccess(samlProfile);
 
-            if (!allowed) {
+            if (!result.allowed) {
+              // Persist an admin-visible log entry and store the reference on
+              // the request so getCallbackHandler can include it in the redirect.
+              const reference = recordAccessDenied(result.reason, {
+                email: result.email,
+                externalId: result.externalId,
+              }, req);
+              (req as any)._samlAccessDeniedRef = reference;
               return done(null, undefined);
             }
 
@@ -294,7 +356,7 @@ class SamlAuthProvider implements AuthProvider {
                 first_name: firstName,
                 last_name: lastName,
               },
-              dbUser: user,
+              dbUser: result.user,
               providerType: "saml",
             };
 
@@ -305,7 +367,7 @@ class SamlAuthProvider implements AuthProvider {
           }
         })();
       },
-      (profile: Profile | null, done: (err: Error | null, user?: Record<string, unknown>) => void) => {
+      (req: Request, profile: Profile | null, done: (err: Error | null, user?: Record<string, unknown>) => void) => {
         if (!profile) {
           return done(null, undefined);
         }
@@ -395,7 +457,13 @@ class SamlAuthProvider implements AuthProvider {
         }
 
         if (!req.user) {
-          return res.redirect("/auth-error?error=access_denied");
+          // The verify callback stored a reference id when it called
+          // recordAccessDenied; include it so the error page can display it.
+          const denialRef = (req as any)._samlAccessDeniedRef as string | undefined;
+          const redirectUrl = denialRef
+            ? `/auth-error?error=access_denied&ref=${denialRef}`
+            : "/auth-error?error=access_denied";
+          return res.redirect(redirectUrl);
         }
 
         req.login(req.user, (loginErr) => {
