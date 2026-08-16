@@ -67,6 +67,12 @@ admin-gated log entries (e.g. SAML failure logs). The admin log viewer is the
 only debugging surface on external deployments — persist the full raw error
 and request payload so problems can be diagnosed without server-log access.
 
+Check the checked-out branch BEFORE editing any file. Application code is
+written on `main` only. If the workspace is on `freeman-dev` (or any other
+deployment branch) and the work touches anything outside `.github/` and
+`deploy/`, stop and say so instead of committing to the wrong branch — code
+landing on a deployment branch is what causes the recurring merge conflicts.
+
 ## Git remotes & branch policy
 
 -   **`main` → `origin` (github.com/samknelson/sirius) only.** `main` must
