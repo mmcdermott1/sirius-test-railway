@@ -1,6 +1,6 @@
 import { 
   Users, MapPin, Phone, Globe, List, UserCog, Puzzle, Package, Heart, 
-  CreditCard, Activity, Wallet, Settings, Shield, Key, FileText, 
+  CreditCard, Activity, Wallet, Settings, Shield, Key, KeyRound, FileText, 
   Building2, Clock, Zap, Server, MessageSquare, Calendar, GraduationCap, Truck, Network, School, Tag, RefreshCw, Radio, HelpCircle, FolderOpen, type LucideIcon
 } from "lucide-react";
 
@@ -43,6 +43,7 @@ export const configSections: NavSection[] = [
     icon: Settings,
     items: [
       { path: "/config/system-mode", label: "System Mode", icon: Server, testId: "nav-config-system-mode", permission: "admin" },
+      { path: "/config/auth-settings", label: "Auth Settings", icon: KeyRound, testId: "nav-config-auth-settings", permission: "admin" },
       { path: "/config/system-status", label: "System Status", icon: Activity, testId: "nav-config-system-status", permission: "admin" },
       { path: "/config/twilio", label: "SMS Providers", icon: MessageSquare, testId: "nav-config-sms", permission: "admin" },
       { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", permission: "admin" },

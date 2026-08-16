@@ -5,6 +5,7 @@ import type { AuthProvider, SamlProviderConfig, AuthenticatedUser } from "../typ
 import { storage } from "../../storage";
 import { storageLogger, logger } from "../../logger";
 import { getRequestContext } from "../../middleware/request-context";
+import { maybeProvisionUser, reconcileMappedRoles } from "../provisioning";
 import { getEnvironmentVariable } from "../../config/env-registry";
 import { isComponentEnabledSync } from "../../services/component-cache";
 
@@ -303,6 +304,8 @@ async function checkUserAccess(profile: SamlProfile): Promise<CheckUserAccessRes
     await storage.users.updateUserLastLogin(user.id);
     logLoginEvent(updatedUser, externalId, false);
 
+    await reconcileSamlRoles(updatedUser ?? user, identity, profile);
+
     return { allowed: true, user: updatedUser };
   }
 
@@ -314,8 +317,22 @@ async function checkUserAccess(profile: SamlProfile): Promise<CheckUserAccessRes
   const user = await storage.users.getUserByEmail(email);
 
   if (!user) {
-    logger.info("No provisioned account found for SAML email", { email });
-    return { allowed: false, reason: "no_provisioned_account", email, externalId };
+    const provisioned = await maybeProvisionUser("saml", {
+      externalId,
+      email,
+      firstName,
+      lastName,
+      displayName,
+    });
+    if (!provisioned) {
+      logger.info("No provisioned account found for SAML email", { email });
+      return { allowed: false, reason: "no_provisioned_account", email, externalId };
+    }
+
+    await storage.users.updateUserLastLogin(provisioned.user.id);
+    logLoginEvent(provisioned.user, externalId, true);
+    await reconcileSamlRoles(provisioned.user, provisioned.identity, profile);
+    return { allowed: true, user: provisioned.user };
   }
 
   if (!user.isActive) {
@@ -325,7 +342,7 @@ async function checkUserAccess(profile: SamlProfile): Promise<CheckUserAccessRes
 
   logger.info("Linking SAML account to provisioned user", { userId: user.id, email });
 
-  await storage.authIdentities.create({
+  const newIdentity = await storage.authIdentities.create({
     userId: user.id,
     providerType: "saml",
     externalId,
@@ -343,7 +360,31 @@ async function checkUserAccess(profile: SamlProfile): Promise<CheckUserAccessRes
   await storage.users.updateUserLastLogin(user.id);
   logLoginEvent(linkedUser, externalId, true);
 
+  await reconcileSamlRoles(linkedUser ?? user, newIdentity, profile);
+
   return { allowed: true, user: linkedUser };
+}
+
+/**
+ * Reconcile provider-managed roles from the SAML assertion attributes on
+ * every successful login. Attributes are passed through in-memory only and
+ * never persisted on the user or identity (they can carry PII).
+ */
+async function reconcileSamlRoles(
+  user: { id: string } & Record<string, any>,
+  identity: { id: string; metadata: unknown },
+  profile: SamlProfile,
+): Promise<void> {
+  try {
+    const attributes: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(profile)) {
+      if (typeof value === "function") continue;
+      attributes[key] = value;
+    }
+    await reconcileMappedRoles("saml", user as any, identity as any, attributes);
+  } catch (error) {
+    logger.error("SAML role reconciliation failed", { userId: user.id, error });
+  }
 }
 
 function logLoginEvent(user: any, externalId: string, accountLinked: boolean) {

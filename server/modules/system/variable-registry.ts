@@ -9,6 +9,7 @@ import { dispatchSeniorityResetSettingsSchema } from "../dispatch/seniority-rese
 import { dispatchDncNotificationConfigSchema } from "../dispatch/dnc-config";
 import { workerBanNotificationConfigSchema } from "../worker-ban-config";
 import { entityFilesConfigSchema } from "../../services/entity-files/config";
+import { authSettingsSchema } from "../../auth/auth-settings";
 import { invalidateTerminologyCache, loadTerminology } from "../terminology";
 import { sanitizeHelpHtml } from "../../help/sanitize";
 
@@ -86,6 +87,10 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
 
   // Worker ban notification settings (admin read/write)
   worker_ban_notifications: { schema: workerBanNotificationConfigSchema },
+
+  // Auth settings: provisioning modes + SAML role mappings (admin read/write).
+  // Role existence is additionally validated by PUT /api/admin/auth-settings.
+  auth_settings: { schema: authSettingsSchema },
 
   // Entity file attachments framework: per-context {file_system, directory,
   // allowed?} map (admin read/write). Validated against the registered
