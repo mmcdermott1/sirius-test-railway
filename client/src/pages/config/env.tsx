@@ -28,6 +28,7 @@ interface EnvVarInfo {
   overridable: boolean;
   value: string | null;
   hasShadowedOverride: boolean;
+  released: boolean;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -109,9 +110,12 @@ export default function EnvPage() {
         <Info className="h-4 w-4" />
         <AlertDescription>
           Values set in the real environment are locked and always win over
-          overrides. Overrides take effect immediately for most features, but
-          anything read only at startup (e.g. authentication providers)
-          requires an app restart to pick up changes.
+          overrides. To release a stale deployment variable, set it to{" "}
+          <code className="font-mono">__UNSET__</code> (or empty) in the
+          deployment settings — the app then treats it as not set. Overrides
+          take effect immediately for most features, but anything read only at
+          startup (e.g. authentication providers) requires an app restart to
+          pick up changes.
         </AlertDescription>
       </Alert>
 
@@ -167,12 +171,19 @@ export default function EnvPage() {
                             </Badge>
                           )}
                           {v.source === "override" && <Badge>override</Badge>}
+                          {v.released && <Badge variant="outline">released</Badge>}
                           {!v.isSet && <Badge variant="destructive">unset</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">{v.description}</p>
                         {!v.secret && v.isSet && v.value !== null && (
                           <p className="font-mono text-xs mt-1 break-all text-muted-foreground">
                             {v.value}
+                          </p>
+                        )}
+                        {v.released && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Released in deployment settings (empty or __UNSET__) — treated as
+                            not set.
                           </p>
                         )}
                         {v.hasShadowedOverride && (

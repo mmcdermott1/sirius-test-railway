@@ -13,6 +13,7 @@ import { authSettingsSchema } from "../../auth/auth-settings";
 import {
   isEnvironmentVariableRegistered,
   isEnvironmentVariableOverridable,
+  ENV_RELEASE_SENTINEL,
 } from "../../config/env-registry";
 import { invalidateTerminologyCache, loadTerminology } from "../terminology";
 import { sanitizeHelpHtml } from "../../help/sanitize";
@@ -114,7 +115,13 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
       return Object.fromEntries(Object.keys(value).map((k) => [k, "[redacted]"]));
     },
     schema: z.record(z.string()).superRefine((map, ctx) => {
-      for (const name of Object.keys(map)) {
+      for (const [name, value] of Object.entries(map)) {
+        if (value === ENV_RELEASE_SENTINEL || value === "") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `"${name}": the release sentinel / empty string cannot be stored as an override`,
+          });
+        }
         if (!isEnvironmentVariableRegistered(name)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

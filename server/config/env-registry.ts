@@ -119,12 +119,45 @@ export function isEnvironmentVariableOverridable(name: string): boolean {
 }
 
 /**
- * True when the variable is present in the real process env. Presence is
- * `!== undefined` (an empty string counts as set) to match the getter's
- * fallback rule exactly — an empty env value wins over any override.
+ * Release sentinel (Task #1085). Deployed containers can carry stale env
+ * vars forever (ECS bakes env into the task definition revision), and some
+ * pipelines (GitHub) refuse empty-string variables. Setting a variable to
+ * this exact value — or to the empty string, where the pipeline allows it —
+ * declares "this variable is no longer set": the app treats it as absent
+ * everywhere (reads as unset; DB override applies where the rules allow).
+ * The consent to release travels through the deploy pipeline itself.
+ */
+export const ENV_RELEASE_SENTINEL = "__UNSET__";
+
+function isReleasedValue(value: string | undefined): boolean {
+  return value === "" || value === ENV_RELEASE_SENTINEL;
+}
+
+/**
+ * The process-env value with release semantics applied: a released value
+ * (empty string or the sentinel) reads as undefined. THE single presence
+ * rule — the getter, the lock check, and the listing all use it.
+ */
+function readProcessEnv(name: string): string | undefined {
+  const value = process.env[name];
+  return value === undefined || isReleasedValue(value) ? undefined : value;
+}
+
+/**
+ * True when the variable is effectively set in the real process env (a
+ * released value — empty or the sentinel — counts as NOT set).
  */
 export function isEnvironmentVariableSetInProcess(name: string): boolean {
-  return process.env[name] !== undefined;
+  return readProcessEnv(name) !== undefined;
+}
+
+/**
+ * True when the variable is present in the process env but carries a
+ * released value (deliberately neutralized in the deployment settings).
+ */
+export function isEnvironmentVariableReleased(name: string): boolean {
+  const value = process.env[name];
+  return value !== undefined && isReleasedValue(value);
 }
 
 /**
@@ -166,7 +199,7 @@ export function getEnvironmentVariable(name: string): string | undefined {
         `registerEnvironmentVariable() (see server/config/env-registry.ts) before reading it.`,
     );
   }
-  let value: string | undefined = process.env[name];
+  let value: string | undefined = readProcessEnv(name);
   if (value === undefined && dbOverrideSource && isEnvironmentVariableOverridable(name)) {
     value = dbOverrideSource(name);
   }
@@ -225,6 +258,8 @@ export interface EnvironmentVariableInfo {
   source: "environment" | "override" | null;
   /** Whether a DB override is allowed for this variable. */
   overridable: boolean;
+  /** Present in the process env but deliberately released (empty/sentinel). */
+  released: boolean;
 }
 
 /**
@@ -234,9 +269,9 @@ export interface EnvironmentVariableInfo {
 export function listEnvironmentVariables(): EnvironmentVariableInfo[] {
   return Array.from(registry.values())
     .map((d) => {
-      // Presence must match the getter's fallback rule (`!== undefined`):
-      // an empty env value still wins over an override, so it is "set".
-      const envSet = process.env[d.name] !== undefined;
+      // Presence must match the getter's fallback rule exactly: released
+      // values (empty/sentinel) read as absent everywhere.
+      const envSet = readProcessEnv(d.name) !== undefined;
       const overridable = isEnvironmentVariableOverridable(d.name);
       const overrideValue =
         !envSet && overridable && dbOverrideSource ? dbOverrideSource(d.name) : undefined;
@@ -254,6 +289,7 @@ export function listEnvironmentVariables(): EnvironmentVariableInfo[] {
         isSet: source !== null,
         source,
         overridable,
+        released: isEnvironmentVariableReleased(d.name),
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

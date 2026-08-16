@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { storage } from "../../storage";
 import { requireAccess } from "../../services/access-policy-evaluator";
 import {
+  ENV_RELEASE_SENTINEL,
   getEnvironmentVariable,
   isEnvironmentVariableOverridable,
   isEnvironmentVariableRegistered,
@@ -116,6 +117,12 @@ export function registerEnvRoutes(app: Express) {
       const value = (req.body ?? {}).value;
       if (typeof value !== "string" || value === "") {
         res.status(400).json({ message: "Request body must include a non-empty string value" });
+        return;
+      }
+      if (value === ENV_RELEASE_SENTINEL) {
+        res.status(400).json({
+          message: "This value is reserved as the deployment release sentinel",
+        });
         return;
       }
       await withWriteLock(async () => {
