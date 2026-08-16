@@ -305,7 +305,7 @@ export function TemplateStudio({
             </p>
           </div>
           <div
-            className="px-4 py-3 prose prose-sm max-w-none dark:prose-invert"
+            className="px-4 py-3 prose prose-sm max-w-none dark:prose-invert overflow-x-auto"
             data-testid="studio-preview-email-body"
             // Server-sanitized HTML (same sanitizer as delivery).
             dangerouslySetInnerHTML={{ __html: body?.rendered || "<p><em>(empty body)</em></p>" }}
@@ -379,7 +379,7 @@ export function TemplateStudio({
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{f.label}</p>
               {f.mode === "html" ? (
                 <div
-                  className="prose prose-sm max-w-none dark:prose-invert"
+                  className="prose prose-sm max-w-none dark:prose-invert overflow-x-auto"
                   dangerouslySetInnerHTML={{ __html: r?.rendered || "<p><em>(empty)</em></p>" }}
                 />
               ) : (
@@ -408,7 +408,7 @@ export function TemplateStudio({
 
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(360px,42%)]">
           {/* ── Editors ── */}
-          <div className="min-h-0 overflow-y-auto p-6 space-y-5 border-b lg:border-b-0 lg:border-r">
+          <div className="min-h-0 min-w-0 overflow-y-auto p-6 space-y-5 border-b lg:border-b-0 lg:border-r">
             {fields.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <Label htmlFor={`studio-field-${f.key}`}>{f.label}</Label>
@@ -484,12 +484,12 @@ export function TemplateStudio({
           </div>
 
           {/* ── Preview + context + token browser ── */}
-          <div className="min-h-0 flex flex-col">
+          <div className="min-h-0 min-w-0 flex flex-col">
             <div className="shrink-0 border-b">
               {contextPanel && <div className="px-4 pt-3 pb-2">{contextPanel}</div>}
             </div>
             <div className="min-h-0 flex-1 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
-              <div className="min-h-0 overflow-y-auto p-4 bg-muted/30">
+              <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-4 bg-muted/30">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
                   {previewLoading && (
@@ -511,7 +511,7 @@ export function TemplateStudio({
                   </p>
                 )}
               </div>
-              <div className={cn("min-h-0 border-t flex flex-col")}>
+              <div className={cn("min-h-0 min-w-0 border-t flex flex-col overflow-hidden")}>
                 <TokenBrowserPanel
                   tokens={tokens}
                   onInsert={insertSnippet}

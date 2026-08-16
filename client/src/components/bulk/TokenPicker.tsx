@@ -167,7 +167,7 @@ export function TokenBrowserPanel({
           />
         </div>
       </div>
-      <div className="overflow-y-auto flex-1 min-h-0">
+      <div className="overflow-y-auto overflow-x-hidden flex-1 min-h-0">
         {recentTokens.length > 0 && (
           <div className="p-2 border-b" data-testid="section-recent-tokens">
             <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
