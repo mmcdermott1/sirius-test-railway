@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { TemplateStudio, type StudioField, type StudioPreviewResult } from "./TemplateStudio";
 import { useStudioPreviewContext } from "./StudioContext";
 import type {
@@ -94,6 +94,15 @@ export function NotifierTemplateStudio({
 
   // ── Fields & values (channel group of data.templates) ─────────────────────
   const defaults = catalog?.defaults?.[channel] ?? {};
+
+  const templates =
+    (configData.templates as Record<string, Record<string, unknown>> | undefined) ?? {};
+  /** The stored override for a field ("" when the default applies). */
+  const overrideOf = (key: string): string => {
+    const v = templates[channel]?.[key];
+    return typeof v === "string" ? v : "";
+  };
+
   const fields: StudioField[] = useMemo(() => {
     const base = CHANNEL_FIELDS[channel] ?? [];
     // Only offer fields the notifier's defaults declare (e.g. a notifier
@@ -103,21 +112,39 @@ export function NotifierTemplateStudio({
       .filter((f) => f.key in defaults || ["subject", "bodyHtml", "message", "title", "body"].includes(f.key))
       .map((f) => ({
         ...f,
-        placeholder: defaults[f.key] && f.mode !== "html" ? defaults[f.key] : undefined,
         hint:
           defaults[f.key] !== undefined
-            ? "Blank = the notifier's default template is used."
+            ? overrideOf(f.key).trim() !== ""
+              ? "Customized — this text overrides the notifier's default template."
+              : "Default template — edit to customize; until then it keeps tracking default updates."
             : undefined,
       }));
-  }, [channel, defaults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel, defaults, JSON.stringify(templates[channel] ?? {})]);
 
-  const templates =
-    (configData.templates as Record<string, Record<string, unknown>> | undefined) ?? {};
+  // Editors show the literal, editable effective text: the stored override
+  // when one exists, otherwise the resolved default. `edited` tracks the
+  // in-studio text so a field the user is clearing doesn't snap back to the
+  // default mid-edit; the component remounts on each open, so seeding is
+  // fresh every time (and picks up late-arriving catalog defaults until the
+  // user touches a field).
+  const [edited, setEdited] = useState<Record<string, string>>({});
   const channelValues: Record<string, string> = {};
   for (const f of fields) {
-    const v = templates[channel]?.[f.key];
-    channelValues[f.key] = typeof v === "string" ? v : "";
+    const override = overrideOf(f.key);
+    channelValues[f.key] =
+      edited[f.key] ?? (override.trim() !== "" ? override : (defaults[f.key] ?? ""));
   }
+
+  // Store blank (no override — keeps tracking the default) when the text
+  // equals the resolved default or is emptied out; otherwise store the text
+  // as an override.
+  const handleValueChange = (key: string, value: string) => {
+    setEdited((prev) => ({ ...prev, [key]: value }));
+    const normalized =
+      value === (defaults[key] ?? "") || value.trim() === "" ? "" : value;
+    updateConfigData(`templates.${channel}.${key}`, normalized);
+  };
 
   // ── Preview ────────────────────────────────────────────────────────────────
   const fetchPreview = async (values: Record<string, string>): Promise<StudioPreviewResult> => {
@@ -159,7 +186,7 @@ export function NotifierTemplateStudio({
       channel={channel === "email" || channel === "sms" || channel === "inapp" ? channel : "generic"}
       fields={fields}
       values={channelValues}
-      onValueChange={(key, value) => updateConfigData(`templates.${channel}.${key}`, value)}
+      onValueChange={handleValueChange}
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}

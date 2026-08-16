@@ -49,8 +49,12 @@ function firstLineTruncated(text: string, maxLen = 80): string {
  * Token-template widget — compact, read-only summary + "Open in Template Studio".
  *
  * Each token field shows:
- *   - A single truncated line of the current raw value (or a subtle "Using
- *     default: …" indicator when blank).
+ *   - A single truncated line of the effective template text: the stored
+ *     override when one exists, otherwise the notifier's literal default
+ *     text (marked with a "Default" badge, never as disappearing gray hint
+ *     copy). The stored config value stays blank until the admin actually
+ *     diverges from the default, so untouched configs keep tracking plugin
+ *     default updates.
  *   - An "Open in Template Studio" button as the ONLY edit path.
  *   - A small "Reset to default" affordance when there is a custom override.
  *
@@ -104,25 +108,36 @@ export function TokenTemplateWidget(props: WidgetProps) {
   const canOpenStudio = !!pluginId && !!channel && !!updateConfigData && !isDisabled;
 
   // ── Compact summary display ───────────────────────────────────────────────
-  const summaryText: string = hasOverride
-    ? firstLineTruncated(text)
-    : placeholder
-      ? `Using default: ${firstLineTruncated(placeholder)}`
-      : "No template set";
-  const summaryIsDefault = !hasOverride;
+  // The effective template text: the override when set, otherwise the
+  // literal default text (real content, not a gray hint).
+  const effectiveText = hasOverride ? text : placeholder;
+  const summaryText: string = effectiveText
+    ? firstLineTruncated(effectiveText)
+    : "No template set";
+  const summaryIsEmpty = !effectiveText;
 
   return (
     <div className="space-y-1" data-testid={`token-field-${id}`}>
       {/* Read-only summary line */}
       <div
         className={`flex items-center gap-2 min-h-[2rem] rounded-md border px-3 py-1.5 text-sm bg-muted/30 ${
-          summaryIsDefault ? "text-muted-foreground" : "text-foreground"
+          summaryIsEmpty ? "text-muted-foreground" : "text-foreground"
         }`}
         data-testid={`summary-${id}`}
       >
         <span className="flex-1 truncate font-mono text-xs leading-5">
           {summaryText}
         </span>
+
+        {/* Default/customized state indicator */}
+        {!hasOverride && !!placeholder && (
+          <span
+            className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground"
+            data-testid={`badge-default-${id}`}
+          >
+            Default
+          </span>
+        )}
 
         {/* Reset affordance — only when there is an active override */}
         {hasOverride && !isDisabled && (

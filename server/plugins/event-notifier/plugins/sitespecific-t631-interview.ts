@@ -175,8 +175,9 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
         "x-widget": "staff-recipients",
       },
       // Per-channel message templates. Every field is a token template;
-      // blank fields fall back to the notifier's default. The client
-      // widget shows live token warnings + the default as placeholder.
+      // the client seeds each field with the default text and only stores
+      // an override when the admin diverges from it — untouched (blank)
+      // fields keep falling back to the notifier's default at runtime.
       templates: {
         type: "object",
         title: "Message templates",

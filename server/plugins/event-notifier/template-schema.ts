@@ -1,9 +1,11 @@
 /**
  * Shared JSON-Schema builder for a token-templated notifier's
  * `templates` config block. Every field is a token template wired to
- * the client's token-template widget (live token warnings, default
- * shown as placeholder, catalog fetched per plugin). Blank fields fall
- * back to the notifier's default template.
+ * the client's token-template widget (live token warnings, the default
+ * text shown as the literal editable starting content, catalog fetched
+ * per plugin). A field is only stored as an override when it diverges
+ * from the default — blank/untouched fields fall back to the notifier's
+ * default template at runtime.
  */
 
 /** Schema for one token-template field, wired to the token-template widget. */
