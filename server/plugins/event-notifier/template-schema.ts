@@ -40,15 +40,11 @@ export function templatesSchemaBlock(
   opts?: { exampleTokens?: string[]; defaultsDeps?: string[] },
 ): Record<string, unknown> {
   const deps = opts?.defaultsDeps;
-  const examples = opts?.exampleTokens?.length
-    ? `Customize the message per channel with tokens like ${opts.exampleTokens.join(", ")} and {{system.base_url}}. `
-    : "Customize the message per channel with tokens. ";
   const f = (title: string, path: string, mode?: "line" | "multiline" | "html") =>
     templateField(pluginId, title, path, mode, deps);
   return {
     type: "object",
     title: "Message templates",
-    description: examples + "Leave a field blank to use the default.",
     properties: {
       email: {
         type: "object",

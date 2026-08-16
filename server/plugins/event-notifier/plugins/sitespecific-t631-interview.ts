@@ -180,11 +180,6 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
       templates: {
         type: "object",
         title: "Message templates",
-        description:
-          "Customize the message per channel with tokens like " +
-          '{{event.field(name="status")}}, {{event.worker.contact.field(name="display_name")}}, ' +
-          '{{event.dispatch_job.field(name="title")}} and {{system.base_url}}. ' +
-          "Leave a field blank to use the default.",
         properties: {
           email: {
             type: "object",
