@@ -9,6 +9,7 @@ import {
   type InterviewStatus,
 } from "../../../modules/sitespecific/t631/interview-rules";
 import { T631_INTERVIEW_ENTITY_KIND } from "../../tokens/plugins/sitespecific-t631-interview";
+import { templatesSchemaBlock } from "../template-schema";
 import {
   type EventNotifierEventContext,
   type EventNotifierPlugin,
@@ -106,25 +107,6 @@ function defaultTemplates(configData?: unknown): NotifierChannelTemplates {
   };
 }
 
-/** Schema for one token-template field, wired to the token-template widget. */
-function templateField(
-  title: string,
-  defaultPath: string,
-  mode: "line" | "multiline" | "html" = "line",
-): Record<string, unknown> {
-  return {
-    type: "string",
-    title,
-    "x-widget": "token-template",
-    "x-token-template-mode": mode,
-    "x-token-catalog-url": `/api/event-notifier/token-catalog/${PLUGIN_ID}`,
-    "x-token-default-path": defaultPath,
-    // The default link target varies with the recipient kind, so the
-    // editor re-fetches placeholders when this field changes.
-    "x-token-defaults-deps": ["recipientKind"],
-  };
-}
-
 /**
  * Notifies configured recipients when a T631 job interview transitions INTO
  * the config's target status. Each config targets one status and one recipient
@@ -174,40 +156,16 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
         items: { type: "string" },
         "x-widget": "staff-recipients",
       },
-      // Per-channel message templates. Every field is a token template;
-      // the client seeds each field with the default text and only stores
-      // an override when the admin diverges from it — untouched (blank)
-      // fields keep falling back to the notifier's default at runtime.
-      templates: {
-        type: "object",
-        title: "Message templates",
-        properties: {
-          email: {
-            type: "object",
-            title: "Email",
-            properties: {
-              subject: templateField("Subject", "email.subject"),
-              bodyHtml: templateField("Body (HTML)", "email.bodyHtml", "html"),
-            },
-          },
-          sms: {
-            type: "object",
-            title: "SMS",
-            properties: {
-              message: templateField("Message", "sms.message", "multiline"),
-            },
-          },
-          inapp: {
-            type: "object",
-            title: "In-app",
-            properties: {
-              title: templateField("Title", "inapp.title"),
-              body: templateField("Body", "inapp.body", "multiline"),
-              linkUrl: templateField("Link URL (relative)", "inapp.linkUrl"),
-            },
-          },
-        },
-      },
+      // Per-channel message templates, from the shared framework builder.
+      // The default link target varies with the recipient kind, so the
+      // editor re-fetches the defaults when that field changes.
+      templates: templatesSchemaBlock(PLUGIN_ID, {
+        exampleTokens: [
+          '{{event.field(name="status")}}',
+          '{{event.worker.contact.field(name="display_name")}}',
+        ],
+        defaultsDeps: ["recipientKind"],
+      }),
     },
     // Employers only ever see interviews in EMPLOYER_VISIBLE_STATUSES (the
     // T631 routes hide the rest), so an employer-targeted config may not

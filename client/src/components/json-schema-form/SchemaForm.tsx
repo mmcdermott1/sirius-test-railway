@@ -15,8 +15,8 @@ import { IconWidget } from "./widgets/IconWidget";
 import { ColorWidget } from "./widgets/ColorWidget";
 import { EnumSelectWidget } from "./widgets/EnumSelectWidget";
 import { HtmlEditorWidget } from "./widgets/HtmlEditorWidget";
-import { TokenTemplateWidget } from "./widgets/TokenTemplateWidget";
 import { ArrayTableField } from "./fields/ArrayTableField";
+import { NotifierChannelTemplatesField } from "./fields/NotifierChannelTemplatesField";
 import { StaffRecipientsField } from "./fields/StaffRecipientsField";
 import { SystemRolesField } from "./fields/SystemRolesField";
 import { WorkerBanPluginsField } from "./fields/WorkerBanPluginsField";
@@ -37,8 +37,8 @@ export interface SchemaFormContext {
   editingId?: string | null;
   /**
    * The live form data of the config being edited (for widgets whose
-   * behavior depends on sibling fields, e.g. TokenTemplateWidget's
-   * recipient-kind-dependent default placeholders).
+   * behavior depends on sibling fields, e.g. the notifier template
+   * card's recipient-kind-dependent defaults).
    */
   configData?: Record<string, unknown>;
   /**
@@ -96,6 +96,8 @@ function buildVendorUiSchema(
       field = "systemRoles";
     } else if (subAny["x-widget"] === "worker-ban-plugins") {
       field = "workerBanPlugins";
+    } else if (subAny["x-widget"] === "notifier-channel-templates") {
+      field = "notifierChannelTemplates";
     } else if (typeof subAny["x-options-resource"] === "string") {
       const isArray = (sub as RJSFSchema).type === "array";
       widget = isArray ? "remoteOptionsMulti" : "remoteOptions";
@@ -105,27 +107,14 @@ function buildVendorUiSchema(
       widget = "icon";
     } else if (subAny["x-widget"] === "color") {
       widget = "color";
-    } else if (subAny["x-widget"] === "token-template") {
-      // Assign directly (leave `widget` unset) so the generic
-      // assignment below can't overwrite the ui:options built here.
-      out[name] = {
-        ...existing,
-        "ui:widget": "tokenTemplate",
-        "ui:options": {
-          ...((existing["ui:options"] as Record<string, unknown>) ?? {}),
-          catalogUrl: subAny["x-token-catalog-url"],
-          mode: subAny["x-token-template-mode"] ?? "line",
-          defaultPath: subAny["x-token-default-path"],
-          defaultsDeps: subAny["x-token-defaults-deps"],
-        },
-      };
     }
     if (field && !existing["ui:field"]) {
       out[name] = { ...existing, "ui:field": field };
     } else if (widget && !existing["ui:widget"]) {
       out[name] = { ...existing, "ui:widget": widget };
     }
-    if ((sub as RJSFSchema).type === "object") {
+    // A custom field owns its whole subtree — don't map its children too.
+    if ((sub as RJSFSchema).type === "object" && !(out[name] as UiSchema)?.["ui:field"]) {
       out[name] = buildVendorUiSchema(sub, out[name] as UiSchema);
     }
   }
@@ -148,7 +137,6 @@ const baseWidgets = {
   icon: IconWidget,
   color: ColorWidget,
   htmlEditor: HtmlEditorWidget,
-  tokenTemplate: TokenTemplateWidget,
 } as unknown as RegistryWidgetsType;
 
 const baseFields = {
@@ -156,6 +144,7 @@ const baseFields = {
   staffRecipients: StaffRecipientsField,
   systemRoles: SystemRolesField,
   workerBanPlugins: WorkerBanPluginsField,
+  notifierChannelTemplates: NotifierChannelTemplatesField,
 } as unknown as RegistryFieldsType;
 
 /**

@@ -1,0 +1,211 @@
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { FieldProps } from "@rjsf/utils";
+import { Pencil, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  NotifierTemplateStudio,
+  type NotifierTokenCatalog,
+} from "@/components/template-studio/NotifierTemplateStudio";
+import { TokenText } from "@/components/template-studio/TokenText";
+
+/**
+ * RJSF field for ONE medium of a notifier's message templates (email,
+ * SMS, in-app). Triggered by the vendor key
+ * `x-widget: "notifier-channel-templates"` on the channel object (see
+ * SchemaForm's uiSchema mapping and the shared `templatesSchemaBlock`).
+ *
+ * The medium is the unit of interaction, because the Template Studio
+ * always edits a whole channel group: one compact card per medium with
+ * one "Edit" button and one "Revert" button, and a one-line summary per
+ * field whose tokens render as labelled chips.
+ *
+ * Effective text = the stored override when non-blank, otherwise the
+ * notifier's default from the token catalog. Revert writes blanks, which
+ * the server treats as "no override" so the config keeps tracking future
+ * default changes.
+ */
+
+interface FieldRow {
+  key: string;
+  label: string;
+  mode: "line" | "multiline" | "html";
+  optional: boolean;
+}
+
+function readRows(schema: Record<string, unknown>): FieldRow[] {
+  const props = (schema.properties as Record<string, Record<string, unknown>>) ?? {};
+  return Object.entries(props).map(([key, sub]) => ({
+    key,
+    label: (sub.title as string) || key,
+    mode: (sub["x-token-template-mode"] as FieldRow["mode"]) ?? "line",
+    optional: sub["x-token-optional"] === true,
+  }));
+}
+
+export function NotifierChannelTemplatesField(props: FieldProps) {
+  const { schema, formData, onChange, disabled, readonly, registry, fieldPathId } =
+    props;
+  const schemaAny = schema as Record<string, unknown>;
+
+  const channel = (schemaAny["x-token-channel"] as string) ?? "";
+  const pluginId = (schemaAny["x-token-plugin-id"] as string) ?? "";
+  const catalogUrl = (schemaAny["x-token-catalog-url"] as string) ?? "";
+  const title = (schemaAny.title as string) || channel;
+  const rows = useMemo(() => readRows(schemaAny), [schemaAny]);
+  const isDisabled = Boolean(disabled || readonly);
+
+  const formContext = registry?.formContext as
+    | {
+        configData?: Record<string, unknown>;
+        updateConfigData?: (path: string, value: unknown) => void;
+      }
+    | undefined;
+  const configData = formContext?.configData ?? {};
+  const updateConfigData = formContext?.updateConfigData;
+
+  // Defaults can depend on sibling config fields (e.g. recipient kind);
+  // pass those to the catalog endpoint so the shown defaults match what
+  // would actually be delivered.
+  const deps = Array.isArray(schemaAny["x-token-defaults-deps"])
+    ? (schemaAny["x-token-defaults-deps"] as unknown[]).filter(
+        (d): d is string => typeof d === "string",
+      )
+    : [];
+  const depValues: Record<string, unknown> = {};
+  for (const dep of deps) {
+    if (configData[dep] !== undefined) depValues[dep] = configData[dep];
+  }
+  const depQuery =
+    Object.keys(depValues).length > 0
+      ? `?config=${encodeURIComponent(JSON.stringify(depValues))}`
+      : "";
+
+  const { data: catalog } = useQuery<NotifierTokenCatalog>({
+    queryKey: [catalogUrl + depQuery],
+    enabled: !!catalogUrl,
+  });
+  const defaults = catalog?.defaults?.[channel] ?? {};
+
+  const stored = (formData as Record<string, unknown> | undefined) ?? {};
+  /** The stored override for a field ("" when the default applies). */
+  const overrideOf = (key: string): string => {
+    const v = stored[key];
+    return typeof v === "string" ? v : "";
+  };
+
+  // Optional fields (e.g. an in-app link label) only appear when this
+  // notifier declares a default for them or the admin already set one.
+  const visibleRows = rows.filter(
+    (r) => !r.optional || r.key in defaults || overrideOf(r.key).trim() !== "",
+  );
+  const hasOverride = rows.some((r) => overrideOf(r.key).trim() !== "");
+
+  const [studioOpen, setStudioOpen] = useState(false);
+  const canEdit = !!channel && !!catalogUrl && !!updateConfigData && !isDisabled;
+
+  /** Clear every field in this medium — back to the notifier defaults. */
+  const revert = () => {
+    const cleared: Record<string, string> = {};
+    for (const r of rows) cleared[r.key] = "";
+    onChange(cleared, fieldPathId.path);
+  };
+
+  return (
+    <div
+      className="rounded-md border bg-muted/20"
+      data-testid={`channel-templates-${channel}`}
+    >
+      <div className="flex items-center gap-2 border-b px-3 py-1.5">
+        <span className="text-sm font-medium">{title}</span>
+        <span
+          className="rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground"
+          data-testid={`badge-state-${channel}`}
+        >
+          {hasOverride ? "Customized" : "Default"}
+        </span>
+        <span className="flex-1" />
+        {!isDisabled && (
+          // Always present (one Edit + one Revert per medium), disabled
+          // while the medium is untouched and there is nothing to undo.
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!hasOverride}
+            className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+            data-testid={`button-revert-${channel}`}
+            onClick={revert}
+            title={
+              hasOverride
+                ? "Revert this medium to the notifier's default templates"
+                : "Already using the notifier's default templates"
+            }
+          >
+            <RotateCcw className="h-3 w-3" />
+            Revert
+          </Button>
+        )}
+        {canEdit && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-1.5 text-xs"
+            data-testid={`button-edit-${channel}`}
+            onClick={() => setStudioOpen(true)}
+          >
+            <Pencil className="h-3 w-3" />
+            Edit
+          </Button>
+        )}
+      </div>
+
+      <div className="divide-y">
+        {visibleRows.map((r) => {
+          const override = overrideOf(r.key);
+          const effective = override.trim() !== "" ? override : (defaults[r.key] ?? "");
+          return (
+            <div
+              key={r.key}
+              className="flex items-baseline gap-3 px-3 py-1"
+              data-testid={`template-row-${channel}-${r.key}`}
+            >
+              <span className="w-24 shrink-0 truncate text-[11px] uppercase tracking-wide text-muted-foreground">
+                {r.label}
+              </span>
+              {effective ? (
+                <TokenText
+                  text={effective}
+                  tokens={catalog?.tokens}
+                  html={r.mode === "html"}
+                  className="min-w-0 flex-1 truncate text-xs leading-6"
+                  data-testid={`template-summary-${channel}-${r.key}`}
+                />
+              ) : (
+                <span
+                  className="min-w-0 flex-1 truncate text-xs italic leading-6 text-muted-foreground"
+                  data-testid={`template-summary-${channel}-${r.key}`}
+                >
+                  Not set
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {canEdit && studioOpen && (
+        <NotifierTemplateStudio
+          open={studioOpen}
+          onOpenChange={setStudioOpen}
+          pluginId={pluginId}
+          channel={channel}
+          catalog={catalog}
+          configData={configData}
+          updateConfigData={updateConfigData!}
+        />
+      )}
+    </div>
+  );
+}

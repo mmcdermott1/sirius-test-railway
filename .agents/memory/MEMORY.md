@@ -76,4 +76,5 @@
 - [Template Studio host pattern](template-studio-host-pattern.md) — hosts normalize preview payloads (rendered vs output); event-scoped catalog walk must use full registry (hiddenFromCatalog); RJSF sibling edits via formContext.updateConfigData.
 - [Token plugin framework](token-plugin-framework.md) — legacy ids must stay valid chains; audience gating fail-closed per channel; evaluator mirrors shared arg validation; test scripts import storage/database not barrel.
 - [Auth provisioning & role reconcile](auth-provisioning-reconcile.md) — auth_settings is one variables row; provider-managed roles tracked in authIdentities.metadata.managedRoleIds, never claim locally held roles.
+- [Client component smoke-render](client-component-smoke-render.md) — modal-only React components: renderToStaticMarkup via tsx from repo root + temp tsconfig with jsx:react-jsx (root sets preserve → "React is not defined").
 - [ProtectedRoute entityId extraction](protectedroute-entityid-extraction.md) — /dispatch/job/:id/* tabs with a policyId must pass entityId explicitly (URL extractor grabs "job" as the id).
