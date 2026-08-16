@@ -72,6 +72,7 @@
 - [Wizard advance via navigate](wizard-advance-via-navigate.md) — advance programmatic wizard launches with dispatch/navigate, not a currentStep PATCH (else next step stays pending, UI treats it as inactive).
 - [Dashboard target-view gating](dashboard-target-view-gating.md) — "view as user" overrides must enforce ALL gates (incl. client requiredPermissions hint) against the target on every endpoint via one shared helper.
 - [Policy delegation defeats skipCache](policy-delegation-cache-staleness.md) — ctx.checkPolicy sub-policy results are cached ~5min even when the outer policy sets skipCache; inline relationship checks for revocation-critical policies.
+- [Template Studio host pattern](template-studio-host-pattern.md) — hosts normalize preview payloads (rendered vs output); event-scoped catalog walk must use full registry (hiddenFromCatalog); RJSF sibling edits via formContext.updateConfigData.
 - [Token plugin framework](token-plugin-framework.md) — legacy ids must stay valid chains; audience gating fail-closed per channel; evaluator mirrors shared arg validation; test scripts import storage/database not barrel.
 - [Auth provisioning & role reconcile](auth-provisioning-reconcile.md) — auth_settings is one variables row; provider-managed roles tracked in authIdentities.metadata.managedRoleIds, never claim locally held roles.
 - [ProtectedRoute entityId extraction](protectedroute-entityid-extraction.md) — /dispatch/job/:id/* tabs with a policyId must pass entityId explicitly (URL extractor grabs "job" as the id).

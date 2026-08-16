@@ -10,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
-import { Loader2, Save, Mail, MessageSquare, MapPin, Bell, Eye, AlertTriangle } from "lucide-react";
+import { Loader2, Save, Mail, MessageSquare, MapPin, Bell, Eye, AlertTriangle, Maximize2 } from "lucide-react";
 import { TokenPicker } from "@/components/bulk/TokenPicker";
+import { BulkTemplateStudio } from "@/components/template-studio/BulkTemplateStudio";
 import { SlashTokenField } from "@/components/bulk/SlashTokenField";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { cn } from "@/lib/utils";
@@ -195,8 +196,18 @@ interface FormProps {
   messageId: string;
 }
 
+function StudioButton({ onClick, testId }: { onClick: () => void; testId: string }) {
+  return (
+    <Button type="button" variant="outline" size="sm" onClick={onClick} data-testid={testId}>
+      <Maximize2 className="h-4 w-4 mr-1.5" />
+      Open Template Studio
+    </Button>
+  );
+}
+
 function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
   const [form, setForm] = useState({ subject: "", bodyHtml: "" });
+  const [studioOpen, setStudioOpen] = useState(false);
   const inserter = useTokenInserter();
   inserter.registerField("subject", (next) => setForm((p) => ({ ...p, subject: next })));
 
@@ -211,9 +222,24 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-email" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
+      <BulkTemplateStudio
+        open={studioOpen}
+        onOpenChange={setStudioOpen}
+        messageId={messageId}
+        title="Email message"
+        channel="email"
+        fields={[
+          { key: "subject", label: "Subject", mode: "line" },
+          { key: "bodyHtml", label: "Body", mode: "html" },
+        ]}
+        values={{ subject: form.subject, bodyHtml: form.bodyHtml }}
+        onValueChange={(key, value) => setForm((p) => ({ ...p, [key]: value }))}
+        escapeHtmlFields={["bodyHtml"]}
+      />
       <div className="space-y-2">
         <Label htmlFor="subject">Subject</Label>
         <SlashTokenField as="input" messageId={messageId} id="subject" value={form.subject} onFocus={inserter.handleFocus("subject")} onChange={(next) => setForm((p) => ({ ...p, subject: next }))} placeholder="Email subject — type / to insert a token" data-testid="input-email-subject" />
@@ -244,6 +270,7 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
 
 function SmsForm({ record, onSave, isPending, messageId }: FormProps) {
   const [body, setBody] = useState("");
+  const [studioOpen, setStudioOpen] = useState(false);
   const inserter = useTokenInserter();
   inserter.registerField("body", setBody);
 
@@ -255,9 +282,20 @@ function SmsForm({ record, onSave, isPending, messageId }: FormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-sms" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
+      <BulkTemplateStudio
+        open={studioOpen}
+        onOpenChange={setStudioOpen}
+        messageId={messageId}
+        title="SMS message"
+        channel="sms"
+        fields={[{ key: "body", label: "Message body", mode: "multiline" }]}
+        values={{ body }}
+        onValueChange={(_key, value) => setBody(value)}
+      />
       <div className="space-y-2">
         <Label htmlFor="smsBody">Message Body</Label>
         <SlashTokenField as="textarea" messageId={messageId} id="smsBody" value={body} onFocus={inserter.handleFocus("body")} onChange={setBody} rows={6} placeholder="SMS message content — type / to insert a token" data-testid="textarea-sms-body" />
@@ -356,6 +394,7 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
     linkUrl: "",
     linkLabel: "",
   });
+  const [studioOpen, setStudioOpen] = useState(false);
   const inserter = useTokenInserter();
   inserter.registerField("title", (next) => setForm((p) => ({ ...p, title: next })));
   inserter.registerField("linkLabel", (next) => setForm((p) => ({ ...p, linkLabel: next })));
@@ -385,9 +424,31 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-inapp" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
+      <BulkTemplateStudio
+        open={studioOpen}
+        onOpenChange={setStudioOpen}
+        messageId={messageId}
+        title="In-app notification"
+        channel="inapp"
+        fields={[
+          { key: "title", label: "Title", mode: "line" },
+          { key: "bodyHtml", label: "Body", mode: "html", hint: "Displayed as plain text; formatting is flattened on send." },
+          { key: "linkUrl", label: "Link URL", mode: "line" },
+          { key: "linkLabel", label: "Link label", mode: "line" },
+        ]}
+        values={{ title: form.title, bodyHtml: form.bodyHtml, linkUrl: form.linkUrl, linkLabel: form.linkLabel }}
+        onValueChange={(key, value) => setForm((p) => ({ ...p, [key]: value }))}
+        previewFieldsFor={(v) => ({
+          title: v.title ?? "",
+          body: htmlToPlainText(v.bodyHtml ?? ""),
+          linkUrl: v.linkUrl ?? "",
+          linkLabel: v.linkLabel ?? "",
+        })}
+      />
       <div className="space-y-2">
         <Label htmlFor="inappTitle">Title</Label>
         <SlashTokenField as="input" messageId={messageId} id="inappTitle" value={form.title} onFocus={inserter.handleFocus("title")} onChange={(next) => setForm((p) => ({ ...p, title: next }))} maxLength={100} placeholder="Notification title — type / to insert a token" data-testid="input-inapp-title" />

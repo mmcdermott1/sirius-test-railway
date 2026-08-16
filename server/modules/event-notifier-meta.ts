@@ -68,7 +68,7 @@ export function registerEventNotifierMetaRoutes(
         if (!isPluginComponentEnabledSync(plugin)) {
           return res.status(404).json({ message: "Notifier component is disabled" });
         }
-        const { buildSegmentSpecsForEvent, buildFieldCatalog } = await import(
+        const { buildSegmentSpecsForEvent, buildFieldCatalog, buildTokenCatalogForEvent } = await import(
           "../plugins/tokens"
         );
         // Defaults may depend on the config's other fields (e.g. the T631
@@ -88,11 +88,51 @@ export function registerEventNotifierMetaRoutes(
           segments: buildSegmentSpecsForEvent(plugin.tokenTemplates.eventEntityKind),
           fields: buildFieldCatalog(),
           defaults: plugin.tokenTemplates.defaultTemplates(configData),
+          // Picker entries for the Template Studio token browser (includes
+          // event.* entries rooted at this notifier's entity kind).
+          tokens: buildTokenCatalogForEvent(plugin.tokenTemplates.eventEntityKind),
+          // Whether the studio can offer "real record" preview mode.
+          realRecordPreview: !!plugin.tokenTemplates.previewEntities,
         });
       } catch (error: any) {
         res
           .status(500)
           .json({ message: error.message || "Failed to load token catalog" });
+      }
+    }
+  );
+
+  /**
+   * Search a token-templated notifier's real event entities for the
+   * Template Studio's "real record" preview mode. Only available for
+   * notifiers whose `tokenTemplates.previewEntities` is declared.
+   */
+  app.get(
+    "/api/event-notifier/preview-entities/:pluginId",
+    requireAuth,
+    requireAccess("admin"),
+    async (req: Request, res: Response) => {
+      try {
+        const { eventNotifierRegistry } = await import(
+          "../plugins/event-notifier/registry"
+        );
+        const plugin = eventNotifierRegistry.get(req.params.pluginId);
+        if (!plugin?.tokenTemplates?.previewEntities) {
+          return res
+            .status(404)
+            .json({ message: "Notifier not found or has no real-record preview" });
+        }
+        const { isPluginComponentEnabledSync } = await import("../plugins/_core");
+        if (!isPluginComponentEnabledSync(plugin)) {
+          return res.status(404).json({ message: "Notifier component is disabled" });
+        }
+        const q = typeof req.query.q === "string" ? req.query.q : "";
+        const entities = await plugin.tokenTemplates.previewEntities.search(q);
+        res.json({ entities });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to search preview records" });
       }
     }
   );
@@ -142,22 +182,33 @@ export function registerEventNotifierMetaRoutes(
         // configData carries in-progress template overrides from the editor.
         const configData: unknown = body.configData ?? undefined;
 
-        // Optional contactId: must belong to a staff/admin user to prevent
-        // leaking arbitrary contact PII through the preview endpoint.
+        // Optional contactId: any existing contact may be used as the
+        // preview recipient. Explicit product decision: anyone allowed to
+        // edit tokenized messages may see any data via preview — this
+        // endpoint is already admin-gated, and the delivered message would
+        // expose the same data anyway.
         let contactId: string | undefined;
         if (typeof body.contactId === "string" && body.contactId) {
-          const staffUsers = await storage.users.getUsersWithAnyPermission(["staff", "admin"]);
-          const staffContactIds = new Set<string>();
-          for (const user of staffUsers) {
-            if (user.email) {
-              const contact = await storage.contacts.getContactByEmail(user.email);
-              if (contact) staffContactIds.add(contact.id);
-            }
+          const contact = await storage.contacts.getContact(body.contactId);
+          if (!contact) {
+            return res.status(404).json({ message: "Preview contact not found" });
           }
-          if (staffContactIds.has(body.contactId)) {
-            contactId = body.contactId;
-          } else {
-            return res.status(403).json({ message: "contactId must belong to a staff or admin user" });
+          contactId = body.contactId;
+        }
+
+        // Optional eventEntityId: render against a REAL event entity
+        // (Template Studio "real record" mode) instead of the sample.
+        let realEventEntity: import("../plugins/tokens/types").TokenEntity | null = null;
+        if (typeof body.eventEntityId === "string" && body.eventEntityId) {
+          const previewEntities = plugin.tokenTemplates.previewEntities;
+          if (!previewEntities) {
+            return res
+              .status(400)
+              .json({ message: "This notifier does not support real-record preview" });
+          }
+          realEventEntity = await previewEntities.load(body.eventEntityId);
+          if (!realEventEntity) {
+            return res.status(404).json({ message: "Preview record not found" });
           }
         }
 
@@ -169,20 +220,22 @@ export function registerEventNotifierMetaRoutes(
 
         // Build a sample event entity with the correct kind so {{event.*}}
         // chains can advance to the right entity type and produce sample
-        // values (rather than "missing") for every leaf token.
-        const sampleEventEntity = { kind: eventEntityKind, row: {} };
+        // values (rather than "missing") for every leaf token. When a real
+        // entity was loaded, use it instead — sample mode must then be OFF
+        // so the evaluator reads the real row rather than examples.
+        const eventEntity = realEventEntity ?? { kind: eventEntityKind, row: {} };
+        const useSample = !contactId && !realEventEntity;
 
         const cache = new Map<string, unknown>();
-        const useRealRecipient = !!contactId;
 
         const renderField = async (
           template: string,
           escapeHtml: boolean,
         ): Promise<{ rendered: string; unknownTokens: string[]; missingValues: string[] }> => {
           const ctx = createTokenEvalContext(storage, contactId, {
-            sample: !useRealRecipient,
+            sample: useSample,
             cache,
-            event: sampleEventEntity,
+            event: eventEntity,
           });
           const result = await renderTokens(template, ctx, {
             strictUnknown: true,
@@ -243,8 +296,9 @@ export function registerEventNotifierMetaRoutes(
         }
 
         res.json({
-          sample: !useRealRecipient,
+          sample: useSample,
           contactId: contactId ?? null,
+          eventEntityId: realEventEntity ? String(body.eventEntityId) : null,
           channels,
         });
       } catch (error: any) {

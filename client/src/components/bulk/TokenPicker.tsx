@@ -36,42 +36,55 @@ function saveRecent(ids: string[]) {
   }
 }
 
-export function TokenPicker({ onInsert }: TokenPickerProps) {
-  // Always show every registered token — authors should be able to
-  // search the full set regardless of who's currently on the
-  // recipient list. Recipient context still controls what each token
-  // resolves to at send time.
+const DEFAULT_SCOPE_LABELS: Record<string, string> = {
+  contact: "Contact",
+  worker: "Worker",
+  employer: "Employer",
+  system: "System",
+  event: "Event record",
+};
+
+interface TokenBrowserPanelProps {
+  /** Token entries to browse. When omitted, the global bulk catalog is fetched. */
+  tokens?: TokenDefinition[];
+  onInsert: (snippet: string) => void;
+  /** Extra scopes shown first (e.g. ["event"] for notifier templates). */
+  priorityScopes?: string[];
+  className?: string;
+}
+
+/**
+ * Inline (non-popover) token browser: search + scope-grouped list with
+ * recently-used tokens on top. Shared by the TokenPicker popover and the
+ * Template Studio's token browser panel.
+ */
+export function TokenBrowserPanel({
+  tokens: tokensProp,
+  onInsert,
+  priorityScopes = [],
+  className,
+}: TokenBrowserPanelProps) {
   const { data } = useQuery<{ tokens: TokenDefinition[] }>({
     queryKey: ["/api/bulk-tokens"],
+    enabled: !tokensProp,
   });
-  const tokens = data?.tokens || [];
+  const tokens = tokensProp ?? data?.tokens ?? [];
 
-  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [recent, setRecent] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (open) {
-      setRecent(loadRecent());
-      setSearch("");
-    }
-  }, [open]);
+  const [recent, setRecent] = useState<string[]>(() => loadRecent());
 
   const handleInsert = (t: TokenDefinition) => {
     const next = [t.id, ...recent.filter((id) => id !== t.id)].slice(0, RECENT_MAX);
     setRecent(next);
     saveRecent(next);
     onInsert(t.insertText || `{{${t.id}}}`);
-    setOpen(false);
   };
 
-  const scopeOrder: string[] = ["contact", "worker", "employer", "system"];
-  const scopeLabel: Record<string, string> = {
-    contact: "Contact",
-    worker: "Worker",
-    employer: "Employer",
-    system: "System",
-  };
+  const baseScopes = ["contact", "worker", "employer", "system"];
+  const scopeOrder: string[] = [
+    ...priorityScopes,
+    ...baseScopes.filter((s) => !priorityScopes.includes(s)),
+  ];
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -102,6 +115,8 @@ export function TokenPicker({ onInsert }: TokenPickerProps) {
     if (recentIdSet.has(t.id)) continue;
     (groups[t.scope] = groups[t.scope] || []).push(t);
   }
+  // Scopes not in the known ordering (rare) render at the end.
+  const extraScopes = Object.keys(groups).filter((s) => !scopeOrder.includes(s));
 
   const renderToken = (t: TokenDefinition, keyPrefix: string) => (
     <button
@@ -121,6 +136,75 @@ export function TokenPicker({ onInsert }: TokenPickerProps) {
     </button>
   );
 
+  const renderScope = (scope: string) => {
+    const items = groups[scope] || [];
+    if (items.length === 0) return null;
+    return (
+      <div key={scope} className="p-2 border-b last:border-b-0">
+        <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {DEFAULT_SCOPE_LABELS[scope] ?? scope}
+        </div>
+        {items.map((t) => renderToken(t, scope))}
+      </div>
+    );
+  };
+
+  return (
+    <div className={className ?? "flex flex-col min-h-0 h-full"}>
+      <div className="p-3 border-b shrink-0">
+        <p className="text-sm font-medium">Insert a personalization token</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Tokens are replaced with each recipient's data when sent. Tokens that don't apply to a given recipient fall back to a default.
+        </p>
+        <div className="relative mt-2">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tokens…"
+            className="h-8 pl-7 text-sm"
+            data-testid="input-token-search"
+          />
+        </div>
+      </div>
+      <div className="overflow-y-auto flex-1 min-h-0">
+        {recentTokens.length > 0 && (
+          <div className="p-2 border-b" data-testid="section-recent-tokens">
+            <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Recently used
+            </div>
+            {recentTokens.map((t) => renderToken(t, "recent"))}
+          </div>
+        )}
+        {scopeOrder.map(renderScope)}
+        {extraScopes.map(renderScope)}
+        {tokens.length === 0 && (
+          <div className="p-4 text-sm text-muted-foreground">Loading tokens…</div>
+        )}
+        {tokens.length > 0 && filtered.length === 0 && (
+          <div className="p-4 text-sm text-muted-foreground" data-testid="text-no-tokens-found">
+            No tokens match "{search}".
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function TokenPicker({ onInsert }: TokenPickerProps) {
+  // Always show every registered token — authors should be able to
+  // search the full set regardless of who's currently on the
+  // recipient list. Recipient context still controls what each token
+  // resolves to at send time.
+  const [open, setOpen] = useState(false);
+  const [panelKey, setPanelKey] = useState(0);
+
+  useEffect(() => {
+    // Remount the panel on open so recent tokens + search reset.
+    if (open) setPanelKey((k) => k + 1);
+  }, [open]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -130,53 +214,13 @@ export function TokenPicker({ onInsert }: TokenPickerProps) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0 max-h-96 flex flex-col" align="end">
-        <div className="p-3 border-b shrink-0">
-          <p className="text-sm font-medium">Insert a personalization token</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Tokens are replaced with each recipient's data when sent. Tokens that don't apply to a given recipient fall back to a default.
-          </p>
-          <div className="relative mt-2">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tokens…"
-              className="h-8 pl-7 text-sm"
-              data-testid="input-token-search"
-            />
-          </div>
-        </div>
-        <div className="overflow-y-auto flex-1">
-          {recentTokens.length > 0 && (
-            <div className="p-2 border-b" data-testid="section-recent-tokens">
-              <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Recently used
-              </div>
-              {recentTokens.map((t) => renderToken(t, "recent"))}
-            </div>
-          )}
-          {scopeOrder.map((scope) => {
-            const items = groups[scope] || [];
-            if (items.length === 0) return null;
-            return (
-              <div key={scope} className="p-2 border-b last:border-b-0">
-                <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {scopeLabel[scope]}
-                </div>
-                {items.map((t) => renderToken(t, scope))}
-              </div>
-            );
-          })}
-          {tokens.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground">Loading tokens…</div>
-          )}
-          {tokens.length > 0 && filtered.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground" data-testid="text-no-tokens-found">
-              No tokens match "{search}".
-            </div>
-          )}
-        </div>
+        <TokenBrowserPanel
+          key={panelKey}
+          onInsert={(snippet) => {
+            onInsert(snippet);
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );

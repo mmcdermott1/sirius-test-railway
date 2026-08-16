@@ -30,14 +30,29 @@ const SPECIAL_CHARACTERS = [
   { name: 'Degree', symbol: '°' },
 ];
 
+/**
+ * Imperative surface for hosts (e.g. the Template Studio token browser)
+ * that need to insert a snippet at the editor's caret from outside.
+ */
+export interface SimpleHtmlEditorApi {
+  insertText: (snippet: string) => void;
+}
+
 interface SimpleHtmlEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
   enableTokens?: boolean;
+  /**
+   * Token list override for the slash menu + chips. When omitted (and
+   * enableTokens is on) the editor fetches the global bulk catalog.
+   */
+  tokensOverride?: TokenDefinition[];
   minHeight?: number;
   disabled?: boolean;
+  /** Receives the imperative insert API (insert snippet at last caret). */
+  editorApiRef?: React.MutableRefObject<SimpleHtmlEditorApi | null>;
   "data-testid"?: string;
 }
 
@@ -203,8 +218,10 @@ export function SimpleHtmlEditor({
   placeholder,
   className,
   enableTokens = false,
+  tokensOverride,
   minHeight = 120,
   disabled = false,
+  editorApiRef,
   "data-testid": testId,
 }: SimpleHtmlEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -230,9 +247,9 @@ export function SimpleHtmlEditor({
 
   const { data: tokenData } = useQuery<{ tokens: TokenDefinition[] }>({
     queryKey: ["/api/bulk-tokens"],
-    enabled: enableTokens,
+    enabled: enableTokens && !tokensOverride,
   });
-  const tokens = tokenData?.tokens || [];
+  const tokens = tokensOverride ?? tokenData?.tokens ?? [];
 
   const filteredTokens = useMemo<TokenDefinition[]>(() => {
     if (!slashOpen) return [];
@@ -279,6 +296,71 @@ export function SimpleHtmlEditor({
       setRawHtml(value);
     }
   }, [value, rawMode]);
+
+  // ── Imperative insert-at-cursor API (Template Studio token browser) ──
+  // Track the last caret position in the rich editor so an external
+  // insert (which happens after the editor loses focus to the browser
+  // panel) still lands where the author was typing.
+  const lastRichRangeRef = useRef<Range | null>(null);
+  const saveRichSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (
+      sel &&
+      sel.rangeCount > 0 &&
+      editorRef.current &&
+      editorRef.current.contains(sel.getRangeAt(0).startContainer)
+    ) {
+      lastRichRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!editorApiRef) return;
+    editorApiRef.current = {
+      insertText: (snippet: string) => {
+        if (disabled) return;
+        if (rawMode) {
+          const el = rawTextareaRef.current;
+          const start = el?.selectionStart ?? rawHtml.length;
+          const end = el?.selectionEnd ?? rawHtml.length;
+          const next = rawHtml.slice(0, start) + snippet + rawHtml.slice(end);
+          setRawHtml(next);
+          onChange(next);
+          requestAnimationFrame(() => {
+            if (!el) return;
+            el.focus();
+            const caret = start + snippet.length;
+            try { el.setSelectionRange(caret, caret); } catch { /* noop */ }
+          });
+          return;
+        }
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.focus();
+        const sel = window.getSelection();
+        const saved = lastRichRangeRef.current;
+        if (sel && saved && editor.contains(saved.startContainer)) {
+          sel.removeAllRanges();
+          sel.addRange(saved);
+        }
+        // Tokens render as chips when token support is on; everything
+        // else is inserted as escaped text.
+        TOKEN_PATTERN.lastIndex = 0;
+        const m = enableTokens ? TOKEN_PATTERN.exec(snippet) : null;
+        TOKEN_PATTERN.lastIndex = 0;
+        const html =
+          m && m[0] === snippet.trim()
+            ? buildChipHtml(m[1], tokens)
+            : escapeHtml(snippet);
+        document.execCommand("insertHTML", false, html);
+        saveRichSelection();
+        handleInput();
+      },
+    };
+    return () => {
+      editorApiRef.current = null;
+    };
+  });
 
   const handleInput = () => {
     if (editorRef.current) {
@@ -658,7 +740,7 @@ export function SimpleHtmlEditor({
           onClick={(e) => enableTokens && detectSlashRaw(e.currentTarget)}
           onBlur={() => enableTokens && window.setTimeout(closeSlash, 150)}
           placeholder="Enter raw HTML here..."
-          className="p-3 font-mono text-sm border-0 rounded-none focus-visible:ring-0 resize-none"
+          className="p-3 font-mono text-sm border-0 rounded-none focus-visible:ring-0 resize-y"
           style={{ minHeight }}
           disabled={disabled}
           data-testid={testId ? `${testId}-raw` : undefined}
@@ -672,16 +754,25 @@ export function SimpleHtmlEditor({
             "focus:ring-2 focus:ring-ring focus:ring-offset-0",
             !value && !isFocused && "text-muted-foreground"
           )}
-          style={{ minHeight }}
+          // resize: vertical makes the visual editor grow with the author's
+          // content preference — same affordance as the raw-HTML textarea.
+          style={{ minHeight, resize: "vertical", overflow: "auto" }}
           onInput={handleEditorInput}
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
+            saveRichSelection();
             setIsFocused(false);
             if (enableTokens) window.setTimeout(closeSlash, 150);
           }}
           onKeyDown={handleEditorKeyDown}
-          onKeyUp={() => enableTokens && detectSlashRich()}
-          onClick={handleEditorClick}
+          onKeyUp={() => {
+            saveRichSelection();
+            if (enableTokens) detectSlashRich();
+          }}
+          onClick={(e) => {
+            saveRichSelection();
+            handleEditorClick(e);
+          }}
           data-placeholder={placeholder}
           data-testid={testId}
           suppressContentEditableWarning

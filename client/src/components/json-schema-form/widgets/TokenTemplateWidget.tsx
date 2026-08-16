@@ -6,24 +6,32 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  Maximize2,
   Pencil,
   RotateCcw,
 } from "lucide-react";
 import {
   analyzeTemplateTokens,
+  type TokenCatalogEntry,
   type TokenSegmentSpec,
   type TokenFieldCatalog,
 } from "@shared/tokens";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
+import {
+  SimpleHtmlEditor,
+  sanitizeContractHtml,
+} from "@/components/ui/simple-html-editor";
 import { Button } from "@/components/ui/button";
+import { NotifierTemplateStudio } from "@/components/template-studio/NotifierTemplateStudio";
 
 interface TokenCatalogResponse {
   eventEntityKind: string;
   segments: TokenSegmentSpec[];
   fields?: TokenFieldCatalog;
   defaults?: Record<string, Record<string, string>>;
+  tokens?: TokenCatalogEntry[];
+  realRecordPreview?: boolean;
 }
 
 interface FieldPreview {
@@ -193,16 +201,41 @@ export function TokenTemplateWidget(props: WidgetProps) {
   const previewField = previewData ? fieldFromPreview(previewData, defaultPath) : null;
   const isHtml = mode === "html";
 
+  // ── Template Studio (full-screen editor) ──────────────────────────────────
+  const [studioOpen, setStudioOpen] = useState(false);
+  const channel = defaultPath?.split(".")[0];
+  const updateConfigData = (
+    registry?.formContext as
+      | { updateConfigData?: (path: string, value: unknown) => void }
+      | undefined
+  )?.updateConfigData;
+  const canOpenStudio = !!pluginId && !!channel && !!updateConfigData && !isDisabled;
+
   return (
     <div className="space-y-1.5">
       {mode === "html" ? (
-        <SimpleHtmlEditor
-          data-testid={`editor-${id}`}
-          value={text}
-          onChange={(v: string) => onChange(v)}
-          disabled={isDisabled}
-          placeholder={placeholder || undefined}
-        />
+        <>
+          <SimpleHtmlEditor
+            data-testid={`editor-${id}`}
+            value={text}
+            onChange={(v: string) => onChange(v)}
+            disabled={isDisabled}
+          />
+          {/* Quick fix: never show the default's raw HTML as placeholder
+              text — when blank, render the default visually instead. */}
+          {placeholder && !hasOverride && (
+            <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Default template (used while blank)
+              </p>
+              <div
+                className="prose prose-sm max-w-none dark:prose-invert opacity-80"
+                data-testid={`default-template-${id}`}
+                dangerouslySetInnerHTML={{ __html: sanitizeContractHtml(placeholder) }}
+              />
+            </div>
+          )}
+        </>
       ) : mode === "multiline" ? (
         <Textarea
           id={id}
@@ -296,6 +329,19 @@ export function TokenTemplateWidget(props: WidgetProps) {
             )}
             {previewOpen ? "Hide preview" : "Preview rendered output"}
           </Button>
+          {canOpenStudio && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+              data-testid={`button-open-studio-${id}`}
+              onClick={() => setStudioOpen(true)}
+            >
+              <Maximize2 className="h-3 w-3" />
+              Open in Template Studio
+            </Button>
+          )}
 
           {previewOpen && (
             <div
@@ -367,6 +413,18 @@ export function TokenTemplateWidget(props: WidgetProps) {
             </div>
           )}
         </div>
+      )}
+
+      {canOpenStudio && studioOpen && (
+        <NotifierTemplateStudio
+          open={studioOpen}
+          onOpenChange={setStudioOpen}
+          pluginId={pluginId!}
+          channel={channel!}
+          catalog={data}
+          configData={configData}
+          updateConfigData={updateConfigData!}
+        />
       )}
     </div>
   );

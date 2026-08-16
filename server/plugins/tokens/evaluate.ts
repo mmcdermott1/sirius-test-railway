@@ -461,9 +461,24 @@ export function describeChain(
  * segments.
  */
 export function buildTokenCatalog(): TokenCatalogEntry[] {
-  const enabled = tokenPluginRegistry
-    .listEnabledSync()
-    .filter((p) => !p.metadata.hiddenFromCatalog);
+  return buildCatalogEntries();
+}
+
+/**
+ * Catalog for an event-notifier template editor: the normal picker
+ * catalog PLUS `event.*` entries rooted at the notifier's concrete
+ * event entity kind. The `event` root and the per-kind relation
+ * plugins are `hiddenFromCatalog` (they'd be noise in bulk messaging,
+ * where no event entity exists), so the walk under the event root uses
+ * the full registry rather than the visible subset.
+ */
+export function buildTokenCatalogForEvent(eventKind: TokenEntityType): TokenCatalogEntry[] {
+  return buildCatalogEntries(eventKind);
+}
+
+function buildCatalogEntries(eventKind?: TokenEntityType): TokenCatalogEntry[] {
+  const all = tokenPluginRegistry.listEnabledSync();
+  const enabled = all.filter((p) => !p.metadata.hiddenFromCatalog);
   const fieldCatalog = buildFieldCatalog();
   const roots = enabled.filter((p) => p.metadata.inputTypes.includes("root"));
   const entries: TokenCatalogEntry[] = [];
@@ -500,11 +515,18 @@ export function buildTokenCatalog(): TokenCatalogEntry[] {
     });
   };
 
-  const walk = (prefix: string, scope: string, rootLabel: string, type: TokenEntityType, depth: number) => {
+  const walk = (
+    prefix: string,
+    scope: string,
+    rootLabel: string,
+    type: TokenEntityType,
+    depth: number,
+    pool: typeof enabled = enabled,
+  ) => {
     if (type !== "value" && type !== "system") {
       emitEntityEntry(prefix, scope, rootLabel, type);
     }
-    for (const p of enabled) {
+    for (const p of pool) {
       if (!p.metadata.inputTypes.includes(type)) continue;
       if (p.metadata.outputType === "value") {
         const hasRequired = Object.values(p.metadata.args || {}).some(
@@ -528,6 +550,7 @@ export function buildTokenCatalog(): TokenCatalogEntry[] {
           `${rootLabel} ${p.metadata.shortLabel ?? p.metadata.name.toLowerCase()}`,
           p.metadata.outputType,
           depth + 1,
+          pool,
         );
       }
     }
@@ -541,6 +564,20 @@ export function buildTokenCatalog(): TokenCatalogEntry[] {
       root.metadata.outputType,
       0,
     );
+  }
+
+  // Event-rooted entries: substitute the concrete entity kind for the
+  // dynamic `event` root and walk with the FULL registry so the
+  // hidden per-kind relation plugins (e.g. interview → worker) are
+  // reachable. Entity-descriptor plugins (`inputTypes: []`) never
+  // match a segment, so including them here is harmless.
+  if (eventKind) {
+    const eventRoot = all.find(
+      (p) => p.metadata.dynamicOutput && p.metadata.inputTypes.includes("root"),
+    );
+    if (eventRoot) {
+      walk(eventRoot.metadata.segmentName, eventRoot.metadata.segmentName, "Event", eventKind, 0, all);
+    }
   }
   return entries;
 }

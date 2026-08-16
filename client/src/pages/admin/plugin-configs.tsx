@@ -1169,7 +1169,30 @@ function GenericConfigDialog({
               schema={settingsSchema}
               uiSchema={settingsUiSchema}
               formData={settings}
-              formContext={{ configData: settings }}
+              formContext={{
+                configData: settings,
+                // Deep-set one dotted path (e.g. "templates.email.subject")
+                // into the live settings — lets the Template Studio edit
+                // sibling channel fields from inside a single widget.
+                updateConfigData: (path: string, value: unknown) => {
+                  setSettings((prev) => {
+                    const next: Record<string, unknown> = { ...prev };
+                    const parts = path.split(".");
+                    let cursor: Record<string, unknown> = next;
+                    for (let i = 0; i < parts.length - 1; i++) {
+                      const existing = cursor[parts[i]];
+                      const copy =
+                        existing && typeof existing === "object" && !Array.isArray(existing)
+                          ? { ...(existing as Record<string, unknown>) }
+                          : {};
+                      cursor[parts[i]] = copy;
+                      cursor = copy;
+                    }
+                    cursor[parts[parts.length - 1]] = value;
+                    return next;
+                  });
+                },
+              }}
               showErrorList="top"
               onChange={(e: IChangeEvent) => setSettings(e.formData as Record<string, unknown>)}
               onSubmit={(e: IChangeEvent) => handleSubmit(e.formData as Record<string, unknown>)}

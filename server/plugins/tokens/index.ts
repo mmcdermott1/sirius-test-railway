@@ -12,6 +12,7 @@ export {
   buildSegmentSpecsForEvent,
   buildFieldCatalog,
   buildTokenCatalog,
+  buildTokenCatalogForEvent,
   validateTokenExpression,
   validateTokenExpressionForEvent,
   describeChain,

@@ -41,6 +41,12 @@ export interface SchemaFormContext {
    * recipient-kind-dependent default placeholders).
    */
   configData?: Record<string, unknown>;
+  /**
+   * Deep-set one dotted path (e.g. "templates.email.subject") into the
+   * live form data — lets a widget-hosted editor (Template Studio) edit
+   * sibling fields outside its own RJSF field.
+   */
+  updateConfigData?: (path: string, value: unknown) => void;
 }
 
 export interface SchemaFormProps<T = Record<string, unknown>>
