@@ -33,9 +33,12 @@ const oktaProviderSchema = baseProviderSchema.extend({
 
 const samlProviderSchema = baseProviderSchema.extend({
   type: z.literal("saml"),
-  entryPoint: z.string().url(),
-  issuer: z.string(),
-  cert: z.string(),
+  // Optional: the SAML provider resolves these at request time so that
+  // Variables-table (ENV_SAML_*) overrides work without a restart. Being
+  // listed in AUTH_PROVIDER is enough to register the provider.
+  entryPoint: z.string().url().optional(),
+  issuer: z.string().optional(),
+  cert: z.string().optional(),
   callbackPath: z.string().optional(),
 });
 
@@ -108,12 +111,15 @@ function parseProviderFromEnv(type: AuthProviderType): ProviderConfig | null {
     }
 
     case "saml": {
+      // Listing "saml" in AUTH_PROVIDER is explicit intent: register the
+      // provider even when its variables are not resolvable yet, so values
+      // added later via the Variables table (ENV_SAML_*) take effect on the
+      // next login attempt without a restart. The provider itself re-reads
+      // these via getEnvironmentVariable at request time; the snapshot here
+      // is informational only.
       const entryPoint = getEnvironmentVariable("SAML_ENTRY_POINT");
       const issuer = getEnvironmentVariable("SAML_ISSUER");
       const cert = getEnvironmentVariable("SAML_CERT");
-      if (!entryPoint || !issuer || !cert) {
-        return null;
-      }
       const config: SamlProviderConfig = {
         type: "saml",
         enabled: true,

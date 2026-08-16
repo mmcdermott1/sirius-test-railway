@@ -153,9 +153,12 @@ export async function setupAuth(app: Express): Promise<void> {
   }
 
   // Fallback for the SAML callback path when the SAML provider is NOT
-  // configured (e.g. env vars missing in this environment). Registered after
-  // provider setup, so a configured SAML provider's own routes win. Without
-  // this, hits fell through to the SPA catch-all as a confusing 404 page.
+  // registered — i.e. "saml" is not listed in AUTH_PROVIDER at all. (A listed
+  // provider now registers even with unresolved vars and owns its routes,
+  // redirecting to saml_not_configured itself when config is incomplete.)
+  // Registered after provider setup, so a registered SAML provider's own
+  // routes win. Without this, hits fell through to the SPA catch-all as a
+  // confusing 404 page.
   if (!providerRegistry.get("saml")) {
     // Honor a custom SAML_CALLBACK_PATH so a configured-but-uninitializable
     // SAML setup (e.g. missing cert) still lands here, not the SPA 404.

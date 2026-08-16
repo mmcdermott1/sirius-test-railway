@@ -416,28 +416,121 @@ function logLoginEvent(user: any, externalId: string, accountLinked: boolean) {
   });
 }
 
+/**
+ * SAML settings resolved fresh from the env registry. Values set in the
+ * Variables table (ENV_SAML_*) apply immediately — no restart — because
+ * getEnvironmentVariable consults the override cache on every read (a real,
+ * non-empty, non-__UNSET__ process-env value always wins).
+ */
+interface ResolvedSamlConfig {
+  entryPoint: string;
+  issuer: string;
+  cert: string;
+  callbackUrl: string;
+}
+
+function samlHostBase(): string {
+  const host =
+    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
+    getEnvironmentVariable("REPL_SLUG") + "." + getEnvironmentVariable("REPL_OWNER") + ".repl.co";
+  return `https://${host}`;
+}
+
 class SamlAuthProvider implements AuthProvider {
   type = "saml" as const;
 
   private config: SamlProviderConfig;
 
-  private callbackUrl: string = "";
+  /** Path the callback route was mounted on (fixed at boot — see setup). */
+  private mountedCallbackPath: string = "/api/auth/saml/callback";
+
+  /**
+   * Strategy cache key: the resolved (entryPoint, issuer, cert, callbackUrl)
+   * tuple that produced the currently-registered passport strategy. When any
+   * value changes (e.g. a Variables-table edit), the next request rebuilds
+   * the strategy — construction is cheap and logins are rare.
+   */
+  private strategyKey: string | null = null;
 
   constructor(config: SamlProviderConfig) {
     this.config = config;
   }
 
-  async setup(app: Express): Promise<void> {
-    const host = getEnvironmentVariable("REPLIT_DEV_DOMAIN") || getEnvironmentVariable("REPL_SLUG") + "." + getEnvironmentVariable("REPL_OWNER") + ".repl.co";
-    const protocol = "https";
-    this.callbackUrl = `${protocol}://${host}${this.config.callbackPath || "/api/auth/saml/callback"}`;
+  /**
+   * Resolve the SAML variables NOW. Returns the config, or the list of
+   * missing variable names when incomplete.
+   */
+  private resolveConfig():
+    | { ok: true; config: ResolvedSamlConfig }
+    | { ok: false; missing: string[] } {
+    const entryPoint = getEnvironmentVariable("SAML_ENTRY_POINT");
+    const issuer = getEnvironmentVariable("SAML_ISSUER");
+    const cert = getEnvironmentVariable("SAML_CERT");
 
-    const samlStrategy = new SamlStrategy(
+    const missing: string[] = [];
+    if (!entryPoint) missing.push("SAML_ENTRY_POINT");
+    if (!issuer) missing.push("SAML_ISSUER");
+    if (!cert) missing.push("SAML_CERT");
+    if (missing.length > 0) return { ok: false, missing };
+
+    return {
+      ok: true,
+      config: {
+        entryPoint: entryPoint!,
+        issuer: issuer!,
+        cert: cert!,
+        callbackUrl: `${samlHostBase()}${this.mountedCallbackPath}`,
+      },
+    };
+  }
+
+  /**
+   * Ensure the passport strategy reflects the currently-resolved config.
+   * Returns the missing-variable list when SAML is not configured; in that
+   * case callers redirect to the existing saml_not_configured error page.
+   */
+  private ensureStrategy(): { ok: true } | { ok: false; missing: string[] } {
+    const resolved = this.resolveConfig();
+    if (!resolved.ok) return resolved;
+
+    const { entryPoint, issuer, cert, callbackUrl } = resolved.config;
+    const key = JSON.stringify([entryPoint, issuer, cert, callbackUrl]);
+    if (key === this.strategyKey) return { ok: true };
+
+    passport.use(STRATEGY_NAME, this.buildStrategy(resolved.config));
+    this.strategyKey = key;
+    logger.info("SAML strategy (re)built from current configuration", {
+      service: "saml-auth",
+      entryPoint,
+      issuer,
+      callbackUrl,
+    });
+    return { ok: true };
+  }
+
+  /** Guard wrapper: 503 the flow to the error page when SAML is unconfigured. */
+  private withConfiguredStrategy(handler: RequestHandler): RequestHandler {
+    return (req: Request, res: Response, next: NextFunction) => {
+      const ensured = this.ensureStrategy();
+      if (!ensured.ok) {
+        logger.warn("SAML request but SAML is not configured", {
+          service: "saml-auth",
+          missing: ensured.missing,
+          path: req.path,
+        });
+        return res.redirect("/auth-error?error=saml_not_configured");
+      }
+      return handler(req, res, next);
+    };
+  }
+
+  private buildStrategy(resolved: ResolvedSamlConfig): SamlStrategy {
+    return new SamlStrategy(
       {
-        entryPoint: this.config.entryPoint,
-        issuer: this.config.issuer || `${protocol}://${host}`,
-        idpCert: this.config.cert,
-        callbackUrl: this.callbackUrl,
+        entryPoint: resolved.entryPoint,
+        issuer: resolved.issuer,
+        idpCert: resolved.cert,
+        callbackUrl: resolved.callbackUrl,
         wantAuthnResponseSigned: false,
         wantAssertionsSigned: true,
         signatureAlgorithm: "sha256",
@@ -519,10 +612,18 @@ class SamlAuthProvider implements AuthProvider {
         return done(null, sessionUser as unknown as Record<string, unknown>);
       }
     );
+  }
 
-    passport.use(STRATEGY_NAME, samlStrategy);
+  async setup(app: Express): Promise<void> {
+    // The callback route is mounted ONCE, at the path resolved at boot.
+    // Changing SAML_CALLBACK_PATH via the Variables table therefore still
+    // requires a restart; every other SAML variable is live (request-time).
+    this.mountedCallbackPath =
+      getEnvironmentVariable("SAML_CALLBACK_PATH") ||
+      this.config.callbackPath ||
+      "/api/auth/saml/callback";
+    const callbackPath = this.mountedCallbackPath;
 
-    const callbackPath = this.config.callbackPath || "/api/auth/saml/callback";
     app.post(callbackPath, this.getCallbackHandler());
     // The ACS only accepts SAML assertions via POST. Browsers still arrive
     // here with GET — Okta "Embed link" apps, bookmarked callback URLs, or a
@@ -548,11 +649,16 @@ class SamlAuthProvider implements AuthProvider {
     });
 
     app.get("/api/auth/saml/metadata", (req, res) => {
+      // Metadata reflects the CURRENT configuration (issuer may come from a
+      // Variables-table override applied after boot). Fallback to the host
+      // base is metadata-display-only; login/callback require SAML_ISSUER.
+      const issuer = getEnvironmentVariable("SAML_ISSUER") || samlHostBase();
+      const callbackUrl = `${samlHostBase()}${this.mountedCallbackPath}`;
       res.type("application/xml");
       const metadata = `<?xml version="1.0"?>
-<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="${this.config.issuer || `${protocol}://${host}`}">
+<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="${issuer}">
   <SPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-    <AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${this.callbackUrl}" index="0"/>
+    <AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${callbackUrl}" index="0"/>
   </SPSSODescriptor>
 </EntityDescriptor>`;
       res.send(metadata);
@@ -560,25 +666,25 @@ class SamlAuthProvider implements AuthProvider {
 
     app.get("/api/auth/saml/login", this.getLoginHandler());
 
+    const bootResolved = this.resolveConfig();
     logger.info("SAML auth provider initialized", {
       service: "saml-auth",
-      entryPoint: this.config.entryPoint,
-      callbackUrl: this.callbackUrl,
+      configuredAtBoot: bootResolved.ok,
+      missingAtBoot: bootResolved.ok ? undefined : bootResolved.missing,
+      callbackPath,
     });
   }
 
   getLoginHandler(): RequestHandler {
-    return (req: Request, res: Response, next: NextFunction) => {
-      const redirectPath = req.query.redirect as string || "/";
-      
+    return this.withConfiguredStrategy((req: Request, res: Response, next: NextFunction) => {
       passport.authenticate(STRATEGY_NAME, {
         additionalParams: {},
       } as any)(req, res, next);
-    };
+    });
   }
 
   getCallbackHandler(): RequestHandler {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return this.withConfiguredStrategy((req: Request, res: Response, next: NextFunction) => {
       // Use a custom callback instead of failureRedirect so every failure path
       // goes through recordSamlFailure and receives a reference + category.
       passport.authenticate(
@@ -620,7 +726,7 @@ class SamlAuthProvider implements AuthProvider {
           });
         },
       )(req, res, next);
-    };
+    });
   }
 
   getLogoutHandler(): RequestHandler {

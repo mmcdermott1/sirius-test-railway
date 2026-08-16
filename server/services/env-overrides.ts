@@ -16,8 +16,10 @@ import { setEnvironmentVariableOverrideSource } from "../config/env-registry";
  *
  * The cache is refreshed after every committed write to an `ENV_*` row
  * (via the variable registry's onWrite hook), so overrides take effect for
- * subsequent reads without a restart. Consumers that read env only at boot
- * (e.g. the SAML strategy) still need an app restart to pick up changes.
+ * subsequent reads without a restart. Most consumers read lazily; the SAML
+ * provider resolves its config per request (Task #1108). Consumers that
+ * still read env only at boot (e.g. the auth provider LIST, session config)
+ * need an app restart to pick up changes.
  */
 
 /** Prefix for per-variable override rows in the variables table. */
