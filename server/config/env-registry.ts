@@ -26,6 +26,58 @@
 
 export type EnvironmentVariableCategory = "core" | "platform" | (string & {});
 
+/**
+ * Last-resort public base URL used in local development when neither an
+ * explicit PUBLIC_URL nor any Replit platform domain is available. Consumers
+ * that must NOT hand a localhost URL to an external service (e.g. Twilio
+ * status callbacks) compare against this constant.
+ */
+export const PUBLIC_URL_LOCAL_FALLBACK = "https://localhost:5000";
+
+/**
+ * Resolver for PUBLIC_URL — the ONLY place in the codebase that knows about
+ * the Replit platform domain variables. Order: explicit PUBLIC_URL value →
+ * REPLIT_DEV_DOMAIN → REPLIT_DEPLOYMENT_DOMAIN → first of REPLIT_DOMAINS →
+ * localhost last resort. Result is normalized to an absolute https origin
+ * with no trailing slash.
+ */
+function resolvePublicUrl(value: string | undefined): string {
+  const explicit = value?.trim();
+  if (explicit) return canonicalHttpsOrigin(explicit, "PUBLIC_URL");
+  const domain = (
+    process.env.REPLIT_DEV_DOMAIN ||
+    process.env.REPLIT_DEPLOYMENT_DOMAIN ||
+    process.env.REPLIT_DOMAINS?.split(",")[0] ||
+    ""
+  ).trim();
+  if (domain) return canonicalHttpsOrigin(domain, "platform domain");
+  return PUBLIC_URL_LOCAL_FALLBACK;
+}
+
+/**
+ * Canonicalize to an https origin only: scheme added when missing, any
+ * path/query/fragment dropped, http upgraded to https (except localhost,
+ * where a local dev server may genuinely be http). Throws loudly on values
+ * that cannot be parsed as a URL — a silently wrong public origin breaks
+ * SAML validation and outbound links in ways that are hard to trace.
+ */
+function canonicalHttpsOrigin(raw: string, sourceLabel: string): string {
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+  let url: URL;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    throw new Error(
+      `Invalid public base URL from ${sourceLabel}: "${raw}" cannot be parsed as a URL.`,
+    );
+  }
+  const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalhost)) {
+    url.protocol = "https:";
+  }
+  return url.origin;
+}
+
 export interface EnvironmentVariableDeclaration {
   /** Exact environment variable name, e.g. "DATABASE_URL". */
   name: string;
@@ -384,7 +436,16 @@ registerEnvironmentVariables([
   { name: "SKIP_DIST_FRESHNESS_CHECK", description: "Set to 1 to skip the stale-dist build freshness guard in production entry.", secret: false, category: "core" },
   { name: "EXPOSE_BOOT_ERRORS", description: "Set to 1 to render init-failure details (message + stack) on the boot failure page.", secret: false, category: "core" },
   { name: "FILESYSTEMS", description: "JSON map of filesystem configs (see server/services/files/config.ts). *_secret settings name further env vars.", secret: false, category: "core" },
-  { name: "PUBLIC_URL", description: "Explicit public base URL for callback links when platform domains are absent.", secret: false, category: "core" },
+  {
+    name: "PUBLIC_URL",
+    description:
+      "Public base URL (absolute https origin) of this deployment. Explicit value wins; " +
+      "otherwise derived from the Replit platform domains, with a localhost last resort " +
+      "for local development. All base-URL consumers read this ONE variable.",
+    secret: false,
+    category: "core",
+    transform: resolvePublicUrl,
+  },
   // Auth (multi-provider) configuration.
   { name: "AUTH_PROVIDER", description: "Comma-separated list of enabled auth providers (replit,okta,saml,oauth,local,clerk).", secret: false, category: "core" },
   { name: "AUTH_DEFAULT_PROVIDER", description: "Which configured auth provider is the default.", secret: false, category: "core" },
@@ -422,15 +483,10 @@ registerEnvironmentVariables([
 // ---------------------------------------------------------------------------
 registerEnvironmentVariables([
   { name: "REPL_ID", description: "Replit workspace id; doubles as the Replit OIDC client id.", secret: false, category: "platform" },
-  { name: "REPL_SLUG", description: "Replit workspace slug (legacy repl.co host construction).", secret: false, category: "platform" },
-  { name: "REPL_OWNER", description: "Replit workspace owner (legacy repl.co host construction).", secret: false, category: "platform" },
   { name: "REPL_IDENTITY", description: "Replit workspace identity token (connector auth).", secret: true, category: "platform" },
   { name: "WEB_REPL_RENEWAL", description: "Replit deployment identity token (connector auth).", secret: true, category: "platform" },
   { name: "REPLIT_CONNECTORS_HOSTNAME", description: "Hostname of the Replit connectors API.", secret: false, category: "platform" },
-  { name: "REPLIT_DEV_DOMAIN", description: "Public development domain of this workspace.", secret: false, category: "platform" },
-  { name: "REPLIT_DOMAINS", description: "Comma-separated public domains of this deployment.", secret: false, category: "platform" },
   { name: "REPLIT_DEPLOYMENT", description: "Set to 1 inside a Replit deployment container.", secret: false, category: "platform" },
-  { name: "REPLIT_DEPLOYMENT_DOMAIN", description: "Public domain of the Replit deployment.", secret: false, category: "platform" },
   { name: "DEFAULT_OBJECT_STORAGE_BUCKET_ID", description: "Replit object storage default bucket id.", secret: false, category: "platform" },
   { name: "PUBLIC_OBJECT_SEARCH_PATHS", description: "Comma-separated public search paths in object storage.", secret: false, category: "platform" },
   { name: "PRIVATE_OBJECT_DIR", description: "Private directory prefix in object storage.", secret: false, category: "platform" },

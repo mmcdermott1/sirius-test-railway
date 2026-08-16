@@ -429,11 +429,13 @@ interface ResolvedSamlConfig {
   callbackUrl: string;
 }
 
+/**
+ * Public origin of this deployment, used for the SAML callback URL and the
+ * metadata document. Registry-resolved PUBLIC_URL: explicit value, else the
+ * platform domains, else a localhost dev fallback — never undefined.
+ */
 function samlHostBase(): string {
-  const host =
-    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
-    getEnvironmentVariable("REPL_SLUG") + "." + getEnvironmentVariable("REPL_OWNER") + ".repl.co";
-  return `https://${host}`;
+  return getEnvironmentVariable("PUBLIC_URL")!;
 }
 
 class SamlAuthProvider implements AuthProvider {

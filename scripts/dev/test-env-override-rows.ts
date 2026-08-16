@@ -16,6 +16,7 @@ import {
 } from "../../server/services/env-overrides";
 import {
   getEnvironmentVariable,
+  getRawProcessEnv,
   isEnvironmentVariableOverridable,
   registerEnvironmentVariables,
 } from "../../server/config/env-registry";
@@ -69,13 +70,17 @@ async function main() {
   const created = await storage.variables.create({ name: ROW, value: "row-value" });
   await runVariableOnWrite(ROW);
   check("cache has override after create+hook", getEnvOverrideMap().get(TEST_ENV) === "row-value");
-  delete process.env[TEST_ENV];
+  // Simulating raw environment values is the point of these assertions, so
+  // they use the sanctioned whole-environment accessor rather than touching
+  // the environment object directly.
+  const env = getRawProcessEnv();
+  delete env[TEST_ENV];
   check("getter serves override when env absent", getEnvironmentVariable(TEST_ENV) === "row-value");
-  process.env[TEST_ENV] = "real-env";
+  env[TEST_ENV] = "real-env";
   check("real env wins", getEnvironmentVariable(TEST_ENV) === "real-env");
-  process.env[TEST_ENV] = "__UNSET__";
+  env[TEST_ENV] = "__UNSET__";
   check("__UNSET__ releases to override", getEnvironmentVariable(TEST_ENV) === "row-value");
-  delete process.env[TEST_ENV];
+  delete env[TEST_ENV];
 
   // Redaction: non-secret env var's override value is readable; unknown redacted.
   const redacted = redactVariableForRead({ name: ROW, value: "row-value" });

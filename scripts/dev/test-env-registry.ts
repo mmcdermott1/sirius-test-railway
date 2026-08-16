@@ -21,6 +21,7 @@ import {
   listPresentEnvironmentVariableNames,
   getRawProcessEnv,
 } from "../../server/config/env-registry";
+import { getPublicBaseUrl } from "../../server/services/comm/callback-handlers/url-builder";
 
 let failures = 0;
 function check(name: string, fn: () => void): void {
@@ -53,7 +54,104 @@ console.log("[test-env-registry] registry behavior");
 check("core variables are registered at module load", () => {
   assert(isEnvironmentVariableRegistered("DATABASE_URL"), "DATABASE_URL missing");
   assert(isEnvironmentVariableRegistered("NODE_ENV"), "NODE_ENV missing");
-  assert(isEnvironmentVariableRegistered("REPLIT_DEV_DOMAIN"), "REPLIT_DEV_DOMAIN missing");
+  assert(isEnvironmentVariableRegistered("PUBLIC_URL"), "PUBLIC_URL missing");
+});
+
+check("PUBLIC_URL resolution order: explicit value wins, normalized", () => {
+  const saved = {
+    PUBLIC_URL: process.env.PUBLIC_URL,
+    REPLIT_DEV_DOMAIN: process.env.REPLIT_DEV_DOMAIN,
+    REPLIT_DEPLOYMENT_DOMAIN: process.env.REPLIT_DEPLOYMENT_DOMAIN,
+    REPLIT_DOMAINS: process.env.REPLIT_DOMAINS,
+  };
+  try {
+    process.env.PUBLIC_URL = "https://fls.example.com/";
+    process.env.REPLIT_DEV_DOMAIN = "dev.replit.example";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://fls.example.com",
+      `explicit value should win and lose trailing slash, got ${getEnvironmentVariable("PUBLIC_URL")}`,
+    );
+
+    process.env.PUBLIC_URL = "fls.example.com";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://fls.example.com",
+      "bare host should gain https scheme",
+    );
+
+    delete process.env.PUBLIC_URL;
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://dev.replit.example",
+      "should fall back to REPLIT_DEV_DOMAIN",
+    );
+
+    delete process.env.REPLIT_DEV_DOMAIN;
+    process.env.REPLIT_DEPLOYMENT_DOMAIN = "prod.replit.example";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://prod.replit.example",
+      "should fall back to REPLIT_DEPLOYMENT_DOMAIN",
+    );
+
+    delete process.env.REPLIT_DEPLOYMENT_DOMAIN;
+    process.env.REPLIT_DOMAINS = "a.replit.example,b.replit.example";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://a.replit.example",
+      "should fall back to first of REPLIT_DOMAINS",
+    );
+
+    delete process.env.REPLIT_DOMAINS;
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://localhost:5000",
+      "should fall back to localhost last resort",
+    );
+
+    process.env.PUBLIC_URL = "http://fls.example.com";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://fls.example.com",
+      "http on a non-localhost host should be upgraded to https",
+    );
+
+    process.env.PUBLIC_URL = "http://localhost:3000";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "http://localhost:3000",
+      "http should be preserved for localhost",
+    );
+
+    process.env.PUBLIC_URL = "https://fls.example.com/some/path?q=1#frag";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://fls.example.com",
+      "path, query, and fragment should be stripped to the origin",
+    );
+
+    process.env.PUBLIC_URL = "https://";
+    assertThrows(
+      () => getEnvironmentVariable("PUBLIC_URL"),
+      "cannot be parsed",
+    );
+
+    delete process.env.PUBLIC_URL;
+    process.env.REPLIT_DEV_DOMAIN = "  dev.replit.example  ";
+    assert(
+      getEnvironmentVariable("PUBLIC_URL") === "https://dev.replit.example",
+      "platform domain should be trimmed",
+    );
+    delete process.env.REPLIT_DEV_DOMAIN;
+
+    // External-callback builder must refuse the localhost fallback.
+    assert(
+      getPublicBaseUrl() === undefined,
+      "getPublicBaseUrl should be undefined on the localhost fallback",
+    );
+    process.env.PUBLIC_URL = "https://fls.example.com";
+    assert(
+      getPublicBaseUrl() === "https://fls.example.com",
+      "getPublicBaseUrl should return the resolved public URL",
+    );
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
 });
 
 check("reading an unregistered variable fails loudly", () => {

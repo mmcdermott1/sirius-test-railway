@@ -10,7 +10,7 @@ import {
   type NotifierMessageContent,
   type NotifierRecipient,
 } from "../types";
-import { getEnvironmentVariable } from "../../../config/env-registry";
+import { absoluteUrl } from "../../../lib/base-url";
 
 function payloadOf(ctx: EventNotifierEventContext): TosAbsenceReminderPayload {
   return ctx.payload as TosAbsenceReminderPayload;
@@ -22,11 +22,7 @@ function payloadOf(ctx: EventNotifierEventContext): TosAbsenceReminderPayload {
  * link. Mirrors the domain resolution used by the grievance notifiers.
  */
 function absoluteWorkerUrl(workerId: string): string {
-  const domain =
-    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
-    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}/workers/${workerId}`;
+  return absoluteUrl(`/workers/${workerId}`);
 }
 
 /**

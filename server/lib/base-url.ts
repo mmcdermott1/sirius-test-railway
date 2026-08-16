@@ -1,16 +1,16 @@
 import { getEnvironmentVariable } from "../config/env-registry";
+
 /**
  * Absolute base URL of this deployment, for links that leave the app
  * (email, SMS). In-app messages navigate with relative paths instead.
- * Centralizes the domain resolution the event notifiers previously
- * each duplicated.
+ *
+ * Thin wrapper over the registry-resolved PUBLIC_URL — explicit value,
+ * Replit platform domains, or a localhost last resort — so all consumers
+ * share one canonical answer.
  */
 export function absoluteBaseUrl(): string {
-  const domain =
-    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
-    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}`;
+  // The PUBLIC_URL transform always yields a value.
+  return getEnvironmentVariable("PUBLIC_URL")!;
 }
 
 /** Prefix a relative path with the absolute base URL. */

@@ -23,6 +23,7 @@ import "../../server/storage";
 import express from "express";
 import passport from "passport";
 import { createProvider } from "../../server/auth/providers/saml";
+import { getRawProcessEnv } from "../../server/config/env-registry";
 
 // Self-signed test cert (structure-valid PEM; never used to verify anything
 // in these tests — login only builds an AuthnRequest redirect).
@@ -92,10 +93,14 @@ function runLogin(handler: express.RequestHandler): Promise<string> {
 const SAML_VARS = ["SAML_ENTRY_POINT", "SAML_ISSUER", "SAML_CERT", "SAML_CALLBACK_PATH"] as const;
 
 function setVars(vars: Partial<Record<(typeof SAML_VARS)[number], string>>): void {
+  // Simulating raw environment values is the point of this test, so it uses
+  // the sanctioned whole-environment accessor rather than reading/writing the
+  // environment object directly.
+  const env = getRawProcessEnv();
   for (const name of SAML_VARS) {
     const v = vars[name];
-    if (v === undefined) delete process.env[name];
-    else process.env[name] = v;
+    if (v === undefined) delete env[name];
+    else env[name] = v;
   }
 }
 

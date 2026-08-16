@@ -12,7 +12,7 @@ import {
 } from "../types";
 import { optionsGrievanceRoles } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { getEnvironmentVariable } from "../../../config/env-registry";
+import { absoluteUrl } from "../../../lib/base-url";
 
 function payloadOf(ctx: EventNotifierEventContext): GrievanceAssignmentSavedPayload {
   return ctx.payload as GrievanceAssignmentSavedPayload;
@@ -74,11 +74,7 @@ function bodyFor(
  * link. Mirrors the domain resolution used by the dispatch notifier.
  */
 function absoluteGrievanceUrl(grievanceId: string): string {
-  const domain =
-    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
-    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}/grievance/${grievanceId}`;
+  return absoluteUrl(`/grievance/${grievanceId}`);
 }
 
 /**

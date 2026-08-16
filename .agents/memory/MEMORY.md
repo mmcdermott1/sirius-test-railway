@@ -1,5 +1,6 @@
 // hint: Logic changed on both sides. Requires understanding intent of each change.
 - [In-app env overrides](env-overrides-framework.md) — env wins unless "released" (empty/`__UNSET__`); NO denylist, ALL registered vars overridable (owner decision, don't re-block); one ENV_{NAME} row per override.
+- [PUBLIC_URL single base-URL source](public-url-registry.md) — Replit domain vars are UNREGISTERED; all public-origin reads go through PUBLIC_URL (transform holds the fallback chain); external callbacks use getPublicBaseUrl.
 - [Env-var registry](env-var-registry.md) — all env reads go through getEnvironmentVariable (server/config/env-registry.ts, pure leaf); check-env-registry flags process-env even in comments.
 - [Employer compliance gating](employer-compliance-gating.md) — /employers/compliance is staff+ledger gated, never bulk.edit (bulk.edit is unsatisfiable: no staff.bulk perm, bulk component often off).
 - [Employer route registration order](employer-route-registration-order.md) — new literal /api/employers/<word> routes must live in routes.ts before its /:id, else captured as :id → 404.

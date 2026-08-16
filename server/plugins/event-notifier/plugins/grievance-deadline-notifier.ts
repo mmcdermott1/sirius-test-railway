@@ -10,7 +10,7 @@ import {
   type NotifierMessageContent,
   type NotifierRecipient,
 } from "../types";
-import { getEnvironmentVariable } from "../../../config/env-registry";
+import { absoluteUrl } from "../../../lib/base-url";
 
 function payloadOf(ctx: EventNotifierEventContext): GrievanceDeadlineReminderPayload {
   return ctx.payload as GrievanceDeadlineReminderPayload;
@@ -52,11 +52,7 @@ function composeTitle(
  * link. Mirrors the domain resolution used by the other grievance notifiers.
  */
 function absoluteGrievanceUrl(grievanceId: string): string {
-  const domain =
-    getEnvironmentVariable("REPLIT_DEV_DOMAIN") ||
-    getEnvironmentVariable("REPLIT_DOMAINS")?.split(",")[0] ||
-    "localhost:5000";
-  return `https://${domain}/grievance/${grievanceId}`;
+  return absoluteUrl(`/grievance/${grievanceId}`);
 }
 
 /**
