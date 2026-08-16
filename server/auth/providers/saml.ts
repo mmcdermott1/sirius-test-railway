@@ -57,9 +57,14 @@ function decodeSamlResponse(raw: unknown): string | undefined {
 /**
  * Persist a sanitized SAML failure so admins can diagnose IdP configuration
  * problems from the in-app log viewer (Config → Logs, module "auth"), and
- * return a short reference id surfaced on the public error page.
+ * return a short reference id and the sanitized category, both surfaced on
+ * the public error page.
  */
-function recordSamlFailure(operation: string, error: unknown, req: Request): string {
+function recordSamlFailure(
+  operation: string,
+  error: unknown,
+  req: Request,
+): { reference: string; category: string } {
   const reference = `SAML-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   const err = error instanceof Error ? error : new Error(String(error));
   const { category, reason } = categorizeSamlError(err.message || "Unknown error");
@@ -82,7 +87,7 @@ function recordSamlFailure(operation: string, error: unknown, req: Request): str
     samlResponseXml: decodeSamlResponse(samlResponseRaw),
     samlResponseBase64: typeof samlResponseRaw === "string" ? samlResponseRaw : undefined,
   });
-  return reference;
+  return { reference, category };
 }
 
 interface SamlProfile {
@@ -299,7 +304,9 @@ function logLoginEvent(user: any, externalId: string, accountLinked: boolean) {
 
 class SamlAuthProvider implements AuthProvider {
   type = "saml" as const;
+
   private config: SamlProviderConfig;
+
   private callbackUrl: string = "";
 
   constructor(config: SamlProviderConfig) {
@@ -446,36 +453,47 @@ class SamlAuthProvider implements AuthProvider {
 
   getCallbackHandler(): RequestHandler {
     return (req: Request, res: Response, next: NextFunction) => {
-      passport.authenticate(STRATEGY_NAME, {
-        failureRedirect: "/auth-error?error=saml_failed",
-        session: true,
-      })(req, res, (err: any) => {
-        if (err) {
-          logger.error("SAML callback error", { error: err });
-          const reference = recordSamlFailure("saml_callback_failed", err, req);
-          return res.redirect(`/auth-error?error=saml_callback_failed&ref=${reference}`);
-        }
-
-        if (!req.user) {
-          // The verify callback stored a reference id when it called
-          // recordAccessDenied; include it so the error page can display it.
-          const denialRef = (req as any)._samlAccessDeniedRef as string | undefined;
-          const redirectUrl = denialRef
-            ? `/auth-error?error=access_denied&ref=${denialRef}`
-            : "/auth-error?error=access_denied";
-          return res.redirect(redirectUrl);
-        }
-
-        req.login(req.user, (loginErr) => {
-          if (loginErr) {
-            logger.error("SAML session login error", { error: loginErr });
-            const reference = recordSamlFailure("session_failed", loginErr, req);
-            return res.redirect(`/auth-error?error=session_failed&ref=${reference}`);
+      // Use a custom callback instead of failureRedirect so every failure path
+      // goes through recordSamlFailure and receives a reference + category.
+      passport.authenticate(
+        STRATEGY_NAME,
+        { session: false },
+        (err: any, user: any, info: any) => {
+          if (err) {
+            logger.error("SAML callback error", { error: err });
+            const { reference, category } = recordSamlFailure("saml_callback_failed", err, req);
+            return res.redirect(
+              `/auth-error?error=saml_callback_failed&ref=${reference}&category=${category}`,
+            );
           }
 
-          res.redirect("/");
-        });
-      });
+          if (!user) {
+            // Passport rejected the assertion (e.g. signature/timing failure or
+            // the verify callback returned done(null, false)). Previously this
+            // went straight to failureRedirect with no log entry; now it also
+            // goes through the recorder.
+            const syntheticErr = new Error(
+              (info as any)?.message || "SAML authentication rejected",
+            );
+            const { reference, category } = recordSamlFailure("saml_failed", syntheticErr, req);
+            return res.redirect(
+              `/auth-error?error=saml_failed&ref=${reference}&category=${category}`,
+            );
+          }
+
+          req.logIn(user, { session: true }, (loginErr) => {
+            if (loginErr) {
+              logger.error("SAML session login error", { error: loginErr });
+              const { reference, category } = recordSamlFailure("session_failed", loginErr, req);
+              return res.redirect(
+                `/auth-error?error=session_failed&ref=${reference}&category=${category}`,
+              );
+            }
+
+            res.redirect("/");
+          });
+        },
+      )(req, res, next);
     };
   }
 
