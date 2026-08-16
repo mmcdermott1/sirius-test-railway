@@ -1,11 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { TemplateStudio, type StudioField, type StudioPreviewResult } from "./TemplateStudio";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useStudioPreviewContext } from "./StudioContext";
 import type {
   TokenCatalogEntry,
   TokenFieldCatalog,
@@ -58,107 +53,6 @@ interface NotifierPreviewResponse {
   channels: Record<string, Record<string, FieldPreview>>;
 }
 
-interface EntityRef {
-  id: string;
-  label: string;
-}
-
-interface ContactSearchRow {
-  id: string;
-  displayName?: string | null;
-  given?: string | null;
-  family?: string | null;
-  email?: string | null;
-}
-
-/** Debounce a string value with a fixed 300 ms delay. */
-function useDebounced(value: string): string {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), 300);
-    return () => clearTimeout(t);
-  }, [value]);
-  return debounced;
-}
-
-/**
- * Search-and-pick list: an input plus a short result list; picking an item
- * collapses the list and shows the pick with a clear affordance.
- */
-function SearchPicker({
-  placeholder,
-  selectedLabel,
-  onClear,
-  onQuery,
-  results,
-  onPick,
-  loading,
-  testId,
-}: {
-  placeholder: string;
-  selectedLabel: string | null;
-  onClear: () => void;
-  onQuery: (q: string) => void;
-  results: Array<{ id: string; label: string }>;
-  onPick: (r: { id: string; label: string }) => void;
-  loading?: boolean;
-  testId: string;
-}) {
-  const [q, setQ] = useState("");
-  if (selectedLabel) {
-    return (
-      <div className="flex items-center gap-2 text-sm" data-testid={`${testId}-selected`}>
-        <span className="truncate rounded-md border bg-muted/40 px-2 py-1">{selectedLabel}</span>
-        <button
-          type="button"
-          className="text-xs text-muted-foreground underline underline-offset-2 shrink-0"
-          onClick={() => {
-            onClear();
-            setQ("");
-            onQuery("");
-          }}
-          data-testid={`${testId}-clear`}
-        >
-          change
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-1">
-      <div className="relative">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            onQuery(e.target.value);
-          }}
-          placeholder={placeholder}
-          className="h-8 pl-7 text-sm"
-          data-testid={`${testId}-input`}
-        />
-      </div>
-      {(results.length > 0 || loading) && (
-        <div className="max-h-36 overflow-y-auto rounded-md border bg-popover text-sm">
-          {loading && <div className="px-2 py-1.5 text-xs text-muted-foreground">Searching…</div>}
-          {results.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              className="w-full text-left px-2 py-1.5 hover-elevate"
-              onClick={() => onPick(r)}
-              data-testid={`${testId}-result-${r.id}`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export interface NotifierTemplateStudioProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -175,8 +69,10 @@ export interface NotifierTemplateStudioProps {
 
 /**
  * Event-notifier host for the Template Studio: edits one channel group of
- * `data.templates`, previews through the notifier preview endpoint, and
- * provides the sample / real-record context builder.
+ * `data.templates` and previews through the notifier preview endpoint
+ * (which mirrors delivery-time template composition). Sample / real-record
+ * context comes from the shared studio context builder; record search is
+ * served by the generic per-entity-kind preview registry.
  */
 export function NotifierTemplateStudio({
   open,
@@ -188,28 +84,12 @@ export function NotifierTemplateStudio({
   updateConfigData,
   disabled,
 }: NotifierTemplateStudioProps) {
-  // ── Context builder state ──────────────────────────────────────────────────
-  const [mode, setMode] = useState<"sample" | "real">("sample");
-  const [entity, setEntity] = useState<EntityRef | null>(null);
-  const [recipient, setRecipient] = useState<EntityRef | null>(null);
-  const [entityQuery, setEntityQuery] = useState("");
-  const [recipientQuery, setRecipientQuery] = useState("");
-  const debouncedEntityQuery = useDebounced(entityQuery);
-  const debouncedRecipientQuery = useDebounced(recipientQuery);
-
-  const realRecordPreview = !!catalog?.realRecordPreview;
-  const realActive = mode === "real" && realRecordPreview;
-
-  const { data: entityResults, isFetching: entityLoading } = useQuery<{ entities: EntityRef[] }>({
-    queryKey: [
-      `/api/event-notifier/preview-entities/${pluginId}?q=${encodeURIComponent(debouncedEntityQuery)}`,
-    ],
-    enabled: open && realActive && !entity,
-  });
-
-  const { data: contactResults, isFetching: contactLoading } = useQuery<ContactSearchRow[]>({
-    queryKey: [`/api/contacts/search?q=${encodeURIComponent(debouncedRecipientQuery)}`],
-    enabled: open && realActive && !recipient && debouncedRecipientQuery.trim().length >= 2,
+  const eventEntityKind = catalog?.eventEntityKind ?? "";
+  const ctx = useStudioPreviewContext({
+    open,
+    realRecordPreview: !!catalog?.realRecordPreview && !!eventEntityKind,
+    entitySearchUrl: (q) =>
+      `/api/token-studio/preview-entities/${encodeURIComponent(eventEntityKind)}?q=${encodeURIComponent(q)}`,
   });
 
   // ── Fields & values (channel group of data.templates) ─────────────────────
@@ -251,8 +131,8 @@ export function NotifierTemplateStudio({
       },
     };
     const body: Record<string, unknown> = { configData: merged };
-    if (realActive && entity) body.eventEntityId = entity.id;
-    if (realActive && recipient) body.contactId = recipient.id;
+    if (ctx.realActive && ctx.entity) body.eventEntityId = ctx.entity.id;
+    if (ctx.realActive && ctx.recipient) body.contactId = ctx.recipient.id;
     const res = await fetch(`/api/event-notifier/preview/${pluginId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -267,84 +147,6 @@ export function NotifierTemplateStudio({
     const ch = data.channels[channel] ?? {};
     return { sample: data.sample, fields: ch };
   };
-
-  const previewContextKey = realActive
-    ? `real:${entity?.id ?? ""}:${recipient?.id ?? ""}`
-    : "sample";
-
-  // ── Context panel ──────────────────────────────────────────────────────────
-  const contextPanel = (
-    <div className="space-y-2" data-testid="studio-context-panel">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Preview with
-      </p>
-      <RadioGroup
-        value={realActive ? "real" : "sample"}
-        onValueChange={(v) => setMode(v === "real" ? "real" : "sample")}
-        className="flex items-center gap-4"
-      >
-        <div className="flex items-center gap-1.5">
-          <RadioGroupItem value="sample" id="studio-ctx-sample" data-testid="radio-context-sample" />
-          <Label htmlFor="studio-ctx-sample" className="text-sm font-normal">
-            Sample data
-          </Label>
-        </div>
-        <div className={cn("flex items-center gap-1.5", !realRecordPreview && "opacity-50")}>
-          <RadioGroupItem
-            value="real"
-            id="studio-ctx-real"
-            disabled={!realRecordPreview}
-            data-testid="radio-context-real"
-          />
-          <Label htmlFor="studio-ctx-real" className="text-sm font-normal">
-            Real record
-          </Label>
-        </div>
-      </RadioGroup>
-      {realActive && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Record</p>
-            <SearchPicker
-              placeholder="Search records…"
-              selectedLabel={entity?.label ?? null}
-              onClear={() => setEntity(null)}
-              onQuery={setEntityQuery}
-              results={entityResults?.entities ?? []}
-              onPick={(r) => setEntity(r)}
-              loading={entityLoading}
-              testId="studio-entity-picker"
-            />
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Recipient (optional)</p>
-            <SearchPicker
-              placeholder="Search contacts (min 2 chars)…"
-              selectedLabel={recipient?.label ?? null}
-              onClear={() => setRecipient(null)}
-              onQuery={setRecipientQuery}
-              results={(contactResults ?? []).map((c) => ({
-                id: c.id,
-                label:
-                  c.displayName ||
-                  `${c.given ?? ""} ${c.family ?? ""}`.trim() ||
-                  c.email ||
-                  c.id,
-              }))}
-              onPick={(r) => setRecipient(r)}
-              loading={contactLoading}
-              testId="studio-recipient-picker"
-            />
-          </div>
-        </div>
-      )}
-      {realActive && !entity && (
-        <p className="text-xs text-muted-foreground">
-          Pick a record to render the preview with its real data.
-        </p>
-      )}
-    </div>
-  );
 
   if (disabled) return null;
 
@@ -363,8 +165,8 @@ export function NotifierTemplateStudio({
       fieldCatalog={catalog?.fields}
       priorityScopes={["event"]}
       fetchPreview={fetchPreview}
-      previewContextKey={previewContextKey}
-      contextPanel={contextPanel}
+      previewContextKey={ctx.previewContextKey}
+      contextPanel={ctx.contextPanel}
     />
   );
 }

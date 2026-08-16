@@ -76,6 +76,7 @@ import { registerEmployerPolicyHistoryRoutes } from "./modules/employers/policy-
 import { registerWorkerBenefitsScanRoutes } from "./modules/worker-benefits-scan";
 import { registerWmbScanQueueRoutes } from "./modules/wmb-scan-queue";
 import { registerEventNotifierMetaRoutes } from "./modules/event-notifier-meta";
+import { registerTokenStudioRoutes } from "./modules/token-studio";
 import { registerCardcheckDefinitionsRoutes } from "./modules/cardcheck-definitions";
 import { registerCardchecksRoutes } from "./modules/cardchecks";
 import { registerEsigsRoutes } from "./modules/esigs";
@@ -488,6 +489,10 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   
   // Register event-notifier admin metadata routes (staff user picker source)
   registerEventNotifierMetaRoutes(app, requireAuth, requireAccess, storage);
+
+  // Register generic Template Studio token endpoints (catalog, record
+  // pickers, preview) shared by every token-editing surface
+  registerTokenStudioRoutes(app, requireAuth, requireAccess, storage);
   
   // Register cardcheck definitions routes
   registerCardcheckDefinitionsRoutes(

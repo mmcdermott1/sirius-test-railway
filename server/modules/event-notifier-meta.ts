@@ -91,48 +91,16 @@ export function registerEventNotifierMetaRoutes(
           // Picker entries for the Template Studio token browser (includes
           // event.* entries rooted at this notifier's entity kind).
           tokens: buildTokenCatalogForEvent(plugin.tokenTemplates.eventEntityKind),
-          // Whether the studio can offer "real record" preview mode.
-          realRecordPreview: !!plugin.tokenTemplates.previewEntities,
+          // Whether the studio can offer "real record" preview mode —
+          // driven by the generic per-entity-kind preview registry.
+          realRecordPreview: (
+            await import("../plugins/tokens/preview-entities")
+          ).hasTokenPreviewEntities(plugin.tokenTemplates.eventEntityKind),
         });
       } catch (error: any) {
         res
           .status(500)
           .json({ message: error.message || "Failed to load token catalog" });
-      }
-    }
-  );
-
-  /**
-   * Search a token-templated notifier's real event entities for the
-   * Template Studio's "real record" preview mode. Only available for
-   * notifiers whose `tokenTemplates.previewEntities` is declared.
-   */
-  app.get(
-    "/api/event-notifier/preview-entities/:pluginId",
-    requireAuth,
-    requireAccess("admin"),
-    async (req: Request, res: Response) => {
-      try {
-        const { eventNotifierRegistry } = await import(
-          "../plugins/event-notifier/registry"
-        );
-        const plugin = eventNotifierRegistry.get(req.params.pluginId);
-        if (!plugin?.tokenTemplates?.previewEntities) {
-          return res
-            .status(404)
-            .json({ message: "Notifier not found or has no real-record preview" });
-        }
-        const { isPluginComponentEnabledSync } = await import("../plugins/_core");
-        if (!isPluginComponentEnabledSync(plugin)) {
-          return res.status(404).json({ message: "Notifier component is disabled" });
-        }
-        const q = typeof req.query.q === "string" ? req.query.q : "";
-        const entities = await plugin.tokenTemplates.previewEntities.search(q);
-        res.json({ entities });
-      } catch (error: any) {
-        res
-          .status(500)
-          .json({ message: error.message || "Failed to search preview records" });
       }
     }
   );
@@ -200,7 +168,12 @@ export function registerEventNotifierMetaRoutes(
         // (Template Studio "real record" mode) instead of the sample.
         let realEventEntity: import("../plugins/tokens/types").TokenEntity | null = null;
         if (typeof body.eventEntityId === "string" && body.eventEntityId) {
-          const previewEntities = plugin.tokenTemplates.previewEntities;
+          const { getEnabledTokenPreviewEntities } = await import(
+            "../plugins/tokens/preview-entities"
+          );
+          const previewEntities = await getEnabledTokenPreviewEntities(
+            plugin.tokenTemplates.eventEntityKind,
+          );
           if (!previewEntities) {
             return res
               .status(400)

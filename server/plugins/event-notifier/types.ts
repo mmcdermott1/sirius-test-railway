@@ -95,13 +95,6 @@ export interface NotifierChannelTemplates {
  * (same shape as {@link NotifierChannelTemplates}); a blank/absent
  * custom field falls back to the default from `defaultTemplates`.
  */
-/** One pickable event entity in the Template Studio's "real record" mode. */
-export interface NotifierPreviewEntityRef {
-  id: string;
-  /** Human label for the picker (e.g. "Jane Doe — Crane Operator (offered)"). */
-  label: string;
-}
-
 export interface NotifierTokenTemplates {
   /** The entity kind `{{event...}}` resolves to (token entity kind). */
   eventEntityKind: string;
@@ -117,19 +110,10 @@ export interface NotifierTokenTemplates {
    * recipient kind).
    */
   defaultTemplates(configData?: unknown): NotifierChannelTemplates;
-  /**
-   * Optional "real record" preview support for the Template Studio: how
-   * to search for and load a concrete event entity of this notifier's
-   * kind so the preview can render real data instead of samples.
-   * Anyone with config-edit access may preview any record (explicit
-   * product decision — no extra gating).
-   */
-  previewEntities?: {
-    /** Search entities by free text; empty query returns recent/any. */
-    search(query: string): Promise<NotifierPreviewEntityRef[]>;
-    /** Load one entity by id for rendering; null when it no longer exists. */
-    load(id: string): Promise<TokenEntity | null>;
-  };
+  // "Real record" preview is not declared here: register a provider for
+  // the entity kind in the generic token preview-entity registry
+  // (server/plugins/tokens/preview-entities.ts) and every template
+  // editor surface inherits it.
 }
 
 /**

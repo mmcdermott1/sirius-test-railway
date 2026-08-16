@@ -245,33 +245,8 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
       };
     },
     defaultTemplates,
-
-    // Template-Studio "real record" preview: search interviews by worker
-    // name / job title and load one for rendering. Anyone with config
-    // edit access may preview any interview (explicit product decision).
-    previewEntities: {
-      async search(query) {
-        const { storage } = await import("../../../storage");
-        const rows = await storage.t631Interviews.searchForPicker(query);
-        return rows.map((r) => ({
-          id: r.id,
-          label: `${r.workerName ?? "Unknown worker"} — ${r.jobTitle} (${statusLabel(r.status)})`,
-        }));
-      },
-      async load(id) {
-        const { storage } = await import("../../../storage");
-        const { sitespecificT631JobInterviews } = await import(
-          "../../../../shared/schema/sitespecific/t631/interviews-schema"
-        );
-        const row = await storage.t631Interviews.get(id);
-        if (!row) return null;
-        return {
-          kind: T631_INTERVIEW_ENTITY_KIND,
-          row: row as unknown as Record<string, unknown>,
-          table: sitespecificT631JobInterviews,
-        };
-      },
-    },
+    // Real-record preview is provided by the generic token preview-entity
+    // registry (registered alongside the interview token plugins).
   },
 
   shouldDispatch(ctx, configData): boolean {

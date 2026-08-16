@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
-import { Loader2, Save, Mail, MessageSquare, MapPin, Bell, Eye, AlertTriangle, Maximize2 } from "lucide-react";
+import { Loader2, Save, Mail, MessageSquare, MapPin, Bell, AlertTriangle, Maximize2 } from "lucide-react";
 import { TokenPicker } from "@/components/bulk/TokenPicker";
 import { BulkTemplateStudio } from "@/components/template-studio/BulkTemplateStudio";
 import { SlashTokenField } from "@/components/bulk/SlashTokenField";
@@ -81,103 +81,6 @@ function TokenWarnings({ templates }: { templates: Array<string | null | undefin
             <span className="font-medium">Invalid tokens:</span>{" "}
             {unknown.map((t) => `{{${t.expr}}} (${t.error})`).join(", ")} — these will be replaced with "[unknown token: ...]" when sent.
           </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface PreviewResponse {
-  sample: boolean;
-  rendered: Record<string, { output: string; unknownTokens: string[]; missingValues: string[] }>;
-}
-
-interface ParticipantRow {
-  id: string;
-  contactId: string;
-  contactDisplayName?: string | null;
-  contactGiven?: string | null;
-  contactFamily?: string | null;
-}
-
-function PreviewPanel({ messageId, fields, escapeHtmlFields = [] }: { messageId: string; fields: Record<string, string>; escapeHtmlFields?: string[] }) {
-  const [data, setData] = useState<PreviewResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [contactId, setContactId] = useState<string>("__sample__");
-
-  const { data: participantsData } = useQuery<ParticipantRow[]>({
-    queryKey: ["/api/bulk-messages", messageId, "participants"],
-  });
-  const seen = new Set<string>();
-  const participants = (participantsData || []).filter((p) => {
-    if (!p.contactId || seen.has(p.contactId)) return false;
-    seen.add(p.contactId);
-    return true;
-  });
-
-  const run = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const payload: Record<string, unknown> = { fields, escapeHtmlFields };
-      if (contactId !== "__sample__") payload.contactId = contactId;
-      const result = await apiRequest("POST", `/api/bulk-messages/${messageId}/preview`, payload);
-      setData(result as PreviewResponse);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Preview failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="h-9 rounded-md border bg-background px-2 text-sm"
-          value={contactId}
-          onChange={(e) => setContactId(e.target.value)}
-          data-testid="select-preview-recipient"
-        >
-          <option value="__sample__">Sample data</option>
-          {participants.map((p) => {
-            const label = p.contactDisplayName
-              || `${p.contactGiven || ""} ${p.contactFamily || ""}`.trim()
-              || p.contactId;
-            return (
-              <option key={p.id} value={p.contactId}>{label}</option>
-            );
-          })}
-        </select>
-        <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading} data-testid="button-render-preview">
-          {loading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Eye className="h-4 w-4 mr-1.5" />}
-          {contactId === "__sample__" ? "Preview with sample data" : "Preview as recipient"}
-        </Button>
-      </div>
-      {error && <p className="text-xs text-destructive" data-testid="text-preview-error">{error}</p>}
-      {data && (
-        <div className="rounded-md border p-3 space-y-3 bg-background" data-testid="panel-preview">
-          {Object.entries(data.rendered).map(([field, r]) => {
-            const isHtml = escapeHtmlFields.includes(field);
-            return (
-              <div key={field}>
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{field}</div>
-                {r.output ? (
-                  isHtml ? (
-                    <div
-                      className="text-sm break-words prose prose-sm max-w-none dark:prose-invert"
-                      data-testid={`text-preview-${field}`}
-                      dangerouslySetInnerHTML={{ __html: r.output }}
-                    />
-                  ) : (
-                    <pre className="text-sm whitespace-pre-wrap break-words font-sans" data-testid={`text-preview-${field}`}>{r.output}</pre>
-                  )
-                ) : (
-                  <pre className="text-sm whitespace-pre-wrap break-words font-sans" data-testid={`text-preview-${field}`}><span className="text-muted-foreground italic">(empty)</span></pre>
-                )}
-              </div>
-            );
-          })}
         </div>
       )}
     </div>
@@ -257,7 +160,6 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
         <p className="text-xs text-muted-foreground">A plain-text version is generated automatically for recipients whose mail client can't display HTML.</p>
       </div>
       <TokenWarnings templates={[form.subject, form.bodyHtml]} />
-      <PreviewPanel messageId={messageId} fields={{ subject: form.subject, bodyHtml: form.bodyHtml }} escapeHtmlFields={["bodyHtml"]} />
       <div className="flex justify-end pt-2">
         <Button onClick={() => onSave({ subject: form.subject, bodyHtml: form.bodyHtml })} disabled={isPending} data-testid="button-save-email-message">
           {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
@@ -304,7 +206,6 @@ function SmsForm({ record, onSave, isPending, messageId }: FormProps) {
         </div>
       </div>
       <TokenWarnings templates={[body]} />
-      <PreviewPanel messageId={messageId} fields={{ body }} />
       <div className="flex justify-end pt-2">
         <Button onClick={() => onSave({ body })} disabled={isPending} data-testid="button-save-sms-message">
           {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
@@ -323,6 +224,7 @@ function PostalForm({ record, onSave, isPending, messageId }: FormProps) {
     doubleSided: false,
     mailType: "usps_first_class",
   });
+  const [studioOpen, setStudioOpen] = useState(false);
   const inserter = useTokenInserter();
   inserter.registerField("description", (next) => setForm((p) => ({ ...p, description: next })));
 
@@ -340,9 +242,20 @@ function PostalForm({ record, onSave, isPending, messageId }: FormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-postal" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
+      <BulkTemplateStudio
+        open={studioOpen}
+        onOpenChange={setStudioOpen}
+        messageId={messageId}
+        title="Postal letter"
+        channel="postal"
+        fields={[{ key: "description", label: "Description", mode: "multiline" }]}
+        values={{ description: form.description }}
+        onValueChange={(_key, value) => setForm((p) => ({ ...p, description: value }))}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="postalDescription">Description</Label>
@@ -376,7 +289,6 @@ function PostalForm({ record, onSave, isPending, messageId }: FormProps) {
         </div>
       </div>
       <TokenWarnings templates={[form.description]} />
-      <PreviewPanel messageId={messageId} fields={{ description: form.description }} />
       <div className="flex justify-end pt-2">
         <Button onClick={() => onSave({ ...form })} disabled={isPending} data-testid="button-save-postal-message">
           {isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
@@ -482,7 +394,6 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
         </div>
       </div>
       <TokenWarnings templates={[form.title, form.bodyHtml, form.linkLabel]} />
-      <PreviewPanel messageId={messageId} fields={{ title: form.title, body: derivedBody, linkLabel: form.linkLabel }} />
       <div className="flex justify-end pt-2">
         <Button
           onClick={() => onSave({

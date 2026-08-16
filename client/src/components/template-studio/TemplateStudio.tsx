@@ -48,7 +48,7 @@ export interface StudioPreviewField {
   missingValues: string[];
 }
 
-export type StudioChannel = "email" | "sms" | "inapp" | "generic";
+export type StudioChannel = "email" | "sms" | "inapp" | "postal" | "generic";
 
 export interface StudioPreviewResult {
   /** True when rendered purely from sample/example data. */
@@ -342,6 +342,30 @@ export function TemplateStudio({
           <FieldIssues field={titleF} />
           <FieldIssues field={bodyF} />
           <FieldIssues field={linkUrlF} />
+        </div>
+      );
+    }
+    if (channel === "postal") {
+      // Letter-style sheet: plain rendered text on "paper".
+      return (
+        <div className="space-y-3">
+          {fields.map((f) => {
+            const r = pf(f.key);
+            return (
+              <div key={f.key} className="space-y-1.5">
+                {fields.length > 1 && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{f.label}</p>
+                )}
+                <div
+                  className="rounded-sm border bg-white dark:bg-neutral-100 text-neutral-900 shadow-sm px-6 py-5 font-serif text-sm leading-relaxed whitespace-pre-wrap break-words min-h-[8rem]"
+                  data-testid={`studio-preview-postal-${f.key}`}
+                >
+                  {r?.rendered || <span className="italic text-neutral-400">(empty)</span>}
+                </div>
+                <FieldIssues field={r} />
+              </div>
+            );
+          })}
         </div>
       );
     }

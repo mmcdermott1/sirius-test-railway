@@ -3,6 +3,13 @@ import { registerPluginKind } from "../_core/kinds";
 import { tokenPluginRegistry } from "./registry";
 
 export * from "./types";
+export {
+  registerTokenPreviewEntities,
+  getTokenPreviewEntities,
+  hasTokenPreviewEntities,
+  type TokenPreviewEntityProvider,
+  type TokenPreviewEntityRef,
+} from "./preview-entities";
 export { tokenPluginRegistry, registerTokenPlugin, findSegmentPlugin } from "./registry";
 export {
   renderTokens,
