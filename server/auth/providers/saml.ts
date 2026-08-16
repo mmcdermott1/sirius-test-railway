@@ -41,20 +41,17 @@ function categorizeSamlError(message: string): { category: string; reason: strin
   if (m.includes("status")) {
     return { category: "idp_status_error", reason: "The identity provider returned a non-success SAML status. Check the IdP-side assignment/configuration for this user and application." };
   }
-  return { category: "unrecognized", reason: "Unrecognized SAML error — see the redacted diagnostic in the log entry's metadata." };
+  return { category: "unrecognized", reason: "Unrecognized SAML error — see the full error and SAML response in the log entry's metadata." };
 }
 
-/**
- * Bounded, redacted diagnostic for the "unrecognized" bucket. The raw message
- * can incorporate IdP-controlled text (e.g. SamlStatusError embeds the IdP's
- * StatusMessage), so emails and long digit runs are masked and the result is
- * truncated before it is persisted.
- */
-function redactDiagnostic(message: string): string {
-  return message
-    .replace(/[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+/g, "[email]")
-    .replace(/\d{5,}/g, "[digits]")
-    .slice(0, 300);
+/** Best-effort base64 decode of the SAMLResponse into XML for the log entry. */
+function decodeSamlResponse(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  try {
+    return Buffer.from(raw, "base64").toString("utf8");
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -65,17 +62,25 @@ function redactDiagnostic(message: string): string {
 function recordSamlFailure(operation: string, error: unknown, req: Request): string {
   const reference = `SAML-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   const err = error instanceof Error ? error : new Error(String(error));
-  const reason = humanizeSamlError(err.message || "Unknown error");
+  const { category, reason } = categorizeSamlError(err.message || "Unknown error");
   const context = getRequestContext();
+  const samlResponseRaw = (req.body as Record<string, unknown> | undefined)?.SAMLResponse;
+  // Full unredacted diagnostics, by explicit admin decision: the log viewer
+  // is admin-gated and the admin needs the complete request to debug IdP
+  // configuration problems on deployments without server-log access.
   storageLogger.error(`SAML sign-in failure [${reference}]`, {
     module: "auth",
     operation,
     description: reason,
     ip_address: context?.ipAddress ?? req.ip,
-    // Raw diagnostics land in meta (shown in the log detail dialog).
     reference,
+    category,
     errorName: err.name,
     errorMessage: err.message,
+    errorStack: err.stack,
+    relayState: typeof (req.body as any)?.RelayState === "string" ? (req.body as any).RelayState : undefined,
+    samlResponseXml: decodeSamlResponse(samlResponseRaw),
+    samlResponseBase64: typeof samlResponseRaw === "string" ? samlResponseRaw : undefined,
   });
   return reference;
 }

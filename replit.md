@@ -62,6 +62,11 @@ Treat them as a public contract — do not rename casually:
 
 Preferred communication style: Simple, everyday language.
 
+Diagnostic logging: do NOT redact or truncate diagnostic details in
+admin-gated log entries (e.g. SAML failure logs). The admin log viewer is the
+only debugging surface on external deployments — persist the full raw error
+and request payload so problems can be diagnosed without server-log access.
+
 ## Git remotes & branch policy
 
 -   **`main` → `origin` (github.com/samknelson/sirius) only.** `main` must
