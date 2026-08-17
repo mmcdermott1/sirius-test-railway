@@ -136,6 +136,64 @@ async function main() {
   // ── Pass 2: render the picker catalog in sample mode ───────────────────────
   const fieldCatalog = buildFieldCatalog();
 
+  // ── Pass 1b: named sample sets name real fields ────────────────────────────
+  // A sample set keyed by a field name that does not exist renders
+  // nothing — the persona silently half-applies and the author never
+  // finds out. Every key must be either a field of the kind or the
+  // segment name of a value leaf reading that kind.
+  const { listSampleSetDeclarations } = await import(
+    "../../server/plugins/tokens/sample-sets"
+  );
+  const { normalizeFieldName } = await import("../../shared/tokens");
+  const declarations = listSampleSetDeclarations();
+  const setLabels = new Map<string, { label: string; kind: string }>();
+  let setKeysChecked = 0;
+  for (const { kind, sets } of declarations) {
+    const catalogEntry = fieldCatalog[kind];
+    const names = new Set(
+      (catalogEntry?.names ?? []).map((n: string) => normalizeFieldName(n)),
+    );
+    const leafNames = new Set(
+      valuePlugins
+        .filter(
+          (p) =>
+            p.metadata.inputTypes.includes(kind) || p.metadata.inputTypes.includes("*"),
+        )
+        .map((p) => normalizeFieldName(p.metadata.segmentName)),
+    );
+    for (const set of sets) {
+      const seen = setLabels.get(set.id);
+      if (seen && seen.label !== set.label) {
+        fail(
+          `sample set "${set.id}" is labelled "${set.label}" for kind "${kind}" but ` +
+            `"${seen.label}" for kind "${seen.kind}" — one persona, one label.`,
+        );
+      } else if (!seen) {
+        setLabels.set(set.id, { label: set.label, kind });
+      }
+      for (const [key, value] of Object.entries(set.values)) {
+        setKeysChecked++;
+        if (typeof value !== "string" || value.trim() === "") {
+          fail(
+            `sample set "${set.id}" for kind "${kind}" gives an empty value for "${key}" — ` +
+              `omit the key instead, so the token's own example applies.`,
+          );
+        }
+        const normalized = normalizeFieldName(key);
+        if (names.has(normalized) || leafNames.has(normalized)) continue;
+        if (catalogEntry?.open) continue;
+        fail(
+          `sample set "${set.id}" for kind "${kind}" names "${key}", which is neither a ` +
+            `field of that kind nor a token leaf reading it — it would never render.`,
+        );
+      }
+    }
+  }
+  console.log(
+    `  pass 1b: ${setKeysChecked} sample-set value(s) across ${declarations.length} kind(s), ` +
+      `${setLabels.size} persona(s)`,
+  );
+
   /** The entity type a written chain ends at (mirrors the evaluator's walk). */
   function chainOutputType(
     segments: TokenSegment[],
@@ -159,6 +217,12 @@ async function main() {
   // One missing example shows up in every event-rooted catalog; report the
   // first occurrence of each expression so the failure list stays readable.
   const reportedExprs = new Set<string>();
+  /**
+   * The persona the current catalog walk renders with. Every declared
+   * set is walked: a set that overrides a field with a blank (or that
+   * makes a leaf throw) must fail here, not in front of an admin.
+   */
+  let sampleSetId: string | undefined;
   async function renderSample(expr: string, eventKind: string | undefined, origin: string) {
     const parsed = parseTokenChain(expr);
     if (!parsed.ok) {
@@ -170,19 +234,20 @@ async function main() {
     const ctx = createTokenEvalContext(noStorage, undefined, {
       sample: true,
       eventKind,
+      sampleSetId,
     });
     const result = await evaluateChain(parsed.segments, ctx);
     rendered++;
     if (result.status === "invalid") {
-      if (reportedExprs.has(expr)) return;
-      reportedExprs.add(expr);
+      if (reportedExprs.has(`${sampleSetId ?? ""}:${expr}`)) return;
+      reportedExprs.add(`${sampleSetId ?? ""}:${expr}`);
       fail(`${origin}: {{${expr}}} is invalid in sample mode — ${result.error}`);
       return;
     }
     const value = result.status === "ok" ? result.value : result.defaultValue;
     if (value.trim() === "") {
-      if (reportedExprs.has(expr)) return;
-      reportedExprs.add(expr);
+      if (reportedExprs.has(`${sampleSetId ?? ""}:${expr}`)) return;
+      reportedExprs.add(`${sampleSetId ?? ""}:${expr}`);
       fail(
         `${origin}: {{${expr}}} renders empty in sample mode — the preview would show a silent gap. ` +
           `Declare an \`example\` on the leaf token.`,
@@ -217,10 +282,6 @@ async function main() {
     }
   }
 
-  for (const entry of buildTokenCatalog()) {
-    await checkEntry(entry.insertText, undefined, "catalog");
-  }
-
   // Event-rooted catalogs: one per entity kind any plugin can produce, so
   // notifier template editors are covered the same way.
   const eventKinds = Array.from(
@@ -230,13 +291,30 @@ async function main() {
         .filter((t) => t !== "value" && t !== "root" && t !== "event"),
     ),
   ).sort();
-  for (const kind of eventKinds) {
-    for (const entry of buildTokenCatalogForEvent(kind)) {
-      await checkEntry(entry.insertText, kind, `catalog[event=${kind}]`);
+
+  // Once with no persona (each token's own example), then once per
+  // declared persona — the studio offers all of them, so all of them
+  // have to render.
+  const personas: Array<string | undefined> = [
+    undefined,
+    ...Array.from(setLabels.keys()).sort(),
+  ];
+  for (const persona of personas) {
+    sampleSetId = persona;
+    const suffix = persona ? `[sample=${persona}]` : "";
+    for (const entry of buildTokenCatalog()) {
+      await checkEntry(entry.insertText, undefined, `catalog${suffix}`);
+    }
+    for (const kind of eventKinds) {
+      for (const entry of buildTokenCatalogForEvent(kind)) {
+        await checkEntry(entry.insertText, kind, `catalog${suffix}[event=${kind}]`);
+      }
     }
   }
+  sampleSetId = undefined;
   console.log(
-    `  pass 2: ${rendered} sample render(s) across the catalog and ${eventKinds.length} event kind(s)\n`,
+    `  pass 2: ${rendered} sample render(s) across the catalog, ${eventKinds.length} event kind(s) ` +
+      `and ${personas.length} persona setting(s)\n`,
   );
 
   if (failures.length === 0) {

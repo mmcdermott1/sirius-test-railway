@@ -78,4 +78,5 @@
 - [Auth provisioning & role reconcile](auth-provisioning-reconcile.md) — auth_settings is one variables row; provider-managed roles tracked in authIdentities.metadata.managedRoleIds, never claim locally held roles.
 - [Client component smoke-render](client-component-smoke-render.md) — modal-only React components: renderToStaticMarkup via tsx from repo root + temp tsconfig with jsx:react-jsx (root sets preserve → "React is not defined").
 - [ProtectedRoute entityId extraction](protectedroute-entityid-extraction.md) — /dispatch/job/:id/* tabs with a policyId must pass entityId explicitly (URL extractor grabs "job" as the id).
+- [Template preview subjects](template-preview-subjects.md) — previews render sample personas or surface-offered contexts only; each surface's context hooks must check ITS editor's policy (staff route gate ≠ admin editor), and persona keys belong to the kind that owns the leaf.
 - [Notifier hidden template channels](notifier-hidden-template-channels.md) — hide undeliverable medium cards via x-token-hidden marker on a schema clone; never prune the group or RJSF wipes stored overrides.

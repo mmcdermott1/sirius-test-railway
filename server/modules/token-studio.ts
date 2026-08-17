@@ -5,27 +5,34 @@ type RequireAccess = (policy: any) => (req: Request, res: Response, next: () => 
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
 /**
- * Template Studio endpoints: the token catalog, the real-record picker
- * and THE ONE preview route every tokenized surface renders through.
+ * Template Studio endpoints: the token catalog, the preview SUBJECTS a
+ * surface offers, and THE ONE preview route every tokenized surface
+ * renders through.
  *
  * There is no per-surface preview endpoint: a surface registers with
  * the template-surface registry (which declares only how its fields are
  * shaped at delivery time) and the client posts the surface id plus the
  * editor's in-progress values here.
  *
- * Preview is staff-gated and nothing narrower: anyone who can write a
- * tokenized string may preview it against any record (explicit product
- * decision — the studio is a general-purpose data-reading tool and the
- * delivered message would expose the same data anyway).
+ * A preview renders against NAMED SAMPLE DATA by default. Real data is
+ * available only where the surface being edited offers it — the
+ * notifier's own recent events, the bulk message's own recipients — and
+ * the client can only ever post back a context id the surface just
+ * offered it. There is deliberately no record search and no
+ * client-supplied record id: a template author must not be able to use
+ * the studio to read arbitrary records.
  */
-/** Seeded records from the request body: { <entity kind>: <record id> }. */
-function parseRecords(raw: unknown): Record<string, string> {
+/** The preview subject from the request body: a surface context, or a sample persona. */
+function parseSubject(raw: unknown): { contextId?: string; sampleSetId?: string } {
   if (!raw || typeof raw !== "object") return {};
-  const out: Record<string, string> = {};
-  for (const [kind, id] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof id === "string" && id) out[kind] = id;
-  }
-  return out;
+  const body = raw as Record<string, unknown>;
+  return {
+    contextId: typeof body.contextId === "string" && body.contextId ? body.contextId : undefined,
+    sampleSetId:
+      typeof body.sampleSetId === "string" && body.sampleSetId
+        ? body.sampleSetId
+        : undefined,
+  };
 }
 
 export function registerTokenStudioRoutes(
@@ -36,8 +43,7 @@ export function registerTokenStudioRoutes(
 ) {
   /**
    * Token catalog for the generic studio. Optional `?event=<entityKind>`
-   * roots the dynamic `event` segment at that kind (and reports whether
-   * real-record preview is available for it).
+   * roots the dynamic `event` segment at that kind.
    */
   app.get(
     "/api/token-studio/catalog",
@@ -52,9 +58,6 @@ export function registerTokenStudioRoutes(
           buildTokenCatalog,
           buildTokenCatalogForEvent,
         } = await import("../plugins/tokens");
-        const { listTokenPreviewRoots } = await import(
-          "../plugins/tokens/preview-entities"
-        );
         const eventKind =
           typeof req.query.event === "string" && req.query.event
             ? req.query.event
@@ -66,10 +69,6 @@ export function registerTokenStudioRoutes(
             : buildSegmentSpecs(),
           fields: buildFieldCatalog(),
           tokens: eventKind ? buildTokenCatalogForEvent(eventKind) : buildTokenCatalog(),
-          // Every root these tokens can be rooted at, and which of them
-          // can be previewed against a real record right now — the
-          // studio renders one record picker per available root.
-          previewRoots: await listTokenPreviewRoots(eventKind),
         });
       } catch (error: any) {
         res
@@ -80,31 +79,58 @@ export function registerTokenStudioRoutes(
   );
 
   /**
-   * Search real records of a token entity kind for "real record"
-   * preview mode. Backed by the per-kind preview-entity registry.
+   * What this editor can preview against, right now: the surface's own
+   * real-data contexts (already filtered to what this user may see) plus
+   * the named sample personas, which are always available.
+   *
+   * POST, not GET, because the surface parameters that decide the answer
+   * include the notifier's in-progress `configData`.
    */
-  app.get(
-    "/api/token-studio/preview-entities/:kind",
+  app.post(
+    "/api/template-studio/preview-subjects",
     requireAuth,
-    requireAccess("admin"),
-    async (req, res) => {
+    requireAccess("staff"),
+    async (req: Request, res: Response) => {
       try {
-        const { getEnabledTokenPreviewEntities } = await import(
-          "../plugins/tokens/preview-entities"
+        const body = req.body ?? {};
+        const surfaceId = typeof body.surfaceId === "string" ? body.surfaceId : "";
+        const { getTemplateSurface, TemplateSurfaceError } = await import(
+          "../plugins/template-surfaces"
         );
-        const provider = await getEnabledTokenPreviewEntities(req.params.kind);
-        if (!provider) {
+        const surface = getTemplateSurface(surfaceId);
+        if (!surface) {
           return res
             .status(404)
-            .json({ message: "No real-record preview for this entity kind" });
+            .json({ message: `Unknown template surface "${surfaceId}"` });
         }
-        const q = typeof req.query.q === "string" ? req.query.q : "";
-        const entities = await provider.search(q);
-        res.json({ entities });
+        const params: Record<string, unknown> =
+          body.params && typeof body.params === "object" ? body.params : {};
+
+        const { listSampleSetChoices } = await import("../plugins/tokens");
+        const sampleSets = listSampleSetChoices();
+
+        try {
+          const contexts = surface.listPreviewContexts
+            ? await surface.listPreviewContexts({ storage, params, req })
+            : [];
+          res.json({
+            contexts,
+            sampleSets,
+            // Real data when the surface has any to offer, else samples.
+            defaultSubject: contexts.length
+              ? { contextId: contexts[0].id }
+              : { sampleSetId: sampleSets[0]?.id },
+          });
+        } catch (error: unknown) {
+          if (error instanceof TemplateSurfaceError) {
+            return res.status(error.status).json({ message: error.message });
+          }
+          throw error;
+        }
       } catch (error: any) {
         res
           .status(500)
-          .json({ message: error.message || "Failed to search preview records" });
+          .json({ message: error.message || "Failed to load preview subjects" });
       }
     },
   );
@@ -114,12 +140,13 @@ export function registerTokenStudioRoutes(
    *   `surfaceId` — registered template surface being edited.
    *   `values` — { fieldKey: template } the editor currently holds.
    *   `params` — surface-specific parameters (notifier id + channel,
-   *     bulk medium, event entity kind for ad-hoc fields…).
-   *   `contactId` — optional real recipient contact.
-   *   `records` — optional real record per root, keyed by entity kind
-   *     ({ worker: "…", dispatch_job: "…" }), each loaded through that
-   *     kind's preview-entity provider. A root with no record renders
-   *     sample values, so one preview can mix real and sample roots.
+   *     bulk medium, message id, event entity kind for ad-hoc fields…).
+   *   `subject` — what to render against: `{ contextId }` naming one of
+   *     the contexts THIS surface offered this user, or `{ sampleSetId }`
+   *     naming a sample persona. Anything else renders sample data.
+   *
+   * The body carries no record ids: the only real data a preview can
+   * reach is what the surface itself offered and re-authorizes here.
    *
    * Field media (plain / HTML / relative URL) comes from the surface's
    * declaration, never from the request, so the preview always applies
@@ -146,18 +173,38 @@ export function registerTokenStudioRoutes(
           body.values && typeof body.values === "object" ? body.values : {};
         const params: Record<string, unknown> =
           body.params && typeof body.params === "object" ? body.params : {};
+        const subject = parseSubject(body.subject);
 
         try {
+          // A context id is only ever honoured by the surface that
+          // offered it, which re-authorizes it against this user.
+          let seededRoots;
+          let contactId: string | undefined;
+          if (subject.contextId) {
+            const resolved = surface.resolvePreviewContext
+              ? await surface.resolvePreviewContext(subject.contextId, {
+                  storage,
+                  params,
+                  req,
+                })
+              : null;
+            if (!resolved) {
+              return res
+                .status(400)
+                .json({ message: "That preview subject is no longer available" });
+            }
+            seededRoots = resolved.roots;
+            contactId = resolved.contactId;
+          }
+
           const preview = await renderTemplateSurface({
             storage,
             surface,
             params,
             values,
-            contactId:
-              typeof body.contactId === "string" && body.contactId
-                ? body.contactId
-                : undefined,
-            records: parseRecords(body.records),
+            seededRoots,
+            contactId,
+            sampleSetId: subject.sampleSetId,
           });
           res.json(preview);
         } catch (error: unknown) {

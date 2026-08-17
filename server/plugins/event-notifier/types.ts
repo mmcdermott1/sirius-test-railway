@@ -110,10 +110,11 @@ export interface NotifierTokenTemplates {
    * recipient kind).
    */
   defaultTemplates(configData?: unknown): NotifierChannelTemplates;
-  // "Real record" preview is not declared here: register a provider for
-  // the entity kind in the generic token preview-entity registry
-  // (server/plugins/tokens/preview-entities.ts) and every template
-  // editor surface inherits it.
+  // Preview subjects are not declared here. Named sample data comes
+  // from the token plugins' `sampleSets`; the few real records a
+  // notifier's editor may render against come from the entity kind's
+  // `recentRecords` provider (server/plugins/tokens/preview-roots.ts),
+  // offered through the template surface — never picked by the client.
 }
 
 /**

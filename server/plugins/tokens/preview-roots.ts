@@ -2,57 +2,58 @@ import { tokenPluginRegistry } from "./registry";
 import type {
   TokenEntityType,
   TokenPlugin,
-  TokenPreviewEntityProvider,
+  TokenRecentRecordProvider,
 } from "./types";
 
-export type {
-  TokenPreviewEntityProvider,
-  TokenPreviewEntityRef,
-} from "./types";
+export type { TokenRecentRecordProvider, TokenRecentRecordRef } from "./types";
 
 /**
- * Real-record preview providers, keyed by token entity kind.
+ * The roots a template's tokens hang off, and the small per-kind
+ * "recent records" providers a SURFACE may draw preview subjects from.
  *
- * The registry owns no registrations of its own: a provider is declared
- * as `previewEntities` on the token plugin that owns the kind (see
- * `TokenPluginMetadata`), and this module projects the plugin registry
- * into a per-kind map. One provider per kind — two plugins declaring a
- * provider for the same kind is an author error and throws.
+ * Deliberately not a record browser: there is no search and no
+ * load-by-id here. A template author previews against named sample data
+ * or against a context the surface itself offers (the notifier's own
+ * event records, the bulk message's own recipients) — never against an
+ * arbitrary record they name, which would make every template editor a
+ * back door onto the whole database.
  *
- * The projection is rebuilt on demand rather than cached, so a token
- * plugin registered after boot (some are imported lazily by the
- * notifier that uses them) is picked up without a restart. The plugin
- * registry is tiny; this walk costs nothing at preview frequency.
+ * Providers are declared as `recentRecords` on the token plugin that
+ * owns the entity kind; this module projects the plugin registry into a
+ * per-kind map, rebuilt on demand so lazily registered plugins are
+ * picked up without a restart.
  */
-interface RegisteredPreviewProvider {
-  provider: TokenPreviewEntityProvider;
+interface RegisteredRecentRecords {
+  pluginId: string;
+  provider: TokenRecentRecordProvider;
   /**
    * Component gate: the provider's own `requiredComponent`, falling
    * back to the declaring plugin's. A component-owned kind is therefore
    * gated by default — its tables can be absent from the database
-   * entirely, so an unguarded search errors rather than returning
+   * entirely, so an unguarded listing errors rather than returning
    * nothing.
    */
   requiredComponent?: string;
 }
 
-function collectProviders(): Map<TokenEntityType, RegisteredPreviewProvider> {
-  const map = new Map<TokenEntityType, RegisteredPreviewProvider>();
+function collectProviders(): Map<TokenEntityType, RegisteredRecentRecords> {
+  const map = new Map<TokenEntityType, RegisteredRecentRecords>();
   // list() (not listEnabledSync) — component state gates ACCESS, below;
   // a disabled component's kind still has exactly one declared provider.
   for (const plugin of tokenPluginRegistry.list()) {
-    const provider = plugin.metadata.previewEntities;
+    const provider = plugin.metadata.recentRecords;
     if (!provider) continue;
     const kind = plugin.metadata.outputType;
     const existing = map.get(kind);
     if (existing) {
       throw new Error(
-        `Two token plugins declare preview entities for kind "${kind}" ` +
+        `Two token plugins declare recent records for kind "${kind}" ` +
           `(${plugin.metadata.id} is the second) — declare the provider once, ` +
           `on the plugin that owns the kind.`,
       );
     }
     map.set(kind, {
+      pluginId: plugin.metadata.id,
       provider,
       requiredComponent:
         provider.requiredComponent ?? plugin.metadata.requiredComponent,
@@ -65,28 +66,18 @@ function collectProviders(): Map<TokenEntityType, RegisteredPreviewProvider> {
  * Build the projection once at boot so a duplicate declaration fails
  * loudly at startup instead of at the first preview request.
  */
-export function validateTokenPreviewEntities(): number {
+export function validateTokenRecentRecords(): number {
   return collectProviders().size;
-}
-
-export function getTokenPreviewEntities(
-  kind: TokenEntityType,
-): TokenPreviewEntityProvider | undefined {
-  return collectProviders().get(kind)?.provider;
-}
-
-export function hasTokenPreviewEntities(kind: TokenEntityType): boolean {
-  return collectProviders().has(kind);
 }
 
 /**
  * Resolve a kind's provider ONLY if its required component (when any) is
- * enabled. All request-boundary callers must use this, not the raw
- * getter, so disabled-component data can't be searched or rendered.
+ * enabled. Every caller must use this, not a raw getter, so a disabled
+ * component's data can't be listed or rendered.
  */
-export async function getEnabledTokenPreviewEntities(
+export async function getEnabledTokenRecentRecords(
   kind: TokenEntityType,
-): Promise<TokenPreviewEntityProvider | undefined> {
+): Promise<TokenRecentRecordProvider | undefined> {
   const entry = collectProviders().get(kind);
   if (!entry) return undefined;
   if (entry.requiredComponent) {
@@ -96,14 +87,10 @@ export async function getEnabledTokenPreviewEntities(
   return entry.provider;
 }
 
-/** A root a template editor can seed with a real record. */
+/** A root the render reports on (real record vs sample data). */
 export interface TokenPreviewRoot {
-  /** Entity kind of the root (what the picker searches). */
   kind: TokenEntityType;
-  /** Human label for the picker ("Worker", "T631 interview"). */
   label: string;
-  /** Whether a real-record provider is available for this kind here. */
-  hasProvider: boolean;
   /** The root also resolves from the render's recipient contact. */
   recipientRooted: boolean;
 }
@@ -120,19 +107,18 @@ function kindLabel(kind: TokenEntityType, plugins: TokenPlugin[]): string {
 }
 
 /**
- * The roots a surface's tokens can be rooted at, with whether each can
- * be previewed against a real record right now. One entry per entity
+ * The roots a surface's tokens can be rooted at. One entry per entity
  * kind: when the surface's event kind is also a plain root (e.g. a
- * worker-rooted notifier) the two collapse into one picker.
+ * worker-rooted notifier) the two collapse into one.
  */
-export async function listTokenPreviewRoots(
+export function listTokenPreviewRoots(
   eventKind?: TokenEntityType,
-): Promise<TokenPreviewRoot[]> {
+): TokenPreviewRoot[] {
   const plugins = tokenPluginRegistry.listEnabledSync();
   const kinds = new Map<TokenEntityType, boolean>(); // kind → recipientRooted
   for (const plugin of plugins) {
     if (!plugin.metadata.inputTypes.includes("root")) continue;
-    // A seedless root (system values) has no record to pick.
+    // A seedless root (system values) has no record behind it.
     if (plugin.metadata.seedless) continue;
     const kind = plugin.metadata.dynamicOutput ? eventKind : plugin.metadata.outputType;
     if (!kind) continue;
@@ -140,14 +126,9 @@ export async function listTokenPreviewRoots(
       Boolean(plugin.metadata.recipientRooted) || (kinds.get(kind) ?? false);
     kinds.set(kind, recipientRooted);
   }
-  const roots: TokenPreviewRoot[] = [];
-  for (const [kind, recipientRooted] of kinds) {
-    roots.push({
-      kind,
-      label: kindLabel(kind, plugins),
-      hasProvider: Boolean(await getEnabledTokenPreviewEntities(kind)),
-      recipientRooted,
-    });
-  }
-  return roots;
+  return Array.from(kinds, ([kind, recipientRooted]) => ({
+    kind,
+    label: kindLabel(kind, plugins),
+    recipientRooted,
+  }));
 }

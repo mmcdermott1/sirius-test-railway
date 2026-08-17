@@ -50,22 +50,32 @@ export interface RenderSurfaceRequest {
   params: Record<string, unknown>;
   /** The editor's in-progress values. */
   values: Record<string, string>;
-  /** Optional real recipient contact. */
+  /**
+   * Recipient contact for the render. Set by the caller from a resolved
+   * preview context or by an internal caller that already holds one —
+   * NEVER from a contact id the client names.
+   */
   contactId?: string;
   /**
-   * Real records seeding this render's roots, keyed by entity kind
-   * (`{ worker: "…", dispatch_job: "…" }`). A root with no record here
-   * renders sample values. Picking a contact also makes that contact
-   * the render's recipient.
-   */
-  records?: Record<string, string>;
-  /**
-   * Roots an internal caller already holds as entities (the delivery
-   * -parity check renders against the very entity delivery composes
-   * with). The preview route never sets this — records that arrive with
-   * a request come in as `records` and load through their provider.
+   * Roots this render is seeded with, as entities the caller already
+   * holds: the records behind a surface's resolved preview context, or
+   * (for the delivery-parity check) the very entity delivery composes
+   * with. Anything not seeded here renders sample values, so one
+   * preview can mix real and sample roots.
    */
   seededRoots?: TokenEntity[];
+  /**
+   * Which named sample persona the sample roots render as. Unknown ids
+   * fall back per kind — see `TokenSampleSet`.
+   */
+  sampleSetId?: string;
+}
+
+/** The id of the seeded record for one root, for the studio's report. */
+function rootRecordId(seeded: TokenEntity[], kind: string): string | null {
+  const entity = seeded.find((e) => e.kind === kind);
+  const id = entity?.row.id;
+  return typeof id === "string" ? id : null;
 }
 
 /**
@@ -89,8 +99,8 @@ export async function renderTemplateSurface({
   params,
   values,
   contactId,
-  records,
   seededRoots,
+  sampleSetId,
 }: RenderSurfaceRequest): Promise<TemplateSurfacePreview> {
   const resolution = await surface.resolve({ storage, params, values });
 
@@ -106,56 +116,25 @@ export async function renderTemplateSurface({
     }
   }
 
-  // ── Seeds: one real record per root, all of them optional ─────────────────
+  // ── Seeds: whatever real records the caller resolved, all optional ────────
   const eventEntityKind = resolution.eventEntityKind;
-  const { getEnabledTokenPreviewEntities, listTokenPreviewRoots } = await import(
-    "../tokens/preview-entities"
-  );
-  const availableRoots = await listTokenPreviewRoots(eventEntityKind);
+  const { listTokenPreviewRoots } = await import("../tokens/preview-roots");
+  const availableRoots = listTokenPreviewRoots(eventEntityKind);
 
   const seeded: TokenEntity[] = [...(seededRoots ?? [])];
-  const seededIds: Record<string, string> = {};
-  for (const [kind, recordId] of Object.entries(records ?? {})) {
-    if (!recordId) continue;
-    if (!availableRoots.some((r) => r.kind === kind)) {
-      throw new TemplateSurfaceError(
-        400,
-        `This surface does not render against a ${kind} record`,
-      );
-    }
-    // The component gate lives in the provider lookup, and applies to
-    // loading exactly as it does to searching: a disabled component's
-    // tables may not exist at all.
-    const provider = await getEnabledTokenPreviewEntities(kind);
-    if (!provider) {
-      throw new TemplateSurfaceError(
-        400,
-        "This entity kind does not support real-record preview",
-      );
-    }
-    const loaded = await provider.load(recordId);
-    if (!loaded) {
-      throw new TemplateSurfaceError(404, "Preview record not found");
-    }
-    seeded.push(loaded);
-    seededIds[kind] = recordId;
-  }
 
-  // Picking a contact picks the render's recipient: the recipient-rooted
-  // roots (worker, employer) derive from it unless separately seeded,
-  // exactly as they do on delivery.
-  const recipientContactId = contactId ?? seededIds.contact;
-  if (contactId) {
-    const contact = await storage.contacts.getContact(contactId);
-    if (!contact) {
-      throw new TemplateSurfaceError(404, "Preview contact not found");
-    }
-  }
+  // A seeded contact is also the render's recipient: the
+  // recipient-rooted roots (worker, employer) derive from it unless
+  // separately seeded, exactly as they do on delivery.
+  const seededContact = seeded.find((entity) => entity.kind === "contact");
+  const recipientContactId =
+    contactId ??
+    (typeof seededContact?.row.id === "string" ? seededContact.row.id : undefined);
 
   const previewRoots: TemplateSurfacePreviewRoot[] = availableRoots.map((root) => ({
     kind: root.kind,
     label: root.label,
-    recordId: seededIds[root.kind] ?? null,
+    recordId: rootRecordId(seeded, root.kind),
     real:
       seeded.some((entity) => entity.kind === root.kind) ||
       (root.recipientRooted && Boolean(recipientContactId)),
@@ -189,6 +168,7 @@ export async function renderTemplateSurface({
     // a root with a picked record still resolves against real data.
     const ctx = createTokenEvalContext(storage, recipientContactId, {
       sample: true,
+      sampleSetId,
       cache,
       roots: seeded,
       eventKind: eventEntityKind,

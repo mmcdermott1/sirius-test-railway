@@ -88,24 +88,32 @@ registerTokenPlugin({
     entityFields: ["name", "display_title"],
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
-    // Real-record preview for every editor rooted at a grievance.
-    // Gated on the grievance component (inherited from the plugin):
-    // its tables need not exist at all when the component is off.
-    previewEntities: {
-      async search(query) {
+    // A few real grievances a surface may OFFER as preview subjects
+    // (there is no search and no load-by-id — a template author is not
+    // entitled to name an arbitrary record). Gated on the grievance
+    // component (inherited from the plugin): its tables need not exist
+    // at all when the component is off.
+    recentRecords: {
+      async recent(limit) {
         const { storage } = await import("../../../storage");
         const rows = await storage.grievances.search();
-        const needle = query.trim().toLowerCase();
-        return rows
-          .filter(
-            (g) =>
-              !needle ||
-              (g.grievantSummary ?? "").toLowerCase().includes(needle) ||
-              (g.categoryName ?? "").toLowerCase().includes(needle) ||
-              (g.siriusId ?? "").toLowerCase().includes(needle),
-          )
-          .slice(0, 20)
-          .map((g) => ({
+        const picked = rows.slice(0, limit);
+        const out = [];
+        for (const g of picked) {
+          const [base, info] = await Promise.all([
+            storage.grievances.get(g.id),
+            storage.grievances.getAssignmentTitleInfo(g.id),
+          ]);
+          if (!base) continue;
+          const entity = {
+            kind: GRIEVANCE_ENTITY_KIND,
+            row: {
+              ...(base as unknown as Record<string, unknown>),
+              displayTitle: composeGrievanceDisplayTitle(g.id, info),
+            },
+            table: grievances,
+          };
+          out.push({
             id: g.id,
             label: [
               composeGrievanceDisplayTitle(g.id, {
@@ -117,23 +125,10 @@ registerTokenPlugin({
             ]
               .filter(Boolean)
               .join(" — "),
-          }));
-      },
-      async load(id) {
-        const { storage } = await import("../../../storage");
-        const [base, info] = await Promise.all([
-          storage.grievances.get(id),
-          storage.grievances.getAssignmentTitleInfo(id),
-        ]);
-        if (!base) return null;
-        return {
-          kind: GRIEVANCE_ENTITY_KIND,
-          row: {
-            ...(base as unknown as Record<string, unknown>),
-            displayTitle: composeGrievanceDisplayTitle(id, info),
-          },
-          table: grievances,
-        };
+            entity,
+          });
+        }
+        return out;
       },
     },
   },

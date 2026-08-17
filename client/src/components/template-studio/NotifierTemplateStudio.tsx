@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { TemplateStudio, type StudioField, type StudioFieldMode } from "./TemplateStudio";
-import { useStudioPreviewContext, type StudioPreviewRoot } from "./StudioContext";
 import type {
   TokenCatalogEntry,
   TokenFieldCatalog,
@@ -34,8 +33,6 @@ export interface NotifierTokenCatalog {
   fields?: TokenFieldCatalog;
   defaults?: Record<string, Record<string, string>>;
   tokens?: TokenCatalogEntry[];
-  /** Roots these tokens reach, and which can be previewed for real. */
-  previewRoots?: StudioPreviewRoot[];
 }
 export interface NotifierTemplateStudioProps {
   open: boolean;
@@ -58,9 +55,9 @@ export interface NotifierTemplateStudioProps {
 /**
  * Event-notifier host for the Template Studio: edits one channel group of
  * `data.templates` and previews through the notifier preview endpoint
- * (which mirrors delivery-time template composition). Sample / real-record
- * context comes from the shared studio context builder; record search is
- * served by the generic per-entity-kind preview registry.
+ * (which mirrors delivery-time template composition). What the preview
+ * renders against — sample personas, or a few of this notifier's own
+ * recent events — is offered by the surface, server-side.
  */
 export function NotifierTemplateStudio({
   open,
@@ -73,11 +70,6 @@ export function NotifierTemplateStudio({
   updateConfigData,
   disabled,
 }: NotifierTemplateStudioProps) {
-  const ctx = useStudioPreviewContext({
-    open,
-    previewRoots: catalog?.previewRoots,
-  });
-
   // ── Fields & values (channel group of data.templates) ─────────────────────
   const defaults = catalog?.defaults?.[channel] ?? {};
 
@@ -155,7 +147,6 @@ export function NotifierTemplateStudio({
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
       priorityScopes={["event"]}
-      context={ctx}
     />
   );
 }

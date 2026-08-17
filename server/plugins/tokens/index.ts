@@ -1,16 +1,23 @@
 import { logger } from "../../logger";
 import { registerPluginKind } from "../_core/kinds";
 import { tokenPluginRegistry } from "./registry";
-import { validateTokenPreviewEntities } from "./preview-entities";
+import { validateTokenRecentRecords } from "./preview-roots";
+import { validateTokenSampleSets } from "./sample-sets";
 
 export * from "./types";
 export {
-  getTokenPreviewEntities,
-  hasTokenPreviewEntities,
-  getEnabledTokenPreviewEntities,
+  getEnabledTokenRecentRecords,
   listTokenPreviewRoots,
   type TokenPreviewRoot,
-} from "./preview-entities";
+} from "./preview-roots";
+export {
+  getSampleSetsForKind,
+  resolveSampleSet,
+  sampleSetValue,
+  listSampleSetChoices,
+  DEFAULT_SAMPLE_SET_ID,
+  type TokenSampleSetChoice,
+} from "./sample-sets";
 export { tokenPluginRegistry, registerTokenPlugin, findSegmentPlugin } from "./registry";
 export {
   renderTokens,
@@ -51,14 +58,16 @@ function registerTokenKind(): void {
  */
 export function initializeTokenPluginSystem(): void {
   registerTokenKind();
-  // Project the plugins' `previewEntities` declarations into the
-  // per-kind preview registry once at boot, so two providers for one
-  // entity kind fail loudly here instead of at the first preview.
-  const previewKinds = validateTokenPreviewEntities();
+  // Project the plugins' `recentRecords` and `sampleSets` declarations
+  // into their per-kind registries once at boot, so two declarations for
+  // one entity kind fail loudly here instead of at the first preview.
+  const recentRecordKinds = validateTokenRecentRecords();
+  const sampleSetKinds = validateTokenSampleSets();
   logger.info("Token plugins registered", {
     service: "tokens",
     plugins: tokenPluginRegistry.listIds(),
-    previewEntityKinds: previewKinds,
+    recentRecordKinds,
+    sampleSetKinds,
   });
 }
 

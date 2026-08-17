@@ -20,6 +20,76 @@ export async function loadWorkerEntity(
 }
 
 /**
+ * Named sample workers, one per shared persona id (see the contact
+ * plugin, which declares the same three). Values are obviously
+ * fictional: a preview must never be mistaken for real member data.
+ * The identifier fields are placeholders, not plausible numbers.
+ */
+const WORKER_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      sirius_id: "SAMPLE-0001",
+      ssn: "000-00-0000",
+      job_title: "Regolith Hauler",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      sirius_id: "SAMPLE-0002",
+      ssn: "000-00-0000",
+      job_title: "Analytical Engine Operator",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      sirius_id: "SAMPLE-0003",
+      ssn: "000-00-0000",
+      job_title: "Ship's Navigator",
+    },
+  },
+];
+
+// Statuses and cardchecks are their own token entity kinds, so their
+// sample values belong to those kinds — a worker-kind key named
+// "work_status" would never be read. Persona ids match the worker sets
+// above, so one pick tells one coherent story.
+const WORK_STATUS_SAMPLE_SETS = [
+  { id: "martian", label: "Martian", values: { name: "Active" } },
+  { id: "historical", label: "Historical", values: { name: "Active" } },
+  { id: "mythological", label: "Mythological", values: { name: "Laid off" } },
+];
+
+const MEMBER_STATUS_SAMPLE_SETS = [
+  { id: "martian", label: "Martian", values: { name: "Member in good standing" } },
+  { id: "historical", label: "Historical", values: { name: "Member in good standing" } },
+  { id: "mythological", label: "Mythological", values: { name: "Withdrawn" } },
+];
+
+const CARDCHECK_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: { type: "Authorization", status: "Signed", signed_date: "March 14, 2031" },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: { type: "Authorization", status: "Signed", signed_date: "December 10, 1843" },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: { type: "Authorization", status: "Not signed", signed_date: "—" },
+  },
+];
+
+/**
  * Root: {{worker...}} — the recipient's full worker record, plus
  * employment/status denorm extras (job_title, home_employer_id, ws_id,
  * ms_ids, employer_ids).
@@ -35,24 +105,26 @@ registerTokenPlugin({
     entityTable: workers,
     entityFields: WORKER_EXTRA_FIELDS,
     recipientRooted: true,
-    previewEntities: {
-      async search(query) {
+    recentRecords: {
+      async recent(limit) {
         const { storage } = await import("../../../storage");
-        const { workers: found } = await storage.workers.searchWorkers(query, 20);
-        return found.map((w) => ({
-          id: w.id,
-          label: w.siriusId
-            ? `${w.displayName ?? "Unnamed worker"} (#${w.siriusId})`
-            : (w.displayName ?? "Unnamed worker"),
-        }));
-      },
-      async load(id) {
-        const { storage } = await import("../../../storage");
-        const row = await storage.bulkTokens.getWorkerRowById(id);
-        if (!row) return null;
-        return { kind: "worker", row, table: workers };
+        const { workers: found } = await storage.workers.searchWorkers("", limit);
+        const out = [];
+        for (const w of found) {
+          const row = await storage.bulkTokens.getWorkerRowById(w.id);
+          if (!row) continue;
+          out.push({
+            id: w.id,
+            label: w.siriusId
+              ? `${w.displayName ?? "Unnamed worker"} (#${w.siriusId})`
+              : (w.displayName ?? "Unnamed worker"),
+            entity: { kind: "worker", row, table: workers },
+          });
+        }
+        return out;
       },
     },
+    sampleSets: WORKER_SAMPLE_SETS,
   },
   async resolve(_entity, _args, ctx) {
     // A seeded worker wins; otherwise the root means "the recipient's
@@ -100,6 +172,7 @@ registerTokenPlugin({
     outputType: "work_status",
     entityTable: optionsWorkerWs,
     defaultLeaf: "name",
+    sampleSets: WORK_STATUS_SAMPLE_SETS,
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");
@@ -128,6 +201,7 @@ registerTokenPlugin({
     outputType: "member_status",
     entityFields: ["name"],
     defaultLeaf: "name",
+    sampleSets: MEMBER_STATUS_SAMPLE_SETS,
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");
@@ -159,6 +233,7 @@ registerTokenPlugin({
     inputTypes: ["worker"],
     outputType: "cardcheck",
     entityFields: ["type", "status", "signed_date"],
+    sampleSets: CARDCHECK_SAMPLE_SETS,
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");

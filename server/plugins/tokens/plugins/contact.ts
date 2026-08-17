@@ -13,6 +13,63 @@ export async function loadContactEntity(
   return { kind: "contact", row, table: contacts };
 }
 
+/**
+ * Named sample people. Every value is obviously fictional on purpose: a
+ * preview must never be mistaken for — or leak — a real member's data.
+ * The ids are the shared persona vocabulary (see `TokenSampleSet`), so
+ * the worker and employer plugins declare the same three.
+ */
+const CONTACT_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      display_name: "Zorb Quixnar",
+      given: "Zorb",
+      middle: "Vel",
+      family: "Quixnar",
+      title: "Cmdr.",
+      generational: "IV",
+      credentials: "P.Eng.",
+      email: "zorb.quixnar@example.invalid",
+      birth_date: "04/17/2151",
+      gender: "Nonbinary",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      display_name: "Ada Lovelace",
+      given: "Ada",
+      middle: "Augusta",
+      family: "Lovelace",
+      title: "Ms.",
+      generational: "Jr.",
+      credentials: "F.R.S.",
+      email: "ada.lovelace@example.invalid",
+      birth_date: "12/10/1815",
+      gender: "Female",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      display_name: "Odysseus Ithaka",
+      given: "Odysseus",
+      middle: "Laertiades",
+      family: "Ithaka",
+      title: "Capt.",
+      generational: "Sr.",
+      credentials: "H.M.",
+      email: "odysseus.ithaka@example.invalid",
+      birth_date: "03/02/1184",
+      gender: "Male",
+    },
+  },
+];
+
 /** Root: {{contact...}} — the recipient's full contact record. */
 registerTokenPlugin({
   metadata: {
@@ -25,22 +82,25 @@ registerTokenPlugin({
     entityTable: contacts,
     defaultLeaf: "display_name",
     recipientRooted: true,
-    previewEntities: {
-      async search(query) {
+    recentRecords: {
+      async recent(limit) {
         const { storage } = await import("../../../storage");
-        const rows = await storage.contacts.searchWithPrimaryContactInfo(query, 20);
-        return rows.map((r) => {
+        const rows = await storage.contacts.searchWithPrimaryContactInfo("", limit);
+        const out = [];
+        for (const r of rows) {
+          const row = await storage.bulkTokens.getContactRow(r.id);
+          if (!row) continue;
           const name = r.displayName || r.email || r.id;
-          return { id: r.id, label: r.email ? `${name} — ${r.email}` : name };
-        });
-      },
-      async load(id) {
-        const { storage } = await import("../../../storage");
-        const row = await storage.bulkTokens.getContactRow(id);
-        if (!row) return null;
-        return { kind: "contact", row, table: contacts };
+          out.push({
+            id: r.id,
+            label: r.email ? `${name} — ${r.email}` : name,
+            entity: { kind: "contact", row, table: contacts },
+          });
+        }
+        return out;
       },
     },
+    sampleSets: CONTACT_SAMPLE_SETS,
   },
   async resolve(_entity, _args, ctx) {
     // A seeded contact wins; otherwise the root means "the recipient".

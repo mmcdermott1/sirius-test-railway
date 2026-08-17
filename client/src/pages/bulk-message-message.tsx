@@ -133,7 +133,7 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
         open={studioOpen}
         onOpenChange={setStudioOpen}
         surfaceId="bulk-message"
-        surfaceParams={{ channel: "email" }}
+        surfaceParams={{ channel: "email", messageId }}
         catalogUrl="/api/bulk-tokens"
         title="Email message"
         channel="email"
@@ -193,7 +193,7 @@ function SmsForm({ record, onSave, isPending, messageId }: FormProps) {
         open={studioOpen}
         onOpenChange={setStudioOpen}
         surfaceId="bulk-message"
-        surfaceParams={{ channel: "sms" }}
+        surfaceParams={{ channel: "sms", messageId }}
         catalogUrl="/api/bulk-tokens"
         title="SMS message"
         channel="sms"
@@ -253,7 +253,7 @@ function PostalForm({ record, onSave, isPending, messageId }: FormProps) {
         open={studioOpen}
         onOpenChange={setStudioOpen}
         surfaceId="bulk-message"
-        surfaceParams={{ channel: "postal" }}
+        surfaceParams={{ channel: "postal", messageId }}
         catalogUrl="/api/bulk-tokens"
         title="Postal letter"
         channel="postal"
@@ -349,7 +349,7 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
         open={studioOpen}
         onOpenChange={setStudioOpen}
         surfaceId="bulk-message"
-        surfaceParams={{ channel: "inapp" }}
+        surfaceParams={{ channel: "inapp", messageId }}
         catalogUrl="/api/bulk-tokens"
         title="In-app notification"
         channel="inapp"

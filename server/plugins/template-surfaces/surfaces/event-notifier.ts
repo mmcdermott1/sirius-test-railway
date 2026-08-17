@@ -1,6 +1,60 @@
 import { mergeChannelFieldSpecs, registerTemplateSurface } from "../registry";
-import { TemplateSurfaceError, type TemplateSurfaceResolution } from "../types";
+import {
+  TemplateSurfaceError,
+  type TemplateSurfaceContextRequest,
+  type TemplateSurfacePreviewContext,
+  type TemplateSurfaceResolution,
+  type TemplateSurfaceResolvedContext,
+} from "../types";
+import type { TokenRecentRecordRef } from "../../tokens/types";
 import { NOTIFIER_CHANNEL_FIELDS as CHANNEL_FIELDS } from "../../event-notifier/field-media";
+
+/**
+ * How many real records the notifier offers as preview subjects. A
+ * handful, deliberately: this is "preview against something that
+ * actually happened", not a record browser.
+ */
+const RECENT_LIMIT = 5;
+
+/** Prefix marking a context id as "one record of the event kind". */
+const RECORD_PREFIX = "record:";
+
+/** The entity kind `{{event…}}` stands for on the notifier being edited. */
+async function eventKindOf(params: Record<string, unknown>): Promise<string | null> {
+  const pluginId = typeof params.pluginId === "string" ? params.pluginId : "";
+  if (!pluginId) return null;
+  const { eventNotifierRegistry } = await import("../../event-notifier/registry");
+  return eventNotifierRegistry.get(pluginId)?.tokenTemplates?.eventEntityKind ?? null;
+}
+
+/**
+ * The recent records of the notifier's own event kind, or [] when this
+ * user may not edit notifier templates.
+ *
+ * The preview routes are staff-gated, but a notifier's templates (and
+ * its token catalog) are admin-only — so real records reachable through
+ * this editor must clear the same bar, not merely "staff". A surface
+ * authorizes its own contexts precisely because only it knows this.
+ *
+ * Component gating lives in the provider lookup: a notifier for a
+ * disabled component offers nothing rather than erroring on absent
+ * tables.
+ */
+async function recentEventRecords({
+  params,
+  req,
+}: TemplateSurfaceContextRequest): Promise<TokenRecentRecordRef[]> {
+  const { checkAccessInline } = await import("../../../services/access-policy-evaluator");
+  const access = await checkAccessInline(req, "admin");
+  if (!access.granted) return [];
+
+  const eventKind = await eventKindOf(params);
+  if (!eventKind) return [];
+  const { getEnabledTokenRecentRecords } = await import("../../tokens/preview-roots");
+  const provider = await getEnabledTokenRecentRecords(eventKind);
+  if (!provider) return [];
+  return provider.recent(RECENT_LIMIT);
+}
 
 /** Merge the editor's in-progress values into a config's templates block. */
 function mergeChannelValues(
@@ -79,5 +133,37 @@ registerTemplateSurface({
       templates,
       eventEntityKind: plugin.tokenTemplates.eventEntityKind,
     };
+  },
+
+  /**
+   * Offer the notifier's own recent event records. Nothing else: the
+   * author is editing the message THIS notifier sends, so the records
+   * it fires on are the only real data the studio has any business
+   * rendering here. Gated on the same access notifier-template editing
+   * needs (see `recentEventRecords`), and again per record kind by its
+   * component.
+   */
+  async listPreviewContexts(
+    ctx: TemplateSurfaceContextRequest,
+  ): Promise<TemplateSurfacePreviewContext[]> {
+    const records = await recentEventRecords(ctx);
+    return records.map((record) => ({
+      id: `${RECORD_PREFIX}${record.id}`,
+      label: record.label,
+    }));
+  },
+
+  async resolvePreviewContext(
+    id: string,
+    ctx: TemplateSurfaceContextRequest,
+  ): Promise<TemplateSurfaceResolvedContext | null> {
+    if (!id.startsWith(RECORD_PREFIX)) return null;
+    const recordId = id.slice(RECORD_PREFIX.length);
+    // Re-list rather than load by id: the offer IS the authorization,
+    // so a record that is no longer offered — or an editor who may no
+    // longer edit notifiers — can no longer render it.
+    const records = await recentEventRecords(ctx);
+    const match = records.find((record) => record.id === recordId);
+    return match ? { roots: [match.entity] } : null;
   },
 });

@@ -35,28 +35,29 @@ registerTokenPlugin({
     entityTable: sitespecificT631JobInterviews,
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
-    // Real-record preview: any template editor rooted at the interview
-    // kind (notifier Template Studio, generic token studio) can search
-    // and load real interviews. Declared once with the entity kind,
-    // never per surface; gated on the interviews component.
-    previewEntities: {
-      async search(query) {
+    // A few real interviews a surface may OFFER as preview subjects
+    // (there is no search and no load-by-id — a template author is not
+    // entitled to name an arbitrary record). Declared once with the
+    // entity kind, never per surface; gated on the interviews component.
+    recentRecords: {
+      async recent(limit) {
         const { storage } = await import("../../../storage");
-        const rows = await storage.t631Interviews.searchForPicker(query);
-        return rows.map((r) => ({
-          id: r.id,
-          label: `${r.workerName ?? "Unknown worker"} — ${r.jobTitle} (${previewStatusLabel(r.status)})`,
-        }));
-      },
-      async load(id) {
-        const { storage } = await import("../../../storage");
-        const row = await storage.t631Interviews.get(id);
-        if (!row) return null;
-        return {
-          kind: T631_INTERVIEW_ENTITY_KIND,
-          row: row as unknown as Record<string, unknown>,
-          table: sitespecificT631JobInterviews,
-        };
+        const rows = await storage.t631Interviews.searchForPicker("", limit);
+        const out = [];
+        for (const r of rows) {
+          const row = await storage.t631Interviews.get(r.id);
+          if (!row) continue;
+          out.push({
+            id: r.id,
+            label: `${r.workerName ?? "Unknown worker"} — ${r.jobTitle} (${previewStatusLabel(r.status)})`,
+            entity: {
+              kind: T631_INTERVIEW_ENTITY_KIND,
+              row: row as unknown as Record<string, unknown>,
+              table: sitespecificT631JobInterviews,
+            },
+          });
+        }
+        return out;
       },
     },
   },

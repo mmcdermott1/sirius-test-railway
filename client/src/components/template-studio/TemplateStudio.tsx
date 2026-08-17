@@ -24,7 +24,15 @@ import {
   type TokenFieldCatalog,
   type TokenSegmentSpec,
 } from "@shared/tokens";
-import type { StudioPreviewContext } from "./StudioContext";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -106,12 +114,49 @@ export interface TemplateStudioProps {
   fieldCatalog?: TokenFieldCatalog;
   /** Scopes listed first in the token browser (e.g. ["event"]). */
   priorityScopes?: string[];
-  /**
-   * Container-supplied preview context: the sample / real-record mode
-   * builder (see `useStudioPreviewContext`). Its picks are posted with
-   * the preview and its panel is rendered above the preview.
-   */
-  context?: StudioPreviewContext;
+}
+
+/**
+ * What a preview renders against: either one of the real-data contexts
+ * the SURFACE offered (its own recent events, its own recipients), or a
+ * named sample persona. The studio never names a record — it can only
+ * post back a context id the server just offered it.
+ */
+export interface StudioSubject {
+  contextId?: string;
+  sampleSetId?: string;
+}
+
+interface StudioSubjectOption {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+interface StudioSubjectsResult {
+  contexts: StudioSubjectOption[];
+  sampleSets: StudioSubjectOption[];
+  defaultSubject: StudioSubject;
+}
+
+/** Select value ⇆ subject. Context ids and sample ids share one list. */
+const CONTEXT_VALUE = "context:";
+const SAMPLE_VALUE = "sample:";
+
+function subjectToValue(subject: StudioSubject): string {
+  if (subject.contextId) return `${CONTEXT_VALUE}${subject.contextId}`;
+  if (subject.sampleSetId) return `${SAMPLE_VALUE}${subject.sampleSetId}`;
+  return "";
+}
+
+function valueToSubject(value: string): StudioSubject {
+  if (value.startsWith(CONTEXT_VALUE)) {
+    return { contextId: value.slice(CONTEXT_VALUE.length) };
+  }
+  if (value.startsWith(SAMPLE_VALUE)) {
+    return { sampleSetId: value.slice(SAMPLE_VALUE.length) };
+  }
+  return {};
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,16 +288,7 @@ export function TemplateStudio({
   segments,
   fieldCatalog,
   priorityScopes,
-  context,
 }: TemplateStudioProps) {
-  const previewContextKey = context?.previewContextKey ?? "sample";
-  const contextPanel = context?.contextPanel;
-  // Picked records per root kind; roots with no pick render sample values.
-  const recordsJson = JSON.stringify(
-    Object.fromEntries(
-      Object.entries(context?.records ?? {}).map(([kind, ref]) => [kind, ref.id]),
-    ),
-  );
   const activeEditorRef = useRef<ActiveEditorRef | null>(null);
   const htmlApiRefs = useRef<Record<string, React.MutableRefObject<SimpleHtmlEditorApi | null>>>({});
   const getHtmlApiRef = (key: string) => {
@@ -261,6 +297,48 @@ export function TemplateStudio({
     }
     return htmlApiRefs.current[key];
   };
+
+  // ── Preview subject ────────────────────────────────────────────────────────
+  // What this editor may render against comes from the SERVER, per
+  // surface: the surface's own real-data contexts (already filtered to
+  // what this user may see) plus the named sample personas. Frozen at
+  // open, because the answer depends on which notifier/message is being
+  // edited, never on the text being typed.
+  const surfaceParamsJson = JSON.stringify(surfaceParams ?? {});
+  const [subjectParamsJson, setSubjectParamsJson] = useState(surfaceParamsJson);
+  useEffect(() => {
+    if (open) setSubjectParamsJson(surfaceParamsJson);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const { data: subjects, isFetched: subjectsFetched } = useQuery<StudioSubjectsResult>({
+    queryKey: ["template-studio-subjects", surfaceId, subjectParamsJson],
+    enabled: open,
+    staleTime: 0,
+    queryFn: async () => {
+      const res = await fetch("/api/template-studio/preview-subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ surfaceId, params: JSON.parse(subjectParamsJson) }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(
+          (err as { message?: string }).message ??
+            `Could not load preview subjects (${res.status})`,
+        );
+      }
+      return (await res.json()) as StudioSubjectsResult;
+    },
+  });
+
+  const [pickedSubject, setPickedSubject] = useState<StudioSubject | null>(null);
+  useEffect(() => {
+    if (!open) setPickedSubject(null);
+  }, [open]);
+  const subject = pickedSubject ?? subjects?.defaultSubject ?? {};
+  const subjectValue = subjectToValue(subject);
 
   // ── Debounced preview ──────────────────────────────────────────────────────
   const valuesJson = JSON.stringify(values);
@@ -277,9 +355,8 @@ export function TemplateStudio({
   useEffect(() => {
     if (open) setDebouncedJson(valuesJson);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, previewContextKey]);
+  }, [open, subjectValue]);
 
-  const surfaceParamsJson = JSON.stringify(surfaceParams ?? {});
   const {
     data: preview,
     isFetching: previewLoading,
@@ -289,19 +366,20 @@ export function TemplateStudio({
       "template-studio-preview",
       surfaceId,
       surfaceParamsJson,
-      previewContextKey,
+      subjectValue,
       debouncedJson,
     ],
-    enabled: open,
+    // Wait for the subject list: rendering before it arrives would show
+    // sample data for a beat and then swap to the default context.
+    enabled: open && subjectsFetched,
     staleTime: 0,
     queryFn: async () => {
       const body: Record<string, unknown> = {
         surfaceId,
         params: JSON.parse(surfaceParamsJson),
         values: JSON.parse(debouncedJson) as Record<string, string>,
+        subject,
       };
-      const records = JSON.parse(recordsJson) as Record<string, string>;
-      if (Object.keys(records).length > 0) body.records = records;
       const res = await fetch("/api/template-studio/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -571,7 +649,52 @@ export function TemplateStudio({
           {/* ── Preview + context + token browser ── */}
           <div className="min-h-0 min-w-0 flex flex-col">
             <div className="shrink-0 border-b">
-              {contextPanel && <div className="px-4 pt-3 pb-2">{contextPanel}</div>}
+              <div className="px-4 pt-3 pb-2 space-y-1.5" data-testid="studio-subject-panel">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Preview with
+                </p>
+                <Select
+                  value={subjectValue}
+                  onValueChange={(v) => setPickedSubject(valueToSubject(v))}
+                >
+                  <SelectTrigger className="h-8 text-sm" data-testid="select-studio-subject">
+                    <SelectValue placeholder="Sample data" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(subjects?.contexts.length ?? 0) > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Real data</SelectLabel>
+                        {subjects?.contexts.map((c) => (
+                          <SelectItem
+                            key={c.id}
+                            value={`${CONTEXT_VALUE}${c.id}`}
+                            data-testid={`studio-subject-context-${c.id}`}
+                          >
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    <SelectGroup>
+                      <SelectLabel>Sample data</SelectLabel>
+                      {subjects?.sampleSets.map((s) => (
+                        <SelectItem
+                          key={s.id}
+                          value={`${SAMPLE_VALUE}${s.id}`}
+                          data-testid={`studio-subject-sample-${s.id}`}
+                        >
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {(subjects?.contexts.length ?? 0) > 0
+                    ? "Real records this template applies to, or made-up sample people."
+                    : "Made-up sample people — this editor has no real records to preview against."}
+                </p>
+              </div>
             </div>
             <div className="min-h-0 flex-1 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-4 bg-muted/30">

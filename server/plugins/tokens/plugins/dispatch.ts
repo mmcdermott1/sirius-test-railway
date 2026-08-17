@@ -34,28 +34,24 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     defaultLeaf: "title",
-    // Real-record preview for every editor rooted at a dispatch job.
-    // Gated on the dispatch component (inherited from the plugin): the
-    // job tables need not exist at all when it is off.
-    previewEntities: {
-      async search(query) {
+    // A few real dispatch jobs a surface may OFFER as preview subjects
+    // (there is no search and no load-by-id — a template author is not
+    // entitled to name an arbitrary record). Gated on the dispatch
+    // component (inherited from the plugin): the job tables need not
+    // exist at all when it is off.
+    recentRecords: {
+      async recent(limit) {
         const { storage } = await import("../../../storage");
         const jobs = await storage.dispatchJobs.getAll();
-        const needle = query.trim().toLowerCase();
-        return jobs
-          .filter((j) => !needle || j.title.toLowerCase().includes(needle))
-          .slice(0, 20)
-          .map((j) => ({ id: j.id, label: `${j.title} — ${j.startYmd}` }));
-      },
-      async load(id) {
-        const { storage } = await import("../../../storage");
-        const row = await storage.dispatchJobs.get(id);
-        if (!row) return null;
-        return {
-          kind: DISPATCH_JOB_ENTITY_KIND,
-          row: row as unknown as Record<string, unknown>,
-          table: dispatchJobs,
-        };
+        return jobs.slice(0, limit).map((j) => ({
+          id: j.id,
+          label: `${j.title} — ${j.startYmd}`,
+          entity: {
+            kind: DISPATCH_JOB_ENTITY_KIND,
+            row: j as unknown as Record<string, unknown>,
+            table: dispatchJobs,
+          },
+        }));
       },
     },
   },

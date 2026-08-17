@@ -4,6 +4,29 @@ import { memo, tokenEntityOf, type TokenEntity } from "../types";
 import { loadWorkerEntity } from "./worker";
 
 /**
+ * Named sample employers, one per shared persona id (see the contact
+ * plugin). Obviously fictional by design — a preview must never be
+ * mistaken for a real employer's data.
+ */
+const EMPLOYER_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: { name: "Olympus Mons Freight", sirius_id: "SAMPLE-E01" },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: { name: "Difference Engine Works", sirius_id: "SAMPLE-E02" },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: { name: "Ithaka Shipping Company", sirius_id: "SAMPLE-E03" },
+  },
+];
+
+/**
  * Root: {{employer...}} — the recipient's employer, resolved via the
  * worker's home employer (falling back to first employment, then to
  * an employer-contact link for employer-side recipients).
@@ -19,31 +42,24 @@ registerTokenPlugin({
     entityTable: employers,
     defaultLeaf: "name",
     recipientRooted: true,
-    previewEntities: {
-      async search(query) {
+    recentRecords: {
+      async recent(limit) {
         const { storage } = await import("../../../storage");
         const all = await storage.employers.getAllEmployers();
-        const needle = query.trim().toLowerCase();
-        return all
-          .filter(
-            (e) =>
-              !needle ||
-              e.name.toLowerCase().includes(needle) ||
-              (e.siriusId ?? "").toLowerCase().includes(needle),
-          )
-          .slice(0, 20)
-          .map((e) => ({
+        const out = [];
+        for (const e of all.slice(0, limit)) {
+          const row = await storage.bulkTokens.getEmployerRow(e.id);
+          if (!row) continue;
+          out.push({
             id: e.id,
             label: e.siriusId ? `${e.name} (${e.siriusId})` : e.name,
-          }));
-      },
-      async load(id) {
-        const { storage } = await import("../../../storage");
-        const row = await storage.bulkTokens.getEmployerRow(id);
-        if (!row) return null;
-        return { kind: "employer", row, table: employers };
+            entity: { kind: "employer", row, table: employers },
+          });
+        }
+        return out;
       },
     },
+    sampleSets: EMPLOYER_SAMPLE_SETS,
   },
   async resolve(_entity, _args, ctx) {
     // A seeded employer wins; otherwise the root means "the recipient's

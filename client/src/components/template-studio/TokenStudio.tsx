@@ -7,7 +7,6 @@ import {
   type StudioChannel,
   type StudioField,
 } from "./TemplateStudio";
-import { useStudioPreviewContext, type StudioPreviewRoot } from "./StudioContext";
 import type {
   TokenCatalogEntry,
   TokenFieldCatalog,
@@ -19,8 +18,6 @@ interface TokenStudioCatalog {
   segments: TokenSegmentSpec[];
   fields?: TokenFieldCatalog;
   tokens: TokenCatalogEntry[];
-  /** Roots these tokens reach, and which can be previewed for real. */
-  previewRoots?: StudioPreviewRoot[];
 }
 
 export interface TokenStudioProps {
@@ -37,11 +34,7 @@ export interface TokenStudioProps {
   surfaceId: string;
   /** Surface-specific parameters (e.g. which medium is being edited). */
   surfaceParams?: Record<string, unknown>;
-  /**
-   * Optional event entity kind rooting `{{event.*}}` tokens. When the
-   * kind has a registered preview-entity provider, the context panel
-   * offers a record picker for it automatically.
-   */
+  /** Optional event entity kind rooting `{{event.*}}` tokens. */
   eventEntityKind?: string;
   /** Token catalog endpoint (defaults to the generic studio catalog). */
   catalogUrl?: string;
@@ -51,9 +44,11 @@ export interface TokenStudioProps {
 
 /**
  * THE generic token-editing popup: any tokenized string field anywhere
- * can open this. It loads a token catalog, builds the sample/real-record
- * context and hands both to the shared studio, which previews through
- * the single preview route for the surface id given here.
+ * can open this. It loads a token catalog and hands it to the shared
+ * studio, which previews through the single preview route for the
+ * surface id given here. What the preview renders against (sample
+ * personas, or the real records this surface offers) is decided
+ * server-side, so no host has to arrange it.
  *
  * A surface only needs its own host when it has editor-side logic of its
  * own (the event notifier's default-vs-override text); previewing never
@@ -84,11 +79,6 @@ export function TokenStudio({
     enabled: open,
   });
 
-  const ctx = useStudioPreviewContext({
-    open,
-    previewRoots: catalog?.previewRoots,
-  });
-
   return (
     <TemplateStudio
       open={open}
@@ -107,7 +97,6 @@ export function TokenStudio({
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
       priorityScopes={priorityScopes}
-      context={ctx}
     />
   );
 }

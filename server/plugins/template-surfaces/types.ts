@@ -1,4 +1,6 @@
+import type { Request } from "express";
 import type { IStorage } from "../../storage";
+import type { TokenEntity } from "../tokens/types";
 
 /**
  * How a rendered field must be shaped so the PREVIEW matches DELIVERY.
@@ -69,13 +71,54 @@ export interface TemplateSurfaceResolution {
 }
 
 /**
+ * One named bundle of real records a surface is willing to preview
+ * against — "this notifier's most recent event", "a recipient of this
+ * bulk message". The label is all the client ever sees: it posts back
+ * an id the surface itself offered, never a record id of its own
+ * choosing, so a template author can never turn the studio into a
+ * reader for arbitrary records.
+ */
+export interface TemplateSurfacePreviewContext {
+  /** Opaque to the client; meaningful only to the surface that offered it. */
+  id: string;
+  label: string;
+  description?: string;
+}
+
+/** What a surface's preview-context hooks receive. */
+export interface TemplateSurfaceContextRequest {
+  storage: IStorage;
+  /** Surface-specific request parameters, as for `resolve`. */
+  params: Record<string, unknown>;
+  /**
+   * The requesting user's request, for surfaces whose contexts expose
+   * data behind a policy narrower than the preview route's staff gate.
+   */
+  req: Request;
+}
+
+/** The real data one preview context stands for. */
+export interface TemplateSurfaceResolvedContext {
+  /** Root entities seeding the render, keyed in the render by their kind. */
+  roots: TokenEntity[];
+  /** Recipient contact for the render, when the context implies one. */
+  contactId?: string;
+}
+
+/**
  * A template surface: a place in the app where tokenized strings are
  * authored. A surface exists for exactly ONE reason — delivery parity:
  * it says which fields are being edited, how each is shaped at delivery
  * time, and how the editor's in-progress values become the templates to
- * render. It carries NO permissions, NO component requirements and NO
- * record restrictions; the single preview route is staff-gated and any
- * staff user may preview any field against any record.
+ * render.
+ *
+ * A surface MAY additionally offer preview contexts: the specific real
+ * records it is willing to render against (its own event's recent
+ * records, its own message's recipients). That is the only path to real
+ * data in a preview — the studio has no record picker of its own — and
+ * the surface authorizes its own contexts, because only it knows which
+ * policy guards them. A surface offering none previews against named
+ * sample data, which is the default everywhere.
  */
 export interface TemplateSurface {
   /** Stable id posted by the client. One registration per id. */
@@ -87,6 +130,24 @@ export interface TemplateSurface {
   resolve(
     ctx: TemplateSurfaceResolveContext,
   ): Promise<TemplateSurfaceResolution> | TemplateSurfaceResolution;
+  /**
+   * The real-data contexts this surface offers the editor right now,
+   * already filtered to what THIS user may see. Omit (or return an
+   * empty list) to offer sample data only.
+   */
+  listPreviewContexts?(
+    ctx: TemplateSurfaceContextRequest,
+  ): Promise<TemplateSurfacePreviewContext[]>;
+  /**
+   * Load the records behind one offered context. MUST re-authorize —
+   * the id arrives from the client — and return null when the id is not
+   * one this user is currently offered; the route answers 400 and falls
+   * back to nothing rather than guessing.
+   */
+  resolvePreviewContext?(
+    id: string,
+    ctx: TemplateSurfaceContextRequest,
+  ): Promise<TemplateSurfaceResolvedContext | null>;
 }
 
 /**

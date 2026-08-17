@@ -12,6 +12,7 @@ import {
 import { getTableColumns } from "drizzle-orm";
 import type { IStorage } from "../../storage";
 import { tokenPluginRegistry, findSegmentPlugin } from "./registry";
+import { sampleSetValue } from "./sample-sets";
 import type {
   TokenEntity,
   TokenEvalContext,
@@ -116,6 +117,11 @@ export interface TokenEvalContextOptions {
   /** Entity kind the dynamic `{{event…}}` root stands for. */
   eventKind?: TokenEntityType;
   /**
+   * Which named sample persona sample-mode chains render (see
+   * `TokenSampleSet`). Preview only.
+   */
+  sampleSetId?: string;
+  /**
    * Convenience for the notifier pipeline: seed the event root with this
    * entity. Exactly equivalent to passing it in `roots` and setting
    * `eventKind` to its kind — the event root IS the seeded root named
@@ -137,6 +143,7 @@ export function createTokenEvalContext(
     contactId,
     now: new Date(),
     sample: options?.sample,
+    sampleSetId: options?.sampleSetId,
     roots,
     eventKind: options?.eventKind ?? options?.event?.kind,
     cache: options?.cache ?? new Map(),
@@ -163,6 +170,36 @@ function rootIsSeeded(ctx: TokenEvalContext, plugin: TokenPlugin): boolean {
     return Boolean(ctx.contactId) || Object.keys(ctx.roots).length > 0;
   }
   return false;
+}
+
+/**
+ * What a value leaf renders in sample mode. The chosen sample persona
+ * wins when it names this leaf, so one pick renders a coherent story
+ * across the whole template; otherwise the token's own declared sample
+ * data applies (which is what a kind with no named set always uses).
+ *
+ * `entityKind` is the kind the leaf reads FROM — the chain's current
+ * type at the leaf, not the leaf's own output type.
+ */
+function sampleLeafValue(
+  ctx: TokenEvalContext,
+  entityKind: TokenEntityType,
+  plugin: TokenPlugin,
+  args: Record<string, string>,
+): string {
+  // Plain field leaves are named by their field argument; every other
+  // leaf ({{worker.member_status}}) by its segment name.
+  const key =
+    plugin.metadata.segmentName === "field" && args.name
+      ? args.name
+      : plugin.metadata.segmentName;
+  return (
+    sampleSetValue(entityKind, ctx.sampleSetId, key) ??
+    plugin.sampleValue?.(args) ??
+    plugin.metadata.example ??
+    plugin.metadata.defaultValue ??
+    ""
+  );
 }
 
 function applyArgDefaults(
@@ -243,12 +280,7 @@ export async function evaluateChain(
       }
     }
     if (sample && plugin.metadata.outputType === "value") {
-      const example =
-        plugin.sampleValue?.(args) ??
-        plugin.metadata.example ??
-        plugin.metadata.defaultValue ??
-        "";
-      return { status: "ok", value: example };
+      return { status: "ok", value: sampleLeafValue(ctx, currentType, plugin, args) };
     }
     if (!sample && entity === null && currentType !== "root") {
       // an intermediate segment resolved to nothing — chain is missing
@@ -286,12 +318,10 @@ export async function evaluateChain(
       if (fieldPlugin) {
         const args = applyArgDefaults(fieldPlugin, { name: defaultLeafName });
         if (sample) {
-          const example =
-            fieldPlugin.sampleValue?.(args) ??
-            fieldPlugin.metadata.example ??
-            fieldPlugin.metadata.defaultValue ??
-            "";
-          return { status: "ok", value: example };
+          return {
+            status: "ok",
+            value: sampleLeafValue(ctx, currentType, fieldPlugin, args),
+          };
         }
         if (entity === null) {
           return { status: "missing", defaultValue: fieldPlugin.metadata.defaultValue ?? "" };
