@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { TemplateStudio, type StudioField, type StudioPreviewResult } from "./TemplateStudio";
+import { TemplateStudio, type StudioField, type StudioFieldMode, type StudioPreviewResult } from "./TemplateStudio";
 import { useStudioPreviewContext } from "./StudioContext";
 import type {
   TokenCatalogEntry,
@@ -8,23 +8,19 @@ import type {
 } from "@shared/tokens";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Channel metadata: which template fields each channel has and how they edit.
-// Mirrors NotifierChannelTemplates on the server.
+// Channel field spec: one template field as derived from the JSON Schema.
+// Consumed by both this Studio host and the channel-templates RJSF field.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CHANNEL_FIELDS: Record<string, StudioField[]> = {
-  email: [
-    { key: "subject", label: "Subject", mode: "line" },
-    { key: "bodyHtml", label: "Body (HTML)", mode: "html" },
-  ],
-  sms: [{ key: "message", label: "Message", mode: "multiline" }],
-  inapp: [
-    { key: "title", label: "Title", mode: "line" },
-    { key: "body", label: "Body", mode: "multiline" },
-    { key: "linkUrl", label: "Link URL (relative)", mode: "line" },
-    { key: "linkLabel", label: "Link label", mode: "line" },
-  ],
-};
+/** One template field as declared in the server schema (templatesSchemaBlock). */
+export interface ChannelFieldSpec {
+  key: string;
+  label: string;
+  mode: StudioFieldMode;
+  /** True for x-token-optional fields (e.g. linkLabel): only shown when the
+   *  notifier declares a default for the field or the admin has already set one. */
+  optional: boolean;
+}
 
 const CHANNEL_TITLES: Record<string, string> = {
   email: "Email templates",
@@ -60,6 +56,10 @@ export interface NotifierTemplateStudioProps {
   pluginId: string;
   /** "email" | "sms" | "inapp" — the channel group being edited. */
   channel: string;
+  /** Fields for this channel, derived from the server JSON Schema (templatesSchemaBlock).
+   *  Drives which editors appear and in what order — single source of truth shared with
+   *  the config form's channel-templates RJSF field. */
+  schemaRows: ChannelFieldSpec[];
   catalog: NotifierTokenCatalog | undefined;
   /** The full live config data (for preview + reading current templates). */
   configData: Record<string, unknown>;
@@ -80,6 +80,7 @@ export function NotifierTemplateStudio({
   onOpenChange,
   pluginId,
   channel,
+  schemaRows,
   catalog,
   configData,
   updateConfigData,
@@ -105,14 +106,16 @@ export function NotifierTemplateStudio({
   };
 
   const fields: StudioField[] = useMemo(() => {
-    const base = CHANNEL_FIELDS[channel] ?? [];
-    // Only offer fields the notifier's defaults declare (e.g. a notifier
-    // without an in-app linkLabel shouldn't grow one here), but always
-    // keep the core fields even if the default is empty.
-    return base
-      .filter((f) => f.key in defaults || ["subject", "bodyHtml", "message", "title", "body"].includes(f.key))
+    // Derive editable fields from the server schema (schemaRows), not a local constant.
+    // Optional fields (x-token-optional) only appear when the notifier's defaults
+    // declare them or the admin has already customized them — mirrors the same
+    // filter applied by NotifierChannelTemplatesField for its visible rows.
+    return schemaRows
+      .filter((f) => !f.optional || f.key in defaults || overrideOf(f.key).trim() !== "")
       .map((f) => ({
-        ...f,
+        key: f.key,
+        label: f.label,
+        mode: f.mode,
         hint:
           defaults[f.key] !== undefined
             ? overrideOf(f.key).trim() !== ""
@@ -121,7 +124,7 @@ export function NotifierTemplateStudio({
             : undefined,
       }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel, defaults, JSON.stringify(templates[channel] ?? {})]);
+  }, [schemaRows, defaults, JSON.stringify(templates[channel] ?? {})]);
 
   // Editors show the literal, editable effective text: the stored override
   // when one exists, otherwise the resolved default. `edited` tracks the

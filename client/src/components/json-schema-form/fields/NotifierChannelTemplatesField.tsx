@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   NotifierTemplateStudio,
   type NotifierTokenCatalog,
+  type ChannelFieldSpec,
 } from "@/components/template-studio/NotifierTemplateStudio";
 import { TokenText } from "@/components/template-studio/TokenText";
 
@@ -26,19 +27,12 @@ import { TokenText } from "@/components/template-studio/TokenText";
  * default changes.
  */
 
-interface FieldRow {
-  key: string;
-  label: string;
-  mode: "line" | "multiline" | "html";
-  optional: boolean;
-}
-
-function readRows(schema: Record<string, unknown>): FieldRow[] {
+function readRows(schema: Record<string, unknown>): ChannelFieldSpec[] {
   const props = (schema.properties as Record<string, Record<string, unknown>>) ?? {};
   return Object.entries(props).map(([key, sub]) => ({
     key,
     label: (sub.title as string) || key,
-    mode: (sub["x-token-template-mode"] as FieldRow["mode"]) ?? "line",
+    mode: (sub["x-token-template-mode"] as ChannelFieldSpec["mode"]) ?? "line",
     optional: sub["x-token-optional"] === true,
   }));
 }
@@ -209,6 +203,7 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
           onOpenChange={setStudioOpen}
           pluginId={pluginId}
           channel={channel}
+          schemaRows={rows}
           catalog={catalog}
           configData={configData}
           updateConfigData={updateConfigData!}
