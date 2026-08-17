@@ -161,7 +161,7 @@ export function NotifierTemplateStudio({
       fieldCatalog={catalog?.fields}
       // The notifier's own records first; the event envelope and the
       // ordinary roots (contact, system…) after them.
-      priorityScopes={catalog?.rootNames ?? []}
+      rootNames={catalog?.rootNames ?? []}
     />
   );
 }

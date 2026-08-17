@@ -126,6 +126,29 @@ export function registerTokenStudioRoutes(
   );
 
   /**
+   * Search the tree for a surface: `?roots=a,b&q=ssn`. Matches root,
+   * relation and field names at any depth and returns each hit with the
+   * complete token expression and its path, so the picker never has to
+   * pull the whole graph down to offer search.
+   */
+  app.get(
+    "/api/token-studio/tree/search",
+    requireAuth,
+    requireAccess("admin"),
+    async (req, res) => {
+      try {
+        const { searchTokenTree } = await import("../plugins/tokens");
+        const q = typeof req.query.q === "string" ? req.query.q : "";
+        res.json({ hits: searchTokenTree(parseRootNames(req.query.roots), q) });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to search tokens" });
+      }
+    },
+  );
+
+  /**
    * What this editor can preview against, right now: the surface's own
    * real-data contexts (already filtered to what this user may see) plus
    * the named sample personas, which are always available.

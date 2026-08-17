@@ -41,8 +41,12 @@ export interface TokenStudioProps {
   rootNames?: string[];
   /** Token catalog endpoint (defaults to the generic studio catalog). */
   catalogUrl?: string;
-  /** Scopes listed first in the token browser. */
-  priorityScopes?: string[];
+  /**
+   * Browsable-tree endpoints for this surface (defaults to the studio's
+   * own). Surfaces gated differently — bulk messaging — serve the same
+   * tree behind their own gate and pass it here.
+   */
+  treeBaseUrl?: string;
 }
 
 /**
@@ -70,7 +74,7 @@ export function TokenStudio({
   surfaceParams,
   rootNames,
   catalogUrl,
-  priorityScopes,
+  treeBaseUrl,
 }: TokenStudioProps) {
   const roots = rootNames?.length ? rootNames : undefined;
   const url =
@@ -98,7 +102,8 @@ export function TokenStudio({
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
-      priorityScopes={priorityScopes}
+      rootNames={roots}
+      treeBaseUrl={treeBaseUrl}
     />
   );
 }

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
 import { Loader2, Save, Mail, MessageSquare, MapPin, Bell, AlertTriangle, Maximize2 } from "lucide-react";
-import { TokenPicker } from "@/components/bulk/TokenPicker";
+import { TokenPicker, BULK_TOKEN_TREE_URL } from "@/components/bulk/TokenPicker";
 import { TokenStudio } from "@/components/template-studio/TokenStudio";
 import { SlashTokenField } from "@/components/bulk/SlashTokenField";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
@@ -135,6 +135,7 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
         surfaceId="bulk-message"
         surfaceParams={{ channel: "email", messageId }}
         catalogUrl="/api/bulk-tokens"
+        treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="Email message"
         channel="email"
         fields={[
@@ -195,6 +196,7 @@ function SmsForm({ record, onSave, isPending, messageId }: FormProps) {
         surfaceId="bulk-message"
         surfaceParams={{ channel: "sms", messageId }}
         catalogUrl="/api/bulk-tokens"
+        treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="SMS message"
         channel="sms"
         fields={[{ key: "body", label: "Message body", mode: "multiline" }]}
@@ -255,6 +257,7 @@ function PostalForm({ record, onSave, isPending, messageId }: FormProps) {
         surfaceId="bulk-message"
         surfaceParams={{ channel: "postal", messageId }}
         catalogUrl="/api/bulk-tokens"
+        treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="Postal letter"
         channel="postal"
         fields={[{ key: "description", label: "Description", mode: "multiline" }]}
@@ -351,6 +354,7 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
         surfaceId="bulk-message"
         surfaceParams={{ channel: "inapp", messageId }}
         catalogUrl="/api/bulk-tokens"
+        treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="In-app notification"
         channel="inapp"
         fields={[

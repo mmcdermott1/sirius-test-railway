@@ -22,6 +22,9 @@ import {
   buildTokenCatalog,
   validateTokenExpression,
   describeChain,
+  listTokenTreeRoots,
+  expandTokenType,
+  searchTokenTree,
 } from "../../plugins/tokens";
 import { detectAudienceScopes } from "./token-context";
 type RequireAccess = (policy: string) => (req: Request, res: Response, next: () => void) => void;
@@ -647,6 +650,24 @@ export function registerBulkMessageRoutes(
   // token plugin registry.
   app.get("/api/bulk-tokens", requireAuth, requireAccess('bulk.edit'), (_req, res) => {
     res.json({ tokens: buildTokenCatalog(), segments: buildSegmentSpecs(), fields: buildFieldCatalog() });
+  });
+
+  // Browsable token tree for bulk messaging — the same lazy tree the
+  // Template Studio walks, gated for bulk authors instead of admins.
+  // Bulk messages seed no named record roots (there is no event here),
+  // so the roots are always the ordinary contact-side ones; the caller
+  // cannot ask for a context root it does not seed.
+  app.get("/api/bulk-tokens/tree/roots", requireAuth, requireAccess('bulk.edit'), (_req, res) => {
+    res.json({ roots: listTokenTreeRoots([]) });
+  });
+
+  app.get("/api/bulk-tokens/tree/type/:type", requireAuth, requireAccess('bulk.edit'), (req, res) => {
+    res.json(expandTokenType(req.params.type));
+  });
+
+  app.get("/api/bulk-tokens/tree/search", requireAuth, requireAccess('bulk.edit'), (req, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    res.json({ hits: searchTokenTree([], q) });
   });
 
   // Returns the registry filtered to scopes that apply to this

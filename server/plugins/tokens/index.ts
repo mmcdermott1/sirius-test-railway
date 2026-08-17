@@ -41,8 +41,10 @@ export {
 export {
   listTokenTreeRoots,
   expandTokenType,
+  searchTokenTree,
   type TokenTreeRoot,
   type TokenTreeChild,
+  type TokenTreeSearchHit,
   type TokenTypeExpansion,
 } from "./tree";
 

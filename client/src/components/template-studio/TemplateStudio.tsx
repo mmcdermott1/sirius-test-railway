@@ -15,7 +15,7 @@ import {
   SimpleHtmlEditor,
   type SimpleHtmlEditorApi,
 } from "@/components/ui/simple-html-editor";
-import { TokenBrowserPanel } from "@/components/bulk/TokenPicker";
+import { TokenTreeBrowser } from "./TokenTreeBrowser";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Bell, Braces, Loader2 } from "lucide-react";
 import {
@@ -112,8 +112,13 @@ export interface TemplateStudioProps {
   /** Segment graph for live token validation (omit to skip validation). */
   segments?: TokenSegmentSpec[];
   fieldCatalog?: TokenFieldCatalog;
-  /** Scopes listed first in the token browser (e.g. ["event"]). */
-  priorityScopes?: string[];
+  /**
+   * Named record roots this surface seeds (`dispatch`, `event`, …) —
+   * the roots the token browser starts its tree at.
+   */
+  rootNames?: string[];
+  /** Tree endpoints for this surface (defaults to the studio's own). */
+  treeBaseUrl?: string;
 }
 
 /**
@@ -287,7 +292,8 @@ export function TemplateStudio({
   tokens,
   segments,
   fieldCatalog,
-  priorityScopes,
+  rootNames,
+  treeBaseUrl,
 }: TemplateStudioProps) {
   const activeEditorRef = useRef<ActiveEditorRef | null>(null);
   const htmlApiRefs = useRef<Record<string, React.MutableRefObject<SimpleHtmlEditorApi | null>>>({});
@@ -731,10 +737,10 @@ export function TemplateStudio({
                 )}
               </div>
               <div className={cn("min-h-0 min-w-0 border-t flex flex-col overflow-hidden")}>
-                <TokenBrowserPanel
-                  tokens={tokens}
+                <TokenTreeBrowser
                   onInsert={insertSnippet}
-                  priorityScopes={priorityScopes}
+                  rootNames={rootNames}
+                  treeBaseUrl={treeBaseUrl}
                 />
               </div>
             </div>
