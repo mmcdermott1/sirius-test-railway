@@ -38,3 +38,18 @@ await import(".../plugins/<kind>/index"); // registers plugins
 ```
 Each module graph fully settles before the next starts, which avoids the
 `createCommStorage` / wizard-registry init crashes that static imports hit.
+
+**Reaching `_core/registry` at all (any plugin kind) hits the same wall:** it
+cycles through the component-gating chain, so a script whose first import is
+a plugin registry (or `_core/registry` itself) dies the same way. Awaiting
+`import("../../server/modules/components")` first orders the cycle the way the
+app does; the plugin registries then load cleanly. That import registers other
+plugin kinds noisily, so silence winston first
+(`for (const t of logger.transports) t.silent = true`).
+
+Component gating in an author-time check: `listEnabledSync` throws without a
+warm component cache, and warming it needs a database. When the check should
+be DB-free and gating-independent, override `listEnabledSync` on the registry
+*instance* (`Object.assign(reg, { listEnabledSync: () => reg.list() })`) —
+patching `PluginRegistry.prototype` re-triggers the cycle above because it
+requires importing `_core/registry` directly.

@@ -4,6 +4,7 @@ import {
   TemplateStudio,
   type StudioChannel,
   type StudioField,
+  type StudioPreviewField,
   type StudioPreviewResult,
 } from "./TemplateStudio";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,7 +24,15 @@ interface ParticipantRow {
 
 interface BulkPreviewResponse {
   sample: boolean;
-  rendered: Record<string, { output: string; unknownTokens: string[]; missingValues: string[] }>;
+  rendered: Record<
+    string,
+    {
+      output: string;
+      unknownTokens: string[];
+      missingValues: string[];
+      emptyValues: string[];
+    }
+  >;
 }
 
 export interface BulkTemplateStudioProps {
@@ -95,12 +104,13 @@ export function BulkTemplateStudio({
       `/api/bulk-messages/${messageId}/preview`,
       payload,
     )) as BulkPreviewResponse;
-    const out: Record<string, { rendered: string; unknownTokens: string[]; missingValues: string[] }> = {};
+    const out: Record<string, StudioPreviewField> = {};
     for (const [key, r] of Object.entries(result.rendered)) {
       out[key] = {
         rendered: r.output,
         unknownTokens: r.unknownTokens,
         missingValues: r.missingValues,
+        emptyValues: r.emptyValues,
       };
     }
     return { sample: result.sample, fields: out };

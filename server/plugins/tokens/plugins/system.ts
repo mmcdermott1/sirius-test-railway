@@ -7,6 +7,14 @@ function nowOf(entity: unknown, fallback: Date): Date {
   return e?.row.now instanceof Date ? e.row.now : fallback;
 }
 
+/**
+ * The one date every system-date sample renders. Sample data is static
+ * metadata by design (never randomized — two previews of the same
+ * template must agree), pinned to the current year so it stays
+ * consistent with what {{system.year}} samples as.
+ */
+const SAMPLE_DATE = new Date(new Date().getFullYear(), 3, 17, 9, 30);
+
 /** Root: {{system...}} — server-side values independent of the recipient. */
 registerTokenPlugin({
   metadata: {
@@ -73,7 +81,7 @@ registerTokenPlugin({
     segmentName: "dateToday",
     inputTypes: ["system"],
     outputType: "value",
-    example: "Apr 17, 2026",
+    example: fmtDateShort(SAMPLE_DATE),
   },
   async resolve(entity, _args, ctx) {
     return fmtDateShort(nowOf(entity, ctx.now));
@@ -96,9 +104,15 @@ registerTokenPlugin({
         description: "PHP-style date format string",
       },
     },
-    example: "Friday, April 17, 2026",
+    example: formatPhpDate(SAMPLE_DATE, "l, F j, Y"),
   },
   async resolve(entity, args, ctx) {
     return formatPhpDate(nowOf(entity, ctx.now), args.format ?? "l, F j, Y");
+  },
+  // Argument-dependent sample: a fixed `example` would contradict the
+  // format the author actually asked for (a Y-m-d token previewing as
+  // "Friday, April 17, 2026" is worse than no preview at all).
+  sampleValue(args) {
+    return formatPhpDate(SAMPLE_DATE, args.format ?? "l, F j, Y");
   },
 });

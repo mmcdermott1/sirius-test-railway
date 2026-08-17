@@ -204,7 +204,7 @@ export function registerEventNotifierMetaRoutes(
         const renderField = async (
           template: string,
           escapeHtml: boolean,
-        ): Promise<{ rendered: string; unknownTokens: string[]; missingValues: string[] }> => {
+        ): Promise<FieldPreview> => {
           const ctx = createTokenEvalContext(storage, contactId, {
             sample: useSample,
             cache,
@@ -218,10 +218,17 @@ export function registerEventNotifierMetaRoutes(
             rendered: result.output,
             unknownTokens: result.unknownTokens,
             missingValues: result.missingValues,
+            emptyValues: result.emptyValues,
           };
         };
 
-        type FieldPreview = { rendered: string; unknownTokens: string[]; missingValues: string[] };
+        type FieldPreview = {
+          rendered: string;
+          unknownTokens: string[];
+          missingValues: string[];
+          /** Tokens that rendered nothing — a hole, not a blank value. */
+          emptyValues: string[];
+        };
         const channels: Record<string, Record<string, FieldPreview>> = {};
 
         if (templates.email) {

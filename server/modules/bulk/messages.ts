@@ -788,7 +788,7 @@ export function registerBulkMessageRoutes(
 
       const ctx = createTokenEvalContext(storage, contactId, { sample: !contactId });
 
-      const rendered: Record<string, { output: string; unknownTokens: string[]; missingValues: string[]; tokens: string[] }> = {};
+      const rendered: Record<string, { output: string; unknownTokens: string[]; missingValues: string[]; emptyValues: string[]; tokens: string[] }> = {};
       for (const [field, template] of Object.entries(fields)) {
         if (typeof template !== 'string') continue;
         const result = await renderTokens(template, ctx, { escapeHtml: escapeHtmlFields.includes(field), strictUnknown: true });
@@ -796,6 +796,7 @@ export function registerBulkMessageRoutes(
           output: result.output,
           unknownTokens: result.unknownTokens,
           missingValues: result.missingValues,
+          emptyValues: result.emptyValues,
           tokens: extractTokenExpressions(template),
         };
       }

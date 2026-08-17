@@ -25,7 +25,15 @@ interface TokenStudioCatalog {
 
 interface TokenStudioPreviewResponse {
   sample: boolean;
-  fields: Record<string, { rendered: string; unknownTokens: string[]; missingValues: string[] }>;
+  fields: Record<
+    string,
+    {
+      rendered: string;
+      unknownTokens: string[];
+      missingValues: string[];
+      emptyValues: string[];
+    }
+  >;
 }
 
 export interface TokenStudioProps {

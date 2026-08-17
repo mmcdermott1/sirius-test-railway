@@ -165,6 +165,7 @@ export function registerTokenStudioRoutes(
           rendered: string;
           unknownTokens: string[];
           missingValues: string[];
+          emptyValues: string[];
         };
         const rendered: Record<string, FieldPreview> = {};
         for (const [key, template] of Object.entries(fields)) {
@@ -185,6 +186,7 @@ export function registerTokenStudioRoutes(
             rendered: escapeHtml ? sanitizeHelpHtml(result.output) : result.output,
             unknownTokens: result.unknownTokens,
             missingValues: result.missingValues,
+            emptyValues: result.emptyValues,
           };
         }
 

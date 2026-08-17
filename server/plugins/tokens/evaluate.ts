@@ -295,6 +295,15 @@ export interface RenderResult {
   unknownTokens: string[];
   /** Expressions that resolved empty (default was used). */
   missingValues: string[];
+  /**
+   * Expressions that contributed NOTHING to the output — the rendered
+   * replacement was the empty string. That covers a value token whose
+   * sample data is missing and a missing value whose default is itself
+   * empty. Reported separately from `missingValues` so a preview can
+   * tell "this token produced an empty value" (a hole the reader will
+   * never see) apart from "this token rendered its sample/default".
+   */
+  emptyValues: string[];
 }
 
 export interface RenderOptions {
@@ -319,10 +328,11 @@ export async function renderTokens(
 ): Promise<RenderResult> {
   const unknownTokens: string[] = [];
   const missingValues: string[] = [];
+  const emptyValues: string[] = [];
 
   const matches = Array.from(template.matchAll(TOKEN_PATTERN));
   if (matches.length === 0) {
-    return { output: template, unknownTokens, missingValues };
+    return { output: template, unknownTokens, missingValues, emptyValues };
   }
 
   let output = "";
@@ -350,6 +360,10 @@ export async function renderTokens(
         } else {
           value = result.value;
         }
+        // A token that renders to nothing is invisible in the output —
+        // report it so the studio can flag the hole instead of leaving
+        // the admin to spot a gap between two spaces.
+        if (value === "") emptyValues.push(expr);
         const leaf = leafPluginFor(parsed.segments, ctx.event?.kind);
         replacement =
           options.escapeHtml && !leaf?.metadata.emitsHtml
@@ -360,7 +374,7 @@ export async function renderTokens(
     output += replacement;
   }
   output += template.slice(cursor);
-  return { output, unknownTokens, missingValues };
+  return { output, unknownTokens, missingValues, emptyValues };
 }
 
 function leafPluginFor(

@@ -46,6 +46,12 @@ export interface StudioPreviewField {
   rendered: string;
   unknownTokens: string[];
   missingValues: string[];
+  /**
+   * Tokens that contributed nothing to the output. Distinct from
+   * `missingValues` (which rendered a sample/default): these leave an
+   * invisible hole the admin would otherwise ship unnoticed.
+   */
+  emptyValues: string[];
 }
 
 export type StudioChannel = "email" | "sms" | "inapp" | "postal" | "generic";
@@ -169,6 +175,19 @@ function FieldIssues({ field }: { field: StudioPreviewField | undefined }) {
           <span className="font-medium">Sample/default values used:</span>{" "}
           {field.missingValues.map((t) => `{{${t}}}`).join(", ")}
         </p>
+      )}
+      {field.emptyValues.length > 0 && (
+        <div
+          className="flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400"
+          data-testid="studio-preview-empty-tokens"
+        >
+          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+          <span>
+            <span className="font-medium">Rendered nothing:</span>{" "}
+            {field.emptyValues.map((t) => `{{${t}}}`).join(", ")} — these leave a
+            gap in the message, not a blank value.
+          </span>
+        </div>
       )}
       {field.unknownTokens.length > 0 && (
         <div className="flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400">

@@ -48,7 +48,18 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
   args?: Record<string, TokenArgSpec>;
   /** Fallback rendered when the chain resolves to null/empty. */
   defaultValue?: string;
-  /** Example value used for sample previews (leaf segments). */
+  /**
+   * Example value used for sample previews (leaf segments).
+   *
+   * REQUIRED of every value-producing token (`outputType: "value"`)
+   * unless the plugin declares `sampleValue` or a non-empty
+   * `defaultValue`: in sample mode a leaf renders
+   * `sampleValue(args) ?? example ?? defaultValue ?? ""`, so a token
+   * with none of them renders an empty string and the preview shows an
+   * invisible hole. Write a realistic, obviously-fake value ("Apr 17,
+   * 2026", "https://example.com") — static metadata, never randomized.
+   * Enforced by scripts/dev/check-token-sample-data.ts.
+   */
   example?: string;
   /** Short label fragment used to build catalog labels. */
   shortLabel?: string;
@@ -154,7 +165,9 @@ export interface TokenPlugin {
   ): Promise<unknown>;
   /**
    * Sample-mode value for leaf segments whose example depends on args
-   * (e.g. the generic field segment). Falls back to metadata.example.
+   * (e.g. the generic field segment, or a date with a custom format).
+   * Falls back to metadata.example. Must never return an empty string
+   * for the segment's default arguments — see `example`.
    */
   sampleValue?(args: Record<string, string>): string;
 }

@@ -45,6 +45,7 @@ interface FieldPreview {
   rendered: string;
   unknownTokens: string[];
   missingValues: string[];
+  emptyValues: string[];
 }
 
 interface NotifierPreviewResponse {
