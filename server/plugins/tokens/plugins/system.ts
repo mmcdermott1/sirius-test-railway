@@ -8,10 +8,12 @@ function nowOf(entity: unknown, fallback: Date): Date {
 }
 
 /**
- * The one date every system-date sample renders. Sample data is static
- * metadata by design (never randomized — two previews of the same
- * template must agree), pinned to the current year so it stays
- * consistent with what {{system.year}} samples as.
+ * The one date the picker's example column shows for a system date.
+ * Sample data is static metadata by design (never randomized — two
+ * renders of the same catalog must agree), pinned to the current year so
+ * it stays consistent with what {{system.year}} shows. A PREVIEW does not
+ * use these: the system root is `seedless`, so it renders the real
+ * current date there.
  */
 const SAMPLE_DATE = new Date(new Date().getFullYear(), 3, 17, 9, 30);
 
@@ -24,9 +26,10 @@ registerTokenPlugin({
     segmentName: "system",
     inputTypes: ["root"],
     outputType: "system",
-    // Nothing to pick for this root — it follows the render (see
-    // `seedless`), so a preview with any real record shows real system
-    // values and an all-sample preview shows sample ones.
+    // Nothing to pick for this root, and nothing personal behind it (see
+    // `seedless`): every preview — all-sample ones included — renders the
+    // deployment's real origin and the real current date, so the author
+    // can click the link and check the date format they wrote.
     seedless: true,
   },
   async resolve(_entity, _args, ctx) {

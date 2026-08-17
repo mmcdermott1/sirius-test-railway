@@ -2,10 +2,12 @@ import { createNoopValidator } from '../utils/validation';
 import { getClient } from '../transaction-context';
 import { 
   workerDispatchStatus,
+  workers,
+  contacts,
   type WorkerDispatchStatus, 
   type InsertWorkerDispatchStatus
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { type StorageLoggingConfig } from "../middleware/logging";
 import { eventBus, EventType } from "../../services/event-bus";
 
@@ -54,8 +56,23 @@ export interface WorkerDispatchStatusWithRelations extends WorkerDispatchStatus 
   } | null;
 }
 
+/** A dispatch-status row with the worker's display name resolved. */
+export interface WorkerDispatchStatusWithWorkerName extends WorkerDispatchStatus {
+  workerName: string | null;
+}
+
 export interface WorkerDispatchStatusStorage {
   getAll(): Promise<WorkerDispatchStatus[]>;
+  /**
+   * A handful of dispatch-status rows with the worker's display name, for
+   * offering real records as template-preview subjects.
+   *
+   * There is one row per worker, updated in place, and the table carries no
+   * changed-at column — so genuine recency is not derivable here. Rows come
+   * back in worker display-name order, which at least makes the picker
+   * stable between opens.
+   */
+  listForPreview(limit: number): Promise<WorkerDispatchStatusWithWorkerName[]>;
   get(id: string): Promise<WorkerDispatchStatus | undefined>;
   getByWorker(workerId: string): Promise<WorkerDispatchStatus | undefined>;
   create(status: InsertWorkerDispatchStatus): Promise<WorkerDispatchStatus>;
@@ -134,6 +151,23 @@ export function createWorkerDispatchStatusStorage(): WorkerDispatchStatusStorage
     async getAll(): Promise<WorkerDispatchStatus[]> {
       const client = getClient();
       return client.select().from(workerDispatchStatus);
+    },
+
+    async listForPreview(limit: number): Promise<WorkerDispatchStatusWithWorkerName[]> {
+      const client = getClient();
+      return client
+        .select({
+          id: workerDispatchStatus.id,
+          workerId: workerDispatchStatus.workerId,
+          status: workerDispatchStatus.status,
+          seniorityDate: workerDispatchStatus.seniorityDate,
+          workerName: contacts.displayName,
+        })
+        .from(workerDispatchStatus)
+        .leftJoin(workers, eq(workerDispatchStatus.workerId, workers.id))
+        .leftJoin(contacts, eq(workers.contactId, contacts.id))
+        .orderBy(asc(contacts.displayName))
+        .limit(limit);
     },
 
     async get(id: string): Promise<WorkerDispatchStatus | undefined> {

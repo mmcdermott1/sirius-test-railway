@@ -175,11 +175,13 @@ export function createTokenEvalContext(
 function rootIsSeeded(ctx: TokenEvalContext, plugin: TokenPlugin): boolean {
   if (ctx.roots[plugin.metadata.segmentName]) return true;
   if (plugin.metadata.recipientRooted && ctx.contactId) return true;
-  // A seedless root (system values) has no record to pick, so it
-  // follows the render: real once anything else in it is real.
-  if (plugin.metadata.seedless) {
-    return Boolean(ctx.contactId) || Object.keys(ctx.roots).length > 0;
-  }
+  // A seedless root (system values) has no record to pick and nothing
+  // personal behind it: this deployment's URL and today's date are the
+  // same in a preview as at delivery, so it ALWAYS resolves for real —
+  // even in an all-sample render. A fake origin makes the preview's link
+  // unclickable and a frozen fake date hides date-format mistakes, both
+  // of which the author is previewing to catch.
+  if (plugin.metadata.seedless) return true;
   return false;
 }
 

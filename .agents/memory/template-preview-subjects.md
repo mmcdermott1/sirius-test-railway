@@ -43,3 +43,19 @@ one pick tells one coherent story across kinds.
 **How to apply:** the author check (`scripts/dev/check-token-sample-data`)
 enforces this — every persona key must be a field of its kind or a value
 leaf reading it, and the whole catalog is re-rendered once per persona.
+
+A persona only earns its place if the DEFAULT templates render visibly
+differently under it: a default that touches only fields no persona names
+makes the picker look broken. Give each persona a distinct value for every
+field the defaults use, including the record `id` behind a link path.
+
+## Seedless (system) roots are never sampled
+
+A root with no record behind it (`system` — site origin, today's date)
+resolves for real in EVERY render, all-sample previews included. Its
+values are identical in a preview and at delivery, and faking them hides
+exactly what the author is previewing to catch: an unclickable link and a
+wrong date format. Consequence: `preview.sample === true` means "every
+RECORD is a sample", not "nothing here is real" — don't reintroduce a
+consumer that reads it as the latter, and keep the studio's sample note
+honest about it.

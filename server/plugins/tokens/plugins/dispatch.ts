@@ -48,29 +48,80 @@ const DISPATCH_JOB_SAMPLE_SETS = [
   },
 ];
 
-// Persona ids match the worker/contact sets, so one pick tells one coherent story.
+// Persona ids match the worker/contact sets, so one pick tells one coherent
+// story. Every field the notifier's DEFAULT templates render is named here —
+// including the derived `status_label` and the `worker_id` the default link
+// path uses — so switching persona visibly changes the preview instead of
+// re-rendering the same sentence.
 const DISPATCH_WORKER_STATUS_SAMPLE_SETS = [
   {
     id: "martian",
     label: "Martian",
-    values: { status: "available", seniority_date: "January 1, 2028" },
+    values: {
+      worker_id: "SAMPLE-W001",
+      status: "available",
+      status_label: "Available",
+      seniority_date: "January 1, 2028",
+    },
   },
   {
     id: "historical",
     label: "Historical",
-    values: { status: "available", seniority_date: "January 1, 1840" },
+    values: {
+      worker_id: "SAMPLE-W002",
+      status: "not_available",
+      status_label: "Not Available",
+      seniority_date: "January 1, 1840",
+    },
   },
   {
     id: "mythological",
     label: "Mythological",
-    values: { status: "not_available", seniority_date: "January 1, 1180" },
+    values: {
+      worker_id: "SAMPLE-W003",
+      status: "available",
+      status_label: "Available",
+      seniority_date: "January 1, 1180",
+    },
   },
 ];
 
+// Job titles and employers mirror the dispatch-job/employer personas, so a
+// foreperson preview and a job preview tell the same story.
 const DISPATCH_FORE_SAMPLE_SETS = [
-  { id: "martian", label: "Martian", values: { action: "added" } },
-  { id: "historical", label: "Historical", values: { action: "added" } },
-  { id: "mythological", label: "Mythological", values: { action: "removed" } },
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      job_id: "SAMPLE-J001",
+      action: "added",
+      action_label: "Added",
+      job_title: "Regolith Collection — Sector 7",
+      employer_name: "Olympus Mons Freight",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      job_id: "SAMPLE-J002",
+      action: "added",
+      action_label: "Added",
+      job_title: "Analytical Engine Shift — Menabrea Hall",
+      employer_name: "Difference Engine Works",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      job_id: "SAMPLE-J003",
+      action: "removed",
+      action_label: "Removed",
+      job_title: "Voyage Crew — Ithaka Fleet",
+      employer_name: "Ithaka Shipping Company",
+    },
+  },
 ];
 
 /**
@@ -184,9 +235,45 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: DISPATCH_WORKER_STATUS_ENTITY_KIND,
     entityTable: workerDispatchStatus,
+    // `status_label` is derived, not a column: the notifier merges it onto
+    // the row and the recent-record provider below computes the same way.
+    entityFields: ["status_label"],
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: DISPATCH_WORKER_STATUS_SAMPLE_SETS,
+    // A few real dispatch-status rows a surface may OFFER as preview
+    // subjects (no search, no load-by-id — a template author is not
+    // entitled to name an arbitrary record). Rows carry the same derived
+    // `status_label` the notifier merges on, so a preview against a real
+    // record renders exactly what delivery would.
+    recentRecords: {
+      async recent(limit) {
+        const [{ createWorkerDispatchStatusStorage }, { dispatchStatusLabel }] =
+          await Promise.all([
+            import("../../../storage/dispatch/worker-status"),
+            import(
+              "../../event-notifier/plugins/dispatch-status-notifier"
+            ),
+          ]);
+        const rows =
+          await createWorkerDispatchStatusStorage().listForPreview(limit);
+        return rows.map((row) => ({
+          id: row.id,
+          label: `${row.workerName || "Unnamed worker"} — ${dispatchStatusLabel(row.status)}`,
+          entity: {
+            kind: DISPATCH_WORKER_STATUS_ENTITY_KIND,
+            row: {
+              id: row.id,
+              workerId: row.workerId,
+              status: row.status,
+              seniorityDate: row.seniorityDate,
+              statusLabel: dispatchStatusLabel(row.status),
+            },
+            table: workerDispatchStatus,
+          },
+        }));
+      },
+    },
   },
   async resolve() {
     return null;
@@ -264,10 +351,45 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: DISPATCH_FORE_ENTITY_KIND,
     entityTable: dispatchJobFore,
-    entityFields: ["action"],
+    // Derived extras, not columns: the notifier merges these onto the row
+    // (and the recent-record provider below composes the same ones).
+    entityFields: ["action", "action_label", "job_title", "employer_name"],
     hiddenFromCatalog: true,
     requiredComponent: "dispatch.fore",
     sampleSets: DISPATCH_FORE_SAMPLE_SETS,
+    // A few real foreperson rows a surface may OFFER as preview subjects.
+    // A membership that exists was added, so the derived `action` reads
+    // "added"; the removal wording is covered by the personas.
+    recentRecords: {
+      async recent(limit) {
+        const { storage } = await import("../../../storage");
+        const rows = await storage.dispatchJobFore.listForPreview(limit);
+        return rows.map((row) => ({
+          id: row.id,
+          label: [
+            row.workerName || "Unnamed worker",
+            row.jobTitle || "Untitled job",
+            row.employerName || null,
+          ]
+            .filter(Boolean)
+            .join(" — "),
+          entity: {
+            kind: DISPATCH_FORE_ENTITY_KIND,
+            row: {
+              id: row.id,
+              jobId: row.jobId,
+              workerId: row.workerId,
+              data: row.data,
+              action: "added",
+              actionLabel: "Added",
+              jobTitle: row.jobTitle,
+              employerName: row.employerName,
+            },
+            table: dispatchJobFore,
+          },
+        }));
+      },
+    },
   },
   async resolve() {
     return null;

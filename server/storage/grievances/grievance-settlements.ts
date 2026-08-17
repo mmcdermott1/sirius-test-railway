@@ -42,6 +42,13 @@ function emitGrievanceSettlementSaved(
  */
 export interface GrievanceSettlementStorage {
   list(grievanceId: string): Promise<GrievanceSettlement[]>;
+  /**
+   * A handful of settlements across ALL grievances, for offering real
+   * records as template-preview subjects. The table carries no created-at
+   * column, so the order is stable rather than recent (by grievance, then
+   * id).
+   */
+  listForPreview(limit: number): Promise<GrievanceSettlement[]>;
   get(
     grievanceId: string,
     settlementId: string,
@@ -75,6 +82,15 @@ export function createGrievanceSettlementStorage(): GrievanceSettlementStorage {
         .from(grievanceSettlements)
         .where(eq(grievanceSettlements.grievanceId, grievanceId))
         .orderBy(asc(grievanceSettlements.id));
+    },
+
+    async listForPreview(limit: number): Promise<GrievanceSettlement[]> {
+      const client = getClient();
+      return client
+        .select()
+        .from(grievanceSettlements)
+        .orderBy(asc(grievanceSettlements.grievanceId), asc(grievanceSettlements.id))
+        .limit(limit);
     },
 
     async get(

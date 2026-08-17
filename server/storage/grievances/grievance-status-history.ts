@@ -97,6 +97,12 @@ export interface GrievanceStatusHistoryItem extends GrievanceStatusHistory {
  */
 export interface GrievanceStatusHistoryStorage {
   list(grievanceId: string): Promise<GrievanceStatusHistoryItem[]>;
+  /**
+   * The `limit` most recent status entries across ALL grievances, newest
+   * first by entry date. Read-only; used to offer real records as
+   * template-preview subjects.
+   */
+  listForPreview(limit: number): Promise<GrievanceStatusHistoryItem[]>;
   get(
     grievanceId: string,
     entryId: string,
@@ -196,6 +202,28 @@ export function createGrievanceStatusHistoryStorage(): GrievanceStatusHistorySto
         .where(eq(grievanceStatusHistory.grievanceId, grievanceId))
         .orderBy(desc(grievanceStatusHistory.date));
       return rows;
+    },
+
+    async listForPreview(limit: number): Promise<GrievanceStatusHistoryItem[]> {
+      const client = getClient();
+      return client
+        .select({
+          id: grievanceStatusHistory.id,
+          grievanceId: grievanceStatusHistory.grievanceId,
+          statusId: grievanceStatusHistory.statusId,
+          date: grievanceStatusHistory.date,
+          isCurrent: grievanceStatusHistory.isCurrent,
+          data: grievanceStatusHistory.data,
+          statusName: optionsGrievanceStatus.name,
+          statusOpen: optionsGrievanceStatus.open,
+        })
+        .from(grievanceStatusHistory)
+        .leftJoin(
+          optionsGrievanceStatus,
+          eq(grievanceStatusHistory.statusId, optionsGrievanceStatus.id),
+        )
+        .orderBy(desc(grievanceStatusHistory.date))
+        .limit(limit);
     },
 
     async get(

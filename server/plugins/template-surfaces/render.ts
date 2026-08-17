@@ -27,7 +27,12 @@ export interface TemplateSurfacePreviewRoot {
 
 export interface TemplateSurfacePreview {
   surfaceId: string;
-  /** True when NO root had a real record — the whole render is samples. */
+  /**
+   * True when NO root had a real record — every RECORD in the render is a
+   * sample. It does not mean nothing in the render is real: the system
+   * values (this deployment's origin, today's date) have no record behind
+   * them and always resolve for real, sample renders included.
+   */
   sample: boolean;
   /**
    * Per-root sample-vs-real, so the studio can say which parts of the

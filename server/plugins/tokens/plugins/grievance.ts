@@ -79,6 +79,9 @@ const GRIEVANCE_SAMPLE_SETS = [
     id: "martian",
     label: "Martian",
     values: {
+      // `id` is named so the default templates' record links differ per
+      // persona instead of all rendering the same placeholder.
+      id: "SAMPLE-GRIEVANCE-001",
       sirius_id: "SAMPLE-G001",
       name: "Mars Colony Safety Violation",
       display_title: "Mars Colony Safety Violation",
@@ -90,6 +93,7 @@ const GRIEVANCE_SAMPLE_SETS = [
     id: "historical",
     label: "Historical",
     values: {
+      id: "SAMPLE-GRIEVANCE-002",
       sirius_id: "SAMPLE-G002",
       name: "Analytical Engine Working Hours",
       display_title: "Analytical Engine Working Hours",
@@ -101,6 +105,7 @@ const GRIEVANCE_SAMPLE_SETS = [
     id: "mythological",
     label: "Mythological",
     values: {
+      id: "SAMPLE-GRIEVANCE-003",
       sirius_id: "SAMPLE-G003",
       name: "Navigation Duty Assignment",
       display_title: "Navigation Duty Assignment",
@@ -255,6 +260,45 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
+    // The most recent real status entries a surface may OFFER as preview
+    // subjects (no search, no load-by-id). Rows carry the same derived
+    // `status_name`/`grievance_title` the notifier merges on.
+    recentRecords: {
+      async recent(limit) {
+        const { storage } = await import("../../../storage");
+        const rows = await storage.grievanceStatusHistory.listForPreview(limit);
+        // One title query for the whole batch, not one per row.
+        const titles = await storage.grievances.getAssignmentTitleInfoMany(
+          rows.map((row) => row.grievanceId),
+        );
+        const out = [];
+        for (const row of rows) {
+          const grievanceTitle = composeGrievanceDisplayTitle(
+            row.grievanceId,
+            titles.get(row.grievanceId),
+          );
+          out.push({
+            id: row.id,
+            label: [
+              grievanceTitle,
+              row.statusName || null,
+              row.date ? new Date(row.date).toISOString().slice(0, 10) : null,
+            ]
+              .filter(Boolean)
+              .join(" — "),
+            entity: {
+              kind: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
+              row: {
+                ...(row as unknown as Record<string, unknown>),
+                grievanceTitle,
+              },
+              table: grievanceStatusHistory,
+            },
+          });
+        }
+        return out;
+      },
+    },
   },
   async resolve() {
     return null;
@@ -279,6 +323,53 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: "grievance.settlement",
     sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,
+    // A few real settlements a surface may OFFER as preview subjects. A
+    // settlement that exists was created, so the derived `operation` (and
+    // the `summary` sentence built from it) reads "created"; the amended
+    // and voided wordings are covered by the personas.
+    recentRecords: {
+      async recent(limit) {
+        const [{ storage }, { settlementSummary }] = await Promise.all([
+          import("../../../storage"),
+          import(
+            "../../event-notifier/plugins/grievance-settlement-notifier"
+          ),
+        ]);
+        const rows = await storage.grievanceSettlements.listForPreview(limit);
+        // One title query for the whole batch, not one per row.
+        const titles = await storage.grievances.getAssignmentTitleInfoMany(
+          rows.map((row) => row.grievanceId),
+        );
+        const out = [];
+        for (const row of rows) {
+          const grievanceTitle = composeGrievanceDisplayTitle(
+            row.grievanceId,
+            titles.get(row.grievanceId),
+          );
+          out.push({
+            id: row.id,
+            label: [grievanceTitle, row.description || null]
+              .filter(Boolean)
+              .join(" — "),
+            entity: {
+              kind: GRIEVANCE_SETTLEMENT_ENTITY_KIND,
+              row: {
+                ...(row as unknown as Record<string, unknown>),
+                operation: "created",
+                grievanceTitle,
+                summary: settlementSummary(
+                  "created",
+                  grievanceTitle,
+                  row.amount,
+                ),
+              },
+              table: grievanceSettlements,
+            },
+          });
+        }
+        return out;
+      },
+    },
   },
   async resolve() {
     return null;

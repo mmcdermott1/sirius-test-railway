@@ -184,9 +184,12 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
   /**
    * Root segments only: the root resolves from the render context alone
    * (`{{system…}}` — dates, site origin), so there is no record to pick
-   * for it. A seedless root follows the render: it resolves for real as
-   * soon as anything else in the render is real, and only falls back to
-   * samples when the whole render is samples.
+   * for it and nothing personal behind it. A seedless root therefore
+   * ALWAYS resolves for real, sample mode included: its values are the
+   * same in a preview as at delivery, and showing them fake would only
+   * hide the link and date mistakes a preview exists to catch. Its
+   * `example`/`sampleValue` declarations still drive the picker's
+   * example column.
    */
   seedless?: boolean;
   /**

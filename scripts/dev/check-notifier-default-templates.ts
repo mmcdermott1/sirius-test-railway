@@ -359,6 +359,92 @@ async function main() {
     );
   } else console.log("SKIP: no grievance row");
 
+  // --- persona previews: one pick, a visibly different message ---
+  // A studio preview of a notifier's DEFAULTS with no record picked
+  // renders the named personas. If a default template happens to use only
+  // fields no persona names, every persona renders the same sentence and
+  // the picker looks broken. Every converted notifier must render
+  // differently under each persona — and the system values in it (this
+  // site's address, today's date) must be REAL even in that all-sample
+  // render, so the author can click the link they wrote.
+  const { renderTokens, createTokenEvalContext } = await import(
+    "../../server/plugins/tokens"
+  );
+  const { listSampleSetDeclarations } = await import(
+    "../../server/plugins/tokens/sample-sets"
+  );
+  const { absoluteBaseUrl } = await import("../../server/lib/base-url");
+  const personaIds = Array.from(
+    new Set(
+      listSampleSetDeclarations().flatMap(({ sets }) =>
+        sets.map((set) => set.id),
+      ),
+    ),
+  );
+
+  /** Render one channel's default templates with no record picked. */
+  async function renderPersona(
+    plugin: any,
+    channel: "inapp" | "email",
+    personaId: string,
+  ): Promise<string> {
+    const templates = resolveTemplates(plugin, {})[channel] ?? {};
+    const cache = new Map<string, unknown>();
+    const parts: string[] = [];
+    for (const value of Object.values(templates)) {
+      if (typeof value !== "string") continue;
+      const ctx = createTokenEvalContext(storage, undefined, {
+        sample: true,
+        sampleSetId: personaId,
+        cache,
+      });
+      parts.push((await renderTokens(value, ctx)).output);
+    }
+    return parts.join("\n");
+  }
+
+  const converted: Array<[string, any]> = [
+    ["dispatch-status", dispatchStatusNotifier],
+    ["fore", dispatchForeNotifier],
+    ["edls", edlsSheetStatusNotifier],
+  ];
+  const { grievanceStatusNotifier: gsn } = await import(
+    "../../server/plugins/event-notifier/plugins/grievance-status-notifier"
+  );
+  const { grievanceSettlementNotifier: gsettle } = await import(
+    "../../server/plugins/event-notifier/plugins/grievance-settlement-notifier"
+  );
+  converted.push(["grievance-status", gsn], ["settlement", gsettle]);
+
+  for (const [label, plugin] of converted) {
+    const seen = new Map<string, string>();
+    for (const personaId of personaIds) {
+      const rendered = await renderPersona(plugin, "inapp", personaId);
+      const clash = Array.from(seen.entries()).find(
+        ([, text]) => text === rendered,
+      );
+      const ok = rendered.trim() !== "" && !clash;
+      console.log(
+        `${ok ? "PASS" : "FAIL"}: ${label} persona "${personaId}" renders its own message`,
+      );
+      if (!ok) {
+        failures++;
+        console.log(
+          clash
+            ? `  identical to persona "${clash[0]}": ${rendered}`
+            : "  rendered nothing",
+        );
+      }
+      seen.set(personaId, rendered);
+    }
+    // System values are not sampled: an all-sample preview still links to
+    // this deployment.
+    const email = await renderPersona(plugin, "email", personaIds[0]);
+    if (email.includes("http")) {
+      check(`${label} sample preview links to the real site`, email, absoluteBaseUrl());
+    }
+  }
+
   console.log(failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} FAILURES`);
   process.exit(failures === 0 ? 0 : 1);
 }

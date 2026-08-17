@@ -76,7 +76,11 @@ export interface StudioPreviewRootResult {
 /** The single preview route's response shape (every surface). */
 export interface StudioPreviewResult {
   surfaceId: string;
-  /** True when NO root had a real record — the whole render is samples. */
+  /**
+   * True when NO root had a real record — every RECORD in the render is a
+   * sample. System values (this site's address, today's date) have no
+   * record behind them and stay real even then.
+   */
   sample: boolean;
   /** Per-root sample-vs-real, so the preview can say which is which. */
   roots?: StudioPreviewRootResult[];
@@ -451,9 +455,12 @@ export function TemplateStudio({
   const previewRoots = preview?.roots ?? [];
   const realRootLabels = previewRoots.filter((r) => r.real).map((r) => r.label);
   const sampleRootLabels = previewRoots.filter((r) => !r.real).map((r) => r.label);
+  // System values (this site's address, today's date) are never sampled —
+  // they are the same here as at delivery — so the note must not claim the
+  // whole preview is made up.
   const sampleNote =
     realRootLabels.length === 0
-      ? "Rendered with sample data — actual values depend on the recipient and record."
+      ? "Rendered with sample records — actual values depend on the recipient and record. Dates and links use this site's real values."
       : sampleRootLabels.length > 0
         ? `Real ${realRootLabels.join(", ")}; sample values for ${sampleRootLabels.join(", ")}.`
         : null;

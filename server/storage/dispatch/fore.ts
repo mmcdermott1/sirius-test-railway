@@ -10,7 +10,7 @@ import {
   type DispatchJobFore,
   type InsertDispatchJobFore,
 } from "@shared/schema";
-import { eq, and, notExists, asc } from "drizzle-orm";
+import { eq, and, notExists, asc, desc } from "drizzle-orm";
 import { defineLoggingConfig } from "../middleware/logging";
 import { eventBus, EventType } from "../../services/event-bus";
 
@@ -50,8 +50,22 @@ export interface DispatchJobForeWithJob extends DispatchJobFore {
   } | null;
 }
 
+/** A foreperson row flattened with the names a picker needs to label it. */
+export interface DispatchJobForeWithNames extends DispatchJobFore {
+  jobTitle: string | null;
+  employerName: string | null;
+  workerName: string | null;
+}
+
 export interface DispatchJobForeStorage {
   getByJob(jobId: string): Promise<DispatchJobForeWithWorker[]>;
+  /**
+   * A handful of foreperson rows across all jobs, for offering real records
+   * as template-preview subjects. The table carries no created-at column, so
+   * "recent" means the most recently starting jobs (newest job start date
+   * first).
+   */
+  listForPreview(limit: number): Promise<DispatchJobForeWithNames[]>;
   /** Foreperson rows for a worker joined with job and employer info. Read-only. */
   getByWorker(workerId: string): Promise<DispatchJobForeWithJob[]>;
   get(id: string): Promise<DispatchJobFore | undefined>;
@@ -158,6 +172,27 @@ export function createDispatchJobForeStorage(): DispatchJobForeStorage {
           ? { ...row.worker, contact: row.contact || null }
           : null,
       }));
+    },
+
+    async listForPreview(limit: number): Promise<DispatchJobForeWithNames[]> {
+      const client = getClient();
+      return client
+        .select({
+          id: dispatchJobFore.id,
+          jobId: dispatchJobFore.jobId,
+          workerId: dispatchJobFore.workerId,
+          data: dispatchJobFore.data,
+          jobTitle: dispatchJobs.title,
+          employerName: employers.name,
+          workerName: contacts.displayName,
+        })
+        .from(dispatchJobFore)
+        .leftJoin(dispatchJobs, eq(dispatchJobFore.jobId, dispatchJobs.id))
+        .leftJoin(employers, eq(dispatchJobs.employerId, employers.id))
+        .leftJoin(workers, eq(dispatchJobFore.workerId, workers.id))
+        .leftJoin(contacts, eq(workers.contactId, contacts.id))
+        .orderBy(desc(dispatchJobs.startYmd))
+        .limit(limit);
     },
 
     async getByWorker(workerId: string): Promise<DispatchJobForeWithJob[]> {
