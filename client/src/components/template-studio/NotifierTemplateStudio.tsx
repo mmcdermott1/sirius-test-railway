@@ -126,6 +126,18 @@ export function NotifierTemplateStudio({
     updateConfigData(`templates.${channel}.${key}`, normalized);
   };
 
+  // Strip `configData.templates` from surfaceParams: the in-progress
+  // template text is already forwarded as `values` (debounced), so
+  // including the full configData would change the preview query key on
+  // every keystroke and defeat the 500 ms debounce. Only non-template
+  // config (notifier-level settings, channel choice, etc.) needs to live
+  // in surfaceParams to trigger a fresh preview when it genuinely changes.
+  const configDataWithoutTemplates = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { templates: _t, ...rest } = configData as Record<string, unknown>;
+    return rest;
+  }, [configData]);
+
   if (disabled) return null;
 
   return (
@@ -142,7 +154,7 @@ export function NotifierTemplateStudio({
       // config's templates and re-resolves defaults, exactly as delivery
       // composes them.
       surfaceId="event-notifier"
-      surfaceParams={{ pluginId, channel, configData }}
+      surfaceParams={{ pluginId, channel, configData: configDataWithoutTemplates }}
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
