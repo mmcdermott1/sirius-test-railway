@@ -12,6 +12,50 @@ import { memo, tokenEntityOf, type TokenEntity } from "../types";
  *   zip  — alias for postal_code
  *   full — one-line composed address (street, city, state, postal_code)
  */
+
+/**
+ * Named sample addresses, one per shared persona id. Values are obviously
+ * fictional: a preview must never be mistaken for a real member's address.
+ */
+const ADDRESS_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      street: "1 Red Crater Way",
+      city: "Olympus Mons",
+      state: "MA",
+      postal_code: "00000",
+      zip: "00000",
+      full: "1 Red Crater Way, Olympus Mons, MA 00000",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      street: "17 St James's Square",
+      city: "London",
+      state: "ENG",
+      postal_code: "SW1Y 4JU",
+      zip: "SW1Y 4JU",
+      full: "17 St James's Square, London, ENG SW1Y 4JU",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      street: "1 Harbor Rd",
+      city: "Ithaca",
+      state: "NY",
+      postal_code: "14850",
+      zip: "14850",
+      full: "1 Harbor Rd, Ithaca, NY 14850",
+    },
+  },
+];
+
 registerTokenPlugin({
   metadata: {
     id: "token.address",
@@ -29,6 +73,7 @@ registerTokenPlugin({
           'When "true", only the primary active address; otherwise any active address',
       },
     },
+    sampleSets: ADDRESS_SAMPLE_SETS,
   },
   async resolve(entity, args, ctx) {
     const e = tokenEntityOf(entity, "contact") ?? tokenEntityOf(entity, "worker");

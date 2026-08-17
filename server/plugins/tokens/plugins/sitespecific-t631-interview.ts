@@ -20,6 +20,17 @@ function previewStatusLabel(status: string): string {
 }
 
 /**
+ * Named sample interviews, one per shared persona id. Values are obviously
+ * fictional: a preview must never be mistaken for a real interview record.
+ * Status values mirror the enum: offered, accepted, declined, passed, failed.
+ */
+const T631_INTERVIEW_SAMPLE_SETS = [
+  { id: "martian", label: "Martian", values: { status: "offered" } },
+  { id: "historical", label: "Historical", values: { status: "accepted" } },
+  { id: "mythological", label: "Mythological", values: { status: "declined" } },
+];
+
+/**
  * Entity descriptor: never matches as a segment (`inputTypes: []`) —
  * it exists so the field catalog derives the interview kind's valid
  * `field(name=…)` names from the live Drizzle schema.
@@ -35,6 +46,7 @@ registerTokenPlugin({
     entityTable: sitespecificT631JobInterviews,
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
+    sampleSets: T631_INTERVIEW_SAMPLE_SETS,
     // A few real interviews a surface may OFFER as preview subjects
     // (there is no search and no load-by-id — a template author is not
     // entitled to name an arbitrary record). Declared once with the

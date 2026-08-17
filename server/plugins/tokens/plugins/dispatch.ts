@@ -6,6 +6,74 @@ import { registerTokenPlugin } from "../registry";
 import { memo, tokenEntityOf, type TokenEntity } from "../types";
 
 /**
+ * Named sample dispatch jobs, one per shared persona id. Values are obviously
+ * fictional: a preview must never be mistaken for a real dispatch record.
+ */
+const DISPATCH_JOB_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      title: "Regolith Collection — Sector 7",
+      description: "Loading and hauling regolith from the Sector 7 extraction zone",
+      status: "open",
+      start_ymd: "2031-03-14",
+      worker_count: "12",
+      pay_rate: "45.00",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      title: "Analytical Engine Shift — Menabrea Hall",
+      description: "Operating and maintaining the analytical engine during scheduled computation sessions",
+      status: "open",
+      start_ymd: "1843-12-10",
+      worker_count: "6",
+      pay_rate: "22.50",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      title: "Voyage Crew — Ithaka Fleet",
+      description: "Navigation and seamanship duties for the return fleet voyage",
+      status: "in_progress",
+      start_ymd: "1184-03-02",
+      worker_count: "20",
+      pay_rate: "18.00",
+    },
+  },
+];
+
+// Persona ids match the worker/contact sets, so one pick tells one coherent story.
+const DISPATCH_WORKER_STATUS_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: { status: "available", seniority_date: "January 1, 2028" },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: { status: "available", seniority_date: "January 1, 1840" },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: { status: "not_available", seniority_date: "January 1, 1180" },
+  },
+];
+
+const DISPATCH_FORE_SAMPLE_SETS = [
+  { id: "martian", label: "Martian", values: { action: "added" } },
+  { id: "historical", label: "Historical", values: { action: "added" } },
+  { id: "mythological", label: "Mythological", values: { action: "removed" } },
+];
+
+/**
  * Token plugins for the dispatch entity kinds, used by the
  * token-templated dispatch notifiers:
  *   - `dispatch_job` — a dispatch job row (descriptor; the T631
@@ -54,6 +122,7 @@ registerTokenPlugin({
         }));
       },
     },
+    sampleSets: DISPATCH_JOB_SAMPLE_SETS,
   },
   async resolve(entity, _args, ctx) {
     const e = tokenEntityOf(entity, DISPATCH_FORE_ENTITY_KIND);
@@ -99,6 +168,51 @@ registerTokenPlugin({
       table: dispatchJobs,
     };
     return out;
+  },
+});
+
+/**
+ * Dispatch worker status descriptor — a worker's dispatch availability row.
+ * `action` is a derived extra the notifier merges onto the row.
+ */
+registerTokenPlugin({
+  metadata: {
+    id: "token.dispatch_worker_status",
+    name: "Dispatch worker status",
+    description: "Descriptor for the dispatch worker availability entity kind",
+    segmentName: "__dispatch_worker_status",
+    inputTypes: [],
+    outputType: DISPATCH_WORKER_STATUS_ENTITY_KIND,
+    entityTable: workerDispatchStatus,
+    hiddenFromCatalog: true,
+    requiredComponent: COMPONENT,
+    sampleSets: DISPATCH_WORKER_STATUS_SAMPLE_SETS,
+  },
+  async resolve() {
+    return null;
+  },
+});
+
+/**
+ * Dispatch fore descriptor — a job-foreperson membership row. `action`
+ * (added/removed) is a derived extra the notifier merges onto the row.
+ */
+registerTokenPlugin({
+  metadata: {
+    id: "token.dispatch_fore",
+    name: "Dispatch foreperson",
+    description: "Descriptor for the dispatch foreperson membership entity kind",
+    segmentName: "__dispatch_fore",
+    inputTypes: [],
+    outputType: DISPATCH_FORE_ENTITY_KIND,
+    entityTable: dispatchJobFore,
+    entityFields: ["action"],
+    hiddenFromCatalog: true,
+    requiredComponent: "dispatch.fore",
+    sampleSets: DISPATCH_FORE_SAMPLE_SETS,
+  },
+  async resolve() {
+    return null;
   },
 });
 

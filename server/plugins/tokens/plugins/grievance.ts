@@ -71,6 +71,109 @@ export async function loadGrievanceEntity(
 }
 
 /**
+ * Named sample grievances, one per shared persona id. Values are obviously
+ * fictional: a preview must never be mistaken for a real member's grievance.
+ */
+const GRIEVANCE_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      sirius_id: "SAMPLE-G001",
+      name: "Mars Colony Safety Violation",
+      display_title: "Mars Colony Safety Violation",
+      class_description: "Violation of Article 12, Section 4 — Safe Working Conditions",
+      cardinality: "individual",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      sirius_id: "SAMPLE-G002",
+      name: "Analytical Engine Working Hours",
+      display_title: "Analytical Engine Working Hours",
+      class_description: "Violation of Article 8, Section 2 — Hours of Work",
+      cardinality: "individual",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      sirius_id: "SAMPLE-G003",
+      name: "Navigation Duty Assignment",
+      display_title: "Navigation Duty Assignment",
+      class_description: "Violation of Article 15, Section 1 — Fair Work Assignment",
+      cardinality: "group",
+    },
+  },
+];
+
+const GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      status_name: "Filed",
+      grievance_title: "Mars Colony Safety Violation",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      status_name: "Arbitration",
+      grievance_title: "Analytical Engine Working Hours",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      status_name: "Withdrawn",
+      grievance_title: "Navigation Duty Assignment",
+    },
+  },
+];
+
+const GRIEVANCE_SETTLEMENT_SAMPLE_SETS = [
+  {
+    id: "martian",
+    label: "Martian",
+    values: {
+      operation: "created",
+      description: "Retroactive pay and new safety protocols for Sector 7 haulers",
+      amount: "4500.00",
+      grievance_title: "Mars Colony Safety Violation",
+      summary: "Settlement reached: back pay plus safety equipment upgrade",
+    },
+  },
+  {
+    id: "historical",
+    label: "Historical",
+    values: {
+      operation: "updated",
+      description: "Revised access schedule and back pay for engine room operators",
+      amount: "1200.00",
+      grievance_title: "Analytical Engine Working Hours",
+      summary: "Settlement amended: shortened shifts and schedule compensation",
+    },
+  },
+  {
+    id: "mythological",
+    label: "Mythological",
+    values: {
+      operation: "deleted",
+      description: "Navigation provisions dispute withdrawn after voyage reassignment",
+      amount: "750.00",
+      grievance_title: "Navigation Duty Assignment",
+      summary: "Settlement voided: grievant accepted alternate posting",
+    },
+  },
+];
+
+/**
  * Grievance descriptor: never matches as a segment (`inputTypes: []`) —
  * exists so the field catalog derives valid `field(name=…)` names from
  * the live schema. `name` is the denorm display name the storage read
@@ -88,6 +191,7 @@ registerTokenPlugin({
     entityFields: ["name", "display_title"],
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
+    sampleSets: GRIEVANCE_SAMPLE_SETS,
     // A few real grievances a surface may OFFER as preview subjects
     // (there is no search and no load-by-id — a template author is not
     // entitled to name an arbitrary record). Gated on the grievance
@@ -150,6 +254,7 @@ registerTokenPlugin({
     entityTable: grievanceStatusHistory,
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
+    sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
   },
   async resolve() {
     return null;
@@ -173,6 +278,7 @@ registerTokenPlugin({
     entityFields: ["operation", "summary", "grievance_title"],
     hiddenFromCatalog: true,
     requiredComponent: "grievance.settlement",
+    sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,
   },
   async resolve() {
     return null;
