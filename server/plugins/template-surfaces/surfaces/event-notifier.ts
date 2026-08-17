@@ -6,7 +6,9 @@ import {
   type TemplateSurfaceResolution,
   type TemplateSurfaceResolvedContext,
 } from "../types";
-import type { TokenRecentRecordRef } from "../../tokens/types";
+import type { TokenRecentRecordRef, TokenRootSeed } from "../../tokens/types";
+import { EVENT_ROOT_NAME } from "../../tokens/plugins/event";
+import type { NotifierRecordRoot } from "../../event-notifier/types";
 import { NOTIFIER_CHANNEL_FIELDS as CHANNEL_FIELDS } from "../../event-notifier/field-media";
 
 /**
@@ -19,12 +21,23 @@ const RECENT_LIMIT = 5;
 /** Prefix marking a context id as "one record of the event kind". */
 const RECORD_PREFIX = "record:";
 
-/** The entity kind `{{event…}}` stands for on the notifier being edited. */
-async function eventKindOf(params: Record<string, unknown>): Promise<string | null> {
+/**
+ * The record roots the notifier being edited seeds, in declaration
+ * order. `event` (the envelope) is seeded by every notifier and is
+ * appended by {@link rootNamesOf}, not declared per notifier.
+ */
+async function notifierRootsOf(
+  params: Record<string, unknown>,
+): Promise<NotifierRecordRoot[]> {
   const pluginId = typeof params.pluginId === "string" ? params.pluginId : "";
-  if (!pluginId) return null;
+  if (!pluginId) return [];
   const { eventNotifierRegistry } = await import("../../event-notifier/registry");
-  return eventNotifierRegistry.get(pluginId)?.tokenTemplates?.eventEntityKind ?? null;
+  return eventNotifierRegistry.get(pluginId)?.tokenTemplates?.roots ?? [];
+}
+
+/** Every root name a notifier's templates may address. */
+function rootNamesOf(roots: NotifierRecordRoot[]): string[] {
+  return [...roots.map((root) => root.name), EVENT_ROOT_NAME];
 }
 
 /**
@@ -43,17 +56,23 @@ async function eventKindOf(params: Record<string, unknown>): Promise<string | nu
 async function recentEventRecords({
   params,
   req,
-}: TemplateSurfaceContextRequest): Promise<TokenRecentRecordRef[]> {
+}: TemplateSurfaceContextRequest): Promise<
+  Array<{ rootName: string; record: TokenRecentRecordRef }>
+> {
   const { checkAccessInline } = await import("../../../services/access-policy-evaluator");
   const access = await checkAccessInline(req, "admin");
   if (!access.granted) return [];
 
-  const eventKind = await eventKindOf(params);
-  if (!eventKind) return [];
+  // The notifier's PRIMARY record root: the record the notice is about.
+  // Additional roots (when a notifier grows one) preview as samples
+  // until they offer recent records of their own.
+  const root = (await notifierRootsOf(params))[0];
+  if (!root) return [];
   const { getEnabledTokenRecentRecords } = await import("../../tokens/preview-roots");
-  const provider = await getEnabledTokenRecentRecords(eventKind);
+  const provider = await getEnabledTokenRecentRecords(root.kind);
   if (!provider) return [];
-  return provider.recent(RECENT_LIMIT);
+  const records = await provider.recent(RECENT_LIMIT);
+  return records.map((record) => ({ rootName: root.name, record }));
 }
 
 /** Merge the editor's in-progress values into a config's templates block. */
@@ -131,7 +150,7 @@ registerTemplateSurface({
 
     return {
       templates,
-      eventEntityKind: plugin.tokenTemplates.eventEntityKind,
+      rootNames: rootNamesOf(plugin.tokenTemplates.roots),
     };
   },
 
@@ -147,7 +166,7 @@ registerTemplateSurface({
     ctx: TemplateSurfaceContextRequest,
   ): Promise<TemplateSurfacePreviewContext[]> {
     const records = await recentEventRecords(ctx);
-    return records.map((record) => ({
+    return records.map(({ record }) => ({
       id: `${RECORD_PREFIX}${record.id}`,
       label: record.label,
     }));
@@ -163,7 +182,12 @@ registerTemplateSurface({
     // so a record that is no longer offered — or an editor who may no
     // longer edit notifiers — can no longer render it.
     const records = await recentEventRecords(ctx);
-    const match = records.find((record) => record.id === recordId);
-    return match ? { roots: [match.entity] } : null;
+    const match = records.find(({ record }) => record.id === recordId);
+    if (!match) return null;
+    const seed: TokenRootSeed = {
+      name: match.rootName,
+      entity: match.record.entity,
+    };
+    return { seeds: [seed] };
   },
 });

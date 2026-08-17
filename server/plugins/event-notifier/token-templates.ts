@@ -6,7 +6,7 @@ import type {
   NotifierMessageContent,
   NotifierRecipient,
 } from "./types";
-import type { TokenEntity } from "../tokens/types";
+import type { TokenRootSeed } from "../tokens/types";
 import { NOTIFIER_CHANNEL_FIELDS } from "./field-media";
 import { applyFieldEligibility, shapeRenderedValue } from "../template-surfaces/shape";
 
@@ -71,13 +71,14 @@ export function resolveTemplates(
  * effective templates. Rendering is strict: invalid tokens surface as a
  * visible "[unknown token: …]" marker (author-time validation should
  * have caught them) and are logged. The render context carries the
- * recipient (recipient roots) and the event entity (`event.` root).
+ * recipient (recipient roots) and the notifier's seeded record roots
+ * plus the event envelope.
  */
 export async function composeFromTemplates(
   plugin: EventNotifierPlugin,
   medium: NotificationMedium,
   recipient: NotifierRecipient,
-  eventEntity: TokenEntity,
+  seeds: TokenRootSeed[],
   templates: NotifierChannelTemplates,
   cache: Map<string, unknown>,
 ): Promise<NotifierMessageContent | null> {
@@ -90,7 +91,7 @@ export async function composeFromTemplates(
     // carries memoized lookups across strings, recipients and media.
     const ctx = createTokenEvalContext(storage, recipient.contactId, {
       cache,
-      event: eventEntity,
+      seeds,
     });
     const result = await renderTokens(template, ctx, {
       strictUnknown: true,

@@ -35,6 +35,20 @@ function parseSubject(raw: unknown): { contextId?: string; sampleSetId?: string 
   };
 }
 
+/** `?roots=dispatch,event` — the context roots the caller's surface seeds. */
+function parseRootNames(raw: unknown): string[] {
+  const values = Array.isArray(raw) ? raw : [raw];
+  const out: string[] = [];
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    for (const name of value.split(",")) {
+      const trimmed = name.trim();
+      if (trimmed && !out.includes(trimmed)) out.push(trimmed);
+    }
+  }
+  return out;
+}
+
 export function registerTokenStudioRoutes(
   app: Express,
   requireAuth: RequireAuth,
@@ -42,8 +56,9 @@ export function registerTokenStudioRoutes(
   storage: IStorage,
 ) {
   /**
-   * Token catalog for the generic studio. Optional `?event=<entityKind>`
-   * roots the dynamic `event` segment at that kind.
+   * Token catalog for the generic studio. Optional `?roots=a,b` names
+   * the context roots the calling surface seeds (`dispatch`, `event`,
+   * …); without them only the ordinary roots are offered.
    */
   app.get(
     "/api/token-studio/catalog",
@@ -52,28 +67,60 @@ export function registerTokenStudioRoutes(
     async (req, res) => {
       try {
         const {
-          buildSegmentSpecs,
-          buildSegmentSpecsForEvent,
+          buildSegmentSpecsForRoots,
           buildFieldCatalog,
-          buildTokenCatalog,
-          buildTokenCatalogForEvent,
+          buildTokenCatalogForRoots,
         } = await import("../plugins/tokens");
-        const eventKind =
-          typeof req.query.event === "string" && req.query.event
-            ? req.query.event
-            : undefined;
+        const rootNames = parseRootNames(req.query.roots);
         res.json({
-          eventEntityKind: eventKind ?? null,
-          segments: eventKind
-            ? buildSegmentSpecsForEvent(eventKind)
-            : buildSegmentSpecs(),
+          rootNames,
+          segments: buildSegmentSpecsForRoots(rootNames),
           fields: buildFieldCatalog(),
-          tokens: eventKind ? buildTokenCatalogForEvent(eventKind) : buildTokenCatalog(),
+          tokens: buildTokenCatalogForRoots(rootNames),
         });
       } catch (error: any) {
         res
           .status(500)
           .json({ message: error.message || "Failed to load token catalog" });
+      }
+    },
+  );
+
+  /**
+   * The token tree's ROOTS for a surface — one node per root the author
+   * may start a chain at. The picker expands a node lazily through
+   * `/api/token-studio/tree/type/:type`, so a deep relation graph costs
+   * one small request per level instead of one giant catalog.
+   */
+  app.get(
+    "/api/token-studio/tree/roots",
+    requireAuth,
+    requireAccess("admin"),
+    async (req, res) => {
+      try {
+        const { listTokenTreeRoots } = await import("../plugins/tokens");
+        res.json({ roots: listTokenTreeRoots(parseRootNames(req.query.roots)) });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to load token tree" });
+      }
+    },
+  );
+
+  /** One level of the token tree: what an entity type offers next. */
+  app.get(
+    "/api/token-studio/tree/type/:type",
+    requireAuth,
+    requireAccess("admin"),
+    async (req, res) => {
+      try {
+        const { expandTokenType } = await import("../plugins/tokens");
+        res.json(expandTokenType(req.params.type));
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to expand token type" });
       }
     },
   );
@@ -178,7 +225,7 @@ export function registerTokenStudioRoutes(
         try {
           // A context id is only ever honoured by the surface that
           // offered it, which re-authorizes it against this user.
-          let seededRoots;
+          let seeds;
           let contactId: string | undefined;
           if (subject.contextId) {
             const resolved = surface.resolvePreviewContext
@@ -193,7 +240,7 @@ export function registerTokenStudioRoutes(
                 .status(400)
                 .json({ message: "That preview subject is no longer available" });
             }
-            seededRoots = resolved.roots;
+            seeds = resolved.seeds;
             contactId = resolved.contactId;
           }
 
@@ -202,7 +249,7 @@ export function registerTokenStudioRoutes(
             surface,
             params,
             values,
-            seededRoots,
+            seeds,
             contactId,
             sampleSetId: subject.sampleSetId,
           });

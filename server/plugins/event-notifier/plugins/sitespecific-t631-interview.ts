@@ -19,6 +19,9 @@ import {
 
 const PLUGIN_ID = "sitespecific_t631_interview";
 
+/** Root name the interview is seeded under in this notifier's templates. */
+const ROOT = "sitespecific_t631_interview";
+
 const STATUS_VALUES = ["offered", "accepted", "declined", "passed", "failed"] as const;
 
 function payloadOf(ctx: EventNotifierEventContext): SitespecificT631InterviewSavedPayload {
@@ -68,22 +71,22 @@ function linkPathTemplate(recipientKind: InterviewNotifierConfig["recipientKind"
 } {
   if (recipientKind === "worker") {
     return {
-      path: '/workers/{{event.worker.field(name="id")}}/dispatch/sitespecific_t631_interviews',
+      path: `/workers/{{${ROOT}.worker.field(name="id")}}/dispatch/sitespecific_t631_interviews`,
       label: "View Interview",
     };
   }
   return {
-    path: '/dispatch/job/{{event.dispatch_job.field(name="id")}}/sitespecific_t631_interviews',
+    path: `/dispatch/job/{{${ROOT}.dispatch_job.field(name="id")}}/sitespecific_t631_interviews`,
     label: "View Interviews",
   };
 }
 
 const SENTENCE =
-  'The interview for {{event.worker.contact.field(name="display_name")}} ' +
-  'on the job "{{event.dispatch_job.field(name="title")}}" ' +
-  'is now {{event.field(name="status")}}.';
+  `The interview for {{${ROOT}.worker.contact.field(name="display_name")}} ` +
+  `on the job "{{${ROOT}.dispatch_job.field(name="title")}}" ` +
+  `is now {{${ROOT}.field(name="status")}}.`;
 
-const TITLE = 'Interview {{event.field(name="status")}}';
+const TITLE = `Interview {{${ROOT}.field(name="status")}}`;
 
 /** Default per-channel templates; the link target varies with the recipient kind. */
 function defaultTemplates(configData?: unknown): NotifierChannelTemplates {
@@ -161,8 +164,8 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
       // editor re-fetches the defaults when that field changes.
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{event.field(name="status")}}',
-          '{{event.worker.contact.field(name="display_name")}}',
+          `{{${ROOT}.field(name="status")}}`,
+          `{{${ROOT}.worker.contact.field(name="display_name")}}`,
         ],
         defaultsDeps: ["recipientKind"],
       }),
@@ -183,21 +186,28 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
   },
 
   tokenTemplates: {
-    eventEntityKind: T631_INTERVIEW_ENTITY_KIND,
-    async buildEventEntity(ctx) {
-      const payload = payloadOf(ctx);
-      const { storage } = await import("../../../storage");
-      const { sitespecificT631JobInterviews } = await import(
-        "../../../../shared/schema/sitespecific/t631/interviews-schema"
-      );
-      const row = await storage.t631Interviews.get(payload.interviewId);
-      if (!row) return null;
-      return {
+    roots: [
+      {
+        name: ROOT,
         kind: T631_INTERVIEW_ENTITY_KIND,
-        row: row as unknown as Record<string, unknown>,
-        table: sitespecificT631JobInterviews,
-      };
-    },
+        label: "Interview",
+        description: "The job interview whose status this event changed",
+        async build(ctx) {
+          const payload = payloadOf(ctx);
+          const { storage } = await import("../../../storage");
+          const { sitespecificT631JobInterviews } = await import(
+            "../../../../shared/schema/sitespecific/t631/interviews-schema"
+          );
+          const row = await storage.t631Interviews.get(payload.interviewId);
+          if (!row) return null;
+          return {
+            kind: T631_INTERVIEW_ENTITY_KIND,
+            row: row as unknown as Record<string, unknown>,
+            table: sitespecificT631JobInterviews,
+          };
+        },
+      },
+    ],
     defaultTemplates,
     // Real-record preview is provided by the generic token preview-entity
     // registry (registered alongside the interview token plugins).

@@ -37,17 +37,33 @@ async function main() {
   if (!contact) throw new Error("dev DB has no contacts to render against");
   const recipient = { contactId: contact.id };
 
+  /** Seed every declared record root exactly as the dispatcher does. */
+  async function buildSeeds(plugin: any, payload: unknown) {
+    const seeds: Array<{ name: string; entity: unknown }> = [];
+    for (const root of plugin.tokenTemplates.roots) {
+      const entity = await root.build({ payload } as any);
+      if (!entity) {
+        if (root.optional) continue;
+        return null;
+      }
+      seeds.push({ name: root.name, entity });
+    }
+    seeds.push({
+      name: "event",
+      entity: { kind: "event", row: { type: "test.event", firedAt: new Date() } },
+    });
+    return seeds;
+  }
+
   async function render(plugin: any, medium: string, payload: unknown) {
-    const entity = await plugin.tokenTemplates.buildEventEntity({
-      payload,
-    } as any);
-    if (!entity) return null;
+    const seeds = await buildSeeds(plugin, payload);
+    if (!seeds) return null;
     const templates = resolveTemplates(plugin, {});
     return composeFromTemplates(
       plugin,
       medium as any,
       recipient,
-      entity,
+      seeds as any,
       templates,
       new Map(),
     );
@@ -285,7 +301,7 @@ async function main() {
     };
     const delEntity = await (
       grievanceSettlementNotifier as any
-    ).tokenTemplates.buildEventEntity({ payload: delPayload } as any);
+    ).tokenTemplates.roots[0].build({ payload: delPayload } as any);
     const gTitle = String(delEntity?.row?.grievanceTitle ?? "");
     await checkChannels(
       "settlement",

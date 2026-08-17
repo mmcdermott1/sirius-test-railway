@@ -1,5 +1,5 @@
 import type { IStorage } from "../../storage";
-import type { TokenEntity } from "../tokens/types";
+import type { TokenRootSeed } from "../tokens/types";
 import { TemplateSurfaceError, type TemplateSurface } from "./types";
 
 export interface TemplateFieldPreview {
@@ -12,6 +12,8 @@ export interface TemplateFieldPreview {
 
 /** One root of the render, and whether it resolved real or sample data. */
 export interface TemplateSurfacePreviewRoot {
+  /** Root NAME — the segment a chain starts with (`dispatch`, `worker`). */
+  name: string;
   kind: string;
   label: string;
   /** The record this root was previewed against, when one was picked. */
@@ -57,13 +59,13 @@ export interface RenderSurfaceRequest {
    */
   contactId?: string;
   /**
-   * Roots this render is seeded with, as entities the caller already
-   * holds: the records behind a surface's resolved preview context, or
-   * (for the delivery-parity check) the very entity delivery composes
-   * with. Anything not seeded here renders sample values, so one
-   * preview can mix real and sample roots.
+   * Roots this render is seeded with, each under its root NAME: the
+   * records behind a surface's resolved preview context, or (for the
+   * delivery-parity check) the very records delivery composes with.
+   * Anything not seeded here renders sample values, so one preview can
+   * mix real and sample roots.
    */
-  seededRoots?: TokenEntity[];
+  seeds?: TokenRootSeed[];
   /**
    * Which named sample persona the sample roots render as. Unknown ids
    * fall back per kind — see `TokenSampleSet`.
@@ -72,9 +74,8 @@ export interface RenderSurfaceRequest {
 }
 
 /** The id of the seeded record for one root, for the studio's report. */
-function rootRecordId(seeded: TokenEntity[], kind: string): string | null {
-  const entity = seeded.find((e) => e.kind === kind);
-  const id = entity?.row.id;
+function rootRecordId(seeds: TokenRootSeed[], name: string): string | null {
+  const id = seeds.find((seed) => seed.name === name)?.entity.row.id;
   return typeof id === "string" ? id : null;
 }
 
@@ -99,7 +100,7 @@ export async function renderTemplateSurface({
   params,
   values,
   contactId,
-  seededRoots,
+  seeds: seedsIn,
   sampleSetId,
 }: RenderSurfaceRequest): Promise<TemplateSurfacePreview> {
   const resolution = await surface.resolve({ storage, params, values });
@@ -117,26 +118,29 @@ export async function renderTemplateSurface({
   }
 
   // ── Seeds: whatever real records the caller resolved, all optional ────────
-  const eventEntityKind = resolution.eventEntityKind;
+  const rootNames = resolution.rootNames ?? [];
   const { listTokenPreviewRoots } = await import("../tokens/preview-roots");
-  const availableRoots = listTokenPreviewRoots(eventEntityKind);
+  const availableRoots = listTokenPreviewRoots(rootNames);
 
-  const seeded: TokenEntity[] = [...(seededRoots ?? [])];
+  const seeds: TokenRootSeed[] = [...(seedsIn ?? [])];
 
   // A seeded contact is also the render's recipient: the
   // recipient-rooted roots (worker, employer) derive from it unless
   // separately seeded, exactly as they do on delivery.
-  const seededContact = seeded.find((entity) => entity.kind === "contact");
+  const seededContact = seeds.find(
+    (seed) => seed.entity.kind === "contact",
+  )?.entity;
   const recipientContactId =
     contactId ??
     (typeof seededContact?.row.id === "string" ? seededContact.row.id : undefined);
 
   const previewRoots: TemplateSurfacePreviewRoot[] = availableRoots.map((root) => ({
+    name: root.name,
     kind: root.kind,
     label: root.label,
-    recordId: rootRecordId(seeded, root.kind),
+    recordId: rootRecordId(seeds, root.name),
     real:
-      seeded.some((entity) => entity.kind === root.kind) ||
+      seeds.some((seed) => seed.name === root.name) ||
       (root.recipientRooted && Boolean(recipientContactId)),
   }));
   const useSample = !previewRoots.some((r) => r.real);
@@ -170,8 +174,7 @@ export async function renderTemplateSurface({
       sample: true,
       sampleSetId,
       cache,
-      roots: seeded,
-      eventKind: eventEntityKind,
+      seeds,
     });
     const result = await renderTokens(template, ctx, {
       strictUnknown: true,

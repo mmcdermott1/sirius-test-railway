@@ -37,17 +37,17 @@ function configuredIds(configData: unknown, key: string): string[] {
 const PLUGIN_ID = "grievance-status-notifier";
 
 /**
- * Default per-channel templates. The event entity is a snapshot of the
+ * Default per-channel templates. `grievance_status` is a snapshot of the
  * grievance's new current status entry (built from the event payload, so
  * it can't race a later transition); `status_id` auto-renders the status
- * option's name, and `event.grievance` reaches the grievance row (whose
- * `name` is the denorm display name).
+ * option's name, and `grievance_status.grievance` reaches the grievance
+ * row (whose `name` is the denorm display name).
  */
-const TITLE = '{{event.field(name="grievance_title")}}';
+const TITLE = '{{grievance_status.field(name="grievance_title")}}';
 const SENTENCE =
-  'The grievance "{{event.field(name="grievance_title")}}" ' +
-  'has reached the status "{{event.field(name="status_name")}}".';
-const LINK_PATH = '/grievance/{{event.grievance.field(name="id")}}';
+  'The grievance "{{grievance_status.field(name="grievance_title")}}" ' +
+  'has reached the status "{{grievance_status.field(name="status_name")}}".';
+const LINK_PATH = '/grievance/{{grievance_status.grievance.field(name="id")}}';
 const LINK_LABEL = "View Grievance";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -120,47 +120,59 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
       },
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{event.grievance.field(name="name")}}',
-          '{{event.field(name="status_id")}}',
+          '{{grievance_status.grievance.field(name="name")}}',
+          '{{grievance_status.field(name="status_id")}}',
         ],
       }),
     },
   },
 
   tokenTemplates: {
-    eventEntityKind: "grievance_status_history",
-    async buildEventEntity(ctx) {
-      const { grievanceId, newStatusId, newStatusName } = payloadOf(ctx);
-      // The payload carries no history-entry id, and the grievance's
-      // is_current row may have moved on by delivery time — so render
-      // against a snapshot of the transition the event describes.
-      // `status_name` rides on the payload (the option could be renamed
-      // or deleted before delivery); fall back to neutral phrasing.
-      if (!newStatusId) return null;
-      const { grievanceStatusHistory } = await import(
-        "../../../../shared/schema/grievance/schema"
-      );
-      const { storage } = await import("../../../storage");
-      const { composeGrievanceDisplayTitle } = await import(
-        "../../tokens/plugins/grievance"
-      );
-      const titleInfo =
-        await storage.grievances.getAssignmentTitleInfo(grievanceId);
-      return {
+    roots: [
+      {
+        name: "grievance_status",
         kind: "grievance_status_history",
-        row: {
-          grievanceId,
-          statusId: newStatusId,
-          isCurrent: true,
-          statusName:
-            newStatusName && newStatusName.trim()
-              ? newStatusName
-              : "a new status",
-          grievanceTitle: composeGrievanceDisplayTitle(grievanceId, titleInfo),
+        label: "Grievance status entry",
+        description: "The status the grievance has just reached",
+        // Derived values merged onto the row below.
+        fields: ["status_name", "grievance_title"],
+        async build(ctx) {
+          const { grievanceId, newStatusId, newStatusName } = payloadOf(ctx);
+          // The payload carries no history-entry id, and the grievance's
+          // is_current row may have moved on by delivery time — so render
+          // against a snapshot of the transition the event describes.
+          // `status_name` rides on the payload (the option could be renamed
+          // or deleted before delivery); fall back to neutral phrasing.
+          if (!newStatusId) return null;
+          const { grievanceStatusHistory } = await import(
+            "../../../../shared/schema/grievance/schema"
+          );
+          const { storage } = await import("../../../storage");
+          const { composeGrievanceDisplayTitle } = await import(
+            "../../tokens/plugins/grievance"
+          );
+          const titleInfo =
+            await storage.grievances.getAssignmentTitleInfo(grievanceId);
+          return {
+            kind: "grievance_status_history",
+            row: {
+              grievanceId,
+              statusId: newStatusId,
+              isCurrent: true,
+              statusName:
+                newStatusName && newStatusName.trim()
+                  ? newStatusName
+                  : "a new status",
+              grievanceTitle: composeGrievanceDisplayTitle(
+                grievanceId,
+                titleInfo,
+              ),
+            },
+            table: grievanceStatusHistory,
+          };
         },
-        table: grievanceStatusHistory,
-      };
-    },
+      },
+    ],
     defaultTemplates,
   },
 

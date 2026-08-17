@@ -11,23 +11,31 @@ import {
 } from "@shared/tokens";
 import { getTableColumns } from "drizzle-orm";
 import type { IStorage } from "../../storage";
-import { tokenPluginRegistry, findSegmentPlugin } from "./registry";
+import {
+  tokenPluginRegistry,
+  findSegmentPlugin,
+  tokenRegistryVersion,
+} from "./registry";
 import { sampleSetValue } from "./sample-sets";
+import { getComponentCacheRevision } from "../../services/component-cache";
 import type {
   TokenEntity,
   TokenEvalContext,
   TokenEntityType,
   TokenPlugin,
+  TokenRootSeed,
 } from "./types";
 
-/** Build the serializable segment graph for static validation / pickers. */
+/**
+ * Build the serializable segment graph for static validation / pickers.
+ * Context roots (a notifier's seeded records, the `event` envelope) are
+ * excluded: nothing seeds them here, so bulk templates treat
+ * `{{dispatch.…}}` / `{{event.…}}` as unknown tokens.
+ */
 export function buildSegmentSpecs(): TokenSegmentSpec[] {
-  // Dynamic-output segments (the `event` root) are excluded: their
-  // produced type depends on the event context, which bulk messaging
-  // never has, so bulk templates treat `event` as unknown.
   return tokenPluginRegistry
     .listEnabledSync()
-    .filter((p) => !p.metadata.dynamicOutput)
+    .filter((p) => !p.metadata.contextRoot)
     .map(specOf);
 }
 
@@ -56,16 +64,18 @@ function getDefaultLeafForKind(kind: TokenEntityType): string | undefined {
 }
 
 /**
- * Segment graph for a surface that renders with a known event entity
- * kind (token-templated event notifiers): dynamic-output roots are
- * included with the concrete `eventKind` as their output type, so
- * `{{event.…}}` chains validate statically.
+ * Segment graph for a surface that seeds named record roots (a
+ * token-templated event notifier): the ordinary graph PLUS the context
+ * roots this surface actually seeds. A root the surface does not seed
+ * stays unknown, so an author can't write a token about a record this
+ * message never has.
  */
-export function buildSegmentSpecsForEvent(eventKind: TokenEntityType): TokenSegmentSpec[] {
-  return tokenPluginRegistry.listEnabledSync().map((p) => {
-    const spec = specOf(p);
-    return p.metadata.dynamicOutput ? { ...spec, outputType: eventKind } : spec;
-  });
+export function buildSegmentSpecsForRoots(rootNames: string[]): TokenSegmentSpec[] {
+  const named = new Set(rootNames);
+  return tokenPluginRegistry
+    .listEnabledSync()
+    .filter((p) => !p.metadata.contextRoot || named.has(p.metadata.segmentName))
+    .map(specOf);
 }
 
 /**
@@ -74,10 +84,24 @@ export function buildSegmentSpecsForEvent(eventKind: TokenEntityType): TokenSegm
  * extras). Never hardcoded — new columns are picked up automatically.
  */
 let fieldCatalogCache: TokenFieldCatalog | null = null;
+let fieldCatalogVersion = "";
 
-/** Cached field catalog — the registry and schema are static after boot. */
+/**
+ * Cached field catalog. The Drizzle schema is static, but what the
+ * catalog is built FROM is not: plugins can register after the first
+ * render (a notifier module declaring its named record roots), a shared
+ * root can gain merged fields, and enabling a component changes which
+ * plugins the catalog walks. The key covers all three, so validation
+ * (which builds fresh) and delivery (which reads this) can never
+ * disagree about whether a field name exists.
+ */
 function getFieldCatalog(): TokenFieldCatalog {
-  return (fieldCatalogCache ??= buildFieldCatalog());
+  const version = `${tokenRegistryVersion()}:${getComponentCacheRevision()}`;
+  if (!fieldCatalogCache || fieldCatalogVersion !== version) {
+    fieldCatalogCache = buildFieldCatalog();
+    fieldCatalogVersion = version;
+  }
+  return fieldCatalogCache;
 }
 
 export function buildFieldCatalog(): TokenFieldCatalog {
@@ -109,25 +133,17 @@ export interface TokenEvalContextOptions {
   sample?: boolean;
   cache?: Map<string, unknown>;
   /**
-   * Real records seeding the roots of this render, each keyed by its own
-   * `kind`. Anything not seeded here falls back to the recipient
-   * (recipient-rooted roots) or to sample values.
+   * Real records seeding the roots of this render, each under the ROOT
+   * NAME a chain starts with (`dispatch`, `contact`, `event`). Anything
+   * not seeded here falls back to the recipient (recipient-rooted
+   * roots) or to sample values.
    */
-  roots?: TokenEntity[];
-  /** Entity kind the dynamic `{{event…}}` root stands for. */
-  eventKind?: TokenEntityType;
+  seeds?: TokenRootSeed[];
   /**
    * Which named sample persona sample-mode chains render (see
    * `TokenSampleSet`). Preview only.
    */
   sampleSetId?: string;
-  /**
-   * Convenience for the notifier pipeline: seed the event root with this
-   * entity. Exactly equivalent to passing it in `roots` and setting
-   * `eventKind` to its kind — the event root IS the seeded root named
-   * for its kind.
-   */
-  event?: TokenEntity;
 }
 
 export function createTokenEvalContext(
@@ -135,9 +151,8 @@ export function createTokenEvalContext(
   contactId?: string,
   options?: TokenEvalContextOptions,
 ): TokenEvalContext {
-  const roots: Record<TokenEntityType, TokenEntity> = {};
-  for (const entity of options?.roots ?? []) roots[entity.kind] = entity;
-  if (options?.event) roots[options.event.kind] = options.event;
+  const roots: Record<string, TokenEntity> = {};
+  for (const seed of options?.seeds ?? []) roots[seed.name] = seed.entity;
   return {
     storage,
     contactId,
@@ -145,7 +160,6 @@ export function createTokenEvalContext(
     sample: options?.sample,
     sampleSetId: options?.sampleSetId,
     roots,
-    eventKind: options?.eventKind ?? options?.event?.kind,
     cache: options?.cache ?? new Map(),
     vars: {},
   };
@@ -159,10 +173,7 @@ export function createTokenEvalContext(
  * while a seeded one, in the same render, resolves for real.
  */
 function rootIsSeeded(ctx: TokenEvalContext, plugin: TokenPlugin): boolean {
-  const kind = plugin.metadata.dynamicOutput
-    ? ctx.eventKind
-    : plugin.metadata.outputType;
-  if (kind && ctx.roots[kind]) return true;
+  if (ctx.roots[plugin.metadata.segmentName]) return true;
   if (plugin.metadata.recipientRooted && ctx.contactId) return true;
   // A seedless root (system values) has no record to pick, so it
   // follows the render: real once anything else in it is real.
@@ -284,28 +295,11 @@ export async function evaluateChain(
     }
     if (!sample && entity === null && currentType !== "root") {
       // an intermediate segment resolved to nothing — chain is missing
-      return { status: "missing", defaultValue: leafDefault(segments, ctx.eventKind) };
+      return { status: "missing", defaultValue: leafDefault(segments) };
     }
     entity = sample ? {} : await plugin.resolve(entity, args, ctx);
     ctx.vars.entity = entity;
-    // Dynamic-output segments (the `event` root) advance the chain to
-    // the RESOLVED entity's kind — the produced type is declared by the
-    // notifier that built the event entity, not by the plugin.
-    if (plugin.metadata.dynamicOutput) {
-      // In sample mode the entity is always {} (no real DB resolve), so
-      // fall back to the context's event kind when available — this lets
-      // {{event.*}} chains advance to the right entity type and return
-      // sample values instead of "missing" in preview/coverage runs.
-      const e = sample
-        ? (ctx.eventKind ? { kind: ctx.eventKind } : null)
-        : (entity as { kind?: unknown } | null);
-      if (!e || typeof e !== "object" || typeof (e as Record<string, unknown>).kind !== "string") {
-        return { status: "missing", defaultValue: plugin.metadata.defaultValue ?? "" };
-      }
-      currentType = (e as Record<string, unknown>).kind as string;
-    } else {
-      currentType = plugin.metadata.outputType;
-    }
+    currentType = plugin.metadata.outputType;
   }
 
   if (currentType !== "value") {
@@ -343,7 +337,7 @@ export async function evaluateChain(
   return { status: "ok", value: String(entity) };
 }
 
-function leafDefault(segments: TokenSegment[], eventKind?: string): string {
+function leafDefault(segments: TokenSegment[]): string {
   // Find the leaf plugin's default by walking the types statically.
   let currentType: TokenEntityType = "root";
   let def = "";
@@ -351,12 +345,7 @@ function leafDefault(segments: TokenSegment[], eventKind?: string): string {
     const plugin = findSegmentPlugin(seg.name, currentType);
     if (!plugin) break;
     def = plugin.metadata.defaultValue ?? "";
-    if (plugin.metadata.dynamicOutput) {
-      if (!eventKind) break; // can't advance statically without a kind
-      currentType = eventKind;
-    } else {
-      currentType = plugin.metadata.outputType;
-    }
+    currentType = plugin.metadata.outputType;
   }
   // If the chain ends at an entity kind with a default leaf, the effective
   // default comes from the field plugin (which has no per-field default).
@@ -445,7 +434,7 @@ export async function renderTokens(
         // report it so the studio can flag the hole instead of leaving
         // the admin to spot a gap between two spaces.
         if (value === "") emptyValues.push(expr);
-        const leaf = leafPluginFor(parsed.segments, ctx.eventKind);
+        const leaf = leafPluginFor(parsed.segments);
         replacement =
           options.escapeHtml && !leaf?.metadata.emitsHtml
             ? escapeHtml(value)
@@ -458,24 +447,14 @@ export async function renderTokens(
   return { output, unknownTokens, missingValues, emptyValues };
 }
 
-function leafPluginFor(
-  segments: TokenSegment[],
-  eventKind?: string,
-): TokenPlugin | undefined {
+function leafPluginFor(segments: TokenSegment[]): TokenPlugin | undefined {
   let currentType: TokenEntityType = "root";
   let leaf: TokenPlugin | undefined;
   for (const seg of segments) {
     const plugin = findSegmentPlugin(seg.name, currentType);
     if (!plugin) return undefined;
     leaf = plugin;
-    if (plugin.metadata.dynamicOutput) {
-      // Without a concrete kind the leaf can't be resolved statically;
-      // callers treat `undefined` conservatively (values get escaped).
-      if (!eventKind) return undefined;
-      currentType = eventKind;
-    } else {
-      currentType = plugin.metadata.outputType;
-    }
+    currentType = plugin.metadata.outputType;
   }
   // When the chain ends at an entity kind with a default leaf, the
   // effective leaf for rendering purposes is the generic field plugin.
@@ -497,18 +476,19 @@ export function validateTokenExpression(
 }
 
 /**
- * Validate one expression for a surface whose `event` root resolves to
- * a known entity kind (token-templated event notifiers).
+ * Validate one expression for a surface that seeds named record roots
+ * (token-templated event notifiers): the ordinary graph plus exactly
+ * the roots this surface seeds.
  */
-export function validateTokenExpressionForEvent(
+export function validateTokenExpressionForRoots(
   expr: string,
-  eventKind: TokenEntityType,
+  rootNames: string[],
 ): { ok: true } | { ok: false; error: string } {
   const parsed = parseTokenChain(expr);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const v = validateChain(
     parsed.segments,
-    buildSegmentSpecsForEvent(eventKind),
+    buildSegmentSpecsForRoots(rootNames),
     buildFieldCatalog(),
   );
   if (!v.ok) return { ok: false, error: v.error };
@@ -530,7 +510,7 @@ export function describeChain(
   for (const seg of parsed.segments) {
     const p = findSegmentPlugin(seg.name, lastOutputType);
     if (!p) break;
-    lastOutputType = p.metadata.dynamicOutput ? lastOutputType : p.metadata.outputType;
+    lastOutputType = p.metadata.outputType;
   }
   let label: string;
   if (last?.name === "field" && last.args.name) {
@@ -548,40 +528,50 @@ export function describeChain(
 }
 
 /**
- * Build the picker catalog by walking root → (relation)* chains over
- * the enabled registry. Entity segments contribute ONE entry each — a
- * `field(name="")` template the author completes — so the catalog
+ * Build the FLAT picker catalog by walking root → (relation)* chains
+ * over the enabled registry. Entity segments contribute ONE entry each
+ * — a `field(name="")` template the author completes — so the catalog
  * never needs updating when the schema changes. Plain value leaves
- * (system.year etc.) contribute a direct entry. Depth is capped at 3
- * segments.
+ * (system.year etc.) contribute a direct entry.
+ *
+ * The walk is depth-capped because it is EAGER: it enumerates every
+ * reachable chain up front, and the relation graph has cycles
+ * (worker → contact → worker). Browsing deeper than the cap is the
+ * tree API's job (`./tree`), which expands one type at a time on
+ * demand and therefore has no depth limit at all.
  */
 export function buildTokenCatalog(): TokenCatalogEntry[] {
   return buildCatalogEntries();
 }
 
 /**
- * Catalog for an event-notifier template editor: the normal picker
- * catalog PLUS `event.*` entries rooted at the notifier's concrete
- * event entity kind. The `event` root and the per-kind relation
- * plugins are `hiddenFromCatalog` (they'd be noise in bulk messaging,
- * where no event entity exists), so the walk under the event root uses
- * the full registry rather than the visible subset.
+ * Flat catalog for a surface that seeds named record roots (an event
+ * notifier): the normal catalog PLUS entries under each root it seeds.
+ * Those roots' relation plugins are `hiddenFromCatalog` (they'd be
+ * noise in bulk messaging, where no such record exists), so the walk
+ * under a context root uses the full registry rather than the visible
+ * subset.
  */
-export function buildTokenCatalogForEvent(eventKind: TokenEntityType): TokenCatalogEntry[] {
-  return buildCatalogEntries(eventKind);
+export function buildTokenCatalogForRoots(rootNames: string[]): TokenCatalogEntry[] {
+  return buildCatalogEntries(rootNames);
 }
 
-function buildCatalogEntries(eventKind?: TokenEntityType): TokenCatalogEntry[] {
+function buildCatalogEntries(rootNames: string[] = []): TokenCatalogEntry[] {
   const all = tokenPluginRegistry.listEnabledSync();
   const enabled = all.filter((p) => !p.metadata.hiddenFromCatalog);
   const fieldCatalog = buildFieldCatalog();
-  const roots = enabled.filter((p) => p.metadata.inputTypes.includes("root"));
+  const roots = enabled.filter(
+    (p) => p.metadata.inputTypes.includes("root") && !p.metadata.contextRoot,
+  );
   const entries: TokenCatalogEntry[] = [];
 
   const emitEntityEntry = (prefix: string, scope: string, label: string, type: TokenEntityType) => {
     const fields = fieldCatalog[type];
-    const description = fields?.names.length
-      ? `Fields: ${fields.names.join(", ")}`
+    const names = fields?.names ?? [];
+    // A name or two as a hint — never the whole column list, which
+    // turns every row of the picker into a wall of text.
+    const description = names.length
+      ? `Any field of this record (${names.slice(0, 3).join(", ")}${names.length > 3 ? ", …" : ""})`
       : "Any field of this record";
     // Short-form entry: when a default leaf is declared for this entity kind,
     // emit a directly-insertable entry (e.g. `worker.contact` →
@@ -661,18 +651,17 @@ function buildCatalogEntries(eventKind?: TokenEntityType): TokenCatalogEntry[] {
     );
   }
 
-  // Event-rooted entries: substitute the concrete entity kind for the
-  // dynamic `event` root and walk with the FULL registry so the
-  // hidden per-kind relation plugins (e.g. interview → worker) are
-  // reachable. Entity-descriptor plugins (`inputTypes: []`) never
-  // match a segment, so including them here is harmless.
-  if (eventKind) {
-    const eventRoot = all.find(
-      (p) => p.metadata.dynamicOutput && p.metadata.inputTypes.includes("root"),
+  // Context roots this surface seeds (a notifier's records, the event
+  // envelope). Walked with the FULL registry so the hidden per-kind
+  // relation plugins (e.g. interview → worker) are reachable. Entity
+  // descriptor plugins (`inputTypes: []`) never match a segment, so
+  // including them here is harmless.
+  for (const name of rootNames) {
+    const root = all.find(
+      (p) => p.metadata.contextRoot && p.metadata.segmentName === name,
     );
-    if (eventRoot) {
-      walk(eventRoot.metadata.segmentName, eventRoot.metadata.segmentName, "Event", eventKind, 0, all);
-    }
+    if (!root) continue;
+    walk(name, name, root.metadata.name, root.metadata.outputType, 0, all);
   }
   return entries;
 }

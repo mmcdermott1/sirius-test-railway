@@ -36,6 +36,13 @@ import { pathToFileURL } from "url";
 import type { TokenSegment } from "../../shared/tokens";
 
 const PLUGINS_DIR = "server/plugins/tokens/plugins";
+/**
+ * Notifier plugins are loaded too: each declares the NAMED RECORD ROOTS
+ * its templates address (`dispatch`, `sitespecific_t631_interview`, …),
+ * and those roots — with the extra fields a notifier merges onto the
+ * row — only exist once the notifier has registered.
+ */
+const NOTIFIER_PLUGINS_DIR = "server/plugins/event-notifier/plugins";
 
 /** Storage stand-in: sample mode must never touch the database. */
 const noStorage = new Proxy(
@@ -73,6 +80,13 @@ async function loadPlugins(cwd: string): Promise<string[]> {
   for (const f of files) {
     await import(pathToFileURL(join(dir, f)).href);
   }
+
+  const notifierDir = join(cwd, NOTIFIER_PLUGINS_DIR);
+  for (const f of readdirSync(notifierDir)
+    .filter((n) => n.endsWith(".ts") && !n.endsWith(".d.ts"))
+    .sort()) {
+    await import(pathToFileURL(join(notifierDir, f)).href);
+  }
   return files;
 }
 
@@ -95,7 +109,7 @@ async function main() {
   const {
     buildFieldCatalog,
     buildTokenCatalog,
-    buildTokenCatalogForEvent,
+    buildTokenCatalogForRoots,
     createTokenEvalContext,
     evaluateChain,
   } = await import("../../server/plugins/tokens/evaluate");
@@ -195,20 +209,12 @@ async function main() {
   );
 
   /** The entity type a written chain ends at (mirrors the evaluator's walk). */
-  function chainOutputType(
-    segments: TokenSegment[],
-    eventKind?: string,
-  ): string | null {
+  function chainOutputType(segments: TokenSegment[]): string | null {
     let currentType = "root";
     for (const seg of segments) {
       const plugin = findSegmentPlugin(seg.name, currentType);
       if (!plugin) return null;
-      if (plugin.metadata.dynamicOutput) {
-        if (!eventKind) return null;
-        currentType = eventKind;
-      } else {
-        currentType = plugin.metadata.outputType;
-      }
+      currentType = plugin.metadata.outputType;
     }
     return currentType;
   }
@@ -223,17 +229,17 @@ async function main() {
    * makes a leaf throw) must fail here, not in front of an admin.
    */
   let sampleSetId: string | undefined;
-  async function renderSample(expr: string, eventKind: string | undefined, origin: string) {
+  async function renderSample(expr: string, origin: string) {
     const parsed = parseTokenChain(expr);
     if (!parsed.ok) {
       fail(`${origin}: {{${expr}}} does not parse — ${parsed.error}`);
       return;
     }
-    // Kind only, never a seeded record: a seeded root would resolve
-    // for real (per-root sample mode) and this check has no database.
+    // No seeds at all: a seeded root would resolve for real (per-root
+    // sample mode) and this check has no database. Context roots still
+    // walk — an unseeded root is exactly what sample mode renders.
     const ctx = createTokenEvalContext(noStorage, undefined, {
       sample: true,
-      eventKind,
       sampleSetId,
     });
     const result = await evaluateChain(parsed.segments, ctx);
@@ -256,11 +262,11 @@ async function main() {
   }
 
   /** Expand an entry, substituting real field names for `field(name="")`. */
-  async function checkEntry(insertText: string, eventKind: string | undefined, origin: string) {
+  async function checkEntry(insertText: string, origin: string) {
     const expr = insertText.replace(/^\{\{/, "").replace(/\}\}$/, "");
     const placeholder = 'field(name="")';
     if (!expr.endsWith(placeholder)) {
-      await renderSample(expr, eventKind, origin);
+      await renderSample(expr, origin);
       return;
     }
     const prefix = expr.slice(0, -placeholder.length - 1); // drop the trailing "."
@@ -269,28 +275,28 @@ async function main() {
       fail(`${origin}: {{${prefix}}} does not parse — ${parsedPrefix.error}`);
       return;
     }
-    const type = chainOutputType(parsedPrefix.segments, eventKind);
+    const type = chainOutputType(parsedPrefix.segments);
     const names = type ? (fieldCatalog[type]?.names ?? []) : [];
     if (names.length === 0) {
       // Open/unenumerable entity kinds: a name the author invents must
       // still render visibly.
-      await renderSample(`${prefix}.field(name="some_field")`, eventKind, origin);
+      await renderSample(`${prefix}.field(name="some_field")`, origin);
       return;
     }
     for (const name of names) {
-      await renderSample(`${prefix}.field(name="${name}")`, eventKind, origin);
+      await renderSample(`${prefix}.field(name="${name}")`, origin);
     }
   }
 
-  // Event-rooted catalogs: one per entity kind any plugin can produce, so
-  // notifier template editors are covered the same way.
-  const eventKinds = Array.from(
-    new Set(
-      plugins
-        .map((p) => p.metadata.outputType)
-        .filter((t) => t !== "value" && t !== "root" && t !== "event"),
-    ),
-  ).sort();
+  // Named-record-root catalogs: one per registered context root (each
+  // notifier's records, the event envelope), so notifier template
+  // editors are covered the same way as the ordinary roots.
+  const { listTokenContextRoots } = await import(
+    "../../server/plugins/tokens/context-roots"
+  );
+  const contextRootNames = listTokenContextRoots()
+    .map((root) => root.name)
+    .sort();
 
   // Once with no persona (each token's own example), then once per
   // declared persona — the studio offers all of them, so all of them
@@ -303,17 +309,18 @@ async function main() {
     sampleSetId = persona;
     const suffix = persona ? `[sample=${persona}]` : "";
     for (const entry of buildTokenCatalog()) {
-      await checkEntry(entry.insertText, undefined, `catalog${suffix}`);
+      await checkEntry(entry.insertText, `catalog${suffix}`);
     }
-    for (const kind of eventKinds) {
-      for (const entry of buildTokenCatalogForEvent(kind)) {
-        await checkEntry(entry.insertText, kind, `catalog${suffix}[event=${kind}]`);
+    for (const name of contextRootNames) {
+      for (const entry of buildTokenCatalogForRoots([name])) {
+        await checkEntry(entry.insertText, `catalog${suffix}[root=${name}]`);
       }
     }
   }
   sampleSetId = undefined;
   console.log(
-    `  pass 2: ${rendered} sample render(s) across the catalog, ${eventKinds.length} event kind(s) ` +
+    `  pass 2: ${rendered} sample render(s) across the catalog, ` +
+      `${contextRootNames.length} named record root(s) ` +
       `and ${personas.length} persona setting(s)\n`,
   );
 

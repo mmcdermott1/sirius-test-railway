@@ -28,7 +28,8 @@ const CHANNEL_TITLES: Record<string, string> = {
 };
 
 export interface NotifierTokenCatalog {
-  eventEntityKind: string;
+  /** Named record roots this notifier's templates may address. */
+  rootNames: string[];
   segments: TokenSegmentSpec[];
   fields?: TokenFieldCatalog;
   defaults?: Record<string, Record<string, string>>;
@@ -158,7 +159,9 @@ export function NotifierTemplateStudio({
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
-      priorityScopes={["event"]}
+      // The notifier's own records first; the event envelope and the
+      // ordinary roots (contact, system…) after them.
+      priorityScopes={catalog?.rootNames ?? []}
     />
   );
 }

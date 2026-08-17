@@ -167,7 +167,12 @@ async function main() {
       check("event-notifier — a token-templated notifier exists", false);
       return finish();
     }
-    const eventEntity = { kind: plugin.tokenTemplates.eventEntityKind, row: {} };
+    // Seed every root the notifier declares with an empty row: parity is
+    // about SHAPING, so the values don't matter — but an unseeded root
+    // would render sample values on one side and nothing on the other.
+    const seeds = (plugin.tokenTemplates.roots as Array<{ name: string; kind: string }>).map(
+      (root) => ({ name: root.name, entity: { kind: root.kind, row: {} } }),
+    );
 
     /**
      * Render one channel's templates through delivery and through the
@@ -185,7 +190,7 @@ async function main() {
         plugin,
         channel as any,
         { contactId: contact.id },
-        eventEntity as any,
+        seeds as any,
         resolveTemplates(plugin, configData),
         new Map<string, unknown>(),
       );
@@ -195,10 +200,10 @@ async function main() {
         params: { pluginId: plugin.id, channel, configData },
         values: channelTemplates,
         contactId: contact.id,
-        // Seed the event root with the entity delivery composes with:
-        // parity is about shaping, and an unseeded root would render
-        // sample values (which delivery never does) instead.
-        seededRoots: [eventEntity as any],
+        // Seed the same roots delivery composes with: parity is about
+        // shaping, and an unseeded root would render sample values
+        // (which delivery never does) instead.
+        seeds: seeds as any,
       });
       check(`${label}: "is anything delivered?" matches`, preview.deliverable === (delivered !== null), {
         previewDeliverable: preview.deliverable,

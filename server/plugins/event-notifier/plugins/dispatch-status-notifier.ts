@@ -32,17 +32,18 @@ export function dispatchStatusLabel(status: string): string {
 }
 
 /**
- * Default per-channel templates. The event entity is a snapshot of the
+ * Default per-channel templates. `dispatch` is a snapshot of the
  * worker's dispatch-status row built from the event payload (the live row
  * may have changed again by delivery time, and the row is gone entirely
  * for deletes).
  */
 const TITLE = "Dispatch Status Changed";
 const SENTENCE =
-  'Your dispatch status is now {{event.field(name="status_label")}}.';
+  'Your dispatch status is now {{dispatch.field(name="status_label")}}.';
 // worker_id straight off the event snapshot — a relation lookup could
 // come up empty and break the link even though the payload has the id.
-const LINK_PATH = '/workers/{{event.field(name="worker_id")}}/dispatch/status';
+const LINK_PATH =
+  '/workers/{{dispatch.field(name="worker_id")}}/dispatch/status';
 const LINK_LABEL = "View Dispatch";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -93,34 +94,44 @@ export const dispatchStatusNotifier: EventNotifierPlugin = {
     properties: {
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{event.field(name="status")}}',
-          '{{event.worker.contact.field(name="display_name")}}',
+          '{{dispatch.field(name="status")}}',
+          '{{dispatch.worker.contact.field(name="display_name")}}',
         ],
       }),
     },
   },
 
   tokenTemplates: {
-    eventEntityKind: "dispatch_worker_status",
-    async buildEventEntity(ctx) {
-      const { statusId, workerId, status } = payloadOf(ctx);
-      if (!workerId || !status) return null;
-      const { workerDispatchStatus } = await import(
-        "../../../../shared/schema/dispatch/schema"
-      );
-      // Snapshot from the payload: renders the transition the event
-      // describes even if the live row changed again (or was deleted).
-      return {
+    roots: [
+      {
+        name: "dispatch",
         kind: "dispatch_worker_status",
-        row: {
-          id: statusId,
-          workerId,
-          status,
-          statusLabel: dispatchStatusLabel(status),
+        label: "Dispatch status",
+        description: "The worker's dispatch availability row this event changed",
+        // Derived value merged onto the row below — declared so
+        // {{dispatch.field(name="status_label")}} is a real token.
+        fields: ["status_label"],
+        async build(ctx) {
+          const { statusId, workerId, status } = payloadOf(ctx);
+          if (!workerId || !status) return null;
+          const { workerDispatchStatus } = await import(
+            "../../../../shared/schema/dispatch/schema"
+          );
+          // Snapshot from the payload: renders the transition the event
+          // describes even if the live row changed again (or was deleted).
+          return {
+            kind: "dispatch_worker_status",
+            row: {
+              id: statusId,
+              workerId,
+              status,
+              statusLabel: dispatchStatusLabel(status),
+            },
+            table: workerDispatchStatus,
+          };
         },
-        table: workerDispatchStatus,
-      };
-    },
+      },
+    ],
     defaultTemplates,
   },
 

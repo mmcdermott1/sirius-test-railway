@@ -68,9 +68,11 @@ export interface EventNotifierEventContext {
 /**
  * Per-channel message templates for a token-templated notifier. Every
  * value is a token template string rendered per recipient (recipient
- * roots like `contact.`/`worker.` mean the recipient; `event.` means
- * the entity the event is about; `{{system.base_url}}` is the absolute
- * origin on email/SMS and empty in-app).
+ * roots like `contact.`/`worker.` mean the recipient; the notifier's
+ * own {@link NotifierRecordRoot}s name the records the event is about;
+ * `event.` is the event envelope — which event, when it fired;
+ * `{{system.base_url}}` is the absolute origin on email/SMS and empty
+ * in-app).
  */
 export interface NotifierChannelTemplates {
   email?: {
@@ -89,6 +91,48 @@ export interface NotifierChannelTemplates {
 }
 
 /**
+ * ONE RECORD this notifier's messages are about, seeded as a token root
+ * of its own and written as itself:
+ * `{{dispatch.field(name="status_label")}}`,
+ * `{{grievance_settlement.grievance.field(name="number")}}`.
+ *
+ * A notifier declares one root per record it has to talk about. There
+ * is no `{{event.<record>}}` spelling — `event` is the envelope (which
+ * event, when) and nothing more.
+ */
+export interface NotifierRecordRoot {
+  /**
+   * Root name as written in templates. Conventionally the token entity
+   * kind (`grievance_settlement`), shortened when the kind's name is an
+   * implementation detail (`dispatch` for `dispatch_worker_status`).
+   * The name is global across notifiers: two notifiers may share one,
+   * but only for the same entity kind.
+   */
+  name: string;
+  /** Token entity kind of the seeded record. */
+  kind: string;
+  /** Human label for the picker ("Dispatch status"). */
+  label: string;
+  description?: string;
+  /**
+   * Values `build` MERGES onto the row beyond the table's own columns
+   * (`status_label`, `action_label`). Declaring them is what makes
+   * `{{dispatch.field(name="status_label")}}` valid instead of an
+   * `[unknown token: …]` in a delivered message.
+   */
+  fields?: string[];
+  /**
+   * Build the record for a fired event. Returning null normally ABORTS
+   * composition for this config (an already-deleted row means there is
+   * nothing truthful to say); mark the root `optional` when a missing
+   * record should instead just leave its tokens at their defaults.
+   */
+  build(ctx: EventNotifierEventContext): Promise<TokenEntity | null>;
+  /** Null from `build` leaves this root unseeded instead of aborting. */
+  optional?: boolean;
+}
+
+/**
  * Opt-in declaration that a notifier's messages are composed by the
  * FRAMEWORK from token templates instead of the plugin's `getMessage`.
  * Custom per-channel templates live in the config's `data.templates`
@@ -96,14 +140,12 @@ export interface NotifierChannelTemplates {
  * custom field falls back to the default from `defaultTemplates`.
  */
 export interface NotifierTokenTemplates {
-  /** The entity kind `{{event...}}` resolves to (token entity kind). */
-  eventEntityKind: string;
   /**
-   * Load the event's entity (full row) for a fired event. Returning
-   * null aborts message composition for this config (already-deleted
-   * rows etc.) — nothing is sent.
+   * The records this notifier's messages are about, each a named root.
+   * The framework seeds them per fired event and registers them with
+   * the token registry so the editor offers exactly these roots.
    */
-  buildEventEntity(ctx: EventNotifierEventContext): Promise<TokenEntity | null>;
+  roots: NotifierRecordRoot[];
   /**
    * The default per-channel templates. Receives the config's `data` so
    * defaults can vary with config choices (e.g. link target per

@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import type { IStorage } from "../../storage";
-import type { TokenEntity } from "../tokens/types";
+import type { TokenRootSeed } from "../tokens/types";
 
 /**
  * How a rendered field must be shaped so the PREVIEW matches DELIVERY.
@@ -64,10 +64,11 @@ export interface TemplateSurfaceResolution {
    */
   templates: Record<string, string>;
   /**
-   * Token entity kind rooting `{{event.*}}` for this render (the event
-   * seed). Omitted by surfaces with no event root.
+   * The NAMED record roots this surface seeds (`dispatch`,
+   * `grievance_settlement`, `event`) — the roots that exist only where
+   * a surface declares them. Omitted by surfaces that seed none.
    */
-  eventEntityKind?: string;
+  rootNames?: string[];
 }
 
 /**
@@ -99,8 +100,8 @@ export interface TemplateSurfaceContextRequest {
 
 /** The real data one preview context stands for. */
 export interface TemplateSurfaceResolvedContext {
-  /** Root entities seeding the render, keyed in the render by their kind. */
-  roots: TokenEntity[];
+  /** The records seeding this render, each under its root NAME. */
+  seeds: TokenRootSeed[];
   /** Recipient contact for the render, when the context implies one. */
   contactId?: string;
 }

@@ -7,8 +7,30 @@ export const tokenPluginRegistry = new PluginRegistry<TokenPlugin, TokenPluginMe
   toManifestEntry: (plugin) => plugin.metadata,
 });
 
+let registrations = 0;
+
 export function registerTokenPlugin(plugin: TokenPlugin): void {
   tokenPluginRegistry.register(plugin);
+  registrations++;
+}
+
+/**
+ * Bumped by every registration. Derived caches (the field catalog) key
+ * themselves on it, so a plugin registered late — a named record root
+ * declared by a notifier module imported after the first render — is
+ * never missed by a cache built before it existed.
+ */
+export function tokenRegistryVersion(): number {
+  return registrations;
+}
+
+/**
+ * Same purpose, for a change that alters what a REGISTERED plugin's
+ * metadata says (a second surface declaring extra merged fields on a
+ * shared named record root) rather than adding a plugin.
+ */
+export function bumpTokenRegistryVersion(): void {
+  registrations++;
 }
 
 /**

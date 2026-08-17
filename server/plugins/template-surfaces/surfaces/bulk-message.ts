@@ -119,6 +119,11 @@ registerTemplateSurface({
     // The recipient seeds the contact root AND is the render's
     // recipient, so worker/employer resolve off them as they do on
     // delivery.
-    return { roots: [{ kind: "contact", row, table: contacts }], contactId };
+    return {
+      seeds: [
+        { name: "contact", entity: { kind: "contact", row, table: contacts } },
+      ],
+      contactId,
+    };
   },
 });

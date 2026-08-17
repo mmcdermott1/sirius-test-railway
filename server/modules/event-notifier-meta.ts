@@ -68,9 +68,21 @@ export function registerEventNotifierMetaRoutes(
         if (!isPluginComponentEnabledSync(plugin)) {
           return res.status(404).json({ message: "Notifier component is disabled" });
         }
-        const { buildSegmentSpecsForEvent, buildFieldCatalog, buildTokenCatalogForEvent } = await import(
-          "../plugins/tokens"
+        const {
+          buildSegmentSpecsForRoots,
+          buildFieldCatalog,
+          buildTokenCatalogForRoots,
+          listTokenTreeRoots,
+        } = await import("../plugins/tokens");
+        const { EVENT_ROOT_NAME } = await import(
+          "../plugins/tokens/plugins/event"
         );
+        // The notifier's own named record roots, plus the event envelope
+        // every notifier seeds.
+        const rootNames = [
+          ...plugin.tokenTemplates.roots.map((root) => root.name),
+          EVENT_ROOT_NAME,
+        ];
         // Defaults may depend on the config's other fields (e.g. the T631
         // link target varies with recipientKind); the editor passes the
         // relevant subset as ?config=<json> so placeholders match what
@@ -84,13 +96,16 @@ export function registerEventNotifierMetaRoutes(
           }
         }
         res.json({
-          eventEntityKind: plugin.tokenTemplates.eventEntityKind,
-          segments: buildSegmentSpecsForEvent(plugin.tokenTemplates.eventEntityKind),
+          rootNames,
+          segments: buildSegmentSpecsForRoots(rootNames),
           fields: buildFieldCatalog(),
           defaults: plugin.tokenTemplates.defaultTemplates(configData),
-          // Picker entries for the Template Studio token browser (includes
-          // event.* entries rooted at this notifier's entity kind).
-          tokens: buildTokenCatalogForEvent(plugin.tokenTemplates.eventEntityKind),
+          // Picker entries for the Template Studio token browser (the
+          // notifier's named record roots included).
+          tokens: buildTokenCatalogForRoots(rootNames),
+          // Lazy tree roots, so the picker can browse deep chains
+          // without the flat catalog enumerating them all.
+          treeRoots: listTokenTreeRoots(rootNames),
         });
       } catch (error: any) {
         res

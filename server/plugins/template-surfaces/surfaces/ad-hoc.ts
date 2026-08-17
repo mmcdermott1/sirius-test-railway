@@ -32,12 +32,11 @@ registerTemplateSurface({
     for (const [key, value] of Object.entries(values)) {
       if (typeof value === "string") templates[key] = value;
     }
-    // The event root is a seed, not a shaping: an ad-hoc field may be
-    // authored against whatever entity kind the host is editing.
-    const eventEntityKind =
-      typeof params.eventEntityKind === "string" && params.eventEntityKind
-        ? params.eventEntityKind
-        : undefined;
-    return { templates, eventEntityKind };
+    // Named roots are a seed, not a shaping: an ad-hoc field may be
+    // authored against whatever records the host is editing.
+    const rootNames = Array.isArray(params.rootNames)
+      ? params.rootNames.filter((n): n is string => typeof n === "string")
+      : undefined;
+    return { templates, rootNames };
   },
 });

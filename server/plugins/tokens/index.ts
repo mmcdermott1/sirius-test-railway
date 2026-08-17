@@ -24,14 +24,27 @@ export {
   evaluateChain,
   createTokenEvalContext,
   buildSegmentSpecs,
-  buildSegmentSpecsForEvent,
+  buildSegmentSpecsForRoots,
   buildFieldCatalog,
   buildTokenCatalog,
-  buildTokenCatalogForEvent,
+  buildTokenCatalogForRoots,
   validateTokenExpression,
-  validateTokenExpressionForEvent,
+  validateTokenExpressionForRoots,
   describeChain,
 } from "./evaluate";
+export {
+  registerTokenContextRoot,
+  listTokenContextRoots,
+  getTokenContextRoot,
+  type TokenContextRootDeclaration,
+} from "./context-roots";
+export {
+  listTokenTreeRoots,
+  expandTokenType,
+  type TokenTreeRoot,
+  type TokenTreeChild,
+  type TokenTypeExpansion,
+} from "./tree";
 
 let kindRegistered = false;
 function registerTokenKind(): void {

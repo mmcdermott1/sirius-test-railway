@@ -14,7 +14,7 @@ import type {
 } from "@shared/tokens";
 
 interface TokenStudioCatalog {
-  eventEntityKind?: string | null;
+  rootNames?: string[];
   segments: TokenSegmentSpec[];
   fields?: TokenFieldCatalog;
   tokens: TokenCatalogEntry[];
@@ -34,8 +34,11 @@ export interface TokenStudioProps {
   surfaceId: string;
   /** Surface-specific parameters (e.g. which medium is being edited). */
   surfaceParams?: Record<string, unknown>;
-  /** Optional event entity kind rooting `{{event.*}}` tokens. */
-  eventEntityKind?: string;
+  /**
+   * Named record roots this host seeds (`dispatch`, `event`, …). Roots
+   * not named here don't exist for these tokens.
+   */
+  rootNames?: string[];
   /** Token catalog endpoint (defaults to the generic studio catalog). */
   catalogUrl?: string;
   /** Scopes listed first in the token browser. */
@@ -65,14 +68,15 @@ export function TokenStudio({
   onValueChange,
   surfaceId,
   surfaceParams,
-  eventEntityKind,
+  rootNames,
   catalogUrl,
   priorityScopes,
 }: TokenStudioProps) {
+  const roots = rootNames?.length ? rootNames : undefined;
   const url =
     catalogUrl ??
-    (eventEntityKind
-      ? `/api/token-studio/catalog?event=${encodeURIComponent(eventEntityKind)}`
+    (roots
+      ? `/api/token-studio/catalog?roots=${encodeURIComponent(roots.join(","))}`
       : "/api/token-studio/catalog");
   const { data: catalog } = useQuery<TokenStudioCatalog>({
     queryKey: [url],
@@ -90,9 +94,7 @@ export function TokenStudio({
       values={values}
       onValueChange={onValueChange}
       surfaceId={surfaceId}
-      surfaceParams={
-        eventEntityKind ? { ...surfaceParams, eventEntityKind } : surfaceParams
-      }
+      surfaceParams={roots ? { ...surfaceParams, rootNames: roots } : surfaceParams}
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}

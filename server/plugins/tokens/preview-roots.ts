@@ -1,9 +1,5 @@
 import { tokenPluginRegistry } from "./registry";
-import type {
-  TokenEntityType,
-  TokenPlugin,
-  TokenRecentRecordProvider,
-} from "./types";
+import type { TokenEntityType, TokenRecentRecordProvider } from "./types";
 
 export type { TokenRecentRecordProvider, TokenRecentRecordRef } from "./types";
 
@@ -89,46 +85,41 @@ export async function getEnabledTokenRecentRecords(
 
 /** A root the render reports on (real record vs sample data). */
 export interface TokenPreviewRoot {
+  /** Root NAME — the segment a chain starts with (`dispatch`, `worker`). */
+  name: string;
+  /** Entity kind behind the root, for the per-kind record providers. */
   kind: TokenEntityType;
   label: string;
   /** The root also resolves from the render's recipient contact. */
   recipientRooted: boolean;
 }
 
-/** Human name for an entity kind, taken from the plugin that owns it. */
-function kindLabel(kind: TokenEntityType, plugins: TokenPlugin[]): string {
-  const owner =
-    plugins.find(
-      (p) =>
-        p.metadata.outputType === kind &&
-        (p.metadata.inputTypes.includes("root") || p.metadata.inputTypes.length === 0),
-    ) ?? plugins.find((p) => p.metadata.outputType === kind);
-  return owner?.metadata.name ?? kind;
-}
-
 /**
- * The roots a surface's tokens can be rooted at. One entry per entity
- * kind: when the surface's event kind is also a plain root (e.g. a
- * worker-rooted notifier) the two collapse into one.
+ * The roots a surface's tokens can be rooted at, one entry per ROOT
+ * NAME: the ordinary roots (contact, worker, employer) plus the named
+ * record roots this surface seeds. Two roots of the same kind stay two
+ * roots — the render reports real-vs-sample for each of them.
  */
 export function listTokenPreviewRoots(
-  eventKind?: TokenEntityType,
+  rootNames: string[] = [],
 ): TokenPreviewRoot[] {
+  const named = new Set(rootNames);
   const plugins = tokenPluginRegistry.listEnabledSync();
-  const kinds = new Map<TokenEntityType, boolean>(); // kind → recipientRooted
+  const roots: TokenPreviewRoot[] = [];
   for (const plugin of plugins) {
-    if (!plugin.metadata.inputTypes.includes("root")) continue;
+    const meta = plugin.metadata;
+    if (!meta.inputTypes.includes("root")) continue;
     // A seedless root (system values) has no record behind it.
-    if (plugin.metadata.seedless) continue;
-    const kind = plugin.metadata.dynamicOutput ? eventKind : plugin.metadata.outputType;
-    if (!kind) continue;
-    const recipientRooted =
-      Boolean(plugin.metadata.recipientRooted) || (kinds.get(kind) ?? false);
-    kinds.set(kind, recipientRooted);
+    if (meta.seedless) continue;
+    // A context root exists only where the surface seeds it.
+    if (meta.contextRoot && !named.has(meta.segmentName)) continue;
+    if (roots.some((r) => r.name === meta.segmentName)) continue;
+    roots.push({
+      name: meta.segmentName,
+      kind: meta.outputType,
+      label: meta.name,
+      recipientRooted: Boolean(meta.recipientRooted),
+    });
   }
-  return Array.from(kinds, ([kind, recipientRooted]) => ({
-    kind,
-    label: kindLabel(kind, plugins),
-    recipientRooted,
-  }));
+  return roots;
 }

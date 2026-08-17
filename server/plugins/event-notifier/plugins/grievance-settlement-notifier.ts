@@ -34,13 +34,13 @@ function configuredRoleIds(configData: unknown): string[] {
 const PLUGIN_ID = "grievance-settlement-notifier";
 
 /**
- * Default per-channel templates. The event entity is the settlement row
- * (reconstructed from the payload for deletes, whose row is gone by
+ * Default per-channel templates. `grievance_settlement` is the settlement
+ * row (reconstructed from the payload for deletes, whose row is gone by
  * delivery time) with the event's `operation` (created/updated/deleted)
  * merged on, so the default sentence stays grammatical for all three.
  */
-const TITLE = '{{event.field(name="grievance_title")}}';
-const SENTENCE = '{{event.field(name="summary")}}';
+const TITLE = '{{grievance_settlement.field(name="grievance_title")}}';
+const SENTENCE = '{{grievance_settlement.field(name="summary")}}';
 
 /** Settlement amount as US currency ("$100", "$100.50"); null when the
  * amount is missing or unparsable (the sentence then omits it). */
@@ -81,7 +81,7 @@ export function settlementSummary(
   }
 }
 const LINK_PATH =
-  '/grievance/{{event.grievance.field(name="id")}}/settlements';
+  '/grievance/{{grievance_settlement.grievance.field(name="id")}}/settlements';
 const LINK_LABEL = "View Settlements";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -141,54 +141,64 @@ export const grievanceSettlementNotifier: EventNotifierPlugin = {
       },
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{event.grievance.field(name="name")}}',
-          '{{event.field(name="amount")}}',
-          '{{event.field(name="operation")}}',
+          '{{grievance_settlement.grievance.field(name="name")}}',
+          '{{grievance_settlement.field(name="amount")}}',
+          '{{grievance_settlement.field(name="operation")}}',
         ],
       }),
     },
   },
 
   tokenTemplates: {
-    eventEntityKind: "grievance_settlement",
-    async buildEventEntity(ctx) {
-      const { grievanceId, settlementId, operation, amount } = payloadOf(ctx);
-      const { storage } = await import("../../../storage");
-      const { grievanceSettlements } = await import(
-        "../../../../shared/schema/grievance/settlement-schema"
-      );
-      const { composeGrievanceDisplayTitle } = await import(
-        "../../tokens/plugins/grievance"
-      );
-      // For deletes the row is gone by delivery time — reconstruct a
-      // minimal snapshot from the payload so delete notices still render.
-      const [row, titleInfo] = await Promise.all([
-        operation === "deleted"
-          ? undefined
-          : storage.grievanceSettlements.get(grievanceId, settlementId),
-        storage.grievances.getAssignmentTitleInfo(grievanceId),
-      ]);
-      const base = (row ?? { id: settlementId, grievanceId, amount }) as Record<
-        string,
-        unknown
-      >;
-      const grievanceTitle = composeGrievanceDisplayTitle(
-        grievanceId,
-        titleInfo,
-      );
-      return {
+    roots: [
+      {
+        name: "grievance_settlement",
         kind: "grievance_settlement",
-        row: {
-          ...base,
-          operation,
-          grievanceTitle,
-          // The payload's amount reflects the change being notified (the
-          // loaded row could already carry a later edit's amount).
-          summary: settlementSummary(operation, grievanceTitle, amount),
+        label: "Settlement",
+        description: "The settlement this event added, updated or removed",
+        // Derived values merged onto the row below.
+        fields: ["operation", "grievance_title", "summary"],
+        async build(ctx) {
+          const { grievanceId, settlementId, operation, amount } = payloadOf(ctx);
+          const { storage } = await import("../../../storage");
+          const { grievanceSettlements } = await import(
+            "../../../../shared/schema/grievance/settlement-schema"
+          );
+          const { composeGrievanceDisplayTitle } = await import(
+            "../../tokens/plugins/grievance"
+          );
+          // For deletes the row is gone by delivery time — reconstruct a
+          // minimal snapshot from the payload so delete notices still render.
+          const [row, titleInfo] = await Promise.all([
+            operation === "deleted"
+              ? undefined
+              : storage.grievanceSettlements.get(grievanceId, settlementId),
+            storage.grievances.getAssignmentTitleInfo(grievanceId),
+          ]);
+          const base = (row ?? {
+            id: settlementId,
+            grievanceId,
+            amount,
+          }) as Record<string, unknown>;
+          const grievanceTitle = composeGrievanceDisplayTitle(
+            grievanceId,
+            titleInfo,
+          );
+          return {
+            kind: "grievance_settlement",
+            row: {
+              ...base,
+              operation,
+              grievanceTitle,
+              // The payload's amount reflects the change being notified (the
+              // loaded row could already carry a later edit's amount).
+              summary: settlementSummary(operation, grievanceTitle, amount),
+            },
+            table: grievanceSettlements,
+          };
         },
-        table: grievanceSettlements,
-      };
-    },
+      },
+    ],
     defaultTemplates,
   },
 

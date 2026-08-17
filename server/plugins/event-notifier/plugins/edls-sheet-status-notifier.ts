@@ -61,12 +61,12 @@ export function edlsSheetDisplayTitle(sheetId: string, title: string): string {
 
 /** Default per-channel templates, rendered against a payload snapshot of
  * the transition (an intervening save must not change the message). */
-const TITLE = '{{event.field(name="display_title")}}';
+const TITLE = '{{edls_sheet.field(name="display_title")}}';
 const SENTENCE =
-  'The EDLS sheet "{{event.field(name="display_title")}}" ' +
-  '({{event.field(name="ymd_display")}}) has reached the status ' +
-  '"{{event.field(name="status_label")}}".';
-const LINK_PATH = '/edls/sheet/{{event.field(name="id")}}';
+  'The EDLS sheet "{{edls_sheet.field(name="display_title")}}" ' +
+  '({{edls_sheet.field(name="ymd_display")}}) has reached the status ' +
+  '"{{edls_sheet.field(name="status_label")}}".';
+const LINK_PATH = '/edls/sheet/{{edls_sheet.field(name="id")}}';
 const LINK_LABEL = "View Sheet";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -155,43 +155,52 @@ export const edlsSheetStatusNotifier: EventNotifierPlugin = {
       },
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{event.field(name="title")}}',
-          '{{event.field(name="status")}}',
+          '{{edls_sheet.field(name="title")}}',
+          '{{edls_sheet.field(name="status")}}',
         ],
       }),
     },
   },
 
   tokenTemplates: {
-    eventEntityKind: "edls_sheet",
-    async buildEventEntity(ctx) {
-      const { sheetId, newStatus, title, ymd } = payloadOf(ctx);
-      const { storage } = await import("../../../storage");
-      const { edlsSheets } = await import(
-        "../../../../shared/schema/edls/schema"
-      );
-      // Render the transition this event describes, not the live row: an
-      // intervening save (or delete) must not change — or swallow — the
-      // notification. The live row only backfills fields the payload
-      // doesn't carry (employer, department, …) for custom templates.
-      const row = await storage.edlsSheets.get(sheetId);
-      return {
+    roots: [
+      {
+        name: "edls_sheet",
         kind: "edls_sheet",
-        row: {
-          ...((row as unknown as Record<string, unknown>) ?? {}),
-          id: sheetId,
-          status: newStatus,
-          statusLabel: edlsStatusLabel(newStatus),
-          title,
-          displayTitle: edlsSheetDisplayTitle(sheetId, title),
-          ymd,
-          // The legacy body interpolated the raw payload date string
-          // ("2026-01-08"); the ymd date column would auto-format.
-          ymdDisplay: ymd,
+        label: "EDLS sheet",
+        description: "The sheet whose status this event changed",
+        // Derived values merged onto the row below.
+        fields: ["status_label", "display_title", "ymd_display"],
+        async build(ctx) {
+          const { sheetId, newStatus, title, ymd } = payloadOf(ctx);
+          const { storage } = await import("../../../storage");
+          const { edlsSheets } = await import(
+            "../../../../shared/schema/edls/schema"
+          );
+          // Render the transition this event describes, not the live row: an
+          // intervening save (or delete) must not change — or swallow — the
+          // notification. The live row only backfills fields the payload
+          // doesn't carry (employer, department, …) for custom templates.
+          const row = await storage.edlsSheets.get(sheetId);
+          return {
+            kind: "edls_sheet",
+            row: {
+              ...((row as unknown as Record<string, unknown>) ?? {}),
+              id: sheetId,
+              status: newStatus,
+              statusLabel: edlsStatusLabel(newStatus),
+              title,
+              displayTitle: edlsSheetDisplayTitle(sheetId, title),
+              ymd,
+              // The legacy body interpolated the raw payload date string
+              // ("2026-01-08"); the ymd date column would auto-format.
+              ymdDisplay: ymd,
+            },
+            table: edlsSheets,
+          };
         },
-        table: edlsSheets,
-      };
-    },
+      },
+    ],
     defaultTemplates,
   },
 

@@ -141,7 +141,12 @@ function registerEventNotifierKind(): void {
         const templates = cfg.templates;
         if (templates && typeof templates === "object") {
           const { extractTokenExpressions } = await import("@shared/tokens");
-          const { validateTokenExpressionForEvent } = await import("../tokens");
+          const { validateTokenExpressionForRoots } = await import("../tokens");
+          const rootNames = [
+            ...plugin.tokenTemplates.roots.map((r) => r.name),
+            // The envelope is seeded for every token-templated notifier.
+            "event",
+          ];
           const errors: string[] = [];
           for (const [channel, fields] of Object.entries(
             templates as Record<string, unknown>,
@@ -152,10 +157,7 @@ function registerEventNotifierKind(): void {
             )) {
               if (typeof value !== "string") continue;
               for (const expr of extractTokenExpressions(value)) {
-                const v = validateTokenExpressionForEvent(
-                  expr,
-                  plugin.tokenTemplates.eventEntityKind,
-                );
+                const v = validateTokenExpressionForRoots(expr, rootNames);
                 if (!v.ok) {
                   errors.push(`${channel}.${field}: {{${expr}}} — ${v.error}`);
                 }

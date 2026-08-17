@@ -194,6 +194,64 @@ registerTokenPlugin({
 });
 
 /**
+ * {{dispatch.worker.…}} — the worker whose availability row this is.
+ * Reaches the worker's contact (and from there their address, phone,
+ * …), so a status message can name the person it is about.
+ */
+registerTokenPlugin({
+  metadata: {
+    id: "token.dispatch_worker_status.worker",
+    name: "Worker",
+    description: "The worker this dispatch status belongs to",
+    segmentName: "worker",
+    inputTypes: [DISPATCH_WORKER_STATUS_ENTITY_KIND],
+    outputType: "worker",
+    entityTable: workers,
+    entityFields: WORKER_EXTRA_FIELDS,
+    hiddenFromCatalog: true,
+    requiredComponent: COMPONENT,
+  },
+  async resolve(entity, _args, ctx) {
+    const e = tokenEntityOf(entity, DISPATCH_WORKER_STATUS_ENTITY_KIND);
+    const workerId = e?.row.workerId;
+    if (typeof workerId !== "string") return null;
+    const row = await memo(ctx, `worker-row-by-id:${workerId}`, async () => {
+      return (await ctx.storage.bulkTokens.getWorkerRowById(workerId)) ?? null;
+    });
+    if (!row) return null;
+    const out: TokenEntity = { kind: "worker", row, table: workers };
+    return out;
+  },
+});
+
+/** {{dispatch_fore.worker.…}} — the foreperson the membership is for. */
+registerTokenPlugin({
+  metadata: {
+    id: "token.dispatch_fore.worker",
+    name: "Worker",
+    description: "The worker named as foreperson",
+    segmentName: "worker",
+    inputTypes: [DISPATCH_FORE_ENTITY_KIND],
+    outputType: "worker",
+    entityTable: workers,
+    entityFields: WORKER_EXTRA_FIELDS,
+    hiddenFromCatalog: true,
+    requiredComponent: "dispatch.fore",
+  },
+  async resolve(entity, _args, ctx) {
+    const e = tokenEntityOf(entity, DISPATCH_FORE_ENTITY_KIND);
+    const workerId = e?.row.workerId;
+    if (typeof workerId !== "string") return null;
+    const row = await memo(ctx, `worker-row-by-id:${workerId}`, async () => {
+      return (await ctx.storage.bulkTokens.getWorkerRowById(workerId)) ?? null;
+    });
+    if (!row) return null;
+    const out: TokenEntity = { kind: "worker", row, table: workers };
+    return out;
+  },
+});
+
+/**
  * Dispatch fore descriptor — a job-foreperson membership row. `action`
  * (added/removed) is a derived extra the notifier merges onto the row.
  */

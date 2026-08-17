@@ -29,6 +29,17 @@ export function tokenEntityOf(entity: unknown, kind: string): TokenEntity | null
   return e && typeof e === "object" && e.kind === kind && e.row ? e : null;
 }
 
+/**
+ * One root of a render, seeded with a real record: the NAME a chain
+ * starts with plus the record it stands for. Named, not kind-keyed, so
+ * a render can seed two roots of the same kind.
+ */
+export interface TokenRootSeed {
+  /** Root segment name as written in templates (`dispatch`, `contact`). */
+  name: string;
+  entity: TokenEntity;
+}
+
 /** One real record a surface may offer as a preview subject. */
 export interface TokenRecentRecordRef {
   id: string;
@@ -153,15 +164,16 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
   /** Hide from the generated picker catalog (still evaluatable). */
   hiddenFromCatalog?: boolean;
   /**
-   * The produced entity type is not statically known: after `resolve`,
-   * the chain's current type advances to the RESOLVED entity's `kind`
-   * instead of `outputType`. Used by the generic `event` root, whose
-   * entity kind is declared per notifier. Dynamic-output segments are
-   * excluded from the static bulk-messaging segment graph (their type
-   * can't be validated without an event context); surfaces that know
-   * the concrete kind use `buildSegmentSpecsForEvent`.
+   * Root segments only: this root exists ONLY in renders whose surface
+   * declares it by name — the records a notifier seeds
+   * (`{{dispatch.…}}`, `{{sitespecific_t631_interview.…}}`) and the
+   * `event` envelope. Context roots are left out of the default segment
+   * graph and catalog (bulk messaging has no notifier records, so
+   * `{{dispatch.…}}` is an unknown token there); a surface that knows
+   * its roots uses `buildSegmentSpecsForRoots` / the tree API with the
+   * root names it seeds.
    */
-  dynamicOutput?: boolean;
+  contextRoot?: boolean;
   /**
    * Root segments only: the root resolves from the render's recipient
    * contact when its own kind has no seeded record (`{{worker…}}` in a
@@ -228,18 +240,15 @@ export interface TokenEvalContext {
 
   sampleSetId?: string;
   /**
-   * Seeded root entities keyed by entity kind. A chain rooted at a kind
-   * present here resolves against that real record; anything else falls
-   * back to the recipient (recipient-rooted roots) or to samples.
+   * Seeded root entities keyed by ROOT NAME — the segment a chain
+   * starts with (`dispatch`, `contact`, `event`), not the entity kind:
+   * one render can seed two roots of the same kind (a worker and a
+   * steward). A chain whose root is present here resolves against that
+   * real record; anything else falls back to the recipient
+   * (recipient-rooted roots) or to samples.
    */
 
-  roots: Record<TokenEntityType, TokenEntity>;
-  /**
-   * Entity kind the dynamic `{{event…}}` root stands for. Its record,
-   * when there is one, is the seeded root named for this kind.
-   */
-
-  eventKind?: TokenEntityType;
+  roots: Record<string, TokenEntity>;
   /** Cross-segment memo cache. */
 
   cache: Map<string, unknown>;

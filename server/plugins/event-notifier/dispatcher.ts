@@ -359,23 +359,39 @@ async function dispatchForConfig(
   const tagIds = await resolveTagIds(plugin.id, plugin.name);
 
   // Token-templated notifiers: the framework composes messages from the
-  // config's (or default) per-channel templates. The event entity is
-  // built once per config-dispatch; a shared render cache memoizes
-  // entity lookups across recipients and media.
-  let eventEntity: import("../tokens/types").TokenEntity | null = null;
+  // config's (or default) per-channel templates. The records the
+  // messages are about are built once per config-dispatch, each seeded
+  // as its own named root; a shared render cache memoizes entity
+  // lookups across recipients and media.
+  let seeds: import("../tokens/types").TokenRootSeed[] | null = null;
   let templates: import("./types").NotifierChannelTemplates | null = null;
   let renderCache: Map<string, unknown> | null = null;
   if (plugin.tokenTemplates) {
     const { resolveTemplates } = await import("./token-templates");
-    eventEntity = await plugin.tokenTemplates.buildEventEntity(ctx);
-    if (!eventEntity) {
-      logger.warn("Event-notifier could not load the event entity; skipping", {
-        service: SERVICE,
-        pluginId: plugin.id,
-        event: ctx.event,
-      });
-      return;
+    const built: import("../tokens/types").TokenRootSeed[] = [];
+    for (const root of plugin.tokenTemplates.roots) {
+      const entity = await root.build(ctx);
+      if (!entity) {
+        if (root.optional) continue;
+        logger.warn("Event-notifier could not load a template record; skipping", {
+          service: SERVICE,
+          pluginId: plugin.id,
+          event: ctx.event,
+          root: root.name,
+        });
+        return;
+      }
+      built.push({ name: root.name, entity });
     }
+    // The envelope root: which event this was and when it fired. The
+    // event context carries no timestamp, so the dispatcher — the one
+    // place that knows the event is being handled right now — supplies
+    // it rather than each notifier inventing its own.
+    built.push({
+      name: "event",
+      entity: { kind: "event", row: { type: ctx.event, firedAt: new Date() } },
+    });
+    seeds = built;
     templates = resolveTemplates(plugin, configData);
     renderCache = new Map();
   }
@@ -383,13 +399,13 @@ async function dispatchForConfig(
   for (const recipient of recipients) {
     for (const medium of active) {
       let content: NotifierMessageContent | null = null;
-      if (plugin.tokenTemplates && eventEntity && templates && renderCache) {
+      if (plugin.tokenTemplates && seeds && templates && renderCache) {
         const { composeFromTemplates } = await import("./token-templates");
         content = await composeFromTemplates(
           plugin,
           medium,
           recipient,
-          eventEntity,
+          seeds,
           templates,
           renderCache,
         );

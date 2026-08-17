@@ -1,4 +1,11 @@
 import { PluginRegistry } from "../_core";
+// Submodule imports, not the tokens barrel: the barrel pulls in every
+// token plugin, and a notifier plugin file is imported from it.
+import {
+  getTokenContextRoot,
+  registerTokenContextRoot,
+} from "../tokens/context-roots";
+import { tokenPluginRegistry } from "../tokens/registry";
 import type {
   EventNotifierPlugin,
   EventNotifierManifestEntry,
@@ -41,5 +48,63 @@ export function registerEventNotifier(plugin: EventNotifierPlugin): void {
       `Event notifier "${plugin.id}" must declare tokenTemplates or implement getMessage`,
     );
   }
+  if (plugin.tokenTemplates) registerRecordRoots(plugin);
   eventNotifierRegistry.register(plugin);
+}
+
+/**
+ * Project a notifier's declared record roots into the token registry,
+ * so its editor offers them and its templates validate against them.
+ *
+ * A root inherits the notifier's `requiredComponent`: a root about a
+ * dispatch record must not exist when dispatch is off, since the tables
+ * behind it need not exist at all.
+ */
+function registerRecordRoots(plugin: EventNotifierPlugin): void {
+  const roots = plugin.tokenTemplates!.roots;
+  if (!Array.isArray(roots) || roots.length === 0) {
+    throw new Error(
+      `Event notifier "${plugin.id}" declares tokenTemplates with no record roots; ` +
+        `declare at least one root naming the record its messages are about.`,
+    );
+  }
+  const seen = new Set<string>();
+  for (const root of roots) {
+    if (seen.has(root.name)) {
+      throw new Error(
+        `Event notifier "${plugin.id}" declares the record root "${root.name}" twice.`,
+      );
+    }
+    seen.add(root.name);
+    // A name already taken by an ordinary root (contact, worker,
+    // system) or by the event envelope would silently shadow it in this
+    // editor and mean something else in the next one. Only a record
+    // root ALREADY DECLARED as such (another notifier about the same
+    // kind of record) may share a name — `registerTokenContextRoot`
+    // decides whether the two declarations are compatible.
+    if (!getTokenContextRoot(root.name)) {
+      const clash = tokenPluginRegistry
+        .list()
+        .find(
+          (p) =>
+            p.metadata.segmentName === root.name &&
+            p.metadata.inputTypes.includes("root"),
+        );
+      if (clash) {
+        throw new Error(
+          `Event notifier "${plugin.id}" declares the record root "${root.name}", ` +
+            `which is already the "${clash.metadata.name}" root (${clash.metadata.id}). ` +
+            `Pick a name that says what the record is.`,
+        );
+      }
+    }
+    registerTokenContextRoot({
+      name: root.name,
+      kind: root.kind,
+      label: root.label,
+      description: root.description,
+      fields: root.fields,
+      requiredComponent: plugin.requiredComponent,
+    });
+  }
 }
