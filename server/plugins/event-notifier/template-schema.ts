@@ -18,6 +18,110 @@
 
 type TemplateMode = "line" | "multiline" | "html";
 
+/** The channels a token-templated notifier can carry message templates for. */
+export type TemplateChannel = "email" | "sms" | "inapp";
+
+/**
+ * The template channels the SITE can actually deliver on right now.
+ * In-app is always available; email/SMS depend on a configured provider
+ * with the matching capability. Provider checks fail OPEN (channel
+ * treated as available) so a transient resolution hiccup never hides an
+ * editing surface — hiding is purely a UX nicety, delivery gating stays
+ * in the send layer.
+ */
+export async function getSiteEnabledTemplateChannels(): Promise<Set<TemplateChannel>> {
+  const enabled = new Set<TemplateChannel>(["inapp"]);
+  const { serviceRegistry } = await import("../../services/service-registry");
+
+  const providerSupports = async (
+    category: "email" | "sms",
+    supports: (provider: unknown) => boolean,
+  ): Promise<boolean> => {
+    try {
+      const config = await serviceRegistry.getCategoryConfig(category);
+      const registered = serviceRegistry.getRegisteredProviders(category);
+      // No provider registered/selected at all: the channel is genuinely
+      // switched off for this site.
+      if (registered.length === 0 || !config.defaultProvider) return false;
+      const provider = await serviceRegistry.resolve(category);
+      return supports(provider);
+    } catch {
+      return true; // fail open — see doc comment
+    }
+  };
+
+  if (
+    await providerSupports("email", (p) =>
+      (p as { supportsEmail?: () => boolean }).supportsEmail?.() ?? true,
+    )
+  ) {
+    enabled.add("email");
+  }
+  if (
+    await providerSupports("sms", (p) =>
+      (p as { supportsSms?: () => boolean }).supportsSms?.() ?? true,
+    )
+  ) {
+    enabled.add("sms");
+  }
+  return enabled;
+}
+
+/**
+ * Return a copy of a notifier's `configSchema` in which every template
+ * channel group the notifier cannot actually deliver to — because the
+ * plugin doesn't declare the medium in `supportedMedia`, or the site has
+ * the channel switched off — carries `x-token-hidden: true`.
+ *
+ * The group (and its fields) stays DECLARED in the schema on purpose:
+ * RJSF strips any stored data whose field isn't in the schema, so
+ * removing the group would silently wipe an existing override for a
+ * hidden medium on the next save. The client field renders nothing for
+ * hidden groups instead, which preserves the stored data untouched.
+ *
+ * Returns the input schema unchanged (same reference) when nothing needs
+ * hiding, so schemas without template blocks pay no cost.
+ */
+export function hideUndeliverableTemplateChannels(
+  configSchema: Record<string, unknown> | undefined,
+  supportedMedia: readonly string[],
+  siteEnabled: ReadonlySet<TemplateChannel>,
+): Record<string, unknown> | undefined {
+  if (!configSchema) return configSchema;
+  const props = configSchema.properties as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  const templates = props?.templates;
+  const groups = templates?.properties as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  if (!groups) return configSchema;
+
+  const deliverable = (channel: string): boolean =>
+    supportedMedia.includes(channel) &&
+    siteEnabled.has(channel as TemplateChannel);
+
+  const toHide = Object.entries(groups).filter(
+    ([, group]) =>
+      group["x-widget"] === "notifier-channel-templates" &&
+      typeof group["x-token-channel"] === "string" &&
+      !deliverable(group["x-token-channel"] as string),
+  );
+  if (toHide.length === 0) return configSchema;
+
+  const newGroups = { ...groups };
+  for (const [key, group] of toHide) {
+    newGroups[key] = { ...group, "x-token-hidden": true };
+  }
+  return {
+    ...configSchema,
+    properties: {
+      ...props,
+      templates: { ...templates, properties: newGroups },
+    },
+  };
+}
+
 /** One token-template field: metadata only; the medium owns the editor. */
 function templateField(
   title: string,

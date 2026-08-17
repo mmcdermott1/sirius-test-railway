@@ -52,6 +52,12 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
   const pluginId = (schemaAny["x-token-plugin-id"] as string) ?? "";
   const catalogUrl = (schemaAny["x-token-catalog-url"] as string) ?? "";
   const title = (schemaAny.title as string) || channel;
+  // Marked by the server when this notifier can't actually deliver on
+  // this channel (not in its supportedMedia, or the site has the channel
+  // off). Rendered as nothing — but the group stays declared in the
+  // schema, so an existing stored override is preserved on save, not
+  // wiped. Checked after the hooks below to keep the hook order stable.
+  const hidden = schemaAny["x-token-hidden"] === true;
   const rows = useMemo(() => readRows(schemaAny), [schemaAny]);
   const isDisabled = Boolean(disabled || readonly);
 
@@ -83,7 +89,7 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
 
   const { data: catalog } = useQuery<NotifierTokenCatalog>({
     queryKey: [catalogUrl + depQuery],
-    enabled: !!catalogUrl,
+    enabled: !!catalogUrl && !hidden,
   });
   const defaults = catalog?.defaults?.[channel] ?? {};
 
@@ -110,6 +116,8 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
     for (const r of rows) cleared[r.key] = "";
     onChange(cleared, fieldPathId.path);
   };
+
+  if (hidden) return null;
 
   return (
     <div
