@@ -1,14 +1,15 @@
 import { logger } from "../../logger";
 import { registerPluginKind } from "../_core/kinds";
 import { tokenPluginRegistry } from "./registry";
+import { validateTokenPreviewEntities } from "./preview-entities";
 
 export * from "./types";
 export {
-  registerTokenPreviewEntities,
   getTokenPreviewEntities,
   hasTokenPreviewEntities,
-  type TokenPreviewEntityProvider,
-  type TokenPreviewEntityRef,
+  getEnabledTokenPreviewEntities,
+  listTokenPreviewRoots,
+  type TokenPreviewRoot,
 } from "./preview-entities";
 export { tokenPluginRegistry, registerTokenPlugin, findSegmentPlugin } from "./registry";
 export {
@@ -50,9 +51,14 @@ function registerTokenKind(): void {
  */
 export function initializeTokenPluginSystem(): void {
   registerTokenKind();
+  // Project the plugins' `previewEntities` declarations into the
+  // per-kind preview registry once at boot, so two providers for one
+  // entity kind fail loudly here instead of at the first preview.
+  const previewKinds = validateTokenPreviewEntities();
   logger.info("Token plugins registered", {
     service: "tokens",
     plugins: tokenPluginRegistry.listIds(),
+    previewEntityKinds: previewKinds,
   });
 }
 

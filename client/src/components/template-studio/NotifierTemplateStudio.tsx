@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { TemplateStudio, type StudioField, type StudioFieldMode } from "./TemplateStudio";
-import { useStudioPreviewContext } from "./StudioContext";
+import { useStudioPreviewContext, type StudioPreviewRoot } from "./StudioContext";
 import type {
   TokenCatalogEntry,
   TokenFieldCatalog,
@@ -34,7 +34,8 @@ export interface NotifierTokenCatalog {
   fields?: TokenFieldCatalog;
   defaults?: Record<string, Record<string, string>>;
   tokens?: TokenCatalogEntry[];
-  realRecordPreview?: boolean;
+  /** Roots these tokens reach, and which can be previewed for real. */
+  previewRoots?: StudioPreviewRoot[];
 }
 export interface NotifierTemplateStudioProps {
   open: boolean;
@@ -72,12 +73,9 @@ export function NotifierTemplateStudio({
   updateConfigData,
   disabled,
 }: NotifierTemplateStudioProps) {
-  const eventEntityKind = catalog?.eventEntityKind ?? "";
   const ctx = useStudioPreviewContext({
     open,
-    realRecordPreview: !!catalog?.realRecordPreview && !!eventEntityKind,
-    entitySearchUrl: (q) =>
-      `/api/token-studio/preview-entities/${encodeURIComponent(eventEntityKind)}?q=${encodeURIComponent(q)}`,
+    previewRoots: catalog?.previewRoots,
   });
 
   // ── Fields & values (channel group of data.templates) ─────────────────────

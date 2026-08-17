@@ -7,7 +7,7 @@ import {
   type StudioChannel,
   type StudioField,
 } from "./TemplateStudio";
-import { useStudioPreviewContext } from "./StudioContext";
+import { useStudioPreviewContext, type StudioPreviewRoot } from "./StudioContext";
 import type {
   TokenCatalogEntry,
   TokenFieldCatalog,
@@ -19,7 +19,8 @@ interface TokenStudioCatalog {
   segments: TokenSegmentSpec[];
   fields?: TokenFieldCatalog;
   tokens: TokenCatalogEntry[];
-  realRecordPreview?: boolean;
+  /** Roots these tokens reach, and which can be previewed for real. */
+  previewRoots?: StudioPreviewRoot[];
 }
 
 export interface TokenStudioProps {
@@ -39,7 +40,7 @@ export interface TokenStudioProps {
   /**
    * Optional event entity kind rooting `{{event.*}}` tokens. When the
    * kind has a registered preview-entity provider, the context panel
-   * offers "real record" mode automatically.
+   * offers a record picker for it automatically.
    */
   eventEntityKind?: string;
   /** Token catalog endpoint (defaults to the generic studio catalog). */
@@ -85,14 +86,7 @@ export function TokenStudio({
 
   const ctx = useStudioPreviewContext({
     open,
-    realRecordPreview: !!catalog?.realRecordPreview && !!eventEntityKind,
-    entitySearchUrl: eventEntityKind
-      ? (q) =>
-          `/api/token-studio/preview-entities/${encodeURIComponent(eventEntityKind)}?q=${encodeURIComponent(q)}`
-      : undefined,
-    // Without an event root, contact tokens are the whole context — a
-    // recipient alone is a meaningful real preview.
-    allowRecipientOnlyReal: !eventEntityKind,
+    previewRoots: catalog?.previewRoots,
   });
 
   return (

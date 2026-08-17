@@ -13,6 +13,7 @@ import { getTableColumns } from "drizzle-orm";
 import type { IStorage } from "../../storage";
 import { tokenPluginRegistry, findSegmentPlugin } from "./registry";
 import type {
+  TokenEntity,
   TokenEvalContext,
   TokenEntityType,
   TokenPlugin,
@@ -99,24 +100,69 @@ export function buildFieldCatalog(): TokenFieldCatalog {
   return catalog;
 }
 
+export interface TokenEvalContextOptions {
+  /**
+   * Preview only: a chain whose root has no seed renders sample values.
+   * Seeded roots still resolve for real, so one render can mix the two.
+   */
+  sample?: boolean;
+  cache?: Map<string, unknown>;
+  /**
+   * Real records seeding the roots of this render, each keyed by its own
+   * `kind`. Anything not seeded here falls back to the recipient
+   * (recipient-rooted roots) or to sample values.
+   */
+  roots?: TokenEntity[];
+  /** Entity kind the dynamic `{{event…}}` root stands for. */
+  eventKind?: TokenEntityType;
+  /**
+   * Convenience for the notifier pipeline: seed the event root with this
+   * entity. Exactly equivalent to passing it in `roots` and setting
+   * `eventKind` to its kind — the event root IS the seeded root named
+   * for its kind.
+   */
+  event?: TokenEntity;
+}
+
 export function createTokenEvalContext(
   storage: IStorage,
   contactId?: string,
-  options?: {
-    sample?: boolean;
-    cache?: Map<string, unknown>;
-    event?: import("./types").TokenEntity;
-  },
+  options?: TokenEvalContextOptions,
 ): TokenEvalContext {
+  const roots: Record<TokenEntityType, TokenEntity> = {};
+  for (const entity of options?.roots ?? []) roots[entity.kind] = entity;
+  if (options?.event) roots[options.event.kind] = options.event;
   return {
     storage,
     contactId,
     now: new Date(),
     sample: options?.sample,
-    event: options?.event,
+    roots,
+    eventKind: options?.eventKind ?? options?.event?.kind,
     cache: options?.cache ?? new Map(),
     vars: {},
   };
+}
+
+/**
+ * Whether the root a chain starts at has a real record behind it —
+ * either a seeded record of its own kind, or (for recipient-rooted
+ * roots such as `contact`/`worker`/`employer`) the render's recipient.
+ * Sample fallback applies per root: an unseeded root renders samples
+ * while a seeded one, in the same render, resolves for real.
+ */
+function rootIsSeeded(ctx: TokenEvalContext, plugin: TokenPlugin): boolean {
+  const kind = plugin.metadata.dynamicOutput
+    ? ctx.eventKind
+    : plugin.metadata.outputType;
+  if (kind && ctx.roots[kind]) return true;
+  if (plugin.metadata.recipientRooted && ctx.contactId) return true;
+  // A seedless root (system values) has no record to pick, so it
+  // follows the render: real once anything else in it is real.
+  if (plugin.metadata.seedless) {
+    return Boolean(ctx.contactId) || Object.keys(ctx.roots).length > 0;
+  }
+  return false;
 }
 
 function applyArgDefaults(
@@ -148,6 +194,10 @@ export async function evaluateChain(
   let currentType: TokenEntityType = "root";
   let entity: unknown = null;
   let leaf: TokenPlugin | undefined;
+  // Sample-vs-real is decided once per chain, by its root: the whole
+  // chain renders samples only when sample fallback is on AND the root
+  // it hangs off has no real record behind it.
+  let sample = Boolean(ctx.sample);
 
   for (const seg of segments) {
     const plugin = findSegmentPlugin(seg.name, currentType);
@@ -157,6 +207,7 @@ export async function evaluateChain(
         error: `unknown segment '${seg.name}' for type '${currentType}'`,
       };
     }
+    if (currentType === "root") sample = Boolean(ctx.sample) && !rootIsSeeded(ctx, plugin);
     leaf = plugin;
     const declaredArgs = plugin.metadata.args || {};
     for (const key of Object.keys(seg.args)) {
@@ -191,7 +242,7 @@ export async function evaluateChain(
         }
       }
     }
-    if (ctx.sample && plugin.metadata.outputType === "value") {
+    if (sample && plugin.metadata.outputType === "value") {
       const example =
         plugin.sampleValue?.(args) ??
         plugin.metadata.example ??
@@ -199,11 +250,11 @@ export async function evaluateChain(
         "";
       return { status: "ok", value: example };
     }
-    if (!ctx.sample && entity === null && currentType !== "root") {
+    if (!sample && entity === null && currentType !== "root") {
       // an intermediate segment resolved to nothing — chain is missing
-      return { status: "missing", defaultValue: leafDefault(segments, ctx.event?.kind) };
+      return { status: "missing", defaultValue: leafDefault(segments, ctx.eventKind) };
     }
-    entity = ctx.sample ? {} : await plugin.resolve(entity, args, ctx);
+    entity = sample ? {} : await plugin.resolve(entity, args, ctx);
     ctx.vars.entity = entity;
     // Dynamic-output segments (the `event` root) advance the chain to
     // the RESOLVED entity's kind — the produced type is declared by the
@@ -213,8 +264,8 @@ export async function evaluateChain(
       // fall back to the context's event kind when available — this lets
       // {{event.*}} chains advance to the right entity type and return
       // sample values instead of "missing" in preview/coverage runs.
-      const e = ctx.sample
-        ? (ctx.event ?? null)
+      const e = sample
+        ? (ctx.eventKind ? { kind: ctx.eventKind } : null)
         : (entity as { kind?: unknown } | null);
       if (!e || typeof e !== "object" || typeof (e as Record<string, unknown>).kind !== "string") {
         return { status: "missing", defaultValue: plugin.metadata.defaultValue ?? "" };
@@ -234,7 +285,7 @@ export async function evaluateChain(
       const fieldPlugin = findSegmentPlugin("field", currentType);
       if (fieldPlugin) {
         const args = applyArgDefaults(fieldPlugin, { name: defaultLeafName });
-        if (ctx.sample) {
+        if (sample) {
           const example =
             fieldPlugin.sampleValue?.(args) ??
             fieldPlugin.metadata.example ??
@@ -364,7 +415,7 @@ export async function renderTokens(
         // report it so the studio can flag the hole instead of leaving
         // the admin to spot a gap between two spaces.
         if (value === "") emptyValues.push(expr);
-        const leaf = leafPluginFor(parsed.segments, ctx.event?.kind);
+        const leaf = leafPluginFor(parsed.segments, ctx.eventKind);
         replacement =
           options.escapeHtml && !leaf?.metadata.emitsHtml
             ? escapeHtml(value)

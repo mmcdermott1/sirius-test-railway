@@ -16,4 +16,8 @@ Every tokenized-text editor previews through ONE server route, keyed by a regist
 - A surface only needs its own client host when it has *editor-side* logic (e.g. default-vs-override text). Previewing never justifies a host.
 - Token catalog endpoints are gated differently from preview (generic catalog is admin, the bulk catalog is bulk-permission), so the catalog URL must stay per-caller overridable even though preview is plain staff.
 - Event-scoped token catalogs: the event root and per-kind relation plugins are hidden from the catalog, so the event-root walk must use the FULL registry, not the visible subset.
-- "Real record" preview is an optional per-notifier capability; payload-snapshot notifiers can't offer it. Preview reports non-sample only when a real entity/contact is in play.
+- Real-record preview is a property of an **entity kind**, never of a notifier or surface: the kind's token plugin declares its own search/load in metadata and every editor rooted at that kind inherits it. Payload-snapshot notifiers simply have no provider for their kind.
+- The eval context seeds a **bag of roots keyed by kind** (plus the recipient contact), and sample-vs-real is decided per root at the chain's root segment: an unseeded root samples, a seeded one resolves real, so one render honestly mixes both.
+  **Why:** a single global "sample" flag made real preview all-or-nothing and reachable only by relation-walking from contact-or-event.
+  **How to apply:** delivery never enables sample fallback, so per-root logic must live behind that flag or delivery starts rendering examples. A root that needs no record (system values) must follow the render instead of always sampling.
+- A delivery-parity check must seed the very root delivery composes with; otherwise the unseeded root samples and parity fails for a behavior that is correct.

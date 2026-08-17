@@ -165,9 +165,11 @@ async function main() {
       fail(`${origin}: {{${expr}}} does not parse — ${parsed.error}`);
       return;
     }
+    // Kind only, never a seeded record: a seeded root would resolve
+    // for real (per-root sample mode) and this check has no database.
     const ctx = createTokenEvalContext(noStorage, undefined, {
       sample: true,
-      event: eventKind ? { kind: eventKind, row: {} } : undefined,
+      eventKind,
     });
     const result = await evaluateChain(parsed.segments, ctx);
     rendered++;

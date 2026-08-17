@@ -91,11 +91,12 @@ export function registerEventNotifierMetaRoutes(
           // Picker entries for the Template Studio token browser (includes
           // event.* entries rooted at this notifier's entity kind).
           tokens: buildTokenCatalogForEvent(plugin.tokenTemplates.eventEntityKind),
-          // Whether the studio can offer "real record" preview mode —
-          // driven by the generic per-entity-kind preview registry.
-          realRecordPreview: (
+          // Roots these tokens can be rooted at, and which of them can be
+          // previewed against a real record — driven by the generic
+          // per-entity-kind preview registry, nothing declared here.
+          previewRoots: await (
             await import("../plugins/tokens/preview-entities")
-          ).hasTokenPreviewEntities(plugin.tokenTemplates.eventEntityKind),
+          ).listTokenPreviewRoots(plugin.tokenTemplates.eventEntityKind),
         });
       } catch (error: any) {
         res

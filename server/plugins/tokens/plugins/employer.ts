@@ -18,8 +18,38 @@ registerTokenPlugin({
     outputType: "employer",
     entityTable: employers,
     defaultLeaf: "name",
+    recipientRooted: true,
+    previewEntities: {
+      async search(query) {
+        const { storage } = await import("../../../storage");
+        const all = await storage.employers.getAllEmployers();
+        const needle = query.trim().toLowerCase();
+        return all
+          .filter(
+            (e) =>
+              !needle ||
+              e.name.toLowerCase().includes(needle) ||
+              (e.siriusId ?? "").toLowerCase().includes(needle),
+          )
+          .slice(0, 20)
+          .map((e) => ({
+            id: e.id,
+            label: e.siriusId ? `${e.name} (${e.siriusId})` : e.name,
+          }));
+      },
+      async load(id) {
+        const { storage } = await import("../../../storage");
+        const row = await storage.bulkTokens.getEmployerRow(id);
+        if (!row) return null;
+        return { kind: "employer", row, table: employers };
+      },
+    },
   },
   async resolve(_entity, _args, ctx) {
+    // A seeded employer wins; otherwise the root means "the recipient's
+    // employer", resolved from the recipient contact.
+    const seeded = ctx.roots.employer;
+    if (seeded) return seeded;
     if (!ctx.contactId) return null;
     const contactId = ctx.contactId;
     const row = await memo(ctx, `employer-row:${contactId}`, async () => {

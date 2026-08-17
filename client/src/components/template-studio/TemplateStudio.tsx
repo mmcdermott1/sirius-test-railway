@@ -57,13 +57,22 @@ export interface StudioPreviewField {
 
 export type StudioChannel = "email" | "sms" | "inapp" | "postal" | "generic";
 
+/** One root of the render and whether it resolved real or sample data. */
+export interface StudioPreviewRootResult {
+  kind: string;
+  label: string;
+  recordId: string | null;
+  real: boolean;
+}
+
 /** The single preview route's response shape (every surface). */
 export interface StudioPreviewResult {
   surfaceId: string;
-  /** True when rendered purely from sample/example data. */
+  /** True when NO root had a real record — the whole render is samples. */
   sample: boolean;
+  /** Per-root sample-vs-real, so the preview can say which is which. */
+  roots?: StudioPreviewRootResult[];
   contactId: string | null;
-  eventEntityId: string | null;
   /** Per-field rendered output keyed by StudioField.key. */
   fields: Record<string, StudioPreviewField>;
   /**
@@ -238,8 +247,12 @@ export function TemplateStudio({
 }: TemplateStudioProps) {
   const previewContextKey = context?.previewContextKey ?? "sample";
   const contextPanel = context?.contextPanel;
-  const contactId = context?.realActive ? context.recipient?.id : undefined;
-  const eventEntityId = context?.realActive ? context.entity?.id : undefined;
+  // Picked records per root kind; roots with no pick render sample values.
+  const recordsJson = JSON.stringify(
+    Object.fromEntries(
+      Object.entries(context?.records ?? {}).map(([kind, ref]) => [kind, ref.id]),
+    ),
+  );
   const activeEditorRef = useRef<ActiveEditorRef | null>(null);
   const htmlApiRefs = useRef<Record<string, React.MutableRefObject<SimpleHtmlEditorApi | null>>>({});
   const getHtmlApiRef = (key: string) => {
@@ -287,8 +300,8 @@ export function TemplateStudio({
         params: JSON.parse(surfaceParamsJson),
         values: JSON.parse(debouncedJson) as Record<string, string>,
       };
-      if (contactId) body.contactId = contactId;
-      if (eventEntityId) body.eventEntityId = eventEntityId;
+      const records = JSON.parse(recordsJson) as Record<string, string>;
+      if (Object.keys(records).length > 0) body.records = records;
       const res = await fetch("/api/template-studio/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -349,6 +362,18 @@ export function TemplateStudio({
   }, [fields, values, segments, fieldCatalog]);
 
   // ── Preview body per channel ───────────────────────────────────────────────
+  // Honest sample/real reporting: a preview can mix real roots (records
+  // the admin picked) with sample ones (roots left unpicked).
+  const previewRoots = preview?.roots ?? [];
+  const realRootLabels = previewRoots.filter((r) => r.real).map((r) => r.label);
+  const sampleRootLabels = previewRoots.filter((r) => !r.real).map((r) => r.label);
+  const sampleNote =
+    realRootLabels.length === 0
+      ? "Rendered with sample data — actual values depend on the recipient and record."
+      : sampleRootLabels.length > 0
+        ? `Real ${realRootLabels.join(", ")}; sample values for ${sampleRootLabels.join(", ")}.`
+        : null;
+
   const pf = (key: string): StudioPreviewField | undefined => preview?.fields[key];
 
   const renderPreviewBody = () => {
@@ -573,9 +598,12 @@ export function TemplateStudio({
                     Nothing would be sent — a required field is empty for this recipient.
                   </p>
                 )}
-                {preview?.sample && (
-                  <p className="mt-3 text-xs text-muted-foreground border-t pt-2">
-                    Rendered with sample data — actual values depend on the recipient and record.
+                {preview && sampleNote && (
+                  <p
+                    className="mt-3 text-xs text-muted-foreground border-t pt-2"
+                    data-testid="studio-preview-sample-note"
+                  >
+                    {sampleNote}
                   </p>
                 )}
               </div>

@@ -34,8 +34,31 @@ registerTokenPlugin({
     outputType: "worker",
     entityTable: workers,
     entityFields: WORKER_EXTRA_FIELDS,
+    recipientRooted: true,
+    previewEntities: {
+      async search(query) {
+        const { storage } = await import("../../../storage");
+        const { workers: found } = await storage.workers.searchWorkers(query, 20);
+        return found.map((w) => ({
+          id: w.id,
+          label: w.siriusId
+            ? `${w.displayName ?? "Unnamed worker"} (#${w.siriusId})`
+            : (w.displayName ?? "Unnamed worker"),
+        }));
+      },
+      async load(id) {
+        const { storage } = await import("../../../storage");
+        const row = await storage.bulkTokens.getWorkerRowById(id);
+        if (!row) return null;
+        return { kind: "worker", row, table: workers };
+      },
+    },
   },
   async resolve(_entity, _args, ctx) {
+    // A seeded worker wins; otherwise the root means "the recipient's
+    // worker", resolved from the recipient contact.
+    const seeded = ctx.roots.worker;
+    if (seeded) return seeded;
     if (!ctx.contactId) return null;
     return loadWorkerEntity(ctx, ctx.contactId);
   },

@@ -10,12 +10,29 @@ export interface TemplateFieldPreview {
   emptyValues: string[];
 }
 
+/** One root of the render, and whether it resolved real or sample data. */
+export interface TemplateSurfacePreviewRoot {
+  kind: string;
+  label: string;
+  /** The record this root was previewed against, when one was picked. */
+  recordId: string | null;
+  /**
+   * True when this root rendered real data — a picked record, or (for
+   * recipient-rooted roots) the recipient contact.
+   */
+  real: boolean;
+}
+
 export interface TemplateSurfacePreview {
   surfaceId: string;
-  /** True when rendered purely from sample/example data. */
+  /** True when NO root had a real record — the whole render is samples. */
   sample: boolean;
+  /**
+   * Per-root sample-vs-real, so the studio can say which parts of the
+   * preview are real instead of claiming all-or-nothing.
+   */
+  roots: TemplateSurfacePreviewRoot[];
   contactId: string | null;
-  eventEntityId: string | null;
   /** Rendered output per field key (declaration order). */
   fields: Record<string, TemplateFieldPreview>;
   /**
@@ -35,8 +52,20 @@ export interface RenderSurfaceRequest {
   values: Record<string, string>;
   /** Optional real recipient contact. */
   contactId?: string;
-  /** Optional real event record (needs the surface to declare a kind). */
-  eventEntityId?: string;
+  /**
+   * Real records seeding this render's roots, keyed by entity kind
+   * (`{ worker: "…", dispatch_job: "…" }`). A root with no record here
+   * renders sample values. Picking a contact also makes that contact
+   * the render's recipient.
+   */
+  records?: Record<string, string>;
+  /**
+   * Roots an internal caller already holds as entities (the delivery
+   * -parity check renders against the very entity delivery composes
+   * with). The preview route never sets this — records that arrive with
+   * a request come in as `records` and load through their provider.
+   */
+  seededRoots?: TokenEntity[];
 }
 
 /**
@@ -60,7 +89,8 @@ export async function renderTemplateSurface({
   params,
   values,
   contactId,
-  eventEntityId,
+  records,
+  seededRoots,
 }: RenderSurfaceRequest): Promise<TemplateSurfacePreview> {
   const resolution = await surface.resolve({ storage, params, values });
 
@@ -76,7 +106,45 @@ export async function renderTemplateSurface({
     }
   }
 
-  // ── Seeds: recipient contact and/or event entity ──────────────────────────
+  // ── Seeds: one real record per root, all of them optional ─────────────────
+  const eventEntityKind = resolution.eventEntityKind;
+  const { getEnabledTokenPreviewEntities, listTokenPreviewRoots } = await import(
+    "../tokens/preview-entities"
+  );
+  const availableRoots = await listTokenPreviewRoots(eventEntityKind);
+
+  const seeded: TokenEntity[] = [...(seededRoots ?? [])];
+  const seededIds: Record<string, string> = {};
+  for (const [kind, recordId] of Object.entries(records ?? {})) {
+    if (!recordId) continue;
+    if (!availableRoots.some((r) => r.kind === kind)) {
+      throw new TemplateSurfaceError(
+        400,
+        `This surface does not render against a ${kind} record`,
+      );
+    }
+    // The component gate lives in the provider lookup, and applies to
+    // loading exactly as it does to searching: a disabled component's
+    // tables may not exist at all.
+    const provider = await getEnabledTokenPreviewEntities(kind);
+    if (!provider) {
+      throw new TemplateSurfaceError(
+        400,
+        "This entity kind does not support real-record preview",
+      );
+    }
+    const loaded = await provider.load(recordId);
+    if (!loaded) {
+      throw new TemplateSurfaceError(404, "Preview record not found");
+    }
+    seeded.push(loaded);
+    seededIds[kind] = recordId;
+  }
+
+  // Picking a contact picks the render's recipient: the recipient-rooted
+  // roots (worker, employer) derive from it unless separately seeded,
+  // exactly as they do on delivery.
+  const recipientContactId = contactId ?? seededIds.contact;
   if (contactId) {
     const contact = await storage.contacts.getContact(contactId);
     if (!contact) {
@@ -84,39 +152,15 @@ export async function renderTemplateSurface({
     }
   }
 
-  const eventEntityKind = resolution.eventEntityKind;
-  let eventEntity: TokenEntity | undefined;
-  let realEvent = false;
-  if (eventEntityId) {
-    if (!eventEntityKind) {
-      throw new TemplateSurfaceError(
-        400,
-        "This surface does not render against an event record",
-      );
-    }
-    const { getEnabledTokenPreviewEntities } = await import(
-      "../tokens/preview-entities"
-    );
-    const provider = await getEnabledTokenPreviewEntities(eventEntityKind);
-    if (!provider) {
-      throw new TemplateSurfaceError(
-        400,
-        "This entity kind does not support real-record preview",
-      );
-    }
-    const loaded = await provider.load(eventEntityId);
-    if (!loaded) {
-      throw new TemplateSurfaceError(404, "Preview record not found");
-    }
-    eventEntity = loaded;
-    realEvent = true;
-  } else if (eventEntityKind) {
-    // A sample entity of the right kind so `{{event.*}}` chains can
-    // advance to the correct entity type and produce sample values.
-    eventEntity = { kind: eventEntityKind, row: {} };
-  }
-
-  const useSample = !contactId && !realEvent;
+  const previewRoots: TemplateSurfacePreviewRoot[] = availableRoots.map((root) => ({
+    kind: root.kind,
+    label: root.label,
+    recordId: seededIds[root.kind] ?? null,
+    real:
+      seeded.some((entity) => entity.kind === root.kind) ||
+      (root.recipientRooted && Boolean(recipientContactId)),
+  }));
+  const useSample = !previewRoots.some((r) => r.real);
 
   // ── Render ────────────────────────────────────────────────────────────────
   const { renderTokens, createTokenEvalContext } = await import("../tokens");
@@ -132,14 +176,22 @@ export async function renderTemplateSurface({
     if (spec.media === "literal") {
       // Delivery sends this field verbatim (its editor offers no token
       // insertion), so previewing a substitution would be a lie.
-      fields[spec.key] = { rendered: template, unknownTokens: [], missingValues: [] };
+      fields[spec.key] = {
+        rendered: template,
+        unknownTokens: [],
+        missingValues: [],
+        emptyValues: [],
+      };
       continue;
     }
 
-    const ctx = createTokenEvalContext(storage, contactId, {
-      sample: useSample,
+    // Sample fallback is always on in a preview: it applies per root, so
+    // a root with a picked record still resolves against real data.
+    const ctx = createTokenEvalContext(storage, recipientContactId, {
+      sample: true,
       cache,
-      event: eventEntity,
+      roots: seeded,
+      eventKind: eventEntityKind,
     });
     const result = await renderTokens(template, ctx, {
       strictUnknown: true,
@@ -174,8 +226,8 @@ export async function renderTemplateSurface({
   return {
     surfaceId: surface.id,
     sample: useSample,
-    contactId: contactId ?? null,
-    eventEntityId: realEvent ? (eventEntityId ?? null) : null,
+    roots: previewRoots,
+    contactId: recipientContactId ?? null,
     fields,
     deliverable: eligibility.deliverable,
   };

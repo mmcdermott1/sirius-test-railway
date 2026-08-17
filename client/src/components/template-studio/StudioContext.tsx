@@ -1,22 +1,11 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Search } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export interface EntityRef {
   id: string;
   label: string;
-}
-
-interface ContactSearchRow {
-  id: string;
-  displayName?: string | null;
-  given?: string | null;
-  family?: string | null;
-  email?: string | null;
 }
 
 /** Debounce a string value with a fixed 300 ms delay. */
@@ -107,151 +96,147 @@ export function SearchPicker({
   );
 }
 
+/**
+ * One root the current template's tokens can be rooted at, as reported
+ * by the server's token catalog.
+ */
+export interface StudioPreviewRoot {
+  /** Token entity kind ("worker", "contact", "dispatch_job"…). */
+  kind: string;
+  /** Human label for the kind ("Worker"). */
+  label: string;
+  /** Whether real records of this kind can be searched and loaded. */
+  hasProvider: boolean;
+}
+
 export interface StudioPreviewContext {
-  /** Real-record mode is on AND supported. */
-  realActive: boolean;
-  entity: EntityRef | null;
-  recipient: EntityRef | null;
+  /** Picked real record per root kind; unpicked roots render samples. */
+  records: Record<string, EntityRef>;
   /** Stable identity of the current context for preview re-rendering. */
   previewContextKey: string;
-  /** Ready-to-render context panel (sample/real radio + pickers). */
+  /** Ready-to-render context panel (one record picker per root). */
   contextPanel: React.ReactNode;
 }
 
+/** Default record-search endpoint for a root kind. */
+function defaultSearchUrl(kind: string, query: string): string {
+  return `/api/token-studio/preview-entities/${encodeURIComponent(kind)}?q=${encodeURIComponent(query)}`;
+}
+
+/** One root's record picker; owns its own query state and search. */
+function RootRecordPicker({
+  open,
+  root,
+  searchUrl,
+  selected,
+  onChange,
+}: {
+  open: boolean;
+  root: StudioPreviewRoot;
+  searchUrl: (kind: string, query: string) => string;
+  selected: EntityRef | null;
+  onChange: (ref: EntityRef | null) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const debounced = useDebounced(query);
+  const { data, isFetching } = useQuery<{ entities: EntityRef[] }>({
+    queryKey: [searchUrl(root.kind, debounced)],
+    enabled: open && !selected,
+  });
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground">{root.label}</p>
+      <SearchPicker
+        placeholder={`Search ${root.label.toLowerCase()}…`}
+        selectedLabel={selected?.label ?? null}
+        onClear={() => onChange(null)}
+        onQuery={setQuery}
+        results={data?.entities ?? []}
+        onPick={(r) => onChange(r)}
+        loading={isFetching}
+        testId={`studio-root-picker-${root.kind}`}
+      />
+    </div>
+  );
+}
+
 /**
- * Shared Template Studio preview-context builder: "Sample data" vs
- * "Real record" mode, a record picker (driven by a host-supplied search
- * URL builder) and an optional recipient contact picker. Every Studio
- * host inherits this instead of rolling its own.
+ * Shared Template Studio preview-context builder: one record picker per
+ * root the current template can reach that has a real-record provider.
+ * Every Studio host inherits this instead of rolling its own — a root is
+ * previewed against a real record when one is picked for it and renders
+ * sample values otherwise, so a preview can honestly mix the two.
  */
 export function useStudioPreviewContext({
   open,
-  realRecordPreview,
-  entitySearchUrl,
-  showRecipientPicker = true,
-  allowRecipientOnlyReal = false,
+  previewRoots,
+  searchUrl = defaultSearchUrl,
 }: {
   open: boolean;
-  /** Whether a real-record picker is available at all. */
-  realRecordPreview: boolean;
-  /** Build the record-search URL for a query (host picks the endpoint). */
-  entitySearchUrl?: (query: string) => string;
-  /** Offer the recipient contact picker in real mode (default true). */
-  showRecipientPicker?: boolean;
-  /**
-   * Allow "Real record" mode with only a recipient contact (no record
-   * provider). Off by default: hosts whose tokens are rooted at an event
-   * entity render nonsense against an empty event, so real mode requires
-   * a record provider unless the host opts in.
-   */
-  allowRecipientOnlyReal?: boolean;
+  /** Roots reported by the surface's token catalog. */
+  previewRoots?: StudioPreviewRoot[];
+  /** Override the record-search endpoint (defaults to the studio's). */
+  searchUrl?: (kind: string, query: string) => string;
 }): StudioPreviewContext {
-  const [mode, setMode] = useState<"sample" | "real">("sample");
-  const [entity, setEntity] = useState<EntityRef | null>(null);
-  const [recipient, setRecipient] = useState<EntityRef | null>(null);
-  const [entityQuery, setEntityQuery] = useState("");
-  const [recipientQuery, setRecipientQuery] = useState("");
-  const debouncedEntityQuery = useDebounced(entityQuery);
-  const debouncedRecipientQuery = useDebounced(recipientQuery);
+  const [records, setRecords] = useState<Record<string, EntityRef>>({});
 
-  const canReal = realRecordPreview || (allowRecipientOnlyReal && showRecipientPicker);
-  const realActive = mode === "real" && canReal;
+  const available = (previewRoots ?? []).filter((r) => r.hasProvider);
+  const availableKeys = available.map((r) => r.kind).join(",");
 
-  const { data: entityResults, isFetching: entityLoading } = useQuery<{ entities: EntityRef[] }>({
-    queryKey: [entitySearchUrl ? entitySearchUrl(debouncedEntityQuery) : ""],
-    enabled: open && realActive && realRecordPreview && !!entitySearchUrl && !entity,
-  });
+  // A root can disappear (the catalog changes with the event kind, a
+  // component gets turned off): drop picks that no longer apply so they
+  // are not posted with the preview.
+  useEffect(() => {
+    setRecords((prev) => {
+      const kinds = availableKeys ? availableKeys.split(",") : [];
+      const next: Record<string, EntityRef> = {};
+      for (const kind of kinds) if (prev[kind]) next[kind] = prev[kind];
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+  }, [availableKeys]);
 
-  const { data: contactResults, isFetching: contactLoading } = useQuery<ContactSearchRow[]>({
-    queryKey: [`/api/contacts/search?q=${encodeURIComponent(debouncedRecipientQuery)}`],
-    enabled:
-      open &&
-      realActive &&
-      showRecipientPicker &&
-      !recipient &&
-      debouncedRecipientQuery.trim().length >= 2,
-  });
-
-  const previewContextKey = realActive
-    ? `real:${entity?.id ?? ""}:${recipient?.id ?? ""}`
-    : "sample";
+  const previewContextKey =
+    available.map((r) => `${r.kind}:${records[r.kind]?.id ?? ""}`).join("|") ||
+    "sample";
 
   const contextPanel = (
     <div className="space-y-2" data-testid="studio-context-panel">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Preview with
       </p>
-      <RadioGroup
-        value={realActive ? "real" : "sample"}
-        onValueChange={(v) => setMode(v === "real" ? "real" : "sample")}
-        className="flex items-center gap-4"
-      >
-        <div className="flex items-center gap-1.5">
-          <RadioGroupItem value="sample" id="studio-ctx-sample" data-testid="radio-context-sample" />
-          <Label htmlFor="studio-ctx-sample" className="text-sm font-normal">
-            Sample data
-          </Label>
-        </div>
-        <div className={cn("flex items-center gap-1.5", !canReal && "opacity-50")}>
-          <RadioGroupItem
-            value="real"
-            id="studio-ctx-real"
-            disabled={!canReal}
-            data-testid="radio-context-real"
-          />
-          <Label htmlFor="studio-ctx-real" className="text-sm font-normal">
-            Real record
-          </Label>
-        </div>
-      </RadioGroup>
-      {realActive && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-          {realRecordPreview && entitySearchUrl && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Record</p>
-              <SearchPicker
-                placeholder="Search records…"
-                selectedLabel={entity?.label ?? null}
-                onClear={() => setEntity(null)}
-                onQuery={setEntityQuery}
-                results={entityResults?.entities ?? []}
-                onPick={(r) => setEntity(r)}
-                loading={entityLoading}
-                testId="studio-entity-picker"
-              />
-            </div>
-          )}
-          {showRecipientPicker && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Recipient (optional)</p>
-              <SearchPicker
-                placeholder="Search contacts (min 2 chars)…"
-                selectedLabel={recipient?.label ?? null}
-                onClear={() => setRecipient(null)}
-                onQuery={setRecipientQuery}
-                results={(contactResults ?? []).map((c) => ({
-                  id: c.id,
-                  label:
-                    c.displayName ||
-                    `${c.given ?? ""} ${c.family ?? ""}`.trim() ||
-                    c.email ||
-                    c.id,
-                }))}
-                onPick={(r) => setRecipient(r)}
-                loading={contactLoading}
-                testId="studio-recipient-picker"
-              />
-            </div>
-          )}
-        </div>
-      )}
-      {realActive && realRecordPreview && !entity && (
-        <p className="text-xs text-muted-foreground">
-          Pick a record to render the preview with its real data.
+      {available.length === 0 ? (
+        <p className="text-xs text-muted-foreground" data-testid="studio-context-no-roots">
+          No real records available for this template — rendering sample data.
         </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+            {available.map((root) => (
+              <RootRecordPicker
+                key={root.kind}
+                open={open}
+                root={root}
+                searchUrl={searchUrl}
+                selected={records[root.kind] ?? null}
+                onChange={(ref) =>
+                  setRecords((prev) => {
+                    const next = { ...prev };
+                    if (ref) next[root.kind] = ref;
+                    else delete next[root.kind];
+                    return next;
+                  })
+                }
+              />
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Pick a record to render with its real values; anything left unpicked
+            renders sample data.
+          </p>
+        </>
       )}
     </div>
   );
 
-  return { realActive, entity, recipient, previewContextKey, contextPanel };
+  return { records, previewContextKey, contextPanel };
 }

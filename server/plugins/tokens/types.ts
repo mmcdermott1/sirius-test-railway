@@ -29,6 +29,39 @@ export function tokenEntityOf(entity: unknown, kind: string): TokenEntity | null
   return e && typeof e === "object" && e.kind === kind && e.row ? e : null;
 }
 
+/** One pickable real record for a Template Studio "real record" preview. */
+export interface TokenPreviewEntityRef {
+  id: string;
+  /** Human label for the picker (e.g. "Jane Doe — Crane Operator (offered)"). */
+  label: string;
+}
+
+/**
+ * How to find and load real records of one token entity kind so a
+ * template editor can preview against real data instead of samples.
+ * Anyone with access to the template-editing surface may preview any
+ * record of the kind (explicit product decision — the delivered
+ * message would expose the same data anyway).
+ *
+ * Declared ONCE per entity kind, on the token plugin that owns the kind
+ * (`previewEntities` in its metadata) — never per notifier or per
+ * surface. Every editor rooted at the kind inherits it.
+ */
+export interface TokenPreviewEntityProvider {
+  /**
+   * Component that must be enabled for this kind's data to be visible.
+   * Defaults to the declaring plugin's `requiredComponent`. Enforced by
+   * every preview endpoint (search AND load): an optional component's
+   * tables can be absent from the database entirely, so an unguarded
+   * search errors instead of returning nothing.
+   */
+  requiredComponent?: string;
+  /** Search entities by free text; empty query returns recent/any. */
+  search(query: string): Promise<TokenPreviewEntityRef[]>;
+  /** Load one entity by id for rendering; null when it no longer exists. */
+  load(id: string): Promise<TokenEntity | null>;
+}
+
 export interface TokenPluginMetadata extends BasePluginMetadata {
   /**
    * Segment name as written in templates (e.g. "field"). Not
@@ -102,6 +135,29 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
    * the concrete kind use `buildSegmentSpecsForEvent`.
    */
   dynamicOutput?: boolean;
+  /**
+   * Root segments only: the root resolves from the render's recipient
+   * contact when its own kind has no seeded record (`{{worker…}}` in a
+   * delivered message means "the recipient's worker"). Such a root
+   * counts as real — not sample — whenever a recipient is present.
+   */
+  recipientRooted?: boolean;
+  /**
+   * Root segments only: the root resolves from the render context alone
+   * (`{{system…}}` — dates, site origin), so there is no record to pick
+   * for it. A seedless root follows the render: it resolves for real as
+   * soon as anything else in the render is real, and only falls back to
+   * samples when the whole render is samples.
+   */
+  seedless?: boolean;
+  /**
+   * How a template editor finds and loads real records of the kind this
+   * plugin produces, for "preview against a real record". Declare on
+   * exactly ONE plugin per entity kind (the one that owns the kind —
+   * its root or its entity descriptor); the preview registry is built
+   * from these at boot and refuses two providers for one kind.
+   */
+  previewEntities?: TokenPreviewEntityProvider;
 }
 
 /**
@@ -111,21 +167,37 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
  */
 export interface TokenEvalContext {
   storage: IStorage;
-  /** Recipient contact — undefined in sample mode. */
+  /**
+   * Recipient contact. The one seed the delivery pipeline always has:
+   * recipient-rooted roots (`recipientRooted`) resolve from it when
+   * their own kind is not seeded in `roots`.
+   */
 
   contactId?: string;
 
   now: Date;
-  /** Sample mode: leaves render their example instead of hitting the DB. */
+  /**
+   * Sample fallback (preview only): a chain whose ROOT has no seed
+   * renders sample values instead of hitting the DB. A seeded root
+   * still resolves for real, so one render can mix real and sample
+   * roots. Never set on delivery — there every root resolves for real
+   * and a missing record renders the chain's default.
+   */
 
   sample?: boolean;
   /**
-   * The event entity for `{{event...}}` chains (token-templated event
-   * notifiers). Absent outside notifier rendering, in which case the
-   * `event` root resolves as missing.
+   * Seeded root entities keyed by entity kind. A chain rooted at a kind
+   * present here resolves against that real record; anything else falls
+   * back to the recipient (recipient-rooted roots) or to samples.
    */
 
-  event?: TokenEntity;
+  roots: Record<TokenEntityType, TokenEntity>;
+  /**
+   * Entity kind the dynamic `{{event…}}` root stands for. Its record,
+   * when there is one, is the seeded root named for this kind.
+   */
+
+  eventKind?: TokenEntityType;
   /** Cross-segment memo cache. */
 
   cache: Map<string, unknown>;

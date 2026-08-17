@@ -18,6 +18,16 @@ type RequireAuth = (req: Request, res: Response, next: () => void) => void;
  * decision — the studio is a general-purpose data-reading tool and the
  * delivered message would expose the same data anyway).
  */
+/** Seeded records from the request body: { <entity kind>: <record id> }. */
+function parseRecords(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [kind, id] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof id === "string" && id) out[kind] = id;
+  }
+  return out;
+}
+
 export function registerTokenStudioRoutes(
   app: Express,
   requireAuth: RequireAuth,
@@ -42,7 +52,7 @@ export function registerTokenStudioRoutes(
           buildTokenCatalog,
           buildTokenCatalogForEvent,
         } = await import("../plugins/tokens");
-        const { hasTokenPreviewEntities } = await import(
+        const { listTokenPreviewRoots } = await import(
           "../plugins/tokens/preview-entities"
         );
         const eventKind =
@@ -56,7 +66,10 @@ export function registerTokenStudioRoutes(
             : buildSegmentSpecs(),
           fields: buildFieldCatalog(),
           tokens: eventKind ? buildTokenCatalogForEvent(eventKind) : buildTokenCatalog(),
-          realRecordPreview: eventKind ? hasTokenPreviewEntities(eventKind) : false,
+          // Every root these tokens can be rooted at, and which of them
+          // can be previewed against a real record right now — the
+          // studio renders one record picker per available root.
+          previewRoots: await listTokenPreviewRoots(eventKind),
         });
       } catch (error: any) {
         res
@@ -103,9 +116,10 @@ export function registerTokenStudioRoutes(
    *   `params` — surface-specific parameters (notifier id + channel,
    *     bulk medium, event entity kind for ad-hoc fields…).
    *   `contactId` — optional real recipient contact.
-   *   `eventEntityId` — optional real event record (loaded through the
-   *     preview-entity registry for the kind the surface declares);
-   *     without it the event root renders sample values.
+   *   `records` — optional real record per root, keyed by entity kind
+   *     ({ worker: "…", dispatch_job: "…" }), each loaded through that
+   *     kind's preview-entity provider. A root with no record renders
+   *     sample values, so one preview can mix real and sample roots.
    *
    * Field media (plain / HTML / relative URL) comes from the surface's
    * declaration, never from the request, so the preview always applies
@@ -143,10 +157,7 @@ export function registerTokenStudioRoutes(
               typeof body.contactId === "string" && body.contactId
                 ? body.contactId
                 : undefined,
-            eventEntityId:
-              typeof body.eventEntityId === "string" && body.eventEntityId
-                ? body.eventEntityId
-                : undefined,
+            records: parseRecords(body.records),
           });
           res.json(preview);
         } catch (error: unknown) {

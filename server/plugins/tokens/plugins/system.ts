@@ -24,6 +24,10 @@ registerTokenPlugin({
     segmentName: "system",
     inputTypes: ["root"],
     outputType: "system",
+    // Nothing to pick for this root — it follows the render (see
+    // `seedless`), so a preview with any real record shows real system
+    // values and an all-sample preview shows sample ones.
+    seedless: true,
   },
   async resolve(_entity, _args, ctx) {
     return { kind: "system", row: { now: ctx.now } };

@@ -195,6 +195,10 @@ async function main() {
         params: { pluginId: plugin.id, channel, configData },
         values: channelTemplates,
         contactId: contact.id,
+        // Seed the event root with the entity delivery composes with:
+        // parity is about shaping, and an unseeded root would render
+        // sample values (which delivery never does) instead.
+        seededRoots: [eventEntity as any],
       });
       check(`${label}: "is anything delivered?" matches`, preview.deliverable === (delivered !== null), {
         previewDeliverable: preview.deliverable,

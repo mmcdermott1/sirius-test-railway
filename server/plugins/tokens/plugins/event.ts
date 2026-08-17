@@ -22,6 +22,8 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
   },
   async resolve(_entity, _args, ctx) {
-    return ctx.event ?? null;
+    // The event root is the seeded root named for the render's event
+    // kind: whoever renders declares the kind and seeds the record.
+    return (ctx.eventKind ? ctx.roots[ctx.eventKind] : undefined) ?? null;
   },
 });

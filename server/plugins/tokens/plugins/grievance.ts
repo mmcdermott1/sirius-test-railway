@@ -88,6 +88,54 @@ registerTokenPlugin({
     entityFields: ["name", "display_title"],
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
+    // Real-record preview for every editor rooted at a grievance.
+    // Gated on the grievance component (inherited from the plugin):
+    // its tables need not exist at all when the component is off.
+    previewEntities: {
+      async search(query) {
+        const { storage } = await import("../../../storage");
+        const rows = await storage.grievances.search();
+        const needle = query.trim().toLowerCase();
+        return rows
+          .filter(
+            (g) =>
+              !needle ||
+              (g.grievantSummary ?? "").toLowerCase().includes(needle) ||
+              (g.categoryName ?? "").toLowerCase().includes(needle) ||
+              (g.siriusId ?? "").toLowerCase().includes(needle),
+          )
+          .slice(0, 20)
+          .map((g) => ({
+            id: g.id,
+            label: [
+              composeGrievanceDisplayTitle(g.id, {
+                name: null,
+                categoryName: g.categoryName,
+              }),
+              g.grievantSummary || null,
+              g.statusName || null,
+            ]
+              .filter(Boolean)
+              .join(" — "),
+          }));
+      },
+      async load(id) {
+        const { storage } = await import("../../../storage");
+        const [base, info] = await Promise.all([
+          storage.grievances.get(id),
+          storage.grievances.getAssignmentTitleInfo(id),
+        ]);
+        if (!base) return null;
+        return {
+          kind: GRIEVANCE_ENTITY_KIND,
+          row: {
+            ...(base as unknown as Record<string, unknown>),
+            displayTitle: composeGrievanceDisplayTitle(id, info),
+          },
+          table: grievances,
+        };
+      },
+    },
   },
   async resolve() {
     return null;
