@@ -5,15 +5,17 @@ type RequireAccess = (policy: any) => (req: Request, res: Response, next: () => 
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
 /**
- * Generic Template Studio endpoints: the shared token-editor popup for
- * ANY tokenized string field (email, SMS, postal, in-app, plain text)
- * that is not backed by a bespoke host endpoint. Hosts that must mirror
- * a delivery-time composition step (event notifiers) or enforce a
- * narrower preview scope (bulk messages → participants only) keep
- * their own preview endpoints; everything else uses these.
+ * Template Studio endpoints: the token catalog, the real-record picker
+ * and THE ONE preview route every tokenized surface renders through.
  *
- * Admin-gated: previews may resolve tokens against any contact's real
- * data (same explicit product decision as the notifier preview — the
+ * There is no per-surface preview endpoint: a surface registers with
+ * the template-surface registry (which declares only how its fields are
+ * shaped at delivery time) and the client posts the surface id plus the
+ * editor's in-progress values here.
+ *
+ * Preview is staff-gated and nothing narrower: anyone who can write a
+ * tokenized string may preview it against any record (explicit product
+ * decision — the studio is a general-purpose data-reading tool and the
  * delivered message would expose the same data anyway).
  */
 export function registerTokenStudioRoutes(
@@ -95,107 +97,64 @@ export function registerTokenStudioRoutes(
   );
 
   /**
-   * Render arbitrary tokenized fields. POST body (JSON):
-   *   `fields` — { key: template } map to render.
-   *   `escapeHtmlFields` — field keys to render with HTML escaping; their
-   *     output is additionally sanitized like delivered email HTML.
+   * THE preview route. POST body (JSON):
+   *   `surfaceId` — registered template surface being edited.
+   *   `values` — { fieldKey: template } the editor currently holds.
+   *   `params` — surface-specific parameters (notifier id + channel,
+   *     bulk medium, event entity kind for ad-hoc fields…).
    *   `contactId` — optional real recipient contact.
-   *   `eventEntityKind` / `eventEntityId` — optional event root: kind
-   *     alone renders a sample entity of that kind; with an id, the
-   *     real record is loaded via the preview-entity registry.
+   *   `eventEntityId` — optional real event record (loaded through the
+   *     preview-entity registry for the kind the surface declares);
+   *     without it the event root renders sample values.
+   *
+   * Field media (plain / HTML / relative URL) comes from the surface's
+   * declaration, never from the request, so the preview always applies
+   * the shaping delivery will apply.
    */
   app.post(
-    "/api/token-studio/preview",
+    "/api/template-studio/preview",
     requireAuth,
-    requireAccess("admin"),
+    requireAccess("staff"),
     async (req: Request, res: Response) => {
       try {
         const body = req.body ?? {};
-        const fields: Record<string, string> =
-          body.fields && typeof body.fields === "object" ? body.fields : {};
-        const escapeHtmlFields: string[] = Array.isArray(body.escapeHtmlFields)
-          ? body.escapeHtmlFields.filter((s: unknown) => typeof s === "string")
-          : [];
-
-        let contactId: string | undefined;
-        if (typeof body.contactId === "string" && body.contactId) {
-          const contact = await storage.contacts.getContact(body.contactId);
-          if (!contact) {
-            return res.status(404).json({ message: "Preview contact not found" });
-          }
-          contactId = body.contactId;
+        const surfaceId = typeof body.surfaceId === "string" ? body.surfaceId : "";
+        const { getTemplateSurface, renderTemplateSurface, TemplateSurfaceError } =
+          await import("../plugins/template-surfaces");
+        const surface = getTemplateSurface(surfaceId);
+        if (!surface) {
+          return res
+            .status(404)
+            .json({ message: `Unknown template surface "${surfaceId}"` });
         }
 
-        const eventEntityKind =
-          typeof body.eventEntityKind === "string" && body.eventEntityKind
-            ? body.eventEntityKind
-            : undefined;
-        let eventEntity: import("../plugins/tokens/types").TokenEntity | undefined;
-        let realEvent = false;
-        if (eventEntityKind) {
-          if (typeof body.eventEntityId === "string" && body.eventEntityId) {
-            const { getEnabledTokenPreviewEntities } = await import(
-              "../plugins/tokens/preview-entities"
-            );
-            const provider = await getEnabledTokenPreviewEntities(eventEntityKind);
-            if (!provider) {
-              return res.status(400).json({
-                message: "This entity kind does not support real-record preview",
-              });
-            }
-            const loaded = await provider.load(body.eventEntityId);
-            if (!loaded) {
-              return res.status(404).json({ message: "Preview record not found" });
-            }
-            eventEntity = loaded;
-            realEvent = true;
-          } else {
-            eventEntity = { kind: eventEntityKind, row: {} };
-          }
-        }
+        const values: Record<string, string> =
+          body.values && typeof body.values === "object" ? body.values : {};
+        const params: Record<string, unknown> =
+          body.params && typeof body.params === "object" ? body.params : {};
 
-        const { renderTokens, createTokenEvalContext } = await import(
-          "../plugins/tokens"
-        );
-        const { sanitizeHelpHtml } = await import("../help/sanitize");
-        const useSample = !contactId && !realEvent;
-        const cache = new Map<string, unknown>();
-
-        type FieldPreview = {
-          rendered: string;
-          unknownTokens: string[];
-          missingValues: string[];
-          emptyValues: string[];
-        };
-        const rendered: Record<string, FieldPreview> = {};
-        for (const [key, template] of Object.entries(fields)) {
-          if (typeof template !== "string") continue;
-          const escapeHtml = escapeHtmlFields.includes(key);
-          const ctx = createTokenEvalContext(storage, contactId, {
-            sample: useSample,
-            cache,
-            event: eventEntity,
+        try {
+          const preview = await renderTemplateSurface({
+            storage,
+            surface,
+            params,
+            values,
+            contactId:
+              typeof body.contactId === "string" && body.contactId
+                ? body.contactId
+                : undefined,
+            eventEntityId:
+              typeof body.eventEntityId === "string" && body.eventEntityId
+                ? body.eventEntityId
+                : undefined,
           });
-          const result = await renderTokens(template, ctx, {
-            strictUnknown: true,
-            escapeHtml,
-          });
-          rendered[key] = {
-            // HTML fields are sanitized exactly like delivered email HTML
-            // so the admin preview is not an XSS sink and matches delivery.
-            rendered: escapeHtml ? sanitizeHelpHtml(result.output) : result.output,
-            unknownTokens: result.unknownTokens,
-            missingValues: result.missingValues,
-            emptyValues: result.emptyValues,
-          };
+          res.json(preview);
+        } catch (error: unknown) {
+          if (error instanceof TemplateSurfaceError) {
+            return res.status(error.status).json({ message: error.message });
+          }
+          throw error;
         }
-
-        res.json({
-          sample: useSample,
-          contactId: contactId ?? null,
-          eventEntityId: realEvent ? String(body.eventEntityId) : null,
-          fields: rendered,
-        });
       } catch (error: any) {
         res
           .status(500)

@@ -6,7 +6,6 @@ import {
   TemplateStudio,
   type StudioChannel,
   type StudioField,
-  type StudioPreviewResult,
 } from "./TemplateStudio";
 import { useStudioPreviewContext } from "./StudioContext";
 import type {
@@ -16,24 +15,11 @@ import type {
 } from "@shared/tokens";
 
 interface TokenStudioCatalog {
-  eventEntityKind: string | null;
+  eventEntityKind?: string | null;
   segments: TokenSegmentSpec[];
   fields?: TokenFieldCatalog;
   tokens: TokenCatalogEntry[];
-  realRecordPreview: boolean;
-}
-
-interface TokenStudioPreviewResponse {
-  sample: boolean;
-  fields: Record<
-    string,
-    {
-      rendered: string;
-      unknownTokens: string[];
-      missingValues: string[];
-      emptyValues: string[];
-    }
-  >;
+  realRecordPreview?: boolean;
 }
 
 export interface TokenStudioProps {
@@ -46,27 +32,31 @@ export interface TokenStudioProps {
   fields: StudioField[];
   values: Record<string, string>;
   onValueChange: (key: string, value: string) => void;
+  /** Registered template surface the values belong to. */
+  surfaceId: string;
+  /** Surface-specific parameters (e.g. which medium is being edited). */
+  surfaceParams?: Record<string, unknown>;
   /**
    * Optional event entity kind rooting `{{event.*}}` tokens. When the
    * kind has a registered preview-entity provider, the context panel
    * offers "real record" mode automatically.
    */
   eventEntityKind?: string;
-  /** Field keys whose output is HTML (rendered escaped + sanitized). */
-  escapeHtmlFields?: string[];
+  /** Token catalog endpoint (defaults to the generic studio catalog). */
+  catalogUrl?: string;
   /** Scopes listed first in the token browser. */
   priorityScopes?: string[];
 }
 
 /**
  * THE generic token-editing popup: any tokenized string field anywhere
- * can open this. Token catalog, sample/real-record context, and preview
- * all come from the generic `/api/token-studio/*` endpoints — hosts only
- * say where the strings live and which channel presentation to use.
+ * can open this. It loads a token catalog, builds the sample/real-record
+ * context and hands both to the shared studio, which previews through
+ * the single preview route for the surface id given here.
  *
- * Surfaces with bespoke preview semantics (event notifiers composing
- * defaults, bulk messages scoping recipients to participants) use their
- * dedicated hosts instead; everything else uses this one.
+ * A surface only needs its own host when it has editor-side logic of its
+ * own (the event notifier's default-vs-override text); previewing never
+ * requires one.
  */
 export function TokenStudio({
   open,
@@ -77,15 +67,19 @@ export function TokenStudio({
   fields,
   values,
   onValueChange,
+  surfaceId,
+  surfaceParams,
   eventEntityKind,
-  escapeHtmlFields = [],
+  catalogUrl,
   priorityScopes,
 }: TokenStudioProps) {
-  const catalogUrl = eventEntityKind
-    ? `/api/token-studio/catalog?event=${encodeURIComponent(eventEntityKind)}`
-    : "/api/token-studio/catalog";
+  const url =
+    catalogUrl ??
+    (eventEntityKind
+      ? `/api/token-studio/catalog?event=${encodeURIComponent(eventEntityKind)}`
+      : "/api/token-studio/catalog");
   const { data: catalog } = useQuery<TokenStudioCatalog>({
-    queryKey: [catalogUrl],
+    queryKey: [url],
     enabled: open,
   });
 
@@ -101,25 +95,6 @@ export function TokenStudio({
     allowRecipientOnlyReal: !eventEntityKind,
   });
 
-  const fetchPreview = async (v: Record<string, string>): Promise<StudioPreviewResult> => {
-    const body: Record<string, unknown> = { fields: v, escapeHtmlFields };
-    if (eventEntityKind) body.eventEntityKind = eventEntityKind;
-    if (ctx.realActive && ctx.entity) body.eventEntityId = ctx.entity.id;
-    if (ctx.realActive && ctx.recipient) body.contactId = ctx.recipient.id;
-    const res = await fetch("/api/token-studio/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      credentials: "include",
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as { message?: string }).message ?? `Preview failed (${res.status})`);
-    }
-    const data = (await res.json()) as TokenStudioPreviewResponse;
-    return { sample: data.sample, fields: data.fields };
-  };
-
   return (
     <TemplateStudio
       open={open}
@@ -130,13 +105,15 @@ export function TokenStudio({
       fields={fields}
       values={values}
       onValueChange={onValueChange}
+      surfaceId={surfaceId}
+      surfaceParams={
+        eventEntityKind ? { ...surfaceParams, eventEntityKind } : surfaceParams
+      }
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
       priorityScopes={priorityScopes}
-      fetchPreview={fetchPreview}
-      previewContextKey={ctx.previewContextKey}
-      contextPanel={ctx.contextPanel}
+      context={ctx}
     />
   );
 }

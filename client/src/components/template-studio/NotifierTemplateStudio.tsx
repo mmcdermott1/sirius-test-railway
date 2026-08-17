@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { TemplateStudio, type StudioField, type StudioFieldMode, type StudioPreviewResult } from "./TemplateStudio";
+import { TemplateStudio, type StudioField, type StudioFieldMode } from "./TemplateStudio";
 import { useStudioPreviewContext } from "./StudioContext";
 import type {
   TokenCatalogEntry,
@@ -36,20 +36,6 @@ export interface NotifierTokenCatalog {
   tokens?: TokenCatalogEntry[];
   realRecordPreview?: boolean;
 }
-
-interface FieldPreview {
-  rendered: string;
-  unknownTokens: string[];
-  missingValues: string[];
-  emptyValues: string[];
-}
-
-interface NotifierPreviewResponse {
-  sample: boolean;
-  contactId: string | null;
-  channels: Record<string, Record<string, FieldPreview>>;
-}
-
 export interface NotifierTemplateStudioProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -150,35 +136,6 @@ export function NotifierTemplateStudio({
     updateConfigData(`templates.${channel}.${key}`, normalized);
   };
 
-  // ── Preview ────────────────────────────────────────────────────────────────
-  const fetchPreview = async (values: Record<string, string>): Promise<StudioPreviewResult> => {
-    // Compose the live configData with the in-studio values so the preview
-    // always reflects what's on screen (even before RJSF state syncs).
-    const merged = {
-      ...configData,
-      templates: {
-        ...templates,
-        [channel]: { ...(templates[channel] ?? {}), ...values },
-      },
-    };
-    const body: Record<string, unknown> = { configData: merged };
-    if (ctx.realActive && ctx.entity) body.eventEntityId = ctx.entity.id;
-    if (ctx.realActive && ctx.recipient) body.contactId = ctx.recipient.id;
-    const res = await fetch(`/api/event-notifier/preview/${pluginId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      credentials: "include",
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as { message?: string }).message ?? `Preview failed (${res.status})`);
-    }
-    const data = (await res.json()) as NotifierPreviewResponse;
-    const ch = data.channels[channel] ?? {};
-    return { sample: data.sample, fields: ch };
-  };
-
   if (disabled) return null;
 
   return (
@@ -191,13 +148,16 @@ export function NotifierTemplateStudio({
       fields={fields}
       values={channelValues}
       onValueChange={handleValueChange}
+      // The surface's resolver merges these in-progress values into the
+      // config's templates and re-resolves defaults, exactly as delivery
+      // composes them.
+      surfaceId="event-notifier"
+      surfaceParams={{ pluginId, channel, configData }}
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
       priorityScopes={["event"]}
-      fetchPreview={fetchPreview}
-      previewContextKey={ctx.previewContextKey}
-      contextPanel={ctx.contextPanel}
+      context={ctx}
     />
   );
 }

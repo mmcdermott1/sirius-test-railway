@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
 import { Loader2, Save, Mail, MessageSquare, MapPin, Bell, AlertTriangle, Maximize2 } from "lucide-react";
 import { TokenPicker } from "@/components/bulk/TokenPicker";
-import { BulkTemplateStudio } from "@/components/template-studio/BulkTemplateStudio";
+import { TokenStudio } from "@/components/template-studio/TokenStudio";
 import { SlashTokenField } from "@/components/bulk/SlashTokenField";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { cn } from "@/lib/utils";
@@ -129,10 +129,12 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
         <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-email" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
-      <BulkTemplateStudio
+      <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        messageId={messageId}
+        surfaceId="bulk-message"
+        surfaceParams={{ channel: "email" }}
+        catalogUrl="/api/bulk-tokens"
         title="Email message"
         channel="email"
         fields={[
@@ -141,7 +143,6 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
         ]}
         values={{ subject: form.subject, bodyHtml: form.bodyHtml }}
         onValueChange={(key, value) => setForm((p) => ({ ...p, [key]: value }))}
-        escapeHtmlFields={["bodyHtml"]}
       />
       <div className="space-y-2">
         <Label htmlFor="subject">Subject</Label>
@@ -188,10 +189,12 @@ function SmsForm({ record, onSave, isPending, messageId }: FormProps) {
         <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-sms" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
-      <BulkTemplateStudio
+      <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        messageId={messageId}
+        surfaceId="bulk-message"
+        surfaceParams={{ channel: "sms" }}
+        catalogUrl="/api/bulk-tokens"
         title="SMS message"
         channel="sms"
         fields={[{ key: "body", label: "Message body", mode: "multiline" }]}
@@ -246,10 +249,12 @@ function PostalForm({ record, onSave, isPending, messageId }: FormProps) {
         <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-postal" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
-      <BulkTemplateStudio
+      <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        messageId={messageId}
+        surfaceId="bulk-message"
+        surfaceParams={{ channel: "postal" }}
+        catalogUrl="/api/bulk-tokens"
         title="Postal letter"
         channel="postal"
         fields={[{ key: "description", label: "Description", mode: "multiline" }]}
@@ -340,10 +345,12 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
         <StudioButton onClick={() => setStudioOpen(true)} testId="button-open-studio-inapp" />
         <TokenPicker onInsert={inserter.insertToken} messageId={messageId} />
       </div>
-      <BulkTemplateStudio
+      <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        messageId={messageId}
+        surfaceId="bulk-message"
+        surfaceParams={{ channel: "inapp" }}
+        catalogUrl="/api/bulk-tokens"
         title="In-app notification"
         channel="inapp"
         fields={[
@@ -354,12 +361,6 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
         ]}
         values={{ title: form.title, bodyHtml: form.bodyHtml, linkUrl: form.linkUrl, linkLabel: form.linkLabel }}
         onValueChange={(key, value) => setForm((p) => ({ ...p, [key]: value }))}
-        previewFieldsFor={(v) => ({
-          title: v.title ?? "",
-          body: htmlToPlainText(v.bodyHtml ?? ""),
-          linkUrl: v.linkUrl ?? "",
-          linkLabel: v.linkLabel ?? "",
-        })}
       />
       <div className="space-y-2">
         <Label htmlFor="inappTitle">Title</Label>

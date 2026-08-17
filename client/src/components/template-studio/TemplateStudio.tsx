@@ -24,6 +24,7 @@ import {
   type TokenFieldCatalog,
   type TokenSegmentSpec,
 } from "@shared/tokens";
+import type { StudioPreviewContext } from "./StudioContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -56,13 +57,20 @@ export interface StudioPreviewField {
 
 export type StudioChannel = "email" | "sms" | "inapp" | "postal" | "generic";
 
+/** The single preview route's response shape (every surface). */
 export interface StudioPreviewResult {
+  surfaceId: string;
   /** True when rendered purely from sample/example data. */
   sample: boolean;
+  contactId: string | null;
+  eventEntityId: string | null;
   /** Per-field rendered output keyed by StudioField.key. */
   fields: Record<string, StudioPreviewField>;
-  /** Extra rendered fields not edited here (e.g. inapp linkLabel). */
-  extras?: Record<string, StudioPreviewField>;
+  /**
+   * False when delivery would send nothing with these values (a
+   * required field — an in-app title, an email subject — is blank).
+   */
+  deliverable: boolean;
 }
 
 export interface TemplateStudioProps {
@@ -74,6 +82,14 @@ export interface TemplateStudioProps {
   fields: StudioField[];
   values: Record<string, string>;
   onValueChange: (key: string, value: string) => void;
+  /**
+   * Registered template surface being edited. The surface decides how
+   * the posted values become templates and how each rendered field is
+   * shaped, so the preview always matches delivery.
+   */
+  surfaceId: string;
+  /** Surface-specific parameters (notifier id + channel, bulk medium…). */
+  surfaceParams?: Record<string, unknown>;
   /** Token browser entries. */
   tokens: TokenCatalogEntry[];
   /** Segment graph for live token validation (omit to skip validation). */
@@ -82,17 +98,11 @@ export interface TemplateStudioProps {
   /** Scopes listed first in the token browser (e.g. ["event"]). */
   priorityScopes?: string[];
   /**
-   * Host-supplied preview call: renders the given field values (plus
-   * whatever context the host tracks) and returns per-field output.
+   * Container-supplied preview context: the sample / real-record mode
+   * builder (see `useStudioPreviewContext`). Its picks are posted with
+   * the preview and its panel is rendered above the preview.
    */
-  fetchPreview: (values: Record<string, string>) => Promise<StudioPreviewResult>;
-  /**
-   * Identity of the preview context (sample vs. specific record and
-   * recipient). Changing it re-renders the preview immediately.
-   */
-  previewContextKey?: string;
-  /** Host-rendered context builder UI (sample / real record pickers). */
-  contextPanel?: React.ReactNode;
+  context?: StudioPreviewContext;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -218,14 +228,18 @@ export function TemplateStudio({
   fields,
   values,
   onValueChange,
+  surfaceId,
+  surfaceParams,
   tokens,
   segments,
   fieldCatalog,
   priorityScopes,
-  fetchPreview,
-  previewContextKey = "",
-  contextPanel,
+  context,
 }: TemplateStudioProps) {
+  const previewContextKey = context?.previewContextKey ?? "sample";
+  const contextPanel = context?.contextPanel;
+  const contactId = context?.realActive ? context.recipient?.id : undefined;
+  const eventEntityId = context?.realActive ? context.entity?.id : undefined;
   const activeEditorRef = useRef<ActiveEditorRef | null>(null);
   const htmlApiRefs = useRef<Record<string, React.MutableRefObject<SimpleHtmlEditorApi | null>>>({});
   const getHtmlApiRef = (key: string) => {
@@ -252,15 +266,43 @@ export function TemplateStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, previewContextKey]);
 
+  const surfaceParamsJson = JSON.stringify(surfaceParams ?? {});
   const {
     data: preview,
     isFetching: previewLoading,
     error: previewError,
   } = useQuery<StudioPreviewResult>({
-    queryKey: ["template-studio-preview", title, channel, previewContextKey, debouncedJson],
+    queryKey: [
+      "template-studio-preview",
+      surfaceId,
+      surfaceParamsJson,
+      previewContextKey,
+      debouncedJson,
+    ],
     enabled: open,
     staleTime: 0,
-    queryFn: () => fetchPreview(JSON.parse(debouncedJson) as Record<string, string>),
+    queryFn: async () => {
+      const body: Record<string, unknown> = {
+        surfaceId,
+        params: JSON.parse(surfaceParamsJson),
+        values: JSON.parse(debouncedJson) as Record<string, string>,
+      };
+      if (contactId) body.contactId = contactId;
+      if (eventEntityId) body.eventEntityId = eventEntityId;
+      const res = await fetch("/api/template-studio/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(
+          (err as { message?: string }).message ?? `Preview failed (${res.status})`,
+        );
+      }
+      return (await res.json()) as StudioPreviewResult;
+    },
   });
 
   // ── Token insertion ────────────────────────────────────────────────────────
@@ -307,8 +349,7 @@ export function TemplateStudio({
   }, [fields, values, segments, fieldCatalog]);
 
   // ── Preview body per channel ───────────────────────────────────────────────
-  const pf = (key: string): StudioPreviewField | undefined =>
-    preview?.fields[key] ?? preview?.extras?.[key];
+  const pf = (key: string): StudioPreviewField | undefined => preview?.fields[key];
 
   const renderPreviewBody = () => {
     if (!preview) return null;
@@ -523,6 +564,14 @@ export function TemplateStudio({
                   </p>
                 ) : (
                   renderPreviewBody()
+                )}
+                {preview && !preview.deliverable && !previewLoading && (
+                  <p
+                    className="mt-3 text-xs text-destructive border-t pt-2"
+                    data-testid="studio-preview-undeliverable"
+                  >
+                    Nothing would be sent — a required field is empty for this recipient.
+                  </p>
                 )}
                 {preview?.sample && (
                   <p className="mt-3 text-xs text-muted-foreground border-t pt-2">

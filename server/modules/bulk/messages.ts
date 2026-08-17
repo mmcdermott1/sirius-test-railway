@@ -15,7 +15,6 @@ import { resolveContactLinks, resolveContactLinksForMany } from "../contact-link
 import { htmlToPlainText } from "../../../shared/html-to-text";
 import { extractTokenExpressions, parseTokenChain } from "@shared/tokens";
 import {
-  renderTokens,
   createTokenEvalContext,
   evaluateChain,
   buildSegmentSpecs,
@@ -765,50 +764,7 @@ export function registerBulkMessageRoutes(
     }
   });
 
-  app.post("/api/bulk-messages/:id/preview", requireAuth, requireAccess('bulk.edit'), async (req, res) => {
-    try {
-      const bulk = await storage.bulkMessages.getById(req.params.id);
-      if (!bulk) {
-        return res.status(404).json({ message: "Bulk message not found" });
-      }
-      const body = req.body ?? {};
-      const fields: Record<string, string> = (body.fields && typeof body.fields === 'object') ? body.fields : {};
-      const contactId: string | undefined = typeof body.contactId === 'string' ? body.contactId : undefined;
-      const escapeHtmlFields: string[] = Array.isArray(body.escapeHtmlFields) ? body.escapeHtmlFields.filter((s: unknown) => typeof s === 'string') : [];
-
-      // Enforce that any contactId used for preview is actually a
-      // participant of this bulk message — prevents leaking arbitrary
-      // contact PII through the preview endpoint.
-      if (contactId) {
-        const isMember = await storage.bulkParticipants.existsForMessageAndContact(req.params.id, contactId);
-        if (!isMember) {
-          return res.status(403).json({ message: "Contact is not a participant of this message" });
-        }
-      }
-
-      const ctx = createTokenEvalContext(storage, contactId, { sample: !contactId });
-
-      const rendered: Record<string, { output: string; unknownTokens: string[]; missingValues: string[]; emptyValues: string[]; tokens: string[] }> = {};
-      for (const [field, template] of Object.entries(fields)) {
-        if (typeof template !== 'string') continue;
-        const result = await renderTokens(template, ctx, { escapeHtml: escapeHtmlFields.includes(field), strictUnknown: true });
-        rendered[field] = {
-          output: result.output,
-          unknownTokens: result.unknownTokens,
-          missingValues: result.missingValues,
-          emptyValues: result.emptyValues,
-          tokens: extractTokenExpressions(template),
-        };
-      }
-
-      res.json({
-        contactId: contactId || null,
-        sample: !contactId,
-        rendered,
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to render preview";
-      res.status(500).json({ message });
-    }
-  });
+  // Bulk message content previews go through the single Template Studio
+  // preview route (POST /api/template-studio/preview, surface
+  // "bulk-message"); there is no bulk-specific preview endpoint.
 }

@@ -7,6 +7,8 @@ import type {
   NotifierRecipient,
 } from "./types";
 import type { TokenEntity } from "../tokens/types";
+import { NOTIFIER_CHANNEL_FIELDS } from "./field-media";
+import { applyFieldEligibility, shapeRenderedValue } from "../template-surfaces/shape";
 
 const SERVICE = "event-notifier-token-templates";
 
@@ -29,10 +31,7 @@ function customTemplatesOf(configData: unknown): Record<string, Record<string, u
   return out;
 }
 
-/** Same-app relative path: starts with "/", not scheme-relative "//". */
-export function isSafeRelativePath(url: string): boolean {
-  return url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\");
-}
+export { isSafeRelativePath } from "../template-surfaces/shape";
 
 /** A custom field wins only when it is a non-blank string. */
 function pick(custom: unknown, fallback: string | undefined): string {
@@ -108,55 +107,60 @@ export async function composeFromTemplates(
     return result.output;
   };
 
-  if (medium === "email" && templates.email) {
-    const subject = (await render(templates.email.subject)).trim();
-    if (!subject) return null;
-    // Sanitize AFTER token rendering so substituted values (e.g. a token
-    // used as an entire href) are subject to the tag/attr/URI allowlist
-    // too — admin-authored markup is not trusted verbatim (direct API
-    // writes bypass the rich-text editor). bodyText derives from the
-    // sanitized HTML so both parts always agree.
-    const rendered = await render(templates.email.bodyHtml, { escapeHtml: true });
-    const { sanitizeHelpHtml } = await import("../../help/sanitize");
-    const bodyHtml = sanitizeHelpHtml(rendered);
-    const { htmlToPlainText } = await import("../../../shared/html-to-text");
-    return { subject, bodyHtml, bodyText: htmlToPlainText(bodyHtml) };
-  }
+  const channelTemplates = templates[medium as keyof NotifierChannelTemplates] as
+    | Record<string, string | undefined>
+    | undefined;
+  const specs = NOTIFIER_CHANNEL_FIELDS[medium];
+  // Media the templates don't cover (e.g. postal) are skipped.
+  if (!channelTemplates || !specs) return null;
 
-  if (medium === "sms" && templates.sms) {
-    const message = (await render(templates.sms.message)).trim();
-    return message ? { message } : null;
-  }
-
-  if (medium === "inapp" && templates.inapp) {
-    const title = (await render(templates.inapp.title)).trim();
-    const body = (await render(templates.inapp.body)).trim();
-    if (!title || !body) return null;
-    let linkUrl = templates.inapp.linkUrl
-      ? (await render(templates.inapp.linkUrl)).trim()
+  // Render every field, then shape it exactly as the template surface
+  // previews it: trimming, HTML sanitizing (AFTER token rendering, so a
+  // substituted value used as a whole href faces the allowlist too),
+  // relative-link enforcement and companion-field suppression all live
+  // in the shared shaping step.
+  const shaped: Record<string, string> = {};
+  for (const spec of specs) {
+    const template = channelTemplates[spec.key];
+    const rendered = typeof template === "string"
+      ? await render(template, { escapeHtml: spec.media === "html" })
       : "";
-    // In-app links must be same-app relative paths ("/..." but not
-    // scheme-relative "//..."). Alert UIs hand non-relative links to
-    // window.open, so a rendered "javascript:" or absolute URL would be
-    // a stored script-execution / open-redirect vector. Enforced here
-    // after token substitution (save-time validation checks the raw
-    // template, but a token could still render something unsafe).
-    if (linkUrl && !isSafeRelativePath(linkUrl)) {
+    shaped[spec.key] = shapeRenderedValue(spec, rendered);
+    if (spec.media === "relative-url" && rendered.trim() && !shaped[spec.key]) {
+      // Alert UIs hand non-relative links to window.open, so a rendered
+      // "javascript:" or absolute URL would be a stored script-execution
+      // / open-redirect vector. Save-time validation checks the raw
+      // template; a token could still render something unsafe.
       logger.warn("Event-notifier in-app link was not a safe relative path; dropped", {
         service: SERVICE,
         pluginId: plugin.id,
-        linkUrl,
+        linkUrl: rendered.trim(),
       });
-      linkUrl = "";
     }
+  }
+  const { values, deliverable } = applyFieldEligibility(specs, shaped);
+  if (!deliverable) return null;
+
+  if (medium === "email") {
+    // bodyText derives from the sanitized HTML so both parts agree.
+    const { htmlToPlainText } = await import("../../../shared/html-to-text");
     return {
-      title,
-      body,
-      linkUrl: linkUrl || undefined,
-      linkLabel: linkUrl ? templates.inapp.linkLabel || undefined : undefined,
+      subject: values.subject,
+      bodyHtml: values.bodyHtml,
+      bodyText: htmlToPlainText(values.bodyHtml),
     };
   }
 
-  // Media the templates don't cover (e.g. postal) are skipped.
+  if (medium === "sms") return { message: values.message };
+
+  if (medium === "inapp") {
+    return {
+      title: values.title,
+      body: values.body,
+      linkUrl: values.linkUrl || undefined,
+      linkLabel: values.linkLabel || undefined,
+    };
+  }
+
   return null;
 }

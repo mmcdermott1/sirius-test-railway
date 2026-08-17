@@ -41,6 +41,7 @@ import { initializeWizardPluginSystem } from "./plugins/wizards";
 import { initializeTrustProviderEdiSystem } from "./plugins/trust/provider-edi";
 import { initializeMenuPluginSystem } from "./plugins/menu";
 import { initializeTokenPluginSystem } from "./plugins/tokens";
+import { initializeTemplateSurfaces } from "./plugins/template-surfaces";
 import { initWorkerBanNotifications } from "./services/worker-ban-notifications";
 import { initSnapshotCapture } from "./services/snapshots/capture";
 import { initDispatchNotifications } from "./services/dispatch/notifications";
@@ -407,6 +408,11 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
   // plugin imports, no config adapter)
   initializeTokenPluginSystem();
   logger.info("Token plugins registered", { source: "startup" });
+
+  // Register template surfaces (the places tokenized strings are
+  // authored; they declare delivery shaping for the shared preview route)
+  initializeTemplateSurfaces();
+  logger.info("Template surfaces registered", { source: "startup" });
 
   // Register flood events
   registerFloodEvents();
