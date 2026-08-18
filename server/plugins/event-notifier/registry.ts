@@ -104,7 +104,10 @@ function registerRecordRoots(plugin: EventNotifierPlugin): void {
       label: root.label,
       description: root.description,
       fields: root.fields,
-      requiredComponent: plugin.requiredComponent,
+      // A related record seeded alongside the notifier's own belongs to
+      // whichever component owns its kind, not to the (often narrower)
+      // component gating this notifier — see NotifierRecordRoot.
+      requiredComponent: root.requiredComponent ?? plugin.requiredComponent,
     });
   }
 }

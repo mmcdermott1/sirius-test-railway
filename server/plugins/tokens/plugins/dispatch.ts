@@ -16,6 +16,9 @@ const DISPATCH_JOB_SAMPLE_SETS = [
     values: {
       title: "Regolith Collection — Sector 7",
       description: "Loading and hauling regolith from the Sector 7 extraction zone",
+      // employer_id is a foreign key: against a real row the token renders
+      // the employer's NAME, so the sample must be a name too.
+      employer_id: "Olympus Mons Freight",
       status: "open",
       start_ymd: "2031-03-14",
       worker_count: "12",
@@ -28,6 +31,7 @@ const DISPATCH_JOB_SAMPLE_SETS = [
     values: {
       title: "Analytical Engine Shift — Menabrea Hall",
       description: "Operating and maintaining the analytical engine during scheduled computation sessions",
+      employer_id: "Difference Engine Works",
       status: "open",
       start_ymd: "1843-12-10",
       worker_count: "6",
@@ -40,6 +44,7 @@ const DISPATCH_JOB_SAMPLE_SETS = [
     values: {
       title: "Voyage Crew — Ithaka Fleet",
       description: "Navigation and seamanship duties for the return fleet voyage",
+      employer_id: "Ithaka Shipping Company",
       status: "in_progress",
       start_ymd: "1184-03-02",
       worker_count: "20",
@@ -86,8 +91,9 @@ const DISPATCH_WORKER_STATUS_SAMPLE_SETS = [
   },
 ];
 
-// Job titles and employers mirror the dispatch-job/employer personas, so a
-// foreperson preview and a job preview tell the same story.
+// Job ids mirror the dispatch-job personas, so a foreperson preview and a
+// job preview tell the same story. The job's title and employer are read
+// through the job itself, not copied onto the membership.
 const DISPATCH_FORE_SAMPLE_SETS = [
   {
     id: "martian",
@@ -96,8 +102,6 @@ const DISPATCH_FORE_SAMPLE_SETS = [
       job_id: "SAMPLE-J001",
       action: "added",
       action_label: "Added",
-      job_title: "Regolith Collection — Sector 7",
-      employer_name: "Olympus Mons Freight",
     },
   },
   {
@@ -107,8 +111,6 @@ const DISPATCH_FORE_SAMPLE_SETS = [
       job_id: "SAMPLE-J002",
       action: "added",
       action_label: "Added",
-      job_title: "Analytical Engine Shift — Menabrea Hall",
-      employer_name: "Difference Engine Works",
     },
   },
   {
@@ -118,8 +120,6 @@ const DISPATCH_FORE_SAMPLE_SETS = [
       job_id: "SAMPLE-J003",
       action: "removed",
       action_label: "Removed",
-      job_title: "Voyage Crew — Ithaka Fleet",
-      employer_name: "Ithaka Shipping Company",
     },
   },
 ];
@@ -351,9 +351,12 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: DISPATCH_FORE_ENTITY_KIND,
     entityTable: dispatchJobFore,
-    // Derived extras, not columns: the notifier merges these onto the row
-    // (and the recent-record provider below composes the same ones).
-    entityFields: ["action", "action_label", "job_title", "employer_name"],
+    // Derived extras, not columns: every surface that builds a membership
+    // merges these (the notifier from the event, the recent-record provider
+    // below from the fact that the row exists). The job's title and the
+    // employer's name are NOT here — they belong to the job, and templates
+    // reach them through it.
+    entityFields: ["action", "action_label"],
     hiddenFromCatalog: true,
     requiredComponent: "dispatch.fore",
     sampleSets: DISPATCH_FORE_SAMPLE_SETS,
@@ -382,8 +385,6 @@ registerTokenPlugin({
               data: row.data,
               action: "added",
               actionLabel: "Added",
-              jobTitle: row.jobTitle,
-              employerName: row.employerName,
             },
             table: dispatchJobFore,
           },

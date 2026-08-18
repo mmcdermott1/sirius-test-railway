@@ -19,18 +19,21 @@ const PLUGIN_ID = "dispatch-fore-notifier";
 
 /**
  * Default per-channel templates. `dispatch_fore` is the fore-membership
- * row (reconstructed from the payload for removals, whose row is gone by
- * delivery time) with the event's `action` (added/removed) merged on, so
+ * row as the event carried it (a removal's row is gone by delivery time)
+ * with the event's `action` (added/removed) merged on, so
  * one sentence stays grammatical for both. `action_label` carries the
  * capitalized form so the title matches the pre-token wording ("Added as
- * Foreperson" / "Removed as Foreperson").
+ * Foreperson" / "Removed as Foreperson"). The job is its own root, so its
+ * title and employer are read off the job instead of being copied onto
+ * the membership; `employer_id` is a foreign key and renders the
+ * employer's name.
  */
 const TITLE = '{{dispatch_fore.field(name="action_label")}} as Foreperson';
 const SENTENCE =
   'You have been {{dispatch_fore.field(name="action")}} as a Foreperson ' +
-  'on "{{dispatch_fore.field(name="job_title")}}" ' +
-  'at {{dispatch_fore.field(name="employer_name")}}.';
-const LINK_PATH = '/dispatch/job/{{dispatch_fore.field(name="job_id")}}';
+  'on "{{dispatch_job.field(name="title")}}" ' +
+  'at {{dispatch_job.field(name="employer_id")}}.';
+const LINK_PATH = '/dispatch/job/{{dispatch_job.field(name="id")}}';
 const LINK_LABEL = "View Job";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -77,7 +80,7 @@ export const dispatchForeNotifier: EventNotifierPlugin = {
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
           '{{dispatch_fore.field(name="action")}}',
-          '{{dispatch_fore.dispatch_job.field(name="title")}}',
+          '{{dispatch_job.field(name="start_ymd")}}',
         ],
       }),
     },
@@ -91,32 +94,49 @@ export const dispatchForeNotifier: EventNotifierPlugin = {
         label: "Foreperson membership",
         description:
           "The job-foreperson membership this event added or removed",
-        // Derived values merged onto the row below.
-        fields: ["action_label", "job_title", "employer_name"],
         async build(ctx) {
-          const { foreId, jobId, workerId, action, jobTitle, employerName } =
-            payloadOf(ctx);
-          if (!jobId || !workerId) return null;
+          const { fore, action } = payloadOf(ctx);
+          if (!fore) return null;
           const { dispatchJobFore } = await import(
             "../../../../shared/schema/dispatch/fore-schema"
           );
-          // Snapshot from the payload: for removals the row is gone by
-          // delivery time, and even for adds the payload describes exactly
-          // the membership change this event is about. `job_title` and
-          // `employer_name` ride on the payload too, so a renamed or deleted
-          // job can't change (or blank) the message before delivery.
+          // The membership row as the event carried it, not a reload: a
+          // removal's row is already gone by delivery time, and skipping
+          // those would drop the very notice the worker needs. The event's
+          // action rides alongside — no column records it.
           return {
             kind: "dispatch_fore",
             row: {
-              id: foreId,
-              jobId,
-              workerId,
+              ...(fore as unknown as Record<string, unknown>),
               action,
               actionLabel: action === "added" ? "Added" : "Removed",
-              jobTitle,
-              employerName,
             },
             table: dispatchJobFore,
+          };
+        },
+      },
+      {
+        name: "dispatch_job",
+        kind: "dispatch_job",
+        label: "Dispatch job",
+        description: "The dispatch job this foreperson change is on",
+        // A job record, gated on the component that owns jobs — the same
+        // gate any other surface offering a `dispatch_job` root uses.
+        requiredComponent: "dispatch",
+        async build(ctx) {
+          const { job } = payloadOf(ctx);
+          if (!job) return null;
+          const { dispatchJobs } = await import(
+            "../../../../shared/schema/dispatch/schema"
+          );
+          // The job row as of the event, carried on the payload. Reloading
+          // it here would let a rename land in a message about an earlier
+          // moment, and a job deleted right after the removal would abort a
+          // notice the worker had already earned.
+          return {
+            kind: "dispatch_job",
+            row: job as unknown as Record<string, unknown>,
+            table: dispatchJobs,
           };
         },
       },

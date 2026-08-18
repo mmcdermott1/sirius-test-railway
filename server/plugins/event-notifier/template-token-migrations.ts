@@ -79,6 +79,69 @@ const REWRITES: TemplateTokenRewrite[] = [
       ];
     },
   },
+  {
+    pluginId: "grievance-settlement",
+    rewriteChain(segments) {
+      const [root, next, ...rest] = segments;
+      if (root.name !== "grievance_settlement") return null;
+
+      // The grievance is now a root of its own, not a hop off the settlement.
+      if (next?.name === "grievance") {
+        return [{ name: "grievance", args: next.args }, ...rest];
+      }
+      // `grievance_title` was a value flattened onto the settlement; the
+      // grievance's own display title is the real home for it.
+      if (next?.name === "field" && next.args.name === "grievance_title") {
+        return [
+          { name: "grievance", args: root.args },
+          withArg(next, "name", "display_title"),
+          ...rest,
+        ];
+      }
+      return null;
+    },
+  },
+  {
+    pluginId: "dispatch-status-notifier",
+    rewriteChain(segments) {
+      const [root, ...rest] = segments;
+      // The root was named after the component, not the record it carries.
+      if (root.name !== "dispatch") return null;
+      return [{ name: "dispatch_worker_status", args: root.args }, ...rest];
+    },
+  },
+  {
+    pluginId: "dispatch-fore-notifier",
+    rewriteChain(segments) {
+      const [root, next, ...rest] = segments;
+      if (root.name !== "dispatch_fore") return null;
+
+      // The job is now a root of its own, not a hop off the membership.
+      if (next?.name === "dispatch_job") {
+        return [{ name: "dispatch_job", args: next.args }, ...rest];
+      }
+      if (next?.name === "field") {
+        const field = next.args.name;
+        // Both were values of the JOB flattened onto the membership row.
+        if (field === "job_title") {
+          return [
+            { name: "dispatch_job", args: root.args },
+            withArg(next, "name", "title"),
+            ...rest,
+          ];
+        }
+        // The employer FK renders the employer's name on its own.
+        if (field === "employer_name") {
+          return [
+            { name: "dispatch_job", args: root.args },
+            withArg(next, "name", "employer_id"),
+            ...rest,
+          ];
+        }
+      }
+      return null;
+    },
+  },
 ];
 
 /** Serialize a parsed chain back into a token expression. */

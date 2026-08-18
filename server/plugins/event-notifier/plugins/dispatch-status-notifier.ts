@@ -17,9 +17,13 @@ function payloadOf(ctx: EventNotifierEventContext): DispatchStatusSavedPayload {
 
 const PLUGIN_ID = "dispatch-status-notifier";
 
-/** Display label for a dispatch status value ("available" → "Available"),
- * merged onto the event entity as `status_label` so the default wording
- * matches the pre-token notifier. Raw `status` stays available. */
+/** Root name: the entity kind of the record the notice is about. */
+const ROOT = "dispatch_worker_status";
+
+/** Display label for a dispatch status value ("available" → "Available").
+ * A derived field of the availability row itself, declared on the
+ * `dispatch_worker_status` descriptor so EVERY surface that builds one —
+ * this notifier, the preview provider, the personas — carries it. */
 export function dispatchStatusLabel(status: string): string {
   switch (status) {
     case "available":
@@ -32,18 +36,15 @@ export function dispatchStatusLabel(status: string): string {
 }
 
 /**
- * Default per-channel templates. `dispatch` is a snapshot of the
- * worker's dispatch-status row built from the event payload (the live row
- * may have changed again by delivery time, and the row is gone entirely
- * for deletes).
+ * Default per-channel templates, rendered against the worker's real
+ * availability row (the one the event names).
  */
 const TITLE = "Dispatch Status Changed";
 const SENTENCE =
-  'Your dispatch status is now {{dispatch.field(name="status_label")}}.';
-// worker_id straight off the event snapshot — a relation lookup could
-// come up empty and break the link even though the payload has the id.
+  `Your dispatch status is now {{${ROOT}.field(name="status_label")}}.`;
+// worker_id is a column of the row itself — no relation to come up empty.
 const LINK_PATH =
-  '/workers/{{dispatch.field(name="worker_id")}}/dispatch/status';
+  `/workers/{{${ROOT}.field(name="worker_id")}}/dispatch/status`;
 const LINK_LABEL = "View Dispatch";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -94,8 +95,8 @@ export const dispatchStatusNotifier: EventNotifierPlugin = {
     properties: {
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{dispatch.field(name="status")}}',
-          '{{dispatch.worker.contact.field(name="display_name")}}',
+          `{{${ROOT}.field(name="status")}}`,
+          `{{${ROOT}.worker.contact.field(name="display_name")}}`,
         ],
       }),
     },
@@ -104,28 +105,26 @@ export const dispatchStatusNotifier: EventNotifierPlugin = {
   tokenTemplates: {
     roots: [
       {
-        name: "dispatch",
+        name: ROOT,
         kind: "dispatch_worker_status",
         label: "Dispatch status",
         description: "The worker's dispatch availability row this event changed",
-        // Derived value merged onto the row below — declared so
-        // {{dispatch.field(name="status_label")}} is a real token.
-        fields: ["status_label"],
         async build(ctx) {
-          const { statusId, workerId, status } = payloadOf(ctx);
-          if (!workerId || !status) return null;
+          const { row } = payloadOf(ctx);
+          if (!row) return null;
           const { workerDispatchStatus } = await import(
             "../../../../shared/schema/dispatch/schema"
           );
-          // Snapshot from the payload: renders the transition the event
-          // describes even if the live row changed again (or was deleted).
+          // The whole availability row as this write left it, carried on
+          // the event, so every column the editor offers is genuinely
+          // there. Not reloaded by id: the row is mutable, so a later
+          // write would rewrite the message this transition earned — and a
+          // deletion right after would swallow it.
           return {
             kind: "dispatch_worker_status",
             row: {
-              id: statusId,
-              workerId,
-              status,
-              statusLabel: dispatchStatusLabel(status),
+              ...(row as unknown as Record<string, unknown>),
+              statusLabel: dispatchStatusLabel(row.status),
             },
             table: workerDispatchStatus,
           };

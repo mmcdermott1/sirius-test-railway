@@ -37,9 +37,11 @@ const PLUGIN_ID = "grievance-settlement-notifier";
  * Default per-channel templates. `grievance_settlement` is the settlement
  * row (reconstructed from the payload for deletes, whose row is gone by
  * delivery time) with the event's `operation` (created/updated/deleted)
- * merged on, so the default sentence stays grammatical for all three.
+ * merged on, so the default sentence stays grammatical for all three. The
+ * grievance is seeded as its own root, so anything about the grievance —
+ * starting with its title — is read from the grievance itself.
  */
-const TITLE = '{{grievance_settlement.field(name="grievance_title")}}';
+const TITLE = '{{grievance.field(name="display_title")}}';
 const SENTENCE = '{{grievance_settlement.field(name="summary")}}';
 
 /** Settlement amount as US currency ("$100", "$100.50"); null when the
@@ -80,8 +82,7 @@ export function settlementSummary(
       return `${settlement} on the grievance ${grievanceTitle} was updated.`;
   }
 }
-const LINK_PATH =
-  '/grievance/{{grievance_settlement.grievance.field(name="id")}}/settlements';
+const LINK_PATH = '/grievance/{{grievance.field(name="id")}}/settlements';
 const LINK_LABEL = "View Settlements";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -141,7 +142,7 @@ export const grievanceSettlementNotifier: EventNotifierPlugin = {
       },
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{grievance_settlement.grievance.field(name="name")}}',
+          '{{grievance.field(name="name")}}',
           '{{grievance_settlement.field(name="amount")}}',
           '{{grievance_settlement.field(name="operation")}}',
         ],
@@ -156,46 +157,63 @@ export const grievanceSettlementNotifier: EventNotifierPlugin = {
         kind: "grievance_settlement",
         label: "Settlement",
         description: "The settlement this event added, updated or removed",
-        // Derived values merged onto the row below.
-        fields: ["operation", "grievance_title", "summary"],
         async build(ctx) {
-          const { grievanceId, settlementId, operation, amount } = payloadOf(ctx);
-          const { storage } = await import("../../../storage");
+          const { grievanceId, operation, row, grievanceTitleParts } =
+            payloadOf(ctx);
+          if (!row) return null;
           const { grievanceSettlements } = await import(
             "../../../../shared/schema/grievance/settlement-schema"
           );
           const { composeGrievanceDisplayTitle } = await import(
             "../../tokens/plugins/grievance"
           );
-          // For deletes the row is gone by delivery time — reconstruct a
-          // minimal snapshot from the payload so delete notices still render.
-          const [row, titleInfo] = await Promise.all([
-            operation === "deleted"
-              ? undefined
-              : storage.grievanceSettlements.get(grievanceId, settlementId),
-            storage.grievances.getAssignmentTitleInfo(grievanceId),
-          ]);
-          const base = (row ?? {
-            id: settlementId,
-            grievanceId,
-            amount,
-          }) as Record<string, unknown>;
+          // The settlement row as of the event, carried on the payload: for
+          // a delete it is already gone, and for an edit a reload could
+          // describe a LATER edit than the one being notified. The
+          // grievance's title comes off the same snapshot, so a rename in
+          // that window cannot reword the sentence either.
           const grievanceTitle = composeGrievanceDisplayTitle(
             grievanceId,
-            titleInfo,
+            grievanceTitleParts ?? undefined,
           );
           return {
             kind: "grievance_settlement",
             row: {
-              ...base,
+              ...(row as unknown as Record<string, unknown>),
               operation,
-              grievanceTitle,
-              // The payload's amount reflects the change being notified (the
-              // loaded row could already carry a later edit's amount).
-              summary: settlementSummary(operation, grievanceTitle, amount),
+              // The whole legacy sentence, not the grievance's title: its
+              // three operation wordings differ in word order and drop the
+              // amount clause entirely, which no template can express. The
+              // title itself belongs to (and is read from) the grievance.
+              summary: settlementSummary(operation, grievanceTitle, row.amount),
             },
             table: grievanceSettlements,
           };
+        },
+      },
+      {
+        name: "grievance",
+        kind: "grievance",
+        label: "Grievance",
+        description: "The grievance this settlement is on",
+        // A grievance record, gated on the component that owns grievances —
+        // the same gate the grievance-status notifier's `grievance` root
+        // uses. Two surfaces sharing a root name must agree on it.
+        requiredComponent: "grievance",
+        async build(ctx) {
+          const { grievance, grievanceTitleParts } = payloadOf(ctx);
+          if (!grievance) return null;
+          const { composeGrievanceEntity } = await import(
+            "../../tokens/plugins/grievance"
+          );
+          // The grievance as the settlement write saw it, carried on the
+          // event. Reloading it here would let a rename reword the notice
+          // and a deletion drop it entirely, seconds after a settlement
+          // change that genuinely happened.
+          return composeGrievanceEntity(
+            grievance,
+            grievanceTitleParts ?? undefined,
+          );
         },
       },
     ],

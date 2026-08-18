@@ -9,31 +9,6 @@ import { registerTokenPlugin } from "../registry";
 export const EDLS_SHEET_ENTITY_KIND = "edls_sheet";
 
 /**
- * Human-readable label for an EDLS sheet status value (e.g. "submitted"
- * → "Submitted"). Mirrors the `status_label` derived field the notifier
- * exposes so preview and live delivery agree on the wording.
- */
-function edlsStatusLabel(status: string): string {
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
-/**
- * Long-form display date for an ISO-8601 ymd string (e.g. "2031-03-14"
- * → "March 14, 2031"). Uses UTC to avoid timezone shifts on a date-only
- * value: we want the date as stored, not adjusted to the server's local
- * zone.
- */
-function edlsYmdDisplay(ymd: string): string {
-  const d = new Date(`${ymd}T00:00:00Z`);
-  return d.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
-/**
  * Named sample EDLS sheets, one per shared persona id. Values are obviously
  * fictional: a preview must never be mistaken for a real sheet record.
  */
@@ -44,10 +19,10 @@ const EDLS_SHEET_SAMPLE_SETS = [
     values: {
       title: "Sector 7 Regolith Operations",
       display_title: "Sector 7 Regolith Operations",
-      status: "submitted",
-      status_label: "Submitted",
+      status: "lock",
+      status_label: "Locked",
       ymd: "2031-03-14",
-      ymd_display: "March 14, 2031",
+      ymd_display: "2031-03-14",
       worker_count: "12",
     },
   },
@@ -57,10 +32,10 @@ const EDLS_SHEET_SAMPLE_SETS = [
     values: {
       title: "Menabrea Hall Analytical Shift",
       display_title: "Menabrea Hall Analytical Shift",
-      status: "approved",
-      status_label: "Approved",
+      status: "request",
+      status_label: "Request",
       ymd: "1843-12-10",
-      ymd_display: "December 10, 1843",
+      ymd_display: "1843-12-10",
       worker_count: "6",
     },
   },
@@ -73,7 +48,7 @@ const EDLS_SHEET_SAMPLE_SETS = [
       status: "draft",
       status_label: "Draft",
       ymd: "1184-03-02",
-      ymd_display: "March 2, 1184",
+      ymd_display: "1184-03-02",
       worker_count: "20",
     },
   },
@@ -88,6 +63,11 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: EDLS_SHEET_ENTITY_KIND,
     entityTable: edlsSheets,
+    // Derived extras, not columns — each one a presentation of the sheet's
+    // OWN data: the status label ("Locked", not "lock"), the legacy display
+    // name (title, else "Sheet <id-prefix>"), and the date exactly as stored.
+    // Every surface that builds a sheet composes them with the same helpers,
+    // so a preview renders what delivery renders.
     entityFields: ["status_label", "display_title", "ymd_display"],
     hiddenFromCatalog: true,
     requiredComponent: "edls",
@@ -99,10 +79,18 @@ registerTokenPlugin({
     // when the component is off.
     recentRecords: {
       async recent(limit) {
-        const { storage } = await import("../../../storage");
+        // The notifier owns the derived wording; a preview that composed it
+        // separately would drift from what delivery actually sends.
+        const [
+          { storage },
+          { edlsStatusLabel, edlsSheetDisplayTitle, edlsYmdDisplay },
+        ] = await Promise.all([
+          import("../../../storage"),
+          import("../../event-notifier/plugins/edls-sheet-status-notifier"),
+        ]);
         const rows = await storage.edlsSheets.listForPreview(limit);
         return rows.map((row) => {
-          const displayTitle = row.title;
+          const displayTitle = edlsSheetDisplayTitle(row.id, row.title);
           const statusLabel = edlsStatusLabel(row.status);
           const ymdDisplay = edlsYmdDisplay(row.ymd);
           return {

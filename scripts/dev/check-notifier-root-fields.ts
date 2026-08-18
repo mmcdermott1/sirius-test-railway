@@ -23,8 +23,9 @@
  *      value ("grievance_title") claims the record holds something it does
  *      not. Reach the related record instead.
  *
- * Roots that predate the rule are listed in the exemption maps below with a
- * reason, so the list is a visible to-do rather than a silent regression.
+ * The exemption maps below are EMPTY and meant to stay that way: every root
+ * that predated the rule has been converted. An entry is a message an admin
+ * can misread today, so add one only with a reason and a plan to clear it.
  *
  * Run: npx tsx scripts/dev/check-notifier-root-fields.ts
  */
@@ -42,35 +43,14 @@ import { tokenPluginRegistry } from "../../server/plugins/tokens/registry";
  * shipping a stored-template rewrite alongside it (see
  * `server/plugins/event-notifier/template-token-migrations.ts`).
  */
-const NAME_EXEMPT: Record<string, string> = {
-  "dispatch-status-notifier:dispatch":
-    'holds a `dispatch_worker_status` row — "dispatch" reads like the job. ' +
-    "Pending conversion, see .local/tasks/notifier-token-roots-remaining.md",
-};
+const NAME_EXEMPT: Record<string, string> = {};
 
 /**
  * Roots that flatten related-record values onto their row. Clearing one means
  * pointing the templates at the related record instead — same rewrite
  * requirement as above.
  */
-const FLATTENED_FIELDS_EXEMPT: Record<string, string> = {
-  "grievance-settlement:grievance_settlement":
-    "`grievance_title` belongs to the linked grievance; `operation`/`summary` " +
-    "are genuinely derived and want a home that says so. " +
-    "See .local/tasks/notifier-token-roots-remaining.md",
-  "edls-sheet-status-notifier:edls_sheet":
-    "`display_title`/`ymd_display` are presentation of the sheet's own " +
-    "columns; `status_label` restates the status FK. " +
-    "See .local/tasks/notifier-token-roots-remaining.md",
-  "dispatch-status-notifier:dispatch":
-    "`status_label` restates the row's status; the same conversion that " +
-    "renames this root should retire it. " +
-    "See .local/tasks/notifier-token-roots-remaining.md",
-  "dispatch-fore-notifier:dispatch_fore":
-    "`job_title`/`employer_name` belong to the linked job and employer; " +
-    "`action_label` is derived from the event. " +
-    "See .local/tasks/notifier-token-roots-remaining.md",
-};
+const FLATTENED_FIELDS_EXEMPT: Record<string, string> = {};
 
 let failures = 0;
 function fail(label: string, detail: string) {

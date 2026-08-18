@@ -59,6 +59,16 @@ export function edlsSheetDisplayTitle(sheetId: string, title: string): string {
   return title && title.trim() ? title : `Sheet ${sheetId.slice(0, 8)}`;
 }
 
+/**
+ * The sheet's date exactly as stored ("2026-01-08"), merged on as
+ * `ymd_display`. `ymd` is a date-only column, and rendering it through
+ * `field()` runs it through a timezone-local formatter that can report the
+ * previous day; a sheet's date must not move with the reader's clock.
+ */
+export function edlsYmdDisplay(ymd: string): string {
+  return ymd;
+}
+
 /** Default per-channel templates, rendered against a payload snapshot of
  * the transition (an intervening save must not change the message). */
 const TITLE = '{{edls_sheet.field(name="display_title")}}';
@@ -169,32 +179,23 @@ export const edlsSheetStatusNotifier: EventNotifierPlugin = {
         kind: "edls_sheet",
         label: "EDLS sheet",
         description: "The sheet whose status this event changed",
-        // Derived values merged onto the row below.
-        fields: ["status_label", "display_title", "ymd_display"],
         async build(ctx) {
-          const { sheetId, newStatus, title, ymd } = payloadOf(ctx);
-          const { storage } = await import("../../../storage");
+          const { sheet, newStatus } = payloadOf(ctx);
+          if (!sheet) return null;
           const { edlsSheets } = await import(
             "../../../../shared/schema/edls/schema"
           );
-          // Render the transition this event describes, not the live row: an
-          // intervening save (or delete) must not change — or swallow — the
-          // notification. The live row only backfills fields the payload
-          // doesn't carry (employer, department, …) for custom templates.
-          const row = await storage.edlsSheets.get(sheetId);
+          // The sheet as of the transition this event describes, carried on
+          // the event rather than reloaded: an intervening save (or delete)
+          // must not change — or swallow — the notification.
           return {
             kind: "edls_sheet",
             row: {
-              ...((row as unknown as Record<string, unknown>) ?? {}),
-              id: sheetId,
+              ...(sheet as unknown as Record<string, unknown>),
               status: newStatus,
               statusLabel: edlsStatusLabel(newStatus),
-              title,
-              displayTitle: edlsSheetDisplayTitle(sheetId, title),
-              ymd,
-              // The legacy body interpolated the raw payload date string
-              // ("2026-01-08"); the ymd date column would auto-format.
-              ymdDisplay: ymd,
+              displayTitle: edlsSheetDisplayTitle(sheet.id, sheet.title),
+              ymdDisplay: edlsYmdDisplay(sheet.ymd),
             },
             table: edlsSheets,
           };

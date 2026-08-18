@@ -22,5 +22,14 @@ import type { TokenEntity } from "./types";
 export function missingCatalogFields(entity: TokenEntity): string[] {
   const entry = getFieldCatalog()[entity.kind];
   if (!entry || entry.open) return [];
-  return entry.names.filter((name) => resolveRowKey(entity, name) === null);
+  return entry.names.filter((name) => {
+    const key = resolveRowKey(entity, name);
+    // `resolveRowKey` also maps a DB column name to its TS property via the
+    // declared table, so a name it resolves is NOT necessarily a key the row
+    // carries — a hand-built row satisfies it for every column of its table
+    // while holding none of them. Delivery reads `row[key]`, so the row is
+    // what has to have the key: a value of null/undefined is the record's
+    // own truth, an ABSENT key is the advertised-but-blank bug.
+    return key === null || !Object.hasOwn(entity.row, key);
+  });
 }

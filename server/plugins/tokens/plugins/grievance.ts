@@ -61,11 +61,27 @@ export async function buildGrievanceEntity(
     storage.grievances.getAssignmentTitleInfo(grievanceId),
   ]);
   if (!base) return null;
+  return composeGrievanceEntity(base, info);
+}
+
+/**
+ * The same shape from a grievance row already in hand — a surface that
+ * captured the grievance when its event fired renders that snapshot instead
+ * of re-reading a row that may since have been renamed or deleted.
+ */
+export function composeGrievanceEntity(
+  row: { id: string },
+  info: { name: string | null; categoryName: string | null } | undefined,
+): TokenEntity {
+  const base = row as unknown as Record<string, unknown>;
   return {
     kind: GRIEVANCE_ENTITY_KIND,
     row: {
-      ...(base as unknown as Record<string, unknown>),
-      displayTitle: composeGrievanceDisplayTitle(grievanceId, info),
+      ...base,
+      // `name` is denormalised, not a column: a caller holding a raw
+      // `grievances` row has the title parts but not the name itself.
+      name: info?.name ?? base.name ?? null,
+      displayTitle: composeGrievanceDisplayTitle(row.id, info),
     },
     table: grievances,
   };
@@ -179,7 +195,6 @@ const GRIEVANCE_SETTLEMENT_SAMPLE_SETS = [
       operation: "created",
       description: "Retroactive pay and new safety protocols for Sector 7 haulers",
       amount: "4500.00",
-      grievance_title: "Mars Colony Safety Violation",
       summary: "Settlement reached: back pay plus safety equipment upgrade",
     },
   },
@@ -190,7 +205,6 @@ const GRIEVANCE_SETTLEMENT_SAMPLE_SETS = [
       operation: "updated",
       description: "Revised access schedule and back pay for engine room operators",
       amount: "1200.00",
-      grievance_title: "Analytical Engine Working Hours",
       summary: "Settlement amended: shortened shifts and schedule compensation",
     },
   },
@@ -201,7 +215,6 @@ const GRIEVANCE_SETTLEMENT_SAMPLE_SETS = [
       operation: "deleted",
       description: "Navigation provisions dispute withdrawn after voyage reassignment",
       amount: "750.00",
-      grievance_title: "Navigation Duty Assignment",
       summary: "Settlement voided: grievant accepted alternate posting",
     },
   },
@@ -355,7 +368,11 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: GRIEVANCE_SETTLEMENT_ENTITY_KIND,
     entityTable: grievanceSettlements,
-    entityFields: ["operation", "summary", "grievance_title"],
+    // Derived extras, not columns: the event's operation and the whole
+    // legacy per-operation sentence built from it. Nothing about the
+    // grievance — that is its own record, reached through the relation
+    // below (or the grievance root the settlement notifier seeds).
+    entityFields: ["operation", "summary"],
     hiddenFromCatalog: true,
     requiredComponent: "grievance.settlement",
     sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,
@@ -392,7 +409,9 @@ registerTokenPlugin({
               row: {
                 ...(row as unknown as Record<string, unknown>),
                 operation: "created",
-                grievanceTitle,
+                // The title appears in the LABEL (so an author can tell the
+                // entries apart) and inside the legacy summary sentence, but
+                // never as a field of the settlement itself.
                 summary: settlementSummary(
                   "created",
                   grievanceTitle,

@@ -2,20 +2,21 @@
  * Regression check: the token-templated notifiers' DEFAULT messages must
  * keep the pre-token display semantics — status display labels
  * ("Not Available", "Locked"), operation-specific settlement prose with
- * formatted currency, the grievance title fallback chain, and
- * payload-snapshot rendering (an intervening save or delete must not
- * change or swallow the message).
+ * formatted currency, and the grievance title fallback chain.
  *
- * The grievance status notifier is the exception, deliberately: it renders
- * the status-history ROW the event names, so a deleted row means the
- * message has nothing truthful left to say and is not sent.
+ * A root renders the record as the EVENT carried it, so a row that is
+ * edited or deleted between the event and delivery neither rewrites nor
+ * swallows the message (a removed foreperson membership and a deleted
+ * settlement have no row left at all). The one exception is the grievance
+ * status notifier, whose subject is an immutable history entry it loads by
+ * id: if that entry is gone, the message has nothing truthful left to say.
  *
  * Run: npx tsx scripts/dev/check-notifier-default-templates.ts
  */
 import { storage } from "../../server/storage/database";
 import { loadComponentCache } from "../../server/services/component-cache";
 import { db } from "../../server/storage/db";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 let failures = 0;
 function check(label: string, actual: unknown, expectedSubstring: string) {
@@ -174,51 +175,72 @@ async function main() {
   const { dispatchStatusNotifier } = await import(
     "../../server/plugins/event-notifier/plugins/dispatch-status-notifier"
   );
-  const ds = await renderInapp(dispatchStatusNotifier, {
-    statusId: "s1",
-    workerId: "00000000-0000-0000-0000-000000000000",
-    status: "not_available",
-    previousStatus: "available",
-  });
-  check(
-    "dispatch-status default body",
-    ds?.body,
-    "Your dispatch status is now Not Available.",
+  // The notifier renders the availability row the EVENT carried, so the
+  // check needs a real one to snapshot; every field it offers is a column
+  // of that row.
+  const { workerDispatchStatus } = await import(
+    "../../shared/schema/dispatch/schema"
   );
-  await checkChannels(
-    "dispatch-status",
-    dispatchStatusNotifier,
-    {
-      statusId: "s1",
-      workerId: "00000000-0000-0000-0000-000000000000",
-      status: "not_available",
-      previousStatus: "available",
-    },
-    {
-      body: "Your dispatch status is now Not Available.",
+  const [wds] = await db.select().from(workerDispatchStatus).limit(1);
+  if (wds) {
+    const dsPayload = {
+      statusId: wds.id,
+      workerId: wds.workerId,
+      status: wds.status,
+      row: wds,
+      previousStatus: null,
+    };
+    const ds = await renderInapp(dispatchStatusNotifier, dsPayload);
+    const dsLabel = dispatchStatusLabel(wds.status);
+    check(
+      "dispatch-status default body",
+      ds?.body,
+      `Your dispatch status is now ${dsLabel}.`,
+    );
+    await checkChannels("dispatch-status", dispatchStatusNotifier, dsPayload, {
+      body: `Your dispatch status is now ${dsLabel}.`,
       cta: "View your dispatch page:",
-      path: "/workers/00000000-0000-0000-0000-000000000000/dispatch/status",
-    },
-  );
+      path: `/workers/${wds.workerId}/dispatch/status`,
+    });
+    // A later write must not rewrite the transition this event earned: the
+    // message describes the row the event carried, even when no such row
+    // exists any more.
+    const dsStale = await renderInapp(dispatchStatusNotifier, {
+      ...dsPayload,
+      statusId: "00000000-0000-0000-0000-000000000000",
+      row: {
+        ...wds,
+        id: "00000000-0000-0000-0000-000000000000",
+        status: "not_available",
+      },
+    });
+    check(
+      "dispatch-status renders the event's row, not the live one",
+      dsStale?.body,
+      "Your dispatch status is now Not Available.",
+    );
+  } else console.log("SKIP: no worker dispatch status row");
 
   const { edlsSheetStatusNotifier } = await import(
     "../../server/plugins/event-notifier/plugins/edls-sheet-status-notifier"
   );
+  // The sheet the event carried; only the columns the default templates
+  // name matter here (coverage of the rest is the root-fields check's job).
+  const edlsSheet = (id: string, title: string) =>
+    ({ id, title, ymd: "2026-01-08", status: "lock" }) as never;
   const es = await renderInapp(edlsSheetStatusNotifier, {
     sheetId: "00000000-0000-0000-0000-000000000000",
     previousStatus: "draft",
     newStatus: "lock",
-    title: "Night Shift",
-    ymd: "2026-01-08",
+    sheet: edlsSheet("00000000-0000-0000-0000-000000000000", "Night Shift"),
   });
   check("edls default body uses label", es?.body, 'the status "Locked"');
-  check("edls default body uses payload title", es?.body, "Night Shift");
+  check("edls default body uses the event's title", es?.body, "Night Shift");
   const esBlank = await renderInapp(edlsSheetStatusNotifier, {
     sheetId: "abcd1234-0000-0000-0000-000000000000",
     previousStatus: "draft",
     newStatus: "lock",
-    title: "",
-    ymd: "2026-01-08",
+    sheet: edlsSheet("abcd1234-0000-0000-0000-000000000000", ""),
   });
   check(
     "edls blank-title default falls back",
@@ -232,8 +254,7 @@ async function main() {
       sheetId: "00000000-0000-0000-0000-000000000000",
       previousStatus: "draft",
       newStatus: "lock",
-      title: "Night Shift",
-      ymd: "2026-01-08",
+      sheet: edlsSheet("00000000-0000-0000-0000-000000000000", "Night Shift"),
     },
     {
       body: 'The EDLS sheet "Night Shift" (2026-01-08) has reached the status "Locked".',
@@ -245,68 +266,92 @@ async function main() {
   const { dispatchForeNotifier } = await import(
     "../../server/plugins/event-notifier/plugins/dispatch-fore-notifier"
   );
-  // Job id points at a DELETED job: names must come from the payload.
-  const fs = await renderInapp(dispatchForeNotifier, {
-    foreId: "gone",
-    jobId: "00000000-0000-0000-0000-000000000000",
-    workerId: "00000000-0000-0000-0000-000000000001",
-    action: "removed",
-    jobTitle: "Old Job Name",
-    employerName: "Acme Corp",
-  });
-  check("fore removed title", fs?.title, "Removed as Foreperson");
-  check(
-    "fore body uses payload names for deleted job",
-    fs?.body,
-    'You have been removed as a Foreperson on "Old Job Name" at Acme Corp.',
-  );
-  await checkChannels(
-    "fore",
-    dispatchForeNotifier,
-    {
+  // Both records ride on the event: the membership row is deliberately
+  // gone for a removal, and the job is a record of its own, so its title
+  // and employer are read off the job instead of copied onto the
+  // membership. The employer NAME still comes from a live FK lookup, so
+  // the job needs a real employer.
+  const { dispatchJobs } = await import("../../shared/schema/dispatch/schema");
+  const { employers } = await import("../../shared/schema");
+  const [jobRow] = await db
+    .select({ job: dispatchJobs, employerName: employers.name })
+    .from(dispatchJobs)
+    .innerJoin(employers, eq(dispatchJobs.employerId, employers.id))
+    .limit(1);
+  if (jobRow) {
+    const job = jobRow.job;
+    const forePayload = {
       foreId: "gone",
-      jobId: "00000000-0000-0000-0000-000000000000",
+      jobId: job.id,
       workerId: "00000000-0000-0000-0000-000000000001",
       action: "removed",
-      jobTitle: "Old Job Name",
-      employerName: "Acme Corp",
-    },
-    {
-      body: 'You have been removed as a Foreperson on "Old Job Name" at Acme Corp.',
+      fore: {
+        id: "gone",
+        jobId: job.id,
+        workerId: "00000000-0000-0000-0000-000000000001",
+      } as never,
+      job,
+    };
+    const fs = await renderInapp(dispatchForeNotifier, forePayload);
+    const foreBody =
+      `You have been removed as a Foreperson on "${job.title}" ` +
+      `at ${jobRow.employerName}.`;
+    check("fore removed title", fs?.title, "Removed as Foreperson");
+    check("fore body names the job and its employer", fs?.body, foreBody);
+    await checkChannels("fore", dispatchForeNotifier, forePayload, {
+      body: foreBody,
       cta: "View the job:",
-      path: "/dispatch/job/00000000-0000-0000-0000-000000000000",
-    },
-  );
+      path: `/dispatch/job/${job.id}`,
+    });
+    // Deleting the job right after the removal must not swallow the
+    // notice: it describes the job as the event carried it.
+    const foreStale = await renderInapp(dispatchForeNotifier, {
+      ...forePayload,
+      jobId: "00000000-0000-0000-0000-000000000000",
+      job: { ...job, id: "00000000-0000-0000-0000-000000000000" },
+    });
+    check(
+      "fore renders a job that no longer exists",
+      foreStale?.body,
+      `removed as a Foreperson on "${job.title}"`,
+    );
+  } else console.log("SKIP: no dispatch job with an employer");
 
-  const [g] = (
-    await db.execute(sql`select id from grievances limit 1`)
-  ).rows as { id: string }[];
+  const { grievances } = await import("../../shared/schema");
+  const [g] = await db.select().from(grievances).limit(1);
   if (g) {
+    const gRow = g;
+    const gTitleInfo = await storage.grievances.getAssignmentTitleInfo(g.id);
     const { grievanceSettlementNotifier } = await import(
       "../../server/plugins/event-notifier/plugins/grievance-settlement-notifier"
     );
-    // Delete: row is gone; message must still render from the payload.
-    const del = await renderInapp(grievanceSettlementNotifier, {
+    // Delete: the row is gone from the table, so the message renders from
+    // the copy the event carried.
+    const deletedRow = {
+      id: "00000000-0000-0000-0000-000000000000",
+      grievanceId: g.id,
+      description: null,
+      amount: "250.00",
+      typeIds: [],
+    } as never;
+    const delPayload = {
       grievanceId: g.id,
       settlementId: "00000000-0000-0000-0000-000000000000",
       operation: "deleted",
-      amount: "250.00",
-    });
+      row: deletedRow,
+      grievance: gRow,
+      grievanceTitleParts: gTitleInfo
+        ? { name: gTitleInfo.name, categoryName: gTitleInfo.categoryName }
+        : null,
+    };
+    const del = await renderInapp(grievanceSettlementNotifier, delPayload);
     check(
       "settlement delete default body",
       del?.body,
       "A settlement of $250 was removed from the grievance",
     );
-    const delPayload = {
-      grievanceId: g.id,
-      settlementId: "00000000-0000-0000-0000-000000000000",
-      operation: "deleted",
-      amount: "250.00",
-    };
-    const delEntity = await (
-      grievanceSettlementNotifier as any
-    ).tokenTemplates.roots[0].build({ payload: delPayload } as any);
-    const gTitle = String(delEntity?.row?.grievanceTitle ?? "");
+    // The title is the GRIEVANCE's, not a field of the settlement.
+    const gTitle = composeGrievanceDisplayTitle(g.id, gTitleInfo);
     await checkChannels(
       "settlement",
       grievanceSettlementNotifier,

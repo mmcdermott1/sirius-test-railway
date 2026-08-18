@@ -1,5 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { logger } from "../logger";
+import type {
+  DispatchJob,
+  DispatchJobFore,
+  EdlsSheet,
+  Grievance,
+  GrievanceSettlement,
+  WorkerDispatchStatus,
+} from "@shared/schema";
 
 export const EVENT_BUS_MAX_EMIT_DEPTH = 100;
 
@@ -127,6 +135,14 @@ export interface DispatchStatusSavedPayload {
   workerId: string;
   status: string;
   /**
+   * The availability row as this write left it (the pre-delete row on
+   * delete). Carried rather than re-read at consumption time: the row is
+   * mutable, so a consumer that loads it by id can describe a LATER write
+   * than the one it was handed — or find it gone and stay silent about a
+   * change that did happen.
+   */
+  row: WorkerDispatchStatus;
+  /**
    * The status value before this write, when known: null on create (no prior
    * row), the pre-write value on update/upsert. Lets consumers (e.g. the
    * dispatch-status notifier) skip saves that did not actually change the
@@ -184,9 +200,17 @@ export interface DispatchForeSavedPayload {
   workerId: string;
   /** Whether the worker was added to or removed from the job's forepersons. */
   action: "added" | "removed";
-  /** Job title + employer name, resolved at emit time so notifiers need no lookups. */
-  jobTitle: string;
-  employerName: string;
+  /**
+   * The membership row this event added or removed, and the job it is on,
+   * both as of the event. Whole rows rather than a couple of copied
+   * values: a consumer can then describe either record in full without a
+   * lookup that would race the next write — and a removal's membership row
+   * is already gone by the time anyone consumes this. The job is never
+   * missing: a membership only exists while its job does, and both are
+   * captured in the transaction that writes the membership.
+   */
+  fore: DispatchJobFore;
+  job: DispatchJob;
 }
 
 export interface WorkerBanSavedPayload {
@@ -294,11 +318,20 @@ export interface GrievanceSettlementSavedPayload {
   settlementId: string;
   operation: "created" | "updated" | "deleted";
   /**
-   * The settlement's amount (numeric string, may be null). Carried on the
-   * payload so the message can render it even for deletes, where the row no
-   * longer exists by the time the notifier runs.
+   * The settlement row as of the event (the pre-delete row on delete).
+   * Carried in full so a consumer can describe the settlement even for a
+   * delete, where the row no longer exists by the time it runs.
    */
-  amount: string | null;
+  row: GrievanceSettlement;
+  /**
+   * The grievance the settlement is on, as of the event, with the parts its
+   * display title is composed from (both live outside the row: the name is
+   * denormalised, the category name is a join). A settlement notice names
+   * the grievance, so re-reading it at delivery time would let a later
+   * rename change the wording — or a later deletion drop the notice.
+   */
+  grievance: Grievance | null;
+  grievanceTitleParts: { name: string | null; categoryName: string | null } | null;
 }
 
 /**
@@ -306,15 +339,14 @@ export interface GrievanceSettlementSavedPayload {
  * status before and after the write so a notifier can detect a genuine
  * arrival at a status: `previousStatus` is null on create (the sheet "arrives"
  * at its initial status), and equals the pre-update status on update. The
- * title and ymd ride on the payload so consumers can render a message without
+ * whole sheet row rides on the payload so consumers can describe it without
  * re-querying a row that may have changed since.
  */
 export interface EdlsSheetSavedPayload {
   sheetId: string;
   previousStatus: string | null;
   newStatus: string;
-  title: string;
-  ymd: string;
+  sheet: EdlsSheet;
 }
 
 /**

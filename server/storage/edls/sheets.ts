@@ -174,8 +174,7 @@ function emitSheetSaved(sheet: EdlsSheet, previousStatus: string | null): void {
         sheetId: sheet.id,
         previousStatus,
         newStatus: sheet.status,
-        title: sheet.title,
-        ymd: sheet.ymd,
+        sheet,
       })
       .catch((err) => {
         logger.error(

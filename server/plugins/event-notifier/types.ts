@@ -133,6 +133,17 @@ export interface NotifierRecordRoot {
    */
   fields?: string[];
   /**
+   * Component the ROOT is gated on, when that is not the notifier's own.
+   * A root inherits `requiredComponent` from its notifier, which is right
+   * for the record the notifier is about and wrong for a related record it
+   * seeds: the settlement notifier is gated on `grievance.settlement`, but
+   * the grievance it seeds alongside is a `grievance` record and another
+   * notifier declaring the same root says so. Two surfaces sharing a root
+   * name must gate it identically, so gate a root on the component that
+   * OWNS its entity kind.
+   */
+  requiredComponent?: string;
+  /**
    * Build the record for a fired event. Returning null normally ABORTS
    * composition for this config (an already-deleted row means there is
    * nothing truthful to say); mark the root `optional` when a missing
