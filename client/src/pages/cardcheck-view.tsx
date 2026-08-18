@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import { Loader2, ArrowLeft, User, FileText, Calendar, CheckCircle, XCircle, Clock, Square, CheckSquare, DollarSign, Shield } from "lucide-react";
 import { Cardcheck, CardcheckDefinition, Worker, Contact, BargainingUnit } from "@shared/schema";
+import { escapeHtml } from "@shared/utils/html";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessCheck } from "@/hooks/use-access-check";
 import { Button } from "@/components/ui/button";
@@ -97,12 +98,6 @@ export default function CardcheckViewPage() {
   }, [rateField, rateValue]);
 
   const canSign = allCheckboxesChecked && isRateValid;
-
-  const escapeHtml = (text: string): string => {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-  };
 
   const buildDocRender = (): string => {
     let docRender = definition?.body || "";

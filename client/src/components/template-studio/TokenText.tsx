@@ -1,5 +1,6 @@
 import { Fragment, useMemo, type ReactNode } from "react";
 import { TOKEN_PATTERN, type TokenCatalogEntry } from "@shared/tokens";
+import { htmlToInlineText, toSingleLine } from "@shared/utils/html";
 
 /**
  * Shared read-only renderer for tokenized template text: literal text
@@ -31,27 +32,9 @@ export function tokenLabel(expr: string, labelById?: Map<string, string>): strin
   return humanize(last.replace(/\([^)]*\)$/, ""));
 }
 
-/**
- * Flatten HTML to readable one-line text: block boundaries become
- * spaces, tags are dropped, the handful of entities our editors emit are
- * decoded. Token braces are untouched (they are not markup).
- */
-export function htmlToPlainText(html: string): string {
-  return html
-    .replace(/<\s*(br|\/p|\/div|\/li|\/h[1-6]|\/tr)\s*\/?\s*>/gi, " ")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
-}
-
-/** Collapse all whitespace (incl. newlines) into single spaces. */
-export function toSingleLine(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
+// HTML flattening and whitespace collapsing live in the shared HTML
+// library (`htmlToInlineText`, `toSingleLine`) so this summary line and
+// the email plain-text fallback decode entities the same way.
 
 export interface TokenTextProps {
   text: string;
@@ -76,7 +59,7 @@ export function TokenText({
   );
 
   const source = useMemo(
-    () => toSingleLine(html ? htmlToPlainText(text) : text),
+    () => toSingleLine(html ? htmlToInlineText(text) : text),
     [text, html],
   );
 

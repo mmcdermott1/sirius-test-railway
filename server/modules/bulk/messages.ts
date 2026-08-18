@@ -12,7 +12,7 @@ import { createBulkParticipantStorage } from "../../storage/bulk/participants";
 import { deliverToContact, deliverToParticipant, resolveAddressForMedium } from "./deliver";
 import { storageLogger } from "../../logger";
 import { resolveContactLinks, resolveContactLinksForMany } from "../contact-links";
-import { htmlToPlainText } from "../../../shared/html-to-text";
+import { htmlToPlainText } from "../../../shared/utils/html/to-text";
 import { extractTokenExpressions, parseTokenChain } from "@shared/tokens";
 import {
   createTokenEvalContext,

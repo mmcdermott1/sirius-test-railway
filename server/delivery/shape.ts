@@ -1,4 +1,4 @@
-import { sanitizeHelpHtml } from "../help/sanitize";
+import { sanitizeHtml } from "@shared/utils/html";
 import { isSafeRelativePath, type DeliveryFieldSpec } from "@shared/delivery-fields";
 
 /**
@@ -43,7 +43,7 @@ export function shapeRenderedValue(
     // Token values were escaped during render; the completed body then
     // goes through the tag/attribute allowlist, because authored markup
     // can reach storage without passing the rich-text editor.
-    value = sanitizeHelpHtml(value);
+    value = sanitizeHtml(value, "rich-document");
   } else if (spec.media === "relative-url") {
     // Trim first, then validate: delivery sends the trimmed URL, so a
     // padded but otherwise fine path must not preview as dropped.

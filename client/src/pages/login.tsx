@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { queryClient } from '@/lib/queryClient';
-import { sanitizeTrustedHtml } from '@/lib/sanitize-trusted-html';
+import { sanitizeHtml } from '@shared/utils/html';
 import { useSiteSettings, useVariableValue } from '@/lib/use-variable';
 
 const CLERK_ENABLED = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -225,7 +225,7 @@ export default function LoginPage() {
       : `Welcome to ${siteName}`;
   const loginIntroHtml =
     typeof loginIntroQuery.data === 'string' && loginIntroQuery.data.trim()
-      ? sanitizeTrustedHtml(loginIntroQuery.data)
+      ? sanitizeHtml(loginIntroQuery.data, 'styled-text')
       : null;
 
   // Render the Clerk widget only when the server actually configures the

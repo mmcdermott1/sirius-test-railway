@@ -3,7 +3,7 @@ import { User, ArrowLeft, CalendarOff } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Worker, Contact, WorkerTos } from "@shared/schema";
-import { sanitizeContractHtml } from "@/components/ui/simple-html-editor";
+import { sanitizeHtml } from "@shared/utils/html";
 import { useVariableValue } from "@/lib/use-variable";
 import { TOS_BANNER_VARIABLE_NAME, TOS_BANNER_DEFAULT_HTML } from "@/lib/worker-tos-banner";
 import { Button } from "@/components/ui/button";
@@ -89,7 +89,7 @@ function WorkerTosBannerInner({ workerId }: { workerId: string }) {
   const html = useMemo(() => {
     const raw =
       typeof bannerValue === "string" && bannerValue ? bannerValue : TOS_BANNER_DEFAULT_HTML;
-    return sanitizeContractHtml(raw);
+    return sanitizeHtml(raw, "authored-document");
   }, [bannerValue]);
 
   if (isError || !openAbsence) return null;

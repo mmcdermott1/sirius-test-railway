@@ -17,7 +17,7 @@ import { SlashTokenField } from "@/components/bulk/SlashTokenField";
 import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { cn } from "@/lib/utils";
 import { analyzeTemplateTokens, type TokenSegmentSpec, type TokenFieldCatalog } from "@shared/tokens";
-import { htmlToPlainText } from "@shared/html-to-text";
+import { escapeHtml, htmlToPlainText } from "@shared/utils/html";
 import { BULK_CHANNEL_FIELDS } from "@shared/delivery-fields";
 
 type TokenInsertTarget = HTMLInputElement | HTMLTextAreaElement;
@@ -323,11 +323,7 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
       // Treat already-stored plain text as plain text by escaping any HTML
       // metacharacters before turning newlines into <br>, so legacy bodies
       // containing "<" or "&" aren't reinterpreted as markup by the editor.
-      const escaped = existing
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\n/g, "<br>");
+      const escaped = escapeHtml(existing).replace(/\n/g, "<br>");
       setForm({
         title: (record.title as string) || "",
         bodyHtml: escaped,

@@ -3,12 +3,12 @@ import {
   parseTokenChain,
   validateChain,
   normalizeFieldName,
-  escapeHtml,
   type TokenSegment,
   type TokenSegmentSpec,
   type TokenFieldCatalog,
   type TokenCatalogEntry,
 } from "@shared/tokens";
+import { escapeHtml } from "@shared/utils/html";
 import { getTableColumns } from "drizzle-orm";
 import type { IStorage } from "../../storage";
 import {

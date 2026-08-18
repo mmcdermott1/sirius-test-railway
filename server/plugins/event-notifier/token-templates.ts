@@ -147,7 +147,7 @@ export async function composeFromTemplates(
 
   if (medium === "email") {
     // bodyText derives from the sanitized HTML so both parts agree.
-    const { htmlToPlainText } = await import("../../../shared/html-to-text");
+    const { htmlToPlainText } = await import("../../../shared/utils/html/to-text");
     return {
       subject: values.subject,
       bodyHtml: values.bodyHtml,

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { TOKEN_PATTERN, type TokenCatalogEntry as TokenDefinition } from "@shared/tokens";
+import { escapeHtml, sanitizeHtml } from "@shared/utils/html";
 
 const SPECIAL_CHARACTERS = [
   { name: 'Copyright', symbol: '©' },
@@ -56,81 +57,21 @@ interface SimpleHtmlEditorProps {
   "data-testid"?: string;
 }
 
-const ALLOWED_TAGS = [
-  'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'br', 'p', 'a',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
-];
-const ALLOWED_ATTRIBUTES: Record<string, string[]> = {
-  'a': ['href', 'target', 'rel'],
-  'th': ['colspan', 'rowspan', 'scope'],
-  'td': ['colspan', 'rowspan'],
-};
+/**
+ * What this editor lets an author write and what a reader is later shown
+ * are two halves of one contract, so both are the SAME named policy:
+ * `authored-document` in `shared/utils/html/policies.ts`. Change the
+ * toolbar and that policy together, or an author gets a formatting
+ * button whose output is stripped back out on render.
+ *
+ * (This used to be a hand-rolled DOM-walking sanitizer with its own
+ * allowlist and href checks. It is DOMPurify now, under that policy.)
+ */
+const EDITOR_POLICY = "authored-document" as const;
 
-export function sanitizeContractHtml(html: string): string {
-  return sanitizeHtml(html);
+function sanitizeEditorHtml(html: string): string {
+  return sanitizeHtml(html, EDITOR_POLICY);
 }
-
-function sanitizeHtml(html: string): string {
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-
-  function cleanNode(node: Node): void {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as Element;
-      const tagName = element.tagName.toLowerCase();
-
-      if (!ALLOWED_TAGS.includes(tagName)) {
-        while (element.firstChild) {
-          element.parentNode?.insertBefore(element.firstChild, element);
-        }
-        element.remove();
-        return;
-      }
-
-      const allowedAttrs = ALLOWED_ATTRIBUTES[tagName] || [];
-      Array.from(element.attributes).forEach(attr => {
-        if (!allowedAttrs.includes(attr.name)) {
-          element.removeAttribute(attr.name);
-        }
-      });
-
-      // Neutralize dangerous URI schemes on anchors (javascript:, data:, etc.).
-      if (tagName === 'a' && element.hasAttribute('href')) {
-        if (!isSafeHref(element.getAttribute('href'))) {
-          element.removeAttribute('href');
-        } else if (element.getAttribute('target') === '_blank') {
-          element.setAttribute('rel', 'noopener noreferrer');
-        }
-      }
-    }
-
-    Array.from(node.childNodes).forEach(child => cleanNode(child));
-  }
-
-  Array.from(temp.childNodes).forEach(child => cleanNode(child));
-  return temp.innerHTML;
-}
-
-function isSafeHref(href: string | null): boolean {
-  if (!href) return false;
-  const value = href.trim();
-  if (value === '') return false;
-  // Allow relative URLs, anchors, and query/path-only links.
-  if (/^(?:[/#?]|[^:]*$)/.test(value)) return true;
-  // Otherwise require an explicit safe scheme.
-  return /^(?:https?:|mailto:|tel:)/i.test(value);
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 
 function buildChipHtml(id: string, tokens: TokenDefinition[]): string {
   const t = tokens.find((x) => x.id === id);
@@ -283,7 +224,7 @@ export function SimpleHtmlEditor({
 
   useEffect(() => {
     if (editorRef.current && !isFocused && !rawMode) {
-      const sanitized = sanitizeHtml(value);
+      const sanitized = sanitizeEditorHtml(value);
       const rendered = enableTokens ? renderTokensAsChips(sanitized, tokens) : sanitized;
       if (editorRef.current.innerHTML !== rendered) {
         editorRef.current.innerHTML = rendered;
@@ -367,7 +308,7 @@ export function SimpleHtmlEditor({
       const serialized = enableTokens
         ? serializeChipsToTokens(editorRef.current)
         : editorRef.current.innerHTML;
-      const sanitized = sanitizeHtml(serialized);
+      const sanitized = sanitizeEditorHtml(serialized);
       onChange(sanitized);
     }
   };

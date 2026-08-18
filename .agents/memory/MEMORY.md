@@ -84,4 +84,5 @@
 - [Notifier hidden template channels](notifier-hidden-template-channels.md) — hide undeliverable medium cards via x-token-hidden marker on a schema clone; never prune the group or RJSF wipes stored overrides.
 - [Real-record preview gating](preview-record-gating.md) — each token entity kind declares record-scoped policy OR route gate; no declaration = not previewable; enforce on search AND load-by-id.
 - [Notifier token root truthfulness](notifier-token-root-truthfulness.md) — root name must BE the entity kind; advertised-but-unbuilt fields validate + preview fine and deliver blank; renames need a parsed-chain rewrite of stored templates.
+- [Shared HTML utils](shared-html-utils.md) — escape/sanitize/HTML→text live in ONE library split by dep weight (boot path imports the escape leaf, never the barrel); DOMPurify drops rel=noopener.
 - [Post-merge verification](post-merge-verification.md) — restart before diagnosing (lazy imports of deleted modules fail only at request time); registries throw on duplicate ids but a dropped registration boots clean.

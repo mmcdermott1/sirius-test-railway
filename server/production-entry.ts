@@ -16,6 +16,9 @@ import { existsSync, readdirSync, statSync } from "fs";
 import { resolve, join } from "path";
 import { bootStatus } from "./services/boot-status";
 import { getEnvironmentVariable } from "./config/env-registry";
+// Leaf import on purpose: the shared HTML barrel reaches DOMPurify (jsdom
+// under Node) and this file runs before the application exists.
+import { escapeHtml } from "../shared/utils/html/escape";
 
 /**
  * Stale-build guardrail (see task #138).
@@ -147,8 +150,6 @@ app.use('/', (req, res, next) => {
     // response, making the JSON there unreachable).
     if (initError) {
       if (acceptHeader.includes('text/html')) {
-        const escapeHtml = (s: string) =>
-          s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const detail = exposeBootErrors()
           ? `
               <p><strong>${escapeHtml(initError.message)}</strong></p>

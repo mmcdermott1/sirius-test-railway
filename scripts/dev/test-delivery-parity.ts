@@ -118,7 +118,7 @@ async function main() {
     // Delivery stores the body flattened to plain text, then renders
     // it — and so the editor previews the flattened text, not the
     // rich-text it edits.
-    const { htmlToPlainText } = await import("../../shared/html-to-text");
+    const { htmlToPlainText } = await import("../../shared/utils/html/to-text");
     const sent = {
       title: content.title,
       body: htmlToPlainText(content.bodyHtml),

@@ -322,11 +322,5 @@ export function collapseFieldSegments(expression: string): string {
   });
 }
 
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+// HTML escaping used to live here. It now belongs to the shared HTML
+// library — import `escapeHtml` from `@shared/utils/html`.

@@ -15,7 +15,7 @@ import {
   ENV_RELEASE_SENTINEL,
 } from "../../config/env-registry";
 import { invalidateTerminologyCache, loadTerminology } from "../terminology";
-import { sanitizeHelpHtml } from "../../help/sanitize";
+import { sanitizeHtml } from "@shared/utils/html";
 
 /**
  * Unified per-variable registry.
@@ -137,7 +137,9 @@ const VARIABLE_REGISTRY: Record<string, VariableRegistryEntry> = {
   // persist unsafe markup; the client also sanitizes before rendering.
   login_page_intro: {
     readTier: "public",
-    schema: z.string().transform((html) => (html ? sanitizeHelpHtml(html) : html)),
+    schema: z
+      .string()
+      .transform((html) => (html ? sanitizeHtml(html, "rich-document") : html)),
   },
   [TERMINOLOGY_VARIABLE_NAME]: {
     readTier: "public",
