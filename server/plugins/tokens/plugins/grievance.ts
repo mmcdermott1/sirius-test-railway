@@ -250,57 +250,58 @@ registerTokenPlugin({
   },
 });
 
-/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
+/**
+ * Status-history entry descriptor. The kind offers its OWN columns and
+ * nothing else: `status_id` renders the status option's name through the
+ * FK, and the grievance's title is reached through the `grievance`
+ * relation below. There are deliberately no flattened extras — an extra
+ * named after a related record's value ("grievance_title") reads like a
+ * column of this table, and only resolves when whoever seeded the record
+ * remembered to merge it.
+ */
 registerTokenPlugin({
   metadata: {
-    id: "token.grievance_relation.grievance",
-    name: "Grievance",
-    description: "The grievance this record belongs to",
-    segmentName: "grievance",
-    inputTypes: [
-      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
-    ],
-    outputType: GRIEVANCE_ENTITY_KIND,
-    entityTable: grievances,
-    entityFields: ["name", "display_title"],
+    id: "token.grievance_status_history",
+    name: "Grievance status entry",
+    description: "Descriptor for the grievance status-history entity kind",
+    segmentName: "__grievance_status_history",
+    inputTypes: [],
+    outputType: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
+    entityTable: grievanceStatusHistory,
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
+    sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
   },
-  async resolve(entity, _args, ctx) {
-    const e =
-      tokenEntityOf(entity, GRIEVANCE_STATUS_HISTORY_ENTITY_KIND) ??
-      tokenEntityOf(entity, GRIEVANCE_SETTLEMENT_ENTITY_KIND);
-    const grievanceId = e?.row.grievanceId;
-    if (typeof grievanceId !== "string") return null;
-    return loadGrievanceEntity(ctx, grievanceId);
+  async resolve() {
+    return null;
   },
 });
 
-/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
+/**
+ * Settlement descriptor. `operation` is a derived extra: the settlement
+ * notifier merges the event's operation (created/updated/deleted) onto
+ * the row, so templates can say `was {{event.field(name="operation")}}`.
+ */
 registerTokenPlugin({
   metadata: {
-    id: "token.grievance_relation.grievance",
-    name: "Grievance",
-    description: "The grievance this record belongs to",
-    segmentName: "grievance",
-    inputTypes: [
-      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
-    ],
-    outputType: GRIEVANCE_ENTITY_KIND,
-    entityTable: grievances,
-    entityFields: ["name", "display_title"],
+    id: "token.grievance_settlement",
+    name: "Grievance settlement",
+    description: "Descriptor for the grievance settlement entity kind",
+    segmentName: "__grievance_settlement",
+    inputTypes: [],
+    outputType: GRIEVANCE_SETTLEMENT_ENTITY_KIND,
+    entityTable: grievanceSettlements,
+    // Derived extras, not columns: the event's operation and the whole
+    // legacy per-operation sentence built from it. Nothing about the
+    // grievance — that is its own record, reached through the relation
+    // below (or the grievance root the settlement notifier seeds).
+    entityFields: ["operation", "summary"],
     hiddenFromCatalog: true,
-    requiredComponent: COMPONENT,
+    requiredComponent: "grievance.settlement",
+    sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,
   },
-  async resolve(entity, _args, ctx) {
-    const e =
-      tokenEntityOf(entity, GRIEVANCE_STATUS_HISTORY_ENTITY_KIND) ??
-      tokenEntityOf(entity, GRIEVANCE_SETTLEMENT_ENTITY_KIND);
-    const grievanceId = e?.row.grievanceId;
-    if (typeof grievanceId !== "string") return null;
-    return loadGrievanceEntity(ctx, grievanceId);
+  async resolve() {
+    return null;
   },
 });
 
