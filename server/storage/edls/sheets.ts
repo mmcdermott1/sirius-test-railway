@@ -134,6 +134,12 @@ export interface EdlsSheetsStorage {
   getWithRelations(id: string): Promise<EdlsSheetWithRelations | undefined>;
   getByEmployer(employerId: string): Promise<EdlsSheet[]>;
   /**
+   * A small, most-recent-first slice of sheets for Template Studio preview
+   * subject selection. Ordered by ymd descending (most recent sheet date
+   * first), then by id for a stable tie-break. Excludes trashed sheets.
+   */
+  listForPreview(limit: number): Promise<EdlsSheet[]>;
+  /**
    * Creates a sheet with its crews. Crews are required on create.
    * Validates that sheet.workerCount === sum of crew.workerCount.
    */
@@ -424,6 +430,16 @@ export function createEdlsSheetsStorage(): EdlsSheetsStorage {
       return client.select().from(edlsSheets)
         .where(eq(edlsSheets.employerId, employerId))
         .orderBy(desc(edlsSheets.ymd));
+    },
+
+    async listForPreview(limit: number): Promise<EdlsSheet[]> {
+      const client = getClient();
+      return client
+        .select()
+        .from(edlsSheets)
+        .where(ne(edlsSheets.status, "trash"))
+        .orderBy(desc(edlsSheets.ymd), desc(edlsSheets.id))
+        .limit(limit);
     },
 
     async create(insertSheet: InsertEdlsSheet, crews: CrewInput[]): Promise<EdlsSheetWithCrews> {
