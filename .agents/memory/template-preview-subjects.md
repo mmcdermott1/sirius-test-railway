@@ -1,36 +1,41 @@
 ---
 name: Template preview contexts (sample personas + real records)
-description: How template previews may reach real data — the two context forms, how the real-record form is gated per entity kind, and how named sample personas are keyed by entity kind.
+description: How template previews may reach real data — the single entity-ref context form, how it is gated per entity kind, which roots are pickable, and how named sample personas are keyed by entity kind.
 ---
 
 # Preview contexts
 
 A template preview renders against either a **named sample persona** or a
-**context the caller supplies in the request**. There are exactly two
-context forms:
+**context the caller supplies in the request**. There is exactly ONE
+context form: **entity references** — real records named by kind and id.
 
-- **raw root values** — a JSON object of named root values the author
-  already has on screen, rendered as LITERAL TEXT.
-- **an entity reference** — a real record named by kind and id.
+There used to be a second form, raw root VALUES the author already had on
+screen, rendered as literal text. It was accepted on the route's plain
+staff gate with no per-record check, so it needed a wall of guards
+(scalars only, no `id`/`*_id`/`*Id` keys) to stop a forged foreign key
+from reading back a real record through a relation. Nothing ever sent
+it, so the form and its guards are gone — the remaining form is gated
+per record, which is the check the guards were imitating.
 
-The raw form is accepted on the route's plain staff gate with no
-per-record check, which is only defensible while it cannot reach a
-record — and by default it CAN. Token plugins traverse to related
-records by reading a foreign key off the row they stand on, and a seeded
-contact's `id` becomes the render's recipient (from which every
-recipient-rooted root loads for real). So a raw row is vetted before it
-is seeded: **scalar values only** (a nested object is a smuggled record)
-and **no identifier keys** (`id`, `*_id`, `*Id`), refused rather than
-stripped. With no ids on the row there is nothing to traverse, relations
-resolve to null, and those roots honestly fall back to samples. A raw
-seed also carries no Drizzle table, so `field()` never follows a foreign
-key to a named row either.
+**How to apply:** a retired shape is REFUSED, not ignored — by key
+PRESENCE (`{"entity": null}` still names a shape this route no longer
+has), naming the one accepted form in the message.
+`scripts/dev/test-preview-context-safety.ts` drives the real route and
+asserts every retired key is refused and the records path fails closed.
 
-**Why:** without that vetting, a staff caller forges `grievanceId` on a
-root and reads back any grievance through the relation — walking around
-the very gate the entity form exists to apply. `scripts/dev/test-preview-context-safety.ts`
-(workflow `preview-context-safety`) drives the real route and asserts
-the seam stays closed.
+## Which roots are pickable is studio context, not render output
+
+Whether an author may pick a real record for a root follows from the
+ROOTS alone — the kind declares how a preview read of it is gated, and
+its component is on — so it is its own request
+(`GET /api/template-studio/preview-roots?roots=…`, same staff gate as
+the preview routes), fetched once when the studio opens.
+
+**Why:** it used to ride along inside every render response, which made
+the picker unusable until something had been previewed and made a fixed
+fact look like it varied per render. Whether this author may read a
+PARTICULAR record is the separate, per-record question the picker's
+search answers.
 
 Previewing against a real record IS a read of that record, so it is
 gated exactly like any other read of it: the token entity kind's own

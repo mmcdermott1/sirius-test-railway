@@ -79,11 +79,6 @@ export interface StudioPreviewRootResult {
   label: string;
   recordId: string | null;
   real: boolean;
-  /**
-   * True when the author may pick a real record for this root: its kind
-   * declares how reading one is gated and that kind's component is on.
-   */
-  pickable: boolean;
 }
 
 /** A named sample persona the preview can render against. */
@@ -118,23 +113,16 @@ export interface StudioPreviewResult {
 }
 
 /**
- * What a preview renders AGAINST, when it is not sample data.
+ * What a preview renders AGAINST, when it is not sample data: the real
+ * records the AUTHOR picked, by kind and id. The server gates each one
+ * as a read of that record before it seeds it.
  *
- * Two forms, and a context says which one it is rather than leaving the
- * server to infer it from the keys present — the two carry different
- * trust, so the choice is never guessed:
- *
- *  - `values` is raw root values the host already has on screen. They
- *    render as literal text and cannot reach a real record.
- *  - `records` names real records by kind and id, which the server gates
- *    as a read of each record before it seeds it.
+ * Not a prop. A host describes its FIELDS and its ROOTS; which record
+ * to render against is the author's choice, made in here.
  */
-export type StudioPreviewContext =
-  | { source: "values"; roots: Record<string, Record<string, unknown>> }
-  | {
-      source: "records";
-      entities: Array<{ kind: string; id: string; rootName?: string }>;
-    };
+interface PreviewRecordContext {
+  entities: Array<{ kind: string; id: string; rootName?: string }>;
+}
 
 export interface TemplateStudioProps {
   open: boolean;
@@ -162,8 +150,6 @@ export interface TemplateStudioProps {
    * here.
    */
   templateValues?: Record<string, string>;
-  /** What to render against; omit for sample personas. */
-  previewContext?: StudioPreviewContext;
   /** Token browser entries. */
   tokens: TokenCatalogEntry[];
   /** Segment graph for live token validation (omit to skip validation). */
@@ -312,7 +298,6 @@ export function TemplateStudio({
   onValueChange,
   fieldSpecs,
   templateValues,
-  previewContext,
   tokens,
   segments,
   fieldCatalog,
@@ -338,6 +323,25 @@ export function TemplateStudio({
   );
   const specsJson = JSON.stringify(specs);
   const rootNamesJson = JSON.stringify(rootNames ?? []);
+
+  // ── The studio's context ───────────────────────────────────────────────────
+  // Which roots an author may pick a real record for. This follows from
+  // the roots alone — not from the template text, and not from a render
+  // — so it is fetched once when the studio opens and holds still while
+  // the author types. Whether this author may read any PARTICULAR record
+  // is decided per record, when the picker searches.
+  const previewRootsUrl = useMemo(() => {
+    const named = (rootNames ?? []).join(",");
+    return named
+      ? `/api/template-studio/preview-roots?roots=${encodeURIComponent(named)}`
+      : "/api/template-studio/preview-roots";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootNamesJson]);
+  const { data: pickableRootsData } = useQuery<{ roots: PickableRoot[] }>({
+    queryKey: [previewRootsUrl],
+    enabled: open,
+  });
+  const pickableRoots = pickableRootsData?.roots ?? [];
 
   /** Which sample persona unseeded roots render as; null = the default. */
   const [sampleSetId, setSampleSetId] = useState<string | null>(null);
@@ -370,17 +374,16 @@ export function TemplateStudio({
   }, [open]);
 
   const pickedList = Object.values(picked);
-  const effectiveContext: StudioPreviewContext | undefined =
+  const effectiveContext: PreviewRecordContext | undefined =
     pickedList.length > 0
       ? {
-          source: "records",
           entities: pickedList.map((p) => ({
             kind: p.kind,
             id: p.id,
             rootName: p.rootName,
           })),
         }
-      : previewContext;
+      : undefined;
   const contextJson = JSON.stringify(effectiveContext ?? null);
 
   // ── Debounced preview ──────────────────────────────────────────────────────
@@ -492,15 +495,6 @@ export function TemplateStudio({
   // Honest sample/real reporting: a preview can mix real roots (records
   // the admin picked) with sample ones (roots left unpicked).
   const previewRoots = preview?.roots ?? [];
-  // The roots an author may pick a record for. Kept across renders so
-  // the picker doesn't blink out while a new preview is in flight.
-  const pickableRootsRef = useRef<PickableRoot[]>([]);
-  if (preview?.roots) {
-    pickableRootsRef.current = preview.roots
-      .filter((r) => r.pickable)
-      .map((r) => ({ name: r.name, kind: r.kind, label: r.label }));
-  }
-  const pickableRoots = pickableRootsRef.current;
   const realRootLabels = previewRoots.filter((r) => r.real).map((r) => r.label);
   const sampleRootLabels = previewRoots.filter((r) => !r.real).map((r) => r.label);
   // System values (this site's address, today's date) are never sampled —

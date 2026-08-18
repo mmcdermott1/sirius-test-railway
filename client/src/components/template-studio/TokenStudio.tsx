@@ -6,7 +6,6 @@ import {
   TemplateStudio,
   type StudioChannel,
   type StudioField,
-  type StudioPreviewContext,
 } from "./TemplateStudio";
 import type { DeliveryFieldSpec } from "@shared/delivery-fields";
 import type {
@@ -41,8 +40,6 @@ export interface TokenStudioProps {
   fieldSpecs?: DeliveryFieldSpec[];
   /** Finished template strings, when they differ from the editor values. */
   templateValues?: Record<string, string>;
-  /** What to preview against; omit for sample personas. */
-  previewContext?: StudioPreviewContext;
   /**
    * Named record roots this host seeds (`dispatch`, `event`, …). Roots
    * not named here don't exist for these tokens.
@@ -81,7 +78,6 @@ export function TokenStudio({
   onValueChange,
   fieldSpecs,
   templateValues,
-  previewContext,
   rootNames,
   catalogUrl,
   treeBaseUrl,
@@ -109,7 +105,6 @@ export function TokenStudio({
       onValueChange={onValueChange}
       fieldSpecs={fieldSpecs}
       templateValues={templateValues}
-      previewContext={previewContext}
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}

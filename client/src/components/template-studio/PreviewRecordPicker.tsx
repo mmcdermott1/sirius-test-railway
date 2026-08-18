@@ -70,8 +70,8 @@ export function PreviewRecordPicker({
   const [query, setQuery] = useState("");
   const [rootName, setRootName] = useState<string>(roots[0]?.name ?? "");
 
-  // The offered roots depend on the render (a switched-off component
-  // offers none); keep the selection on one that still exists.
+  // The offered roots come from the studio's context (a switched-off
+  // component offers none); keep the selection on one that still exists.
   useEffect(() => {
     if (roots.length === 0) return;
     if (!roots.some((r) => r.name === rootName)) {

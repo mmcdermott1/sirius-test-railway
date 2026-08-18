@@ -20,9 +20,7 @@ type RequireAuth = (req: Request, res: Response, next: () => void) => void;
  * A preview renders against NAMED SAMPLE DATA by default. A caller with
  * a real record in hand may name it instead, by kind and id — and that
  * is a read of the record, so it is gated exactly like any other read
- * of it (see `server/plugins/tokens/preview-entities.ts`). A caller may
- * also pass raw root VALUES it already has on screen; those render as
- * literal text and never reach a record (see `sanitizeRawRootValues`).
+ * of it (see `server/plugins/tokens/preview-entities.ts`).
  */
 /** `?roots=dispatch,event` — the named context roots the caller seeds. */
 function parseRootNames(raw: unknown): string[] {
@@ -43,121 +41,13 @@ type ResolvedPreviewContext =
   | { status: number; message: string };
 
 /**
- * The two forms a preview context comes in, named in every refusal so a
- * caller that gets the shape wrong is told what the shapes are.
+ * The one form a preview context comes in, named in every refusal so a
+ * caller that gets the shape wrong is told what the shape is.
  */
-const PREVIEW_CONTEXT_FORMS =
-  `{ source: "values", roots: { <rootName>: { …values } } } or ` +
-  `{ source: "records", entities: [{ kind, id, rootName? }] }`;
+const PREVIEW_CONTEXT_FORM = `{ entities: [{ kind, id, rootName? }] }`;
 
 /**
- * An identifier field — `id`, `grievance_id`, `workerId`.
- *
- * Deliberately narrow: an identifier is a key that IS an id or ENDS in a
- * `_id`/`Id` suffix, so ordinary words that happen to end in the two
- * letters (`paid`, `valid`, `void`) stay perfectly good field names.
- */
-function isIdentifierKey(key: string): boolean {
-  // `id` / `ID`, and any `_id` suffix, in any casing…
-  if (/^id$/i.test(key) || /_id$/i.test(key)) return true;
-  // …plus the camelCase suffix, where the capital is what separates
-  // `workerId` from `paid`.
-  return /[a-z0-9](Id|ID)$/.test(key);
-}
-
-/**
- * Vet one raw root object.
- *
- * A raw root is LITERAL TEXT the author is already looking at, and this
- * is what keeps it literal. It matters because a raw context is accepted
- * on the route's plain staff gate, with no per-record check — which is
- * only defensible while the values cannot reach a record.
- *
- * Two rules, and both exist to close the same hole. Token plugins
- * traverse to related records by reading a FOREIGN KEY off the row they
- * are standing on (`grievance_status_history` → `grievance` reads
- * `grievanceId`), and the render treats a seeded contact's `id` as the
- * recipient, from which the recipient-rooted roots load for real. So a
- * caller that could put ids in a raw row could name any record in the
- * database and read it back through a relation, which is exactly the
- * check the entity form exists to perform.
- *
- *  1. Values must be scalars. A nested object or array is a smuggled
- *     record shape, never something an author typed into a field.
- *  2. No identifier keys. With no id on the row there is nothing to
- *     traverse: relations resolve to null and the render falls back to
- *     sample data for those roots, which is the honest answer.
- *
- * Refused rather than silently stripped: a preview that quietly ignored
- * half of what it was handed would be lying about what it rendered.
- */
-function sanitizeRawRootValues(
-  name: string,
-  value: unknown,
-): { ok: true; row: Record<string, unknown> } | { ok: false; message: string } {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {
-      ok: false,
-      message: `Preview context root "${name}" must be an object of values`,
-    };
-  }
-  const row: Record<string, unknown> = {};
-  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (isIdentifierKey(key)) {
-      return {
-        ok: false,
-        message:
-          `Preview context root "${name}" cannot carry the identifier ` +
-          `"${key}" — raw context values render as literal text, so name a ` +
-          `record with a context entity instead`,
-      };
-    }
-    if (raw !== null && typeof raw === "object") {
-      return {
-        ok: false,
-        message:
-          `Preview context root "${name}" field "${key}" must be a plain ` +
-          `value — a raw context carries the text of one record, not ` +
-          `records it relates to`,
-      };
-    }
-    row[key] = raw;
-  }
-  return { ok: true, row };
-}
-
-/**
- * `{ source: "values", roots: … }` — root values the caller already has.
- *
- * Every value is vetted by `sanitizeRawRootValues`, which is what keeps
- * this form literal and therefore keeps the route's staff gate
- * sufficient. Unknown root names are refused rather than ignored, so a
- * caller is never told "rendered" about a root that was dropped.
- */
-function resolveRawRootValues(
-  raw: unknown,
-  available: TokenPreviewRoot[],
-): ResolvedPreviewContext {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { status: 400, message: "Preview context roots must be an object" };
-  }
-  const seeds: TokenRootSeed[] = [];
-  for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
-    const root = available.find((r) => r.name === name);
-    if (!root) {
-      return { status: 400, message: `Unknown preview context root "${name}"` };
-    }
-    const vetted = sanitizeRawRootValues(name, value);
-    if (!vetted.ok) return { status: 400, message: vetted.message };
-    // No Drizzle table either: field names resolve off the supplied
-    // object alone, so nothing follows a foreign key to a named row.
-    seeds.push({ name, entity: { kind: root.kind, row: vetted.row } });
-  }
-  return { seeds };
-}
-
-/**
- * `{ source: "records", entities: [ … ] }` — real records, by kind and id.
+ * `entities: [ … ]` — real records, by kind and id.
  *
  * Each named record is resolved and gated INDIVIDUALLY: per kind, per
  * record, through the kind's own `previewEntity` declaration. Each
@@ -235,20 +125,14 @@ async function resolveRecordRefs(
 /**
  * Turn the request's `context` into render seeds.
  *
- * TWO forms, and the difference between them is entirely about whose
- * data it is — which is why they cannot be collapsed into one:
+ * ONE form, because there is only one kind of thing a preview renders
+ * against: REAL records. Seeding one is a read of it, so the kind's own
+ * declaration decides whether this caller may read it, and an
+ * undeclared kind is refused rather than assumed safe.
  *
- *  - `source: "values"` is root values the author already has on screen.
- *    They render as literal text and reach no record, so the route's
- *    staff gate is the whole story.
- *  - `source: "records"` names REAL records. Seeding one is a read of
- *    it, so the kind's own declaration decides whether this caller may
- *    read it, and an undeclared kind is refused rather than assumed safe.
- *
- * The form is DECLARED, not inferred from which keys happen to be
- * present: a context that doesn't say what it is, or that carries the
- * other form's payload, is refused. Guessing here would mean guessing
- * which trust level to apply.
+ * A shape this route no longer has is REFUSED, not ignored. A caller
+ * sending one is describing a render it will not get, and quietly
+ * rendering something else would be the lie a preview must never tell.
  */
 async function resolvePreviewContext(
   raw: unknown,
@@ -267,22 +151,38 @@ async function resolvePreviewContext(
     Object.prototype.hasOwnProperty.call(context, key);
 
   // A single record used to be its own notation, identical to a
-  // one-element list. Refused rather than quietly accepted, so a stale
-  // caller is told what to send instead of rendering differently.
+  // one-element list.
   if (sent("entity")) {
     return {
       status: 400,
       message:
         `A preview context has no single "entity" form — give ` +
-        PREVIEW_CONTEXT_FORMS,
+        PREVIEW_CONTEXT_FORM,
     };
   }
 
-  const source = context.source;
-  if (source !== "values" && source !== "records") {
+  // Raw root VALUES used to be a second form, trusted differently
+  // because they reached no record. Nothing ever sent them, so they are
+  // gone — along with the guards that kept them from reaching one.
+  if (sent("roots")) {
     return {
       status: 400,
-      message: `A preview context must name its form: ${PREVIEW_CONTEXT_FORMS}`,
+      message:
+        `A preview context no longer takes raw root values — name the ` +
+        `records to render against: ` +
+        PREVIEW_CONTEXT_FORM,
+    };
+  }
+
+  // The discriminant existed only to choose between those two trust
+  // levels. With one form there is nothing to discriminate.
+  if (sent("source")) {
+    return {
+      status: 400,
+      message:
+        `A preview context has only one form and does not name it — ` +
+        `give ` +
+        PREVIEW_CONTEXT_FORM,
     };
   }
 
@@ -290,23 +190,6 @@ async function resolvePreviewContext(
     "../plugins/tokens/preview-roots"
   );
   const available = listTokenPreviewRoots(ctx.rootNames);
-
-  if (source === "values") {
-    if (sent("entities")) {
-      return {
-        status: 400,
-        message: `A "values" preview context cannot carry entities`,
-      };
-    }
-    return resolveRawRootValues(context.roots, available);
-  }
-
-  if (sent("roots")) {
-    return {
-      status: 400,
-      message: `A "records" preview context cannot carry root values`,
-    };
-  }
   return resolveRecordRefs(context.entities, available, ctx);
 }
 
@@ -410,6 +293,47 @@ export function registerTokenStudioRoutes(
   );
 
   /**
+   * THE STUDIO'S OWN CONTEXT: which roots an author may pick a real
+   * record for. `?roots=dispatch,event` names the context roots the
+   * caller's templates address.
+   *
+   * This depends on the roots alone — a kind declares how a preview
+   * read of it is gated, and its component is on — never on a render.
+   * So the studio fetches it once when it opens, and the picker is
+   * usable before anything has been previewed at all. Whether THIS
+   * author may read any PARTICULAR record is a different question,
+   * decided per record when the picker searches.
+   */
+  app.get(
+    "/api/template-studio/preview-roots",
+    requireAuth,
+    requireAccess("staff"),
+    async (req: Request, res: Response) => {
+      try {
+        const { listTokenPreviewRoots } = await import(
+          "../plugins/tokens/preview-roots"
+        );
+        const { listPickableTokenPreviewKinds } = await import(
+          "../plugins/tokens/preview-entities"
+        );
+        const pickableKinds = await listPickableTokenPreviewKinds();
+        const roots = listTokenPreviewRoots(parseRootNames(req.query.roots))
+          .filter((root) => pickableKinds.has(root.kind))
+          .map((root) => ({
+            name: root.name,
+            kind: root.kind,
+            label: root.label,
+          }));
+        res.json({ roots });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to load preview roots" });
+      }
+    },
+  );
+
+  /**
    * The preview record picker: `?kind=worker&q=jane&limit=20`.
    *
    * Returns real records of ONE token entity kind that THIS caller may
@@ -473,18 +397,12 @@ export function registerTokenStudioRoutes(
    *   `rootNames` — the named record roots those templates address
    *     (`dispatch`, `event`); ordinary roots are always available.
    *   `sampleSetId` — which named sample persona unseeded roots render as.
-   *   `context` — what to render AGAINST. It NAMES which of the two
-   *     forms it is, because the two carry different trust:
-   *     `{ source: "values", roots: { <rootName>: { …values } } }` — raw
-   *       JSON the author is already looking at. Staff-gated like the
-   *       rest of the route: it is the caller's own content coming back,
-   *       and `sanitizeRawRootValues` keeps it from reaching a record.
-   *     `{ source: "records", entities: [{ kind, id, rootName? }, …] }` —
-   *       REAL records, at most one per root. Reading one here is a read
-   *       of it, so the kind's own `previewEntity` declaration gates
-   *       each one before it is seeded, a kind that has not declared how
-   *       it is gated cannot be used at all, and roots left unnamed keep
-   *       sample data.
+   *   `context` — what to render AGAINST: REAL records, at most one
+   *     per root — `{ entities: [{ kind, id, rootName? }, …] }`.
+   *     Reading one here is a read of it, so the kind's own
+   *     `previewEntity` declaration gates each one before it is
+   *     seeded, a kind that has not declared how it is gated cannot be
+   *     used at all, and roots left unnamed keep sample data.
    *   Omit `context` to preview against sample personas.
    */
   app.post(
