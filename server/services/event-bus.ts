@@ -257,6 +257,11 @@ export interface GrievanceSavedPayload {
  * that point in time (e.g. `previous*` on the very first entry, `new*` after
  * the last entry is deleted). Status names are resolved for rendering and may be
  * null if the referenced status option is missing.
+ *
+ * `newStatusHistoryId` identifies the status-history ROW that is current after
+ * the mutation. A consumer that has to render the transition loads that exact
+ * row rather than re-reading "the grievance's current status", which a later
+ * transition could have moved on by then.
  */
 export interface GrievanceStatusHistorySavedPayload {
   grievanceId: string;
@@ -264,6 +269,7 @@ export interface GrievanceStatusHistorySavedPayload {
   previousStatusName: string | null;
   newStatusId: string | null;
   newStatusName: string | null;
+  newStatusHistoryId: string | null;
 }
 
 /**

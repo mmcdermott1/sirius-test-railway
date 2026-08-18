@@ -10,7 +10,7 @@ import { formatPhpDate, fmtDateShort } from "../php-date";
  * TS property name (camelCase) or the DB column name (snake_case);
  * comparison is case/underscore-insensitive.
  */
-function resolveRowKey(entity: TokenEntity, name: string): string | null {
+export function resolveRowKey(entity: TokenEntity, name: string): string | null {
   const wanted = normalizeFieldName(name);
   // Direct row keys (covers derived/denorm extras and shaped entities).
   for (const key of Object.keys(entity.row)) {

@@ -37,17 +37,20 @@ function configuredIds(configData: unknown, key: string): string[] {
 const PLUGIN_ID = "grievance-status-notifier";
 
 /**
- * Default per-channel templates. `grievance_status` is a snapshot of the
- * grievance's new current status entry (built from the event payload, so
- * it can't race a later transition); `status_id` auto-renders the status
- * option's name, and `grievance_status.grievance` reaches the grievance
- * row (whose `name` is the denorm display name).
+ * Default per-channel templates.
+ *
+ * `grievance_status_history` is the status-history ROW the event is about,
+ * loaded by its own id (so a later transition can't make the message
+ * describe a status this entry never had); `status_id` auto-renders the
+ * status option's name through the FK. `grievance` is the linked grievance,
+ * seeded as its own root — its `display_title` is the same title the
+ * grievance pages show.
  */
-const TITLE = '{{grievance_status.field(name="grievance_title")}}';
+const TITLE = '{{grievance.field(name="display_title")}}';
 const SENTENCE =
-  'The grievance "{{grievance_status.field(name="grievance_title")}}" ' +
-  'has reached the status "{{grievance_status.field(name="status_name")}}".';
-const LINK_PATH = '/grievance/{{grievance_status.grievance.field(name="id")}}';
+  'The grievance "{{grievance.field(name="display_title")}}" ' +
+  'has reached the status "{{grievance_status_history.field(name="status_id")}}".';
+const LINK_PATH = '/grievance/{{grievance.field(name="id")}}';
 const LINK_LABEL = "View Grievance";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -120,8 +123,8 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
       },
       templates: templatesSchemaBlock(PLUGIN_ID, {
         exampleTokens: [
-          '{{grievance_status.grievance.field(name="name")}}',
-          '{{grievance_status.field(name="status_id")}}',
+          '{{grievance.field(name="sirius_id")}}',
+          '{{grievance_status_history.field(name="status_id")}}',
         ],
       }),
     },
@@ -130,46 +133,50 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
   tokenTemplates: {
     roots: [
       {
-        name: "grievance_status",
+        name: "grievance_status_history",
         kind: "grievance_status_history",
         label: "Grievance status entry",
-        description: "The status the grievance has just reached",
-        // Derived values merged onto the row below.
-        fields: ["status_name", "grievance_title"],
+        description: "The status entry the grievance has just reached",
         async build(ctx) {
-          const { grievanceId, newStatusId, newStatusName } = payloadOf(ctx);
-          // The payload carries no history-entry id, and the grievance's
-          // is_current row may have moved on by delivery time — so render
-          // against a snapshot of the transition the event describes.
-          // `status_name` rides on the payload (the option could be renamed
-          // or deleted before delivery); fall back to neutral phrasing.
-          if (!newStatusId) return null;
+          const { grievanceId, newStatusHistoryId } = payloadOf(ctx);
+          // The event names the entry that is current after the mutation;
+          // load THAT row rather than re-reading "the grievance's current
+          // status", which a later transition could already have moved on
+          // from. Every column the editor offers is therefore a real value.
+          // A row deleted between the event and delivery leaves nothing
+          // truthful to say, so composition aborts (null, root not optional).
+          if (!newStatusHistoryId) return null;
           const { grievanceStatusHistory } = await import(
             "../../../../shared/schema/grievance/schema"
           );
           const { storage } = await import("../../../storage");
-          const { composeGrievanceDisplayTitle } = await import(
-            "../../tokens/plugins/grievance"
+          const row = await storage.grievanceStatusHistory.get(
+            grievanceId,
+            newStatusHistoryId,
           );
-          const titleInfo =
-            await storage.grievances.getAssignmentTitleInfo(grievanceId);
+          if (!row) return null;
           return {
             kind: "grievance_status_history",
-            row: {
-              grievanceId,
-              statusId: newStatusId,
-              isCurrent: true,
-              statusName:
-                newStatusName && newStatusName.trim()
-                  ? newStatusName
-                  : "a new status",
-              grievanceTitle: composeGrievanceDisplayTitle(
-                grievanceId,
-                titleInfo,
-              ),
-            },
+            row: row as unknown as Record<string, unknown>,
             table: grievanceStatusHistory,
           };
+        },
+      },
+      {
+        name: "grievance",
+        kind: "grievance",
+        label: "Grievance",
+        description: "The grievance whose status changed",
+        async build(ctx) {
+          // Convenience root: the grievance is also reachable from the entry
+          // (`grievance_status_history.grievance`), but the message is about
+          // a grievance, so templates get to say so directly.
+          const { grievanceId } = payloadOf(ctx);
+          const { storage } = await import("../../../storage");
+          const { buildGrievanceEntity } = await import(
+            "../../tokens/plugins/grievance"
+          );
+          return buildGrievanceEntity(storage, grievanceId);
         },
       },
     ],

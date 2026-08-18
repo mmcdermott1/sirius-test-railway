@@ -43,6 +43,35 @@ export function composeGrievanceDisplayTitle(
 }
 
 /**
+ * Build a grievance row (with its denorm display name) as a token entity,
+ * straight off storage. Separate from {@link loadGrievanceEntity} so a surface
+ * that seeds the grievance as a ROOT — an event notifier, which has no token
+ * eval context when it builds its records — reaches the same shape.
+ *
+ * The row carries every column of `grievances` plus the two derived extras the
+ * descriptor advertises (`name` from the denorm read, `display_title` here), so
+ * every field the editor offers on this kind actually resolves.
+ */
+export async function buildGrievanceEntity(
+  storage: TokenEvalContext["storage"],
+  grievanceId: string,
+): Promise<TokenEntity | null> {
+  const [base, info] = await Promise.all([
+    storage.grievances.get(grievanceId),
+    storage.grievances.getAssignmentTitleInfo(grievanceId),
+  ]);
+  if (!base) return null;
+  return {
+    kind: GRIEVANCE_ENTITY_KIND,
+    row: {
+      ...(base as unknown as Record<string, unknown>),
+      displayTitle: composeGrievanceDisplayTitle(grievanceId, info),
+    },
+    table: grievances,
+  };
+}
+
+/**
  * Load a grievance row (with its denorm display name) as a token entity.
  * `display_title` is a derived extra carrying the client's full title
  * fallback chain so templates never render a blank/generic title.
@@ -51,23 +80,9 @@ export async function loadGrievanceEntity(
   ctx: TokenEvalContext,
   grievanceId: string,
 ): Promise<TokenEntity | null> {
-  const row = await memo(ctx, `grievance-row:${grievanceId}`, async () => {
-    const [base, info] = await Promise.all([
-      ctx.storage.grievances.get(grievanceId),
-      ctx.storage.grievances.getAssignmentTitleInfo(grievanceId),
-    ]);
-    if (!base) return null;
-    return {
-      ...(base as unknown as Record<string, unknown>),
-      displayTitle: composeGrievanceDisplayTitle(grievanceId, info),
-    };
-  });
-  if (!row) return null;
-  return {
-    kind: GRIEVANCE_ENTITY_KIND,
-    row,
-    table: grievances,
-  };
+  return memo(ctx, `grievance-entity:${grievanceId}`, () =>
+    buildGrievanceEntity(ctx.storage, grievanceId),
+  );
 }
 
 /**
@@ -115,29 +130,43 @@ const GRIEVANCE_SAMPLE_SETS = [
   },
 ];
 
+/**
+ * Sample status entries. Keyed by the entry's OWN columns only — the
+ * grievance's title is not one of them: a template reaches it through the
+ * entry's `grievance` relation (or the notifier's own `grievance` root),
+ * which renders from the grievance persona of the same name.
+ *
+ * `status_id` is the status FK, which renders as the status option's name.
+ */
 const GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS = [
   {
     id: "martian",
     label: "Martian",
     values: {
-      status_name: "Filed",
-      grievance_title: "Mars Colony Safety Violation",
+      id: "SAMPLE-GRIEVANCE-STATUS-001",
+      status_id: "Filed",
+      date: "2031-03-04",
+      is_current: "Yes",
     },
   },
   {
     id: "historical",
     label: "Historical",
     values: {
-      status_name: "Arbitration",
-      grievance_title: "Analytical Engine Working Hours",
+      id: "SAMPLE-GRIEVANCE-STATUS-002",
+      status_id: "Arbitration",
+      date: "1843-11-20",
+      is_current: "Yes",
     },
   },
   {
     id: "mythological",
     label: "Mythological",
     values: {
-      status_name: "Withdrawn",
-      grievance_title: "Navigation Duty Assignment",
+      id: "SAMPLE-GRIEVANCE-STATUS-003",
+      status_id: "Withdrawn",
+      date: "1200-06-15",
+      is_current: "Yes",
     },
   },
 ];
@@ -246,7 +275,15 @@ registerTokenPlugin({
   },
 });
 
-/** Status-history entry descriptor (status_id FK renders the status name). */
+/**
+ * Status-history entry descriptor. The kind offers its OWN columns and
+ * nothing else: `status_id` renders the status option's name through the
+ * FK, and the grievance's title is reached through the `grievance`
+ * relation below. There are deliberately no flattened extras — an extra
+ * named after a related record's value ("grievance_title") reads like a
+ * column of this table, and only resolves when whoever seeded the record
+ * remembered to merge it.
+ */
 registerTokenPlugin({
   metadata: {
     id: "token.grievance_status_history",
@@ -255,14 +292,14 @@ registerTokenPlugin({
     segmentName: "__grievance_status_history",
     inputTypes: [],
     outputType: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-    entityFields: ["status_name", "grievance_title"],
     entityTable: grievanceStatusHistory,
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
     // The most recent real status entries a surface may OFFER as preview
-    // subjects (no search, no load-by-id). Rows carry the same derived
-    // `status_name`/`grievance_title` the notifier merges on.
+    // subjects (no search, no load-by-id). The grievance title appears in
+    // the LABEL (so an author can tell the entries apart) but not on the
+    // row: the row is the entry's own columns, exactly as delivery seeds it.
     recentRecords: {
       async recent(limit) {
         const { storage } = await import("../../../storage");
@@ -290,7 +327,6 @@ registerTokenPlugin({
               kind: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
               row: {
                 ...(row as unknown as Record<string, unknown>),
-                grievanceTitle,
               },
               table: grievanceStatusHistory,
             },

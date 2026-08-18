@@ -95,7 +95,7 @@ let fieldCatalogVersion = "";
  * (which builds fresh) and delivery (which reads this) can never
  * disagree about whether a field name exists.
  */
-function getFieldCatalog(): TokenFieldCatalog {
+export function getFieldCatalog(): TokenFieldCatalog {
   const version = `${tokenRegistryVersion()}:${getComponentCacheRevision()}`;
   if (!fieldCatalogCache || fieldCatalogVersion !== version) {
     fieldCatalogCache = buildFieldCatalog();

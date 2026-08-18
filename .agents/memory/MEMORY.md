@@ -82,3 +82,4 @@
 - [Derived registry cache versioning](derived-registry-cache-versioning.md) — caches over listEnabledSync must key on registry version + component-cache revision, else validation accepts what delivery renders as unknown.
 - [Per-plugin envelope narrowing](plugin-config-envelope-per-plugin-narrowing.md) — narrow kind-level config fields per plugin via the adapter hook served by /configs/meta; lock (don't hide) unavailable choices, keep selected ones clearable.
 - [Notifier hidden template channels](notifier-hidden-template-channels.md) — hide undeliverable medium cards via x-token-hidden marker on a schema clone; never prune the group or RJSF wipes stored overrides.
+- [Notifier token root truthfulness](notifier-token-root-truthfulness.md) — root name must BE the entity kind; advertised-but-unbuilt fields validate + preview fine and deliver blank; renames need a parsed-chain rewrite of stored templates.

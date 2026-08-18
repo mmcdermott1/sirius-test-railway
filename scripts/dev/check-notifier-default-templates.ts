@@ -6,6 +6,10 @@
  * payload-snapshot rendering (an intervening save or delete must not
  * change or swallow the message).
  *
+ * The grievance status notifier is the exception, deliberately: it renders
+ * the status-history ROW the event names, so a deleted row means the
+ * message has nothing truthful left to say and is not sent.
+ *
  * Run: npx tsx scripts/dev/check-notifier-default-templates.ts
  */
 import { storage } from "../../server/storage/database";
@@ -317,46 +321,59 @@ async function main() {
     const { grievanceStatusNotifier } = await import(
       "../../server/plugins/event-notifier/plugins/grievance-status-notifier"
     );
-    // Status id points at a DELETED/renamed option: name must come from
-    // the payload, not a live option lookup.
-    const gs = await renderInapp(grievanceStatusNotifier, {
-      grievanceId: g.id,
-      previousStatusId: null,
-      newStatusId: "00000000-0000-0000-0000-000000000000",
-      newStatusName: "Old Status Name",
-    });
-    check(
-      "grievance-status body uses payload status name",
-      gs?.body,
-      'the status "Old Status Name"',
-    );
-    const gsBlank = await renderInapp(grievanceStatusNotifier, {
-      grievanceId: g.id,
-      previousStatusId: null,
-      newStatusId: "00000000-0000-0000-0000-000000000000",
-      newStatusName: "  ",
-    });
-    check(
-      "grievance-status blank name neutral fallback",
-      gsBlank?.body,
-      'the status "a new status"',
-    );
-    const gsBody = String(gs?.body ?? "");
-    await checkChannels(
-      "grievance-status",
-      grievanceStatusNotifier,
-      {
-        grievanceId: g.id,
+    // This notifier renders the REAL status-history row the event names, so
+    // it needs one to exist. Unlike the payload-snapshot notifiers above,
+    // every field it offers is a column of that row.
+    const [entry] = (
+      await db.execute(sql`
+        select h.id, h.grievance_id, o.name as status_name
+        from grievance_status_history h
+        left join options_grievance_status o on o.id = h.status_id
+        where o.name is not null
+        limit 1
+      `)
+    ).rows as { id: string; grievance_id: string; status_name: string }[];
+    if (entry) {
+      const titleInfo = await storage.grievances.getAssignmentTitleInfo(
+        entry.grievance_id,
+      );
+      const title = composeGrievanceDisplayTitle(entry.grievance_id, titleInfo);
+      const payload = {
+        grievanceId: entry.grievance_id,
         previousStatusId: null,
-        newStatusId: "00000000-0000-0000-0000-000000000000",
-        newStatusName: "Old Status Name",
-      },
-      {
-        body: gsBody,
+        previousStatusName: null,
+        newStatusId: null,
+        newStatusName: null,
+        newStatusHistoryId: entry.id,
+      };
+      const gs = await renderInapp(grievanceStatusNotifier, payload);
+      // The status FK renders the option's live name; the notifier no longer
+      // carries a denormalised copy of it.
+      check(
+        "grievance-status body renders the entry's status",
+        gs?.body,
+        `the status "${entry.status_name}"`,
+      );
+      check("grievance-status body names the grievance", gs?.body, title);
+      const body = `The grievance "${title}" has reached the status "${entry.status_name}".`;
+      await checkChannels("grievance-status", grievanceStatusNotifier, payload, {
+        body,
         cta: "View the grievance:",
-        path: `/grievance/${g.id}`,
-      },
-    );
+        path: `/grievance/${entry.grievance_id}`,
+      });
+      // The entry is what the message is ABOUT: if it's gone by delivery
+      // time there is nothing truthful left to say, so nothing is sent.
+      const gone = await renderInapp(grievanceStatusNotifier, {
+        ...payload,
+        newStatusHistoryId: "00000000-0000-0000-0000-000000000000",
+      });
+      console.log(
+        gone === null
+          ? "PASS: grievance-status skips when the status entry is gone"
+          : "FAIL: grievance-status still rendered without its status entry",
+      );
+      if (gone !== null) failures++;
+    } else console.log("SKIP: no grievance status history row");
   } else console.log("SKIP: no grievance row");
 
   // --- persona previews: one pick, a visibly different message ---

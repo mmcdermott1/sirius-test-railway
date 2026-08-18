@@ -350,7 +350,13 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
     const { initializeEventNotifierDispatcher } = await import(
       "./plugins/event-notifier/dispatcher"
     );
+    const { migrateNotifierTemplateTokens } = await import(
+      "./plugins/event-notifier/template-token-migrations"
+    );
     await backfillEventNotifierSubsidiaries();
+    // Custom templates are stored verbatim and rendered verbatim, so a
+    // renamed token root has to be rewritten in the stored data too.
+    await migrateNotifierTemplateTokens();
     initializeEventNotifierDispatcher();
   }
   logger.info("Event-notifier dispatcher initialized", { source: "startup" });

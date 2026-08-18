@@ -102,11 +102,15 @@ export interface NotifierChannelTemplates {
  */
 export interface NotifierRecordRoot {
   /**
-   * Root name as written in templates. Conventionally the token entity
-   * kind (`grievance_settlement`), shortened when the kind's name is an
-   * implementation detail (`dispatch` for `dispatch_worker_status`).
-   * The name is global across notifiers: two notifiers may share one,
-   * but only for the same entity kind.
+   * Root name as written in templates. It IS the token entity kind, which
+   * is the table, which is the code: a template author reading
+   * `{{grievance_status_history.…}}` can look the record up and find out
+   * exactly what it holds. A shortened or prettified name (`grievance_status`
+   * for a `grievance_status_history` row) reads like a different record than
+   * the one it carries — `check-notifier-root-fields` rejects it.
+   *
+   * The name is global across notifiers: two notifiers may share one, but
+   * only for the same entity kind.
    */
   name: string;
   /** Token entity kind of the seeded record. */
@@ -119,6 +123,13 @@ export interface NotifierRecordRoot {
    * (`status_label`, `action_label`). Declaring them is what makes
    * `{{dispatch.field(name="status_label")}}` valid instead of an
    * `[unknown token: …]` in a delivered message.
+   *
+   * Use sparingly, and never for a value that belongs to a RELATED record:
+   * a flattened `grievance_title` reads like a column of the record it is
+   * merged onto, so the template says something the schema does not, and it
+   * only resolves for as long as whoever seeds the record remembers to merge
+   * it. Reach the related record instead. Every declared extra needs an
+   * entry in `check-notifier-root-fields`.
    */
   fields?: string[];
   /**

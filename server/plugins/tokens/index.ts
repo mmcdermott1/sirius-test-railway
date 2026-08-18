@@ -38,6 +38,7 @@ export {
   getTokenContextRoot,
   type TokenContextRootDeclaration,
 } from "./context-roots";
+export { missingCatalogFields } from "./root-coverage";
 export {
   listTokenTreeRoots,
   expandTokenType,

@@ -24,6 +24,12 @@ import { eventBus, EventType } from "../../services/event-bus";
  * describe a genuine status transition.
  */
 interface CurrentStatusRef {
+  /**
+   * The status-history ROW that is current at this point in time. A consumer
+   * that renders the transition (the status notifier) loads this exact row, so
+   * a later transition can't make it describe a status the entry never had.
+   */
+  entryId: string | null;
   statusId: string | null;
   statusName: string | null;
 }
@@ -37,6 +43,7 @@ async function getCurrentStatus(grievanceId: string): Promise<CurrentStatusRef> 
   const client = getClient();
   const [row] = await client
     .select({
+      entryId: grievanceStatusHistory.id,
       statusId: grievanceStatusHistory.statusId,
       statusName: optionsGrievanceStatus.name,
     })
@@ -53,6 +60,7 @@ async function getCurrentStatus(grievanceId: string): Promise<CurrentStatusRef> 
     )
     .limit(1);
   return {
+    entryId: row?.entryId ?? null,
     statusId: row?.statusId ?? null,
     statusName: row?.statusName ?? null,
   };
@@ -70,6 +78,7 @@ function emitStatusHistorySaved(
       previousStatusName: previous.statusName,
       newStatusId: next.statusId,
       newStatusName: next.statusName,
+      newStatusHistoryId: next.entryId,
     });
   });
 }

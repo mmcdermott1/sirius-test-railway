@@ -19,6 +19,53 @@ import { recordSentNotification } from "./flash-summary";
 
 const SERVICE = "event-notifier-dispatcher";
 
+/** One complaint per (plugin, root) per process — see `warnOnUncoveredRoot`. */
+const reportedUncoveredRoots = new Set<string>();
+
+/**
+ * Development backstop for the gap author-time checks cannot see: a root whose
+ * built record does NOT carry every field the editor offers for its kind.
+ *
+ * Such a field validates at save time, renders a real value in a preview (the
+ * preview seeds a real row) and comes out blank in the delivered message — the
+ * one failure mode that leaves no trace anywhere. Complaining here, the first
+ * time the notifier actually fires, is what makes it visible.
+ *
+ * Development only and once per (plugin, root) per process: this is authoring
+ * feedback, not a production signal, and it must never slow a real send down or
+ * change what gets delivered. Gated on NODE_ENV being exactly "development" —
+ * a staging environment sends real messages and should behave like production.
+ */
+async function warnOnUncoveredRoot(
+  pluginId: string,
+  rootName: string,
+  entity: import("../tokens/types").TokenEntity,
+): Promise<void> {
+  if (process.env.NODE_ENV !== "development") return;
+  const key = `${pluginId}:${rootName}`;
+  if (reportedUncoveredRoots.has(key)) return;
+  reportedUncoveredRoots.add(key);
+  try {
+    // Dynamically imported: a static import would drag the token evaluator
+    // onto the dispatcher's module graph for a development-only check.
+    const { missingCatalogFields } = await import("../tokens/root-coverage");
+    const missing = missingCatalogFields(entity);
+    if (missing.length === 0) return;
+    logger.warn(
+      "Event-notifier root offers fields its record cannot supply; they render blank in delivered messages",
+      {
+        service: SERVICE,
+        pluginId,
+        root: rootName,
+        kind: entity.kind,
+        missingFields: missing,
+      },
+    );
+  } catch {
+    // A failed self-check never affects a send.
+  }
+}
+
 /**
  * Flood gate for a single (recipient, medium, plugin) send. Counts prior sends
  * in the medium's rolling window and, if under the admin-configured limit,
@@ -381,6 +428,7 @@ async function dispatchForConfig(
         });
         return;
       }
+      await warnOnUncoveredRoot(plugin.id, root.name, entity);
       built.push({ name: root.name, entity });
     }
     // The envelope root: which event this was and when it fired. The
