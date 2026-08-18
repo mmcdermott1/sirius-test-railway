@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChevronRight, Clock, Loader2, Plus, Search, SlidersHorizontal } from "lucide-react";
-import { MAX_CHAIN_DEPTH, type TokenArgSpec } from "@shared/tokens";
+import { MAX_CHAIN_DEPTH, type TokenArgSpec, collapseFieldSegments } from "@shared/tokens";
 
 /**
  * Browsable token picker: the author walks the record graph one level at
@@ -134,6 +133,16 @@ function argsIncomplete(child: TokenTreeChild, values: Record<string, string>): 
 function hasChoosableArgs(child: TokenTreeChild): boolean {
   if (child.kind === "field") return false;
   return Object.keys(child.args ?? {}).length > 0;
+}
+
+/** Display code for a child row: field kind shows just the field name. */
+function childDisplayCode(child: TokenTreeChild): string {
+  if (child.kind === "field") {
+    // label is the field name; "Field…" sentinel keeps its original label
+    return child.label === "Field…" ? "field(name=…)" : child.label;
+  }
+  // For relations/leaves: show the suffix without the leading dot
+  return collapseFieldSegments(child.suffix.replace(/^\./, ""));
 }
 
 // ── Component ──────────────────────────────────────────────────────────
@@ -315,6 +324,7 @@ export function TokenTreeBrowser({
     <div key={root.name} className="flex items-center gap-1">
       <button
         type="button"
+        title={root.label}
         onClick={() => {
           setArgDraft(null);
           setSearch("");
@@ -327,16 +337,13 @@ export function TokenTreeBrowser({
             },
           ]);
         }}
-        className="flex-1 min-w-0 text-left px-2 py-1.5 rounded hover-elevate active-elevate-2 text-sm"
+        className="flex-1 min-w-0 text-left px-2 py-1 rounded hover-elevate active-elevate-2"
         data-testid={`button-token-open-${root.name}`}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium truncate">{root.label}</span>
+          <span className="font-mono text-xs truncate">{root.name}</span>
           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </div>
-        {root.description && (
-          <div className="text-xs text-muted-foreground truncate">{root.description}</div>
-        )}
       </button>
       {root.defaultLeaf !== undefined && insertButton(root.name, `Insert {{${root.name}}}`)}
     </div>
@@ -345,12 +352,14 @@ export function TokenTreeBrowser({
   const renderChildRow = (child: TokenTreeChild, index: number) => {
     const preview = current ? `${current.expression}${child.suffix}` : child.suffix;
     const isRelation = child.kind === "relation";
+    const displayCode = childDisplayCode(child);
     return (
       <div key={`${child.kind}-${child.segment}-${child.label}-${index}`} className="flex items-center gap-1">
         <button
           type="button"
+          title={child.label}
           onClick={() => openChild(child, isRelation ? "browse" : "insert")}
-          className="flex-1 min-w-0 text-left px-2 py-1.5 rounded hover-elevate active-elevate-2 text-sm"
+          className="flex-1 min-w-0 text-left px-2 py-1 rounded hover-elevate active-elevate-2"
           data-testid={
             isRelation || child.needsArgument
               ? `button-token-open-${child.segment}`
@@ -358,20 +367,11 @@ export function TokenTreeBrowser({
           }
         >
           <div className="flex items-center justify-between gap-2">
-            <span className={cn("truncate", child.kind === "field" ? "font-mono text-xs" : "font-medium")}>
-              {child.label}
-            </span>
-            {isRelation ? (
+            <span className="font-mono text-xs truncate">{displayCode}</span>
+            {isRelation && (
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <Badge variant="secondary" className="text-[10px] shrink-0">
-                {child.kind === "field" ? "field" : "value"}
-              </Badge>
             )}
           </div>
-          {child.description && (
-            <div className="text-xs text-muted-foreground truncate">{child.description}</div>
-          )}
         </button>
         {hasChoosableArgs(child) && (
           <Button
@@ -403,44 +403,37 @@ export function TokenTreeBrowser({
     );
   };
 
-  const renderHitRow = (hit: TokenTreeSearchHit) => (
-    <button
-      key={hit.expression}
-      type="button"
-      onClick={() => insert(hit.expression)}
-      className="w-full text-left px-2 py-1.5 rounded hover-elevate active-elevate-2 text-sm"
-      data-testid={`button-insert-token-${hit.expression}`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium truncate">{hit.label}</span>
-        <Badge variant="secondary" className="text-[10px] shrink-0">
-          {hit.kind === "field" ? "field" : hit.kind === "relation" ? "record" : "value"}
-        </Badge>
-      </div>
-      <div className="text-xs text-muted-foreground truncate">{hit.path.join(" › ")}</div>
-    </button>
-  );
+  const renderHitRow = (hit: TokenTreeSearchHit) => {
+    const displayCode = collapseFieldSegments(hit.expression);
+    return (
+      <button
+        key={hit.expression}
+        type="button"
+        title={hit.label}
+        onClick={() => insert(hit.expression)}
+        className="w-full text-left px-2 py-1 rounded hover-elevate active-elevate-2"
+        data-testid={`button-insert-token-${hit.expression}`}
+      >
+        <span className="font-mono text-xs truncate block">{displayCode}</span>
+      </button>
+    );
+  };
 
   const relations = (expansion?.children ?? []).filter((c) => c.kind === "relation");
   const leaves = (expansion?.children ?? []).filter((c) => c.kind === "leaf");
   const fields = (expansion?.children ?? []).filter((c) => c.kind === "field");
-  const contextRoots = roots.filter((r) => r.contextRoot);
-  const otherRoots = roots.filter((r) => !r.contextRoot);
 
-  const sectionLabel = (text: string) => (
-    <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-      {text}
-    </div>
-  );
+  /** The display segment for a stack step (the piece added at that step). */
+  const stepSegment = (step: TreeStep, prev?: TreeStep): string => {
+    const expr = step.expression;
+    const base = prev ? expr.substring(prev.expression.length + 1) : expr;
+    return collapseFieldSegments(base);
+  };
 
   return (
     <div className={className ?? "flex flex-col min-h-0 h-full"}>
       <div className="p-3 border-b shrink-0">
         <p className="text-sm font-medium">Insert a personalization token</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Open a record to see what it offers; pick a field to insert the whole token. Values are
-          filled in per recipient when the message is sent.
-        </p>
         <div className="relative mt-2">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -454,36 +447,38 @@ export function TokenTreeBrowser({
       </div>
 
       {!searching && current && (
-        <div className="px-3 py-2 border-b shrink-0 space-y-1" data-testid="token-tree-breadcrumbs">
+        <div className="px-3 py-1.5 border-b shrink-0" data-testid="token-tree-breadcrumbs">
           <div className="flex flex-wrap items-center gap-0.5 text-xs">
             <button
               type="button"
               onClick={() => goTo(0)}
-              className="px-1.5 py-0.5 rounded hover-elevate text-muted-foreground"
+              className="px-1.5 py-0.5 rounded hover-elevate text-muted-foreground font-mono text-[11px]"
               data-testid="button-token-breadcrumb-root"
             >
-              All records
+              ←
             </button>
             {stack.map((step, i) => (
               <span key={step.expression} className="flex items-center gap-0.5">
                 <ChevronRight className="h-3 w-3 text-muted-foreground" />
                 <button
                   type="button"
+                  title={step.label}
                   onClick={() => goTo(i + 1)}
                   className={cn(
-                    "px-1.5 py-0.5 rounded hover-elevate",
-                    i === stack.length - 1 ? "font-medium" : "text-muted-foreground",
+                    "px-1.5 py-0.5 rounded hover-elevate font-mono text-[11px]",
+                    i === stack.length - 1 ? "" : "text-muted-foreground",
                   )}
                   data-testid={`button-token-breadcrumb-${i}`}
                 >
-                  {step.label}
+                  {stepSegment(step, stack[i - 1])}
                 </button>
               </span>
             ))}
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <code className="text-[11px] text-muted-foreground truncate">{`{{${current.expression}}}`}</code>
-            {current.insertable && insertButton(current.expression, "Insert this record")}
+            {current.insertable && (
+              <span className="ml-auto shrink-0">
+                {insertButton(current.expression, "Insert this record")}
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -552,30 +547,15 @@ export function TokenTreeBrowser({
             )}
           </div>
         ) : current ? (
-          <div className="p-2 space-y-1">
+          <div className="p-2 space-y-0.5">
             {levelLoading && (
               <div className="p-2 text-sm text-muted-foreground flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
               </div>
             )}
-            {!atMaxDepth && relations.length > 0 && (
-              <div>
-                {sectionLabel("Related records")}
-                {relations.map(renderChildRow)}
-              </div>
-            )}
-            {!atMaxDepth && leaves.length > 0 && (
-              <div>
-                {sectionLabel("Values")}
-                {leaves.map(renderChildRow)}
-              </div>
-            )}
-            {!atMaxDepth && fields.length > 0 && (
-              <div>
-                {sectionLabel("Fields")}
-                {fields.map(renderChildRow)}
-              </div>
-            )}
+            {!atMaxDepth && relations.map((c, i) => renderChildRow(c, i))}
+            {!atMaxDepth && leaves.map((c, i) => renderChildRow(c, relations.length + i))}
+            {!atMaxDepth && fields.map((c, i) => renderChildRow(c, relations.length + leaves.length + i))}
             {!levelLoading && !atMaxDepth && (expansion?.children.length ?? 0) === 0 && (
               <div className="p-2 text-sm text-muted-foreground">
                 This record offers nothing to insert.
@@ -589,7 +569,7 @@ export function TokenTreeBrowser({
             )}
           </div>
         ) : (
-          <div className="p-2 space-y-2">
+          <div className="p-2 space-y-0.5">
             {recent.length > 0 && (
               <div data-testid="section-recent-tokens">
                 <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
@@ -601,26 +581,15 @@ export function TokenTreeBrowser({
                     key={expression}
                     type="button"
                     onClick={() => insert(expression)}
-                    className="w-full text-left px-2 py-1.5 rounded hover-elevate active-elevate-2 text-sm font-mono text-xs truncate"
+                    className="w-full text-left px-2 py-1 rounded hover-elevate active-elevate-2 font-mono text-xs truncate block"
                     data-testid={`button-insert-token-${expression}`}
                   >
-                    {`{{${expression}}}`}
+                    {collapseFieldSegments(expression)}
                   </button>
                 ))}
               </div>
             )}
-            {contextRoots.length > 0 && (
-              <div>
-                {sectionLabel("This message's records")}
-                {contextRoots.map(renderRootRow)}
-              </div>
-            )}
-            {otherRoots.length > 0 && (
-              <div>
-                {sectionLabel(contextRoots.length > 0 ? "Other records" : "Records")}
-                {otherRoots.map(renderRootRow)}
-              </div>
-            )}
+            {roots.map(renderRootRow)}
             {rootsLoading && (
               <div className="p-2 text-sm text-muted-foreground flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tokens…
