@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { TokenCatalogEntry as TokenDefinition } from "@shared/tokens";
+import type { TokenCatalogEntry } from "@shared/tokens";
+
+/**
+ * A single-line or multi-line editor for a TOKENIZED string: typing `/`
+ * opens the token menu and picks a token into the text at the caret.
+ *
+ * This lives in the studio module and takes its catalog as a prop
+ * because it is studio furniture, not a general-purpose input: the
+ * studio is the only place a tokenized string is edited, so this is the
+ * only place a slash menu belongs. The rich-text equivalent is
+ * `SimpleHtmlEditor`'s `enableTokens` mode, restricted the same way.
+ */
 
 const RECENT_KEY = "token-picker-recent";
 const RECENT_MAX = 5;
@@ -81,7 +91,8 @@ function getCaretCoordinates(
 type CommonProps = {
   value: string;
   onChange: (next: string) => void;
-  messageId?: string;
+  /** The catalog the slash menu offers — the studio's own, always. */
+  tokens: TokenCatalogEntry[];
   className?: string;
   containerClassName?: string;
 };
@@ -97,7 +108,7 @@ type TextareaModeProps = CommonProps & {
 export type SlashTokenFieldProps = InputModeProps | TextareaModeProps;
 
 export function SlashTokenField(props: SlashTokenFieldProps) {
-  const { as, value, onChange, messageId, containerClassName, ...rest } = props as CommonProps & {
+  const { as, value, onChange, tokens, containerClassName, ...rest } = props as CommonProps & {
     as: "input" | "textarea";
   } & Record<string, unknown>;
 
@@ -109,16 +120,7 @@ export function SlashTokenField(props: SlashTokenFieldProps) {
 
   const isOpen = trigger !== null;
 
-  // Always show every registered token regardless of recipient list.
-  // Recipient context still controls what each token resolves to at
-  // send time; missing values fall back to the registry default.
-  void messageId;
-  const { data } = useQuery<{ tokens: TokenDefinition[] }>({
-    queryKey: ["/api/bulk-tokens"],
-  });
-  const tokens = data?.tokens || [];
-
-  const filtered = useMemo<TokenDefinition[]>(() => {
+  const filtered = useMemo<TokenCatalogEntry[]>(() => {
     if (!isOpen) return [];
     const q = query.trim().toLowerCase();
     if (q) {
@@ -133,7 +135,7 @@ export function SlashTokenField(props: SlashTokenFieldProps) {
     const recentSet = new Set(recent);
     const recentTokens = recent
       .map((id) => tokens.find((t) => t.id === id))
-      .filter((t): t is TokenDefinition => Boolean(t));
+      .filter((t): t is TokenCatalogEntry => Boolean(t));
     const others = tokens.filter((t) => !recentSet.has(t.id));
     return [...recentTokens, ...others];
   }, [tokens, query, isOpen]);
@@ -206,7 +208,7 @@ export function SlashTokenField(props: SlashTokenFieldProps) {
     }
   };
 
-  const insertToken = (t: TokenDefinition) => {
+  const insertToken = (t: TokenCatalogEntry) => {
     if (trigger === null || !ref.current) return;
     const el = ref.current;
     const caret = el.selectionEnd ?? value.length;

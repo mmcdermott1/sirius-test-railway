@@ -24,6 +24,22 @@ parallel one. Two adjacent things are NOT this case and stay allowed:
 editing the *result* of an evaluation (plain text, no tooling), and
 raw-editing a tokenized string with no tooling at all.
 
+## Verbatim fields get no token affordance
+
+Some fields in a delivery spec are declared literal — the destination
+sends them exactly as typed (a link URL, an external id). Inside the
+studio they render as a plain input, and a token picked while one of
+them holds focus is REFUSED, not redirected into the last tokenized
+field the author touched.
+
+**Why:** offering insertion there would ship braces to the recipient,
+and silently inserting somewhere else moves text out of view of the
+caret the author is watching.
+
+**How to apply:** read "literal" off the shared delivery-field spec —
+it is the same declaration delivery uses, so the two can't disagree.
+Never add a second, studio-only flag for it.
+
 ## Evaluation is a medium-independent string operation
 
 A token returns text. It does not know or care about the destination.

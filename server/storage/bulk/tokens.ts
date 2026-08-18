@@ -62,8 +62,6 @@ export interface BulkTokensStorage {
     keyColumn: string,
     id: string,
   ): Promise<string | null>;
-  countWorkerContacts(contactIds: string[]): Promise<Array<{ homeEmployerId: string | null; employerIds: string[] | null }>>;
-  hasAnyEmployerContact(contactIds: string[]): Promise<boolean>;
 }
 
 // NOTE: the correlation must be spelled as a literal qualified
@@ -252,29 +250,6 @@ export function createBulkTokensStorage(): BulkTokensStorage {
       );
       const row = (result.rows?.[0] ?? undefined) as { name?: unknown } | undefined;
       return row?.name == null ? null : String(row.name);
-    },
-
-    async countWorkerContacts(contactIds) {
-      if (contactIds.length === 0) return [];
-      const client = getClient();
-      return await client
-        .select({
-          homeEmployerId: workerExtras.homeEmployerId,
-          employerIds: workerExtras.employerIds,
-        })
-        .from(workers)
-        .where(inArray(workers.contactId, contactIds));
-    },
-
-    async hasAnyEmployerContact(contactIds) {
-      if (contactIds.length === 0) return false;
-      const client = getClient();
-      const rows = await client
-        .select({ id: employerContacts.id })
-        .from(employerContacts)
-        .where(inArray(employerContacts.contactId, contactIds))
-        .limit(1);
-      return rows.length > 0;
     },
   };
 }

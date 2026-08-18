@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Bold, Italic, List, ListOrdered, Link, Type, Code, Clock } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -44,12 +43,17 @@ interface SimpleHtmlEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
-  enableTokens?: boolean;
   /**
-   * Token list override for the slash menu + chips. When omitted (and
-   * enableTokens is on) the editor fetches the global bulk catalog.
+   * Turn on token chips and the `/` menu.
+   *
+   * Only the Template Studio may pass this: the studio is the one place
+   * a tokenized string is edited, and an author-time check
+   * (`scripts/dev/check-studio-only-tokens.ts`) refuses the prop
+   * anywhere else. Everywhere else this is a plain rich-text editor.
    */
-  tokensOverride?: TokenDefinition[];
+  enableTokens?: boolean;
+  /** The catalog for the slash menu + chips; the host owns it. */
+  tokens?: TokenDefinition[];
   minHeight?: number;
   disabled?: boolean;
   /** Receives the imperative insert API (insert snippet at last caret). */
@@ -159,7 +163,7 @@ export function SimpleHtmlEditor({
   placeholder,
   className,
   enableTokens = false,
-  tokensOverride,
+  tokens: tokensProp,
   minHeight = 120,
   disabled = false,
   editorApiRef,
@@ -186,11 +190,10 @@ export function SimpleHtmlEditor({
     rawIndex?: number;
   } | null>(null);
 
-  const { data: tokenData } = useQuery<{ tokens: TokenDefinition[] }>({
-    queryKey: ["/api/bulk-tokens"],
-    enabled: enableTokens && !tokensOverride,
-  });
-  const tokens = tokensOverride ?? tokenData?.tokens ?? [];
+  // The catalog is the host's to supply. This editor never fetches one:
+  // a token catalog is scoped to the thing being templated, and a
+  // general-purpose editor has no way to know which scope it is in.
+  const tokens = tokensProp ?? [];
 
   const filteredTokens = useMemo<TokenDefinition[]>(() => {
     if (!slashOpen) return [];

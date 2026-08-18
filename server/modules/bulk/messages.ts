@@ -26,7 +26,6 @@ import {
   expandTokenType,
   searchTokenTree,
 } from "../../plugins/tokens";
-import { detectAudienceScopes } from "./token-context";
 type RequireAccess = (policy: string) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
@@ -668,27 +667,6 @@ export function registerBulkMessageRoutes(
   app.get("/api/bulk-tokens/tree/search", requireAuth, requireAccess('bulk.edit'), (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q : "";
     res.json({ hits: searchTokenTree([], q) });
-  });
-
-  // Returns the registry filtered to scopes that apply to this
-  // message's actual participants. `contact` and `system` are always
-  // included; `worker`/`employer` only when at least one participant
-  // matches.
-  app.get("/api/bulk-messages/:id/tokens", requireAuth, requireAccess('bulk.edit'), async (req, res) => {
-    try {
-      const bulk = await storage.bulkMessages.getById(req.params.id);
-      if (!bulk) {
-        return res.status(404).json({ message: "Bulk message not found" });
-      }
-      const participants = await storage.bulkParticipants.getByMessageId(req.params.id);
-      const contactIds = Array.from(new Set(participants.map((p) => p.contactId).filter(Boolean) as string[]));
-      const scopes = await detectAudienceScopes(storage, contactIds);
-      const tokens = buildTokenCatalog().filter((t) => scopes.has(t.scope));
-      res.json({ tokens, segments: buildSegmentSpecs(), fields: buildFieldCatalog(), scopes: Array.from(scopes) });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to load tokens";
-      res.status(500).json({ message });
-    }
   });
 
   // Returns per-token coverage across this message's participants:

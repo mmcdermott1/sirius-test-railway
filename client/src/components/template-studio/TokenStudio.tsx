@@ -14,6 +14,10 @@ import type {
   TokenSegmentSpec,
 } from "@shared/tokens";
 
+// A host declares its fields; it should not have to reach past this
+// entry point into the studio's internals to name their type.
+export type { StudioChannel, StudioField } from "./TemplateStudio";
+
 interface TokenStudioCatalog {
   rootNames?: string[];
   segments: TokenSegmentSpec[];

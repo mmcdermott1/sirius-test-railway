@@ -16,6 +16,7 @@ import {
   type SimpleHtmlEditorApi,
 } from "@/components/ui/simple-html-editor";
 import { TokenTreeBrowser } from "./TokenTreeBrowser";
+import { SlashTokenField } from "./SlashTokenField";
 import {
   PreviewRecordPicker,
   type PickableRoot,
@@ -55,6 +56,12 @@ export interface StudioField {
   hint?: string;
   /** Default template shown as placeholder for non-HTML fields. */
   placeholder?: string;
+  /**
+   * Hard character limit on the AUTHORED text, when the destination has
+   * one (an in-app title is a `varchar(100)`). Counts the template as
+   * typed, tokens included — the same limit the storing column applies.
+   */
+  maxLength?: number;
 }
 
 export interface StudioPreviewField {
@@ -181,7 +188,14 @@ type PlainTarget = HTMLInputElement | HTMLTextAreaElement;
 
 interface ActiveEditorRef {
   key: string;
-  kind: "plain" | "html";
+  /**
+   * "literal" fields are focusable but never receive a token: delivery
+   * sends them verbatim, so an inserted chain would ship as braces.
+   * They still claim the active slot so a token picked while one is
+   * focused is refused, rather than landing in the last tokenized
+   * field the author happened to touch.
+   */
+  kind: "plain" | "html" | "literal";
   el?: PlainTarget;
   htmlApi?: React.MutableRefObject<SimpleHtmlEditorApi | null>;
 }
@@ -324,6 +338,14 @@ export function TemplateStudio({
   const specsJson = JSON.stringify(specs);
   const rootNamesJson = JSON.stringify(rootNames ?? []);
 
+  // Fields delivery sends VERBATIM. They are edited here like any other
+  // field, but they get no token affordances: a token typed into one
+  // arrives at the recipient as `{{...}}`.
+  const literalKeys = useMemo(
+    () => new Set(specs.filter((s) => s.media === "literal").map((s) => s.key)),
+    [specsJson], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   // ── The studio's context ───────────────────────────────────────────────────
   // Which roots an author may pick a real record for. This follows from
   // the roots alone — not from the template text, and not from a render
@@ -451,11 +473,22 @@ export function TemplateStudio({
   // ── Token insertion ────────────────────────────────────────────────────────
   const insertSnippet = useCallback(
     (snippet: string) => {
-      const active = activeEditorRef.current ?? {
-        key: fields[0]?.key,
-        kind: fields[0]?.mode === "html" ? ("html" as const) : ("plain" as const),
-      };
+      // With nothing focused, insert into the first field delivery
+      // actually renders tokens in — a literal field would keep the
+      // token verbatim and the author would never see why.
+      const fallback = fields.find((f) => !literalKeys.has(f.key));
+      const active: ActiveEditorRef | null =
+        activeEditorRef.current ??
+        (fallback
+          ? {
+              key: fallback.key,
+              kind: fallback.mode === "html" ? ("html" as const) : ("plain" as const),
+            }
+          : null);
       if (!active?.key) return;
+      // Focused a verbatim field: refuse rather than redirect the token
+      // somewhere the author isn't looking.
+      if (active.kind === "literal" || literalKeys.has(active.key)) return;
       if (active.kind === "html") {
         getHtmlApiRef(active.key).current?.insertText(snippet);
         return;
@@ -477,7 +510,7 @@ export function TemplateStudio({
         }
       });
     },
-    [fields, values, onValueChange],
+    [fields, values, onValueChange, literalKeys],
   );
 
   // ── Validation ─────────────────────────────────────────────────────────────
@@ -651,41 +684,97 @@ export function TemplateStudio({
                       onChange={(v) => onValueChange(f.key, v)}
                       minHeight={260}
                       enableTokens
-                      tokensOverride={tokens}
+                      tokens={tokens}
                       editorApiRef={getHtmlApiRef(f.key)}
                     />
                   </div>
                 ) : f.mode === "multiline" ? (
-                  <Textarea
-                    id={`studio-field-${f.key}`}
-                    data-testid={`studio-editor-${f.key}`}
-                    value={values[f.key] ?? ""}
-                    placeholder={f.placeholder || undefined}
-                    onChange={(e) => {
-                      onValueChange(f.key, e.target.value);
-                      // Auto-grow with content.
-                      e.target.style.height = "auto";
-                      e.target.style.height = `${e.target.scrollHeight + 2}px`;
-                    }}
-                    onFocus={(e) => {
-                      activeEditorRef.current = { key: f.key, kind: "plain", el: e.currentTarget };
-                    }}
-                    rows={4}
-                    className="min-h-[6rem] resize-y"
-                  />
-                ) : (
+                  literalKeys.has(f.key) ? (
+                    <Textarea
+                      id={`studio-field-${f.key}`}
+                      data-testid={`studio-editor-${f.key}`}
+                      value={values[f.key] ?? ""}
+                      placeholder={f.placeholder || undefined}
+                      maxLength={f.maxLength}
+                      onChange={(e) => onValueChange(f.key, e.target.value)}
+                      onFocus={() => {
+                        activeEditorRef.current = { key: f.key, kind: "literal" };
+                      }}
+                      rows={4}
+                      className="min-h-[6rem] resize-y"
+                    />
+                  ) : (
+                    <SlashTokenField
+                      as="textarea"
+                      id={`studio-field-${f.key}`}
+                      data-testid={`studio-editor-${f.key}`}
+                      value={values[f.key] ?? ""}
+                      onChange={(v) => onValueChange(f.key, v)}
+                      tokens={tokens}
+                      placeholder={f.placeholder || undefined}
+                      maxLength={f.maxLength}
+                      onInput={(e) => {
+                        // Auto-grow with content.
+                        const el = e.currentTarget;
+                        el.style.height = "auto";
+                        el.style.height = `${el.scrollHeight + 2}px`;
+                      }}
+                      onFocus={(e) => {
+                        activeEditorRef.current = { key: f.key, kind: "plain", el: e.currentTarget };
+                      }}
+                      rows={4}
+                      className="min-h-[6rem] resize-y"
+                    />
+                  )
+                ) : literalKeys.has(f.key) ? (
                   <Input
                     id={`studio-field-${f.key}`}
                     data-testid={`studio-editor-${f.key}`}
                     value={values[f.key] ?? ""}
                     placeholder={f.placeholder || undefined}
+                    maxLength={f.maxLength}
                     onChange={(e) => onValueChange(f.key, e.target.value)}
+                    onFocus={() => {
+                      activeEditorRef.current = { key: f.key, kind: "literal" };
+                    }}
+                  />
+                ) : (
+                  <SlashTokenField
+                    as="input"
+                    id={`studio-field-${f.key}`}
+                    data-testid={`studio-editor-${f.key}`}
+                    value={values[f.key] ?? ""}
+                    onChange={(v) => onValueChange(f.key, v)}
+                    tokens={tokens}
+                    placeholder={f.placeholder || undefined}
+                    maxLength={f.maxLength}
                     onFocus={(e) => {
                       activeEditorRef.current = { key: f.key, kind: "plain", el: e.currentTarget };
                     }}
                   />
                 )}
+                {literalKeys.has(f.key) && (
+                  <p
+                    className="text-xs text-muted-foreground"
+                    data-testid={`studio-literal-${f.key}`}
+                  >
+                    Sent exactly as typed — tokens are not rendered in this field.
+                  </p>
+                )}
                 {f.hint && <p className="text-xs text-muted-foreground">{f.hint}</p>}
+                {f.maxLength !== undefined && (
+                  <p
+                    className={cn(
+                      "text-xs text-right",
+                      (values[f.key] ?? "").length > f.maxLength
+                        ? "text-destructive"
+                        : "text-muted-foreground",
+                    )}
+                    data-testid={`studio-count-${f.key}`}
+                  >
+                    {(values[f.key] ?? "").length}/{f.maxLength}
+                  </p>
+                )}
                 {(invalidByField[f.key]?.length ?? 0) > 0 && (
                   <div
                     className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400"
