@@ -220,122 +220,173 @@ const GRIEVANCE_SETTLEMENT_SAMPLE_SETS = [
   },
 ];
 
-      async search(storage, query, limit) {
-        const rows = await storage.grievanceSettlements.searchForPreview(
-          query,
-          limit,
-        );
-        return rows.map((row) => ({
-          id: row.id,
-          label: composeGrievanceDisplayTitle(row.grievanceId, {
-            name: row.grievanceName,
-            categoryName: row.grievanceCategoryName,
-          }),
-          hint: row.description ?? undefined,
-        }));
-      },
-
-      async search(storage, query, limit) {
-        const rows = await storage.grievanceSettlements.searchForPreview(
-          query,
-          limit,
-        );
-        return rows.map((row) => ({
-          id: row.id,
-          label: composeGrievanceDisplayTitle(row.grievanceId, {
-            name: row.grievanceName,
-            categoryName: row.grievanceCategoryName,
-          }),
-          hint: row.description ?? undefined,
-        }));
-      },
-
-      async search(storage, query, limit) {
-        const rows = await storage.grievanceSettlements.searchForPreview(
-          query,
-          limit,
-        );
-        return rows.map((row) => ({
-          id: row.id,
-          label: composeGrievanceDisplayTitle(row.grievanceId, {
-            name: row.grievanceName,
-            categoryName: row.grievanceCategoryName,
-          }),
-          hint: row.description ?? undefined,
-        }));
-      },
-  async resolve() {
-    return null;
-  },
-});
-
-/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
+/**
+ * Grievance descriptor: never matches as a segment (`inputTypes: []`) —
+ * exists so the field catalog derives valid `field(name=…)` names from
+ * the live schema. `name` is the denorm display name the storage read
+ * attaches to the row (not a table column).
+ */
 registerTokenPlugin({
   metadata: {
-    id: "token.grievance_relation.grievance",
+    id: "token.grievance",
     name: "Grievance",
-    description: "The grievance this record belongs to",
-    segmentName: "grievance",
-    inputTypes: [
-      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
-    ],
+    description: "Descriptor for the grievance entity kind",
+    segmentName: "__grievance",
+    inputTypes: [],
     outputType: GRIEVANCE_ENTITY_KIND,
     entityTable: grievances,
     entityFields: ["name", "display_title"],
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
-  },
-  async resolve() {
-    return null;
-  },
-});
-
-/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
-registerTokenPlugin({
-  metadata: {
-    id: "token.grievance_relation.grievance",
-    name: "Grievance",
-    description: "The grievance this record belongs to",
-    segmentName: "grievance",
-    inputTypes: [
-      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
-    ],
-    outputType: GRIEVANCE_ENTITY_KIND,
-    entityTable: grievances,
-    entityFields: ["name", "display_title"],
-    hiddenFromCatalog: true,
-    requiredComponent: COMPONENT,
-  },
-  async resolve() {
-    return null;
-  },
-});
-
-/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
-registerTokenPlugin({
-  metadata: {
-    id: "token.grievance_relation.grievance",
-    name: "Grievance",
-    description: "The grievance this record belongs to",
-    segmentName: "grievance",
-    inputTypes: [
-      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
-    ],
-    outputType: GRIEVANCE_ENTITY_KIND,
-    entityTable: grievances,
-    entityFields: ["name", "display_title"],
-    hiddenFromCatalog: true,
-    requiredComponent: COMPONENT,
-  },
-  async resolve() {
-    return null;
-  },
-});
-
+    sampleSets: GRIEVANCE_SAMPLE_SETS,
+    // Grievance pages have no per-grievance policy: every read is gated
+    // `staff` plus the grievance component, with no id passed. Preview
+    // enforces exactly that gate.
+    previewEntity: {
+      gate: { scope: "route", policy: "staff" },
+      async search(storage, query, limit) {
+        const rows = await storage.grievances.searchForPreview(query, limit);
+        return rows.map((row) => ({
+          id: row.id,
+          label: composeGrievanceDisplayTitle(row.id, {
+            name: row.name,
+            categoryName: row.categoryName,
+          }),
+          hint: [row.siriusId, row.statusName].filter(Boolean).join(" — ") || undefined,
+        }));
+      },
       async load(storage, id) {
+        // The SAME builder the notifiers seed their `grievance` root
+        // with, so the preview row carries exactly the denorm `name` and
+        // `display_title` delivery renders.
+        const entity = await buildGrievanceEntity(storage, id);
+        if (!entity) return null;
+        return { entity, label: String(entity.row.displayTitle) };
+      },
+    },
+  },
+  async resolve(entity, _args, ctx) {
+    const e =
+      tokenEntityOf(entity, GRIEVANCE_STATUS_HISTORY_ENTITY_KIND) ??
+      tokenEntityOf(entity, GRIEVANCE_SETTLEMENT_ENTITY_KIND);
+    const grievanceId = e?.row.grievanceId;
+    if (typeof grievanceId !== "string") return null;
+    return loadGrievanceEntity(ctx, grievanceId);
+  },
+});
+
+/**
+ * Status-history entry descriptor. The kind offers its OWN columns and
+ * nothing else: `status_id` renders the status option's name through the
+ * FK, and the grievance's title is reached through the `grievance`
+ * relation below. There are deliberately no flattened extras — an extra
+ * named after a related record's value ("grievance_title") reads like a
+ * column of this table, and only resolves when whoever seeded the record
+ * remembered to merge it.
+ */
+registerTokenPlugin({
+  metadata: {
+    id: "token.grievance_status_history",
+    name: "Grievance status entry",
+    description: "Descriptor for the grievance status-history entity kind",
+    segmentName: "__grievance_status_history",
+    inputTypes: [],
+    outputType: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
+    entityTable: grievanceStatusHistory,
+    hiddenFromCatalog: true,
+    requiredComponent: COMPONENT,
+    sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
+    // An entry is read wherever its grievance is read: `staff` plus the
+    // grievance component, no per-record policy.
+    previewEntity: {
+      gate: { scope: "route", policy: "staff" },
+      async search(storage, query, limit) {
+        const rows = await storage.grievanceStatusHistory.searchForPreview(
+          query,
+          limit,
+        );
+        return rows.map((row) => ({
+          id: row.id,
+          label: composeGrievanceDisplayTitle(row.grievanceId, {
+            name: row.grievanceName,
+            categoryName: row.grievanceCategoryName,
+          }),
+          hint: [
+            row.statusName,
+            row.date ? new Date(row.date as unknown as string).toISOString().slice(0, 10) : null,
+          ]
+            .filter(Boolean)
+            .join(" — ") || undefined,
+        }));
+      },
+      async load(storage, id) {
+        // The row exactly as the status notifier's root builder loads it —
+        // no derived extras: the kind advertises none.
+        const row = await storage.grievanceStatusHistory.getById(id);
+        if (!row) return null;
+        const info = await storage.grievances.getAssignmentTitleInfo(
+          row.grievanceId,
+        );
+        return {
+          entity: {
+            kind: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
+            row: row as unknown as Record<string, unknown>,
+            table: grievanceStatusHistory,
+          },
+          label: composeGrievanceDisplayTitle(row.grievanceId, info),
+        };
+      },
+    },
+  },
+  async resolve() {
+    return null;
+  },
+});
+
+/**
+ * Settlement descriptor. `operation` is a derived extra: the settlement
+ * notifier merges the event's operation (created/updated/deleted) onto
+ * the row, so templates can say `was {{event.field(name="operation")}}`.
+ */
+registerTokenPlugin({
+  metadata: {
+    id: "token.grievance_settlement",
+    name: "Grievance settlement",
+    description: "Descriptor for the grievance settlement entity kind",
+    segmentName: "__grievance_settlement",
+    inputTypes: [],
+    outputType: GRIEVANCE_SETTLEMENT_ENTITY_KIND,
+    entityTable: grievanceSettlements,
+    // Derived extras, not columns: the event's operation and the whole
+    // legacy per-operation sentence built from it. Nothing about the
+    // grievance — that is its own record, reached through the relation
+    // below (or the grievance root the settlement notifier seeds).
+    entityFields: ["operation", "summary"],
+    hiddenFromCatalog: true,
+    requiredComponent: "grievance.settlement",
+    sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,
+    // A settlement is read wherever its grievance is read: `staff` plus
+    // the settlement component, no per-record policy.
+    previewEntity: {
+      gate: { scope: "route", policy: "staff" },
+      async search(storage, query, limit) {
+        const rows = await storage.grievanceSettlements.searchForPreview(
+          query,
+          limit,
+        );
+        return rows.map((row) => ({
+          id: row.id,
+          label: composeGrievanceDisplayTitle(row.grievanceId, {
+            name: row.grievanceName,
+            categoryName: row.grievanceCategoryName,
+          }),
+          hint: row.description ?? undefined,
+        }));
+      },
+      async load(storage, id) {
+        // The notifier owns the derived wording (`summary`); the settlement
+        // exists, so the event it stands for is the one that created it —
+        // the same wording the picker shows for a standing record.
         const [{ settlementSummary }, row] = await Promise.all([
           import("../../event-notifier/plugins/grievance-settlement-notifier"),
           storage.grievanceSettlements.getById(id),
@@ -364,3 +415,36 @@ registerTokenPlugin({
           label: grievanceTitle,
         };
       },
+    },
+  },
+  async resolve() {
+    return null;
+  },
+});
+
+/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
+registerTokenPlugin({
+  metadata: {
+    id: "token.grievance_relation.grievance",
+    name: "Grievance",
+    description: "The grievance this record belongs to",
+    segmentName: "grievance",
+    inputTypes: [
+      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
+      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
+    ],
+    outputType: GRIEVANCE_ENTITY_KIND,
+    entityTable: grievances,
+    entityFields: ["name", "display_title"],
+    hiddenFromCatalog: true,
+    requiredComponent: COMPONENT,
+  },
+  async resolve(entity, _args, ctx) {
+    const e =
+      tokenEntityOf(entity, GRIEVANCE_STATUS_HISTORY_ENTITY_KIND) ??
+      tokenEntityOf(entity, GRIEVANCE_SETTLEMENT_ENTITY_KIND);
+    const grievanceId = e?.row.grievanceId;
+    if (typeof grievanceId !== "string") return null;
+    return loadGrievanceEntity(ctx, grievanceId);
+  },
+});

@@ -40,3 +40,11 @@ renders something delivery never sends. Extras that only exist at event time
 (an added/removed action, a created/updated/deleted operation) have no truthful
 value for a standing record; the picker shows the wording of the event that
 brought the record into being.
+
+## Parity enforcement
+Preview-loader vs notifier-root-builder parity is enforced by the
+`notifier-preview-parity` validation (check-preview-record-parity.ts): it
+compares both rows per advertised field against a real dev-DB record, so it
+FAILS (deliberately) when a compared kind has zero rows in the dev database —
+seed one rather than weakening the check. Event-time extras are compared on
+the picker's standing-record wording (fore "added", settlement "created").
