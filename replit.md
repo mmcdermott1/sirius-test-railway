@@ -38,6 +38,13 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 -   **UI Components**: `client/src/components/`
 -   **Access Control Policies**: `server/modules/*/access.ts` (implied by entity-based policy architecture)
 -   **UI Theme**: `tailwind.config.ts` (implied by Tailwind CSS with "new-york" theme)
+-   **Plugin Framework**: shared base `server/plugins/_core/` (kind
+    registration `kinds.ts`, config adapters `config-adapter.ts`),
+    per-kind code `server/plugins/<area>/<kind>/`, config storage
+    `server/storage/system/plugin-configs*.ts`, admin UI
+    `client/src/pages/admin/plugin-configs*.tsx`. Adding a *kind* (as
+    opposed to a plugin) is gated by the non-negotiable rule
+    "A new plugin kind is a deliberate architectural decision" below.
 -   **Wizards**: `server/wizards/types/`, `client/src/components/wizards/steps/`
 -   **Wizard Plugin Framework (spike)**: `server/plugins/wizards/` (sixth plugin kind on `server/plugins/_core/`; fixed dispatcher routes so adding a wizard adds zero routes), pilot at `server/plugins/wizards/plugins/report-gbhet-legal-compliance.ts`; client generic renderers `client/src/components/wizards/framework/`, escape-hatch component registry `client/src/plugins/wizards/`
 -   **Dispatch System**: `server/modules/dispatch/`, `client/src/pages/dispatch/`
@@ -375,6 +382,120 @@ nested `max-w-7xl` is harmless inside the layout's container). New config
 pages can simply render their content directly and rely on the layout for
 width.
 
+## A new plugin kind is a deliberate architectural decision
+
+A **plugin kind** is a category of pluggable implementation registered
+with `registerPluginKind()` (`server/plugins/_core/kinds.ts`) — e.g.
+`charge`, `dashboard`, `cron`. It is not a general-purpose branching or
+configuration mechanism, and it must never be the default place to hang
+new behaviour just because the code needs somewhere to put a branch.
+
+**The A + B + C test.** A plugin kind is justified only when **all
+three** of these are true:
+
+-   **A. Interchangeable implementations.** There are genuinely
+    extensible, interchangeable implementations of the *same* function,
+    all satisfying one domain interface (e.g. "evaluate eligibility for
+    this worker", "post charges for this event").
+-   **B. Multiple live instances.** More than one instance of an
+    implementation can exist in a running system — the same
+    implementation configured twice, for different scopes, employers,
+    schedules, or job types.
+-   **C. Independent persisted configuration.** Each instance needs its
+    own independent configuration, persisted in `plugin_configs` (plus
+    the kind's subsidiary table where it carries relational
+    dimensions), and administered through the generic admin UI.
+
+Charge plugins clear this bar: many charge implementations, several
+configured instances each, every instance carrying its own scope /
+employer / account row. A registry that names three hardcoded call
+sites does not clear it — it fails A and B outright, and C is
+meaningless without them.
+
+**If you fail the test, it is not a plugin kind.** Fail any one of A, B,
+or C and the answer is one of the ordinary tools:
+
+-   Configuration a site operator sets once → the **environment
+    variable registry** (`server/config/env-registry.ts`), or the
+    existing `variables` / component settings, per the rules above.
+-   One implementation with some conditional behaviour → an **ordinary
+    module or function**. Export it, import it, call it.
+-   A fixed, closed set of call sites that need to differ → a **plain
+    lookup table or callback map owned by the code that uses it**, kept
+    next to that code, with no kind string, no registry ceremony, and
+    no place in the admin UI. (`server/plugins/template-surfaces/` is
+    the worked example: it uses the shared registry helper for
+    duplicate detection but deliberately registers **no** kind and
+    **no** config adapter, because a surface has no persisted
+    configuration and is never administered.)
+
+**Explicitly, a plugin kind is NOT:**
+
+-   a substitute for the environment-variable registry;
+-   a place to park settings that have nowhere else to live;
+-   a way to branch behaviour between a fixed set of call sites;
+-   a way to get a nice admin screen for free.
+
+**Sign-off is required.** Adding a kind is an architectural decision a
+programmer makes deliberately and explicitly. Get sign-off from the
+project owner *before* writing the code, and say which of A, B, and C
+the new kind satisfies and how. Adding a *plugin* to an existing kind
+needs no such approval — that is the common, cheap case.
+
+**Current kinds.** Each is registered by a
+`registerPluginKind({ kind, registry, ... })` call in that kind's
+`server/plugins/<area>/<kind>/index.ts`, and all of them are served by
+the shared `GET /api/plugins/:kind/manifest` endpoint
+(`server/modules/system/plugins-manifest.ts`).
+
+*Config-backed — these are the kinds that clear A + B + C, and they are
+the bar a new kind has to reach.* Each also registers a
+`registerPluginConfigAdapter()` (`server/plugins/_core/config-adapter.ts`),
+so its per-instance configs live in `plugin_configs` via
+`server/storage/system/plugin-configs.ts`, it appears in the
+`GET /api/plugins/kinds` index, and it is administered at
+`/admin/plugin-configs/:kind`:
+
+    charge, dashboard, dispatch-eligibility, trust-eligibility,
+    trust-provider-edi, payment-gateway, event-notifier, cron, denorm,
+    data-retention, client-injection
+
+*Manifest-only — grandfathered exceptions that do NOT clear C.* These
+were registered as kinds before this rule existed. They have no config
+adapter, so they never appear on the plugin-configs index, and whatever
+operator state they have does not live in `plugin_configs`: worker-ban
+behaviours are configured from the Worker Ban Types options page, menus
+are selected in Site Configuration, and tokens, wizards, and
+system-status checks carry no operator configuration at all:
+
+    wizard, menu, worker-ban, token, system-status
+
+They are precedent for nothing. Do not cite them to argue that a new
+kind may skip C, and do not add a sixth. A case that looks like one of
+these is a case for a plain module or lookup table.
+
+**Files a new kind touches** (all of them, every time — if your change
+doesn't need most of this list, that is a signal you don't need a
+kind):
+
+1.  `server/plugins/<area>/<kind>/types.ts` — the domain interface.
+2.  `server/plugins/<area>/<kind>/registry.ts` — a `PluginRegistry`.
+3.  `server/plugins/<area>/<kind>/index.ts` — the `registerPluginKind()`
+    call plus side-effect imports of each plugin, wired into
+    `server/app-init.ts`.
+4.  `server/plugins/_core/types.ts` and
+    `client/src/plugins/_core/manifest.ts` — the `PluginKind` unions
+    (the client file also carries `PluginSearchParamsByKind`).
+5.  Config-backed kinds only: the `registerPluginConfigAdapter()` call,
+    a subsidiary table + storage namespace in
+    `server/storage/system/plugin-configs*.ts` if the kind carries
+    relational dimensions, and a migration for it (see the migration
+    rule above).
+
+The step-by-step procedure, once the decision has been made and signed
+off, is in `server/plugins/_core/README.md` ("Introducing a brand-new
+plugin kind").
+
 # Where to read more
 
 -   **Architecture decisions** (YMD date convention, charge plugin
@@ -387,7 +508,11 @@ width.
 -   **Aurora / plain-Postgres support** (automatic Neon-vs-pg driver
     selection, `DATABASE_DRIVER` override, `sslmode` handling, and the
     `ALLOW_EMPTY_DB_BOOTSTRAP=1` empty-database bootstrap) — `docs/aurora.md`
--   **Plugin Framework contract** — `server/plugins/_core/README.md`
+-   **Plugin Framework contract** (how to add a plugin, the shared URL
+    surface, and the procedure for a brand-new kind) —
+    `server/plugins/_core/README.md`. Whether a new kind is warranted at
+    all is settled first by the non-negotiable rule "A new plugin kind
+    is a deliberate architectural decision".
 
 ## External docs
 
