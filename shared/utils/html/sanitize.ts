@@ -10,6 +10,7 @@
  * pulls jsdom under Node. Boot-path code imports `./escape` directly.
  */
 import DOMPurify from "isomorphic-dompurify";
+import { decodeHtmlEntities } from "./entities";
 import {
   HTML_SANITIZE_POLICIES,
   type HtmlSanitizeAllowlist,
@@ -73,4 +74,36 @@ export function sanitizeHtml(
   if (allowlist.uriPattern) config.ALLOWED_URI_REGEXP = allowlist.uriPattern;
 
   return DOMPurify.sanitize(html, config);
+}
+
+/**
+ * Sanitize, and say whether anything a READER would notice changed.
+ *
+ * For most content "did sanitizing change it?" is not a question worth
+ * asking — you sanitize and render. It matters for content that is a
+ * record of something, where a viewer is entitled to know they are not
+ * being shown the document that was stored: today that is the signed
+ * e-signature snapshots.
+ *
+ * The distinction this draws is between a CONTENT change and an ENCODING
+ * change, and it exists because the naive byte comparison is a false
+ * alarm generator. DOMPurify parses to a DOM and re-serializes, so it
+ * normalizes entity spelling on the way through — a stored `&#10003;`
+ * comes back as a literal `✓`. Those two bytes-differ but render as the
+ * same glyph, and reporting them as "this document changed" would train
+ * viewers to ignore the warning that exists to catch a real strip.
+ *
+ * So both sides are entity-decoded before comparing: same characters
+ * after decoding means only the spelling moved. A tag or attribute that
+ * the policy actually removed survives that normalization and is
+ * reported.
+ */
+export function sanitizeHtmlReportingChange(
+  html: string,
+  policy: HtmlSanitizePolicyName | HtmlSanitizeAllowlist,
+): { clean: string; contentChanged: boolean } {
+  const clean = sanitizeHtml(html, policy);
+  const contentChanged =
+    clean !== html && decodeHtmlEntities(clean) !== decodeHtmlEntities(html);
+  return { clean, contentChanged };
 }

@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import { Loader2, ArrowLeft, User, FileText, Calendar, CheckCircle, XCircle, Clock, Square, CheckSquare, DollarSign, Shield } from "lucide-react";
 import { Cardcheck, CardcheckDefinition, Worker, Contact, BargainingUnit } from "@shared/schema";
-import { escapeHtml } from "@shared/utils/html";
+import { escapeHtml, sanitizeHtml } from "@shared/utils/html";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessCheck } from "@/hooks/use-access-check";
 import { Button } from "@/components/ui/button";
@@ -421,9 +421,20 @@ export default function CardcheckViewPage() {
                   <CardTitle>Document Content</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {/*
+                    Unsigned preview of the definition body. Stored
+                    admin-authored HTML, unsanitized upstream, so it is
+                    sanitized here under `authored-document` — the policy that
+                    matches what the definition editor can produce. The signed
+                    snapshot built from this same body goes through
+                    SignatureModal, which sanitizes what it displays AND what
+                    it submits so the two cannot disagree.
+                  */}
                   <div 
                     className="prose prose-sm max-w-none dark:prose-invert"
-                    dangerouslySetInnerHTML={{ __html: definition.body }}
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeHtml(definition.body, "authored-document"),
+                    }}
                     data-testid="text-body"
                   />
                 </CardContent>

@@ -607,9 +607,19 @@ export default function SiteInformation() {
               </div>
             ) : (
               <div className="space-y-2">
+                {/*
+                  Admin preview of the saved site footer. Sanitized under the
+                  same `library-default` policy the real footer renders with
+                  (client/src/components/layout/Footer.tsx), so the preview and
+                  the live footer cannot show different things.
+                */}
                 <div
                   className="px-3 py-2 bg-muted rounded-md min-h-[120px] prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: footer || '<em class="text-muted-foreground">No footer content set</em>' }}
+                  dangerouslySetInnerHTML={{
+                    __html: footer
+                      ? sanitizeHtml(footer, "library-default")
+                      : '<em class="text-muted-foreground">No footer content set</em>',
+                  }}
                   data-testid="text-footer"
                 />
                 <Button

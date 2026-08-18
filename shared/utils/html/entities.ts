@@ -41,10 +41,34 @@ export const HTML_NAMED_ENTITIES: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Is `code` something `String.fromCodePoint` will actually accept?
+ *
+ * `Number.isFinite` is NOT this test, and the difference is a thrown
+ * exception rather than a wrong character: `String.fromCodePoint` raises
+ * `RangeError: Invalid code point` for anything above U+10FFFF, so a
+ * stored `&#999999999;` would take down whatever was decoding it. Lone
+ * surrogates are excluded too — they are not scalar values, and pasting
+ * one into a string produces an unpaired half that breaks later encoding.
+ *
+ * This function must stay TOTAL: it is called on hostile stored content
+ * during render, where the only acceptable outcomes are "decoded" and
+ * "left alone", never "threw".
+ */
+function isUnicodeScalarValue(code: number): boolean {
+  return (
+    Number.isInteger(code) &&
+    code >= 0 &&
+    code <= 0x10ffff &&
+    !(code >= 0xd800 && code <= 0xdfff)
+  );
+}
+
+/**
  * Decode the named entities above plus decimal (`&#8212;`) and
- * hexadecimal (`&#x2014;`) numeric references. Anything unrecognized is
- * left verbatim, so unknown entities survive a round trip instead of
- * silently vanishing.
+ * hexadecimal (`&#x2014;`) numeric references. Anything unrecognized —
+ * an unknown name, an out-of-range code point, a surrogate half — is
+ * left verbatim, so it survives a round trip instead of silently
+ * vanishing or throwing.
  */
 export function decodeHtmlEntities(s: string): string {
   return s
@@ -54,10 +78,10 @@ export function decodeHtmlEntities(s: string): string {
     )
     .replace(/&#(\d+);/g, (match, digits: string) => {
       const code = parseInt(digits, 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+      return isUnicodeScalarValue(code) ? String.fromCodePoint(code) : match;
     })
     .replace(/&#x([0-9a-fA-F]+);/g, (match, hex: string) => {
       const code = parseInt(hex, 16);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+      return isUnicodeScalarValue(code) ? String.fromCodePoint(code) : match;
     });
 }

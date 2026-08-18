@@ -54,4 +54,4 @@ export {
   type HtmlSanitizeAllowlist,
   type HtmlSanitizePolicyName,
 } from "./policies";
-export { sanitizeHtml } from "./sanitize";
+export { sanitizeHtml, sanitizeHtmlReportingChange } from "./sanitize";

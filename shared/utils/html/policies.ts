@@ -99,6 +99,36 @@ export const HTML_SANITIZE_POLICIES = {
   },
 
   /**
+   * Snapshots of documents a worker actually signed (`esigs.doc_render`),
+   * rendered back in the signature modal and the signed-document view.
+   *
+   * Wider than `authored-document` on purpose, and the extra width is
+   * evidence-driven rather than generous: a signed snapshot is the
+   * definition body PLUS the blocks the signing page appends around it
+   * (bargaining unit, acknowledged statements, rate), and those are built
+   * as `div`/`span` carrying inline `style`. Narrowing to
+   * `authored-document` would strip the rules, borders and check marks
+   * out of documents people have already put their name to, which is a
+   * worse outcome than the width: the point of sanitizing a signed
+   * snapshot is to stop a script in it executing, NOT to re-edit what the
+   * document says.
+   *
+   * `style` is the load-bearing addition. DOMPurify still parses and
+   * filters its value, so `expression()`/`url(javascript:)` do not
+   * survive; what survives is layout.
+   *
+   * Sized against the stored corpus, and that sizing is re-checkable:
+   * `scripts/dev/test-signed-document-sanitize.ts` sanitizes every stored
+   * record under this policy and reports any whose bytes change.
+   */
+  "signed-document": {
+    description: "Signed e-signature document snapshots, rendered back read-only",
+    tags: [...RICH_DOCUMENT_TAGS, "div", "span"],
+    attributes: [...RICH_DOCUMENT_ATTR, "style", "class"],
+    uriPattern: SAFE_URI_PATTERN,
+  },
+
+  /**
    * DOMPurify's built-in defaults — a broad HTML allowlist that still
    * removes scripts, event handlers and unsafe URI schemes. Used by the
    * site footer, whose markup is site-operator authored and has never

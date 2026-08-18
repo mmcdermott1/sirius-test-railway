@@ -531,7 +531,10 @@ export function TemplateStudio({
           <div
             className="px-4 py-3 prose prose-sm max-w-none dark:prose-invert overflow-x-auto"
             data-testid="studio-preview-email-body"
-            // Server-sanitized HTML (same sanitizer as delivery).
+            // Already sanitized server-side: `server/delivery/shape.ts` runs
+            // sanitizeHtml(value, "rich-document") over HTML fields, and
+            // preview goes through that same shaping as delivery so the two
+            // cannot disagree. No second pass needed here.
             dangerouslySetInnerHTML={{ __html: body?.rendered || "<p><em>(empty body)</em></p>" }}
           />
           <div className="px-4 pb-3 space-y-1">
@@ -604,6 +607,8 @@ export function TemplateStudio({
               {f.mode === "html" ? (
                 <div
                   className="prose prose-sm max-w-none dark:prose-invert overflow-x-auto"
+                  // Same provenance as the email body above: server-sanitized
+                  // by `server/delivery/shape.ts` under "rich-document".
                   dangerouslySetInnerHTML={{ __html: r?.rendered || "<p><em>(empty)</em></p>" }}
                 />
               ) : (
