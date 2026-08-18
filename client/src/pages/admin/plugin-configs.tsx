@@ -81,7 +81,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient, getApiErrorMessage } from "@/lib/queryClient";
+import {
+  apiRequest,
+  queryClient,
+  getApiErrorMessage,
+  getApiErrorDetails,
+} from "@/lib/queryClient";
 import type { JsonSchema } from "@shared/json-schema-form";
 import type { IChangeEvent } from "@rjsf/core";
 import type { UiSchema } from "@rjsf/utils";
@@ -217,6 +222,7 @@ export default function GenericPluginConfigsPage({
   const { data: meta } = useQuery<{
     envelopeFields: PluginConfigEnvelopeField[];
     pluginFields?: Record<string, PluginConfigEnvelopeField[]>;
+    pluginEnvelopeFields?: Record<string, PluginConfigEnvelopeField[]>;
   }>({
     queryKey: pluginConfigsMetaQueryKey(kind),
     enabled: isValidKind,
@@ -227,6 +233,11 @@ export default function GenericPluginConfigsPage({
   });
   const envelopeFields = meta?.envelopeFields ?? [];
   const pluginFieldsByPlugin = meta?.pluginFields ?? {};
+  // Per-plugin narrowing of the SAME envelope fields (e.g. an event notifier's
+  // Media limited to the media it can actually send). The edit dialog prefers
+  // these; the filter bar and table stay on the kind-level list, which spans
+  // every plugin.
+  const envelopeFieldsByPlugin = meta?.pluginEnvelopeFields ?? {};
   // Locked filters are never user-editable, so hide them from the filter bar.
   const filterableFields = envelopeFields.filter(
     (f) => f.filterable && !(f.name in lockedFilters),
@@ -611,7 +622,9 @@ export default function GenericPluginConfigsPage({
           kind={kind}
           plugin={dialogPlugin}
           config={dialogConfig}
-          envelopeFields={envelopeFields}
+          envelopeFields={
+            envelopeFieldsByPlugin[dialogPlugin.id] ?? envelopeFields
+          }
           pluginFields={pluginFieldsByPlugin[dialogPlugin.id] ?? NO_PLUGIN_FIELDS}
           lockedEnvelope={lockedFilters}
         />
@@ -1028,12 +1041,27 @@ function GenericConfigDialog({
       onOpenChange(false);
     },
     onError: (error: unknown) => {
+      // A rejected save carries the specific reason(s) in `errors` (e.g. an
+      // unsupported medium, a bad template token, a schema violation). Render
+      // every one — showing only the summary message used to leave the author
+      // with a bare "Invalid plugin configuration" and nothing to act on.
+      const details = getApiErrorDetails(error);
+      const fallback = getApiErrorMessage(
+        error,
+        `Failed to ${isEditMode ? "update" : "create"} configuration.`,
+      );
       toast({
         title: "Error",
         description:
-          error instanceof Error
-            ? error.message
-            : `Failed to ${isEditMode ? "update" : "create"} configuration.`,
+          details.length > 1 ? (
+            <ul className="list-disc pl-4 space-y-1" data-testid="save-error-details">
+              {details.map((detail, i) => (
+                <li key={i}>{detail}</li>
+              ))}
+            </ul>
+          ) : (
+            <span data-testid="save-error-details">{details[0] ?? fallback}</span>
+          ),
         variant: "destructive",
       });
     },
@@ -1335,6 +1363,13 @@ function EnvelopeCheckboxField({
       .filter(Boolean),
   );
 
+  // A choice the selected plugin can't accept is locked off — but only while
+  // it is unselected. A config saved before the plugin's capabilities changed
+  // (or written straight through the API) must stay clearable, otherwise the
+  // row can never be brought back into a savable state from this form.
+  const isLocked = (choice: PluginConfigEnvelopeFieldChoice) =>
+    choice.disabled === true && !selected.has(choice.value);
+
   const toggle = (choiceValue: string, checked: boolean) => {
     const next = new Set(selected);
     if (checked) {
@@ -1356,22 +1391,38 @@ function EnvelopeCheckboxField({
       {!isStatic && isLoading && (
         <p className="text-sm text-muted-foreground">Loading…</p>
       )}
-      {choices.map((choice) => (
-        <div key={choice.value} className="flex items-center gap-2">
-          <Checkbox
-            id={`envelope-${field.name}-${choice.value}`}
-            checked={selected.has(choice.value)}
-            onCheckedChange={(checked) => toggle(choice.value, checked === true)}
-            data-testid={`checkbox-envelope-${field.name}-${choice.value}`}
-          />
-          <Label
-            htmlFor={`envelope-${field.name}-${choice.value}`}
-            className="font-normal cursor-pointer"
-          >
-            {choice.label}
-          </Label>
-        </div>
-      ))}
+      {choices.map((choice) => {
+        const locked = isLocked(choice);
+        return (
+          <div key={choice.value} className="flex items-center gap-2">
+            <Checkbox
+              id={`envelope-${field.name}-${choice.value}`}
+              checked={selected.has(choice.value)}
+              disabled={locked}
+              onCheckedChange={(checked) => toggle(choice.value, checked === true)}
+              data-testid={`checkbox-envelope-${field.name}-${choice.value}`}
+            />
+            <Label
+              htmlFor={`envelope-${field.name}-${choice.value}`}
+              className={
+                locked
+                  ? "font-normal text-muted-foreground"
+                  : "font-normal cursor-pointer"
+              }
+            >
+              {choice.label}
+            </Label>
+            {locked && (
+              <span
+                className="text-xs text-muted-foreground"
+                data-testid={`unavailable-envelope-${field.name}-${choice.value}`}
+              >
+                — {choice.disabledReason ?? "Not available for this plugin"}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

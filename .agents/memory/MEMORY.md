@@ -80,4 +80,5 @@
 - [ProtectedRoute entityId extraction](protectedroute-entityid-extraction.md) — /dispatch/job/:id/* tabs with a policyId must pass entityId explicitly (URL extractor grabs "job" as the id).
 - [Template preview subjects](template-preview-subjects.md) — previews render sample personas or surface-offered contexts only; each surface's context hooks must check ITS editor's policy (staff route gate ≠ admin editor), and persona keys belong to the kind that owns the leaf.
 - [Derived registry cache versioning](derived-registry-cache-versioning.md) — caches over listEnabledSync must key on registry version + component-cache revision, else validation accepts what delivery renders as unknown.
+- [Per-plugin envelope narrowing](plugin-config-envelope-per-plugin-narrowing.md) — narrow kind-level config fields per plugin via the adapter hook served by /configs/meta; lock (don't hide) unavailable choices, keep selected ones clearable.
 - [Notifier hidden template channels](notifier-hidden-template-channels.md) — hide undeliverable medium cards via x-token-hidden marker on a schema clone; never prune the group or RJSF wipes stored overrides.

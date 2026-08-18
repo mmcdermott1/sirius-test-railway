@@ -103,6 +103,15 @@ export function pluginConfigsQueryKey(
 export interface PluginConfigEnvelopeFieldChoice {
   value: string;
   label: string;
+  /**
+   * The selected plugin cannot accept this choice (the save route would
+   * reject it), so the admin form shows it but won't let it be switched on.
+   * Only appears on the per-plugin envelope fields served by the meta
+   * endpoint's `pluginEnvelopeFields`.
+   */
+  disabled?: boolean;
+  /** Short human explanation shown beside a disabled choice. */
+  disabledReason?: string;
 }
 
 export interface PluginConfigEnvelopeFieldOptions {

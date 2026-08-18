@@ -273,6 +273,36 @@ function registerEventNotifierKind(): void {
         options: { choices: MEDIA_CHOICES },
       },
     ],
+    // Every notifier shares the Media checkbox group, but each declares its
+    // own `supportedMedia` and `validateConfig` rejects anything outside it.
+    // Mark the rest unavailable for the selected notifier so the admin form
+    // stops offering a selection that always 400s (the server check above
+    // stays authoritative — this only shapes the form).
+    envelopeFieldsForPlugin: (plugin) => {
+      const supported = new Set(
+        (plugin as { supportedMedia?: NotificationMedium[] }).supportedMedia ?? [],
+      );
+      return [
+        {
+          name: "media",
+          label: "Media",
+          type: "string",
+          multiple: true,
+          filterable: true,
+          options: {
+            choices: MEDIA_CHOICES.map((choice) =>
+              supported.has(choice.value)
+                ? choice
+                : {
+                    ...choice,
+                    disabled: true,
+                    disabledReason: "This notifier has no message for it",
+                  },
+            ),
+          },
+        },
+      ];
+    },
   });
   kindRegistered = true;
 }
