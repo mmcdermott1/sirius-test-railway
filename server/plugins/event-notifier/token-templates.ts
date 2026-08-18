@@ -11,6 +11,8 @@ import {
   NOTIFIER_CHANNEL_FIELDS,
   applyFieldEligibility,
   shapeRenderedValue,
+  tokenCleanerFor,
+  type TokenValueCleaner,
 } from "../../delivery/shape";
 
 const SERVICE = "event-notifier-token-templates";
@@ -88,7 +90,7 @@ export async function composeFromTemplates(
   const { storage } = await import("../../storage");
   const { renderTokens, createTokenEvalContext } = await import("../tokens");
 
-  const render = async (template: string, opts?: { escapeHtml?: boolean }) => {
+  const render = async (template: string, clean: TokenValueCleaner | null) => {
     if (!template) return "";
     // A fresh context per rendered string is cheap; the shared cache
     // carries memoized lookups across strings, recipients and media.
@@ -98,7 +100,7 @@ export async function composeFromTemplates(
     });
     const result = await renderTokens(template, ctx, {
       strictUnknown: true,
-      escapeHtml: opts?.escapeHtml,
+      clean: clean ?? undefined,
     });
     if (result.unknownTokens.length > 0) {
       logger.warn("Event-notifier template contained invalid tokens", {
@@ -118,19 +120,19 @@ export async function composeFromTemplates(
   // Media the templates don't cover (e.g. postal) are skipped.
   if (!channelTemplates || !specs) return null;
 
-  // Render every field, then shape it exactly as the template studio
-  // previews it: trimming, HTML sanitizing (AFTER token rendering, so a
-  // substituted value used as a whole href faces the allowlist too),
-  // relative-link enforcement and companion-field suppression all live
-  // in the shared shaping step.
+  // Render every field with the cleaning its destination declares,
+  // then shape it exactly as the template studio previews it: trimming,
+  // HTML sanitizing (AFTER token rendering, so a substituted value used
+  // as a whole href faces the allowlist too), relative-link enforcement
+  // and companion-field suppression all live in the shared shaping step.
   const shaped: Record<string, string> = {};
   for (const spec of specs) {
     const template = channelTemplates[spec.key];
     const rendered = typeof template === "string"
-      ? await render(template, { escapeHtml: spec.media === "html" })
+      ? await render(template, tokenCleanerFor(spec))
       : "";
     shaped[spec.key] = shapeRenderedValue(spec, rendered);
-    if (spec.media === "relative-url" && rendered.trim() && !shaped[spec.key]) {
+    if (spec.safety === "relative-url" && rendered.trim() && !shaped[spec.key]) {
       // Alert UIs hand non-relative links to window.open, so a rendered
       // "javascript:" or absolute URL would be a stored script-execution
       // / open-redirect vector. Save-time validation checks the raw

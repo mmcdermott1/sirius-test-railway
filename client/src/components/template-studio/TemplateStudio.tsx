@@ -176,7 +176,7 @@ export interface TemplateStudioProps {
 function specsFromFieldModes(fields: StudioField[]): DeliveryFieldSpec[] {
   return fields.map((f) => ({
     key: f.key,
-    media: f.mode === "html" ? ("html" as const) : ("text" as const),
+    syntax: f.mode === "html" ? ("html" as const) : ("text" as const),
   }));
 }
 
@@ -342,7 +342,7 @@ export function TemplateStudio({
   // field, but they get no token affordances: a token typed into one
   // arrives at the recipient as `{{...}}`.
   const literalKeys = useMemo(
-    () => new Set(specs.filter((s) => s.media === "literal").map((s) => s.key)),
+    () => new Set(specs.filter((s) => s.tokenized === false).map((s) => s.key)),
     [specsJson], // eslint-disable-line react-hooks/exhaustive-deps
   );
 

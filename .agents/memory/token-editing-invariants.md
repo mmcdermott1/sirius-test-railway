@@ -65,3 +65,26 @@ rejected outright).
 `Sam &gt; Nelson`. The goal is NOT guaranteed-valid markup, and NOT that
 a page can never render badly. Aiming at those is what tempts you into
 reading the surroundings.
+
+**How to apply:** an HTML container's cleaning ESCAPES, it never
+allow-lists. Escaped text is safe anywhere in the document, including
+inside a link address (shipped templates do build hrefs out of tokens),
+and an allow-list decision would need to know where the value sits.
+Sanitizing the finished string is a separate, later step. A token's
+`emitsHtml` declaration is information the container may consult, not an
+override the token asserts — a plain-text destination has no reason to
+care.
+
+## A field's medium was three questions, not one
+
+A delivery field declares them separately: the SYNTAX it is written in
+(what cleaning must mean for it), the SAFETY rule its finished value
+must satisfy, and whether it is TOKENIZED at all.
+
+**Why:** they were once one `media` enum, which quietly made "not
+tokenized" a kind of medium and made a whole-value safety rule look like
+a container syntax. Only one of the three decides whether evaluation
+happens at all.
+
+**How to apply:** a field that is not tokenized resolves no cleaning
+function — that is the signal never to evaluate it, on every path.

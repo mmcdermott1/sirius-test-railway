@@ -9,6 +9,9 @@ import {
   buildTokenCatalog,
 } from "../../plugins/tokens";
 import { parseTokenChain } from "@shared/tokens";
+import { BULK_CHANNEL_FIELDS, tokenCleanerFor } from "../../delivery/shape";
+
+const [DESCRIPTION_SPEC] = BULK_CHANNEL_FIELDS.postal;
 
 export async function resolvePostalAddress(storage: IStorage, contactId: string): Promise<PostalAddress | null> {
   const addresses = await storage.contacts.addresses.getContactPostalByContact(contactId);
@@ -55,7 +58,12 @@ export async function deliverPostal(
   } : undefined;
   const ctx = createTokenEvalContext(storage, contactId);
   const renderedDescription = postalContent.description
-    ? (await renderTokens(postalContent.description, ctx, { strictUnknown: true })).output
+    ? (
+        await renderTokens(postalContent.description, ctx, {
+          strictUnknown: true,
+          clean: tokenCleanerFor(DESCRIPTION_SPEC) ?? undefined,
+        })
+      ).output
     : undefined;
   const baseMerge = (postalContent.mergeVariables as Record<string, string>) || {};
   // Expose every catalog token as a Lob merge variable, keyed by its

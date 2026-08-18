@@ -14,38 +14,114 @@
  * lives in `server/delivery/shape.ts`; everything here is pure and safe
  * to bundle into the client.
  */
+// The escape LEAF, never the html barrel: the barrel pulls DOMPurify
+// (and jsdom under Node) and this module is imported by the client and
+// by delivery code alike.
+import { escapeHtml } from "./utils/html/escape";
 
 /**
- * How a rendered field must be shaped so a PREVIEW matches DELIVERY.
+ * How the field is WRITTEN — the syntax of the string an author types,
+ * and therefore what "clean this value" has to mean for it.
  *
- *  - `text`         plain text; token values are inserted verbatim.
- *  - `html`         trusted HTML: token values are HTML-escaped during
- *                   render, then the whole output is sanitized exactly
- *                   like a delivered email body.
- *  - `relative-url` a same-app relative path; a rendered value that is
- *                   not safe (absolute URL, "javascript:", "//host") is
- *                   blanked, because delivery drops it too.
- *  - `literal`      NOT tokenized: delivery sends the stored value
- *                   verbatim, so the preview shows it verbatim too
- *                   (rendering it would show the author a substitution
- *                   the recipient never gets).
+ *  - `text`  plain text: the value is inserted as-is. Nothing about a
+ *            recorded name is markup, and nothing downstream reads it
+ *            as markup, so there is nothing to neutralize.
+ *  - `html`  markup: an inserted value is HTML-escaped so it renders as
+ *            the characters it is (`Sam > Nelson`, not a swallowed
+ *            line). The finished string is then sanitized like any
+ *            delivered body — see `shapeRenderedValue`.
  */
-export type DeliveryFieldMedia = "text" | "html" | "relative-url" | "literal";
+export type DeliveryFieldSyntax = "text" | "html";
 
-/** The complete media vocabulary, for validating a declaration. */
-export const DELIVERY_FIELD_MEDIA: readonly DeliveryFieldMedia[] = [
+/** The complete syntax vocabulary, for validating a declaration. */
+export const DELIVERY_FIELD_SYNTAX: readonly DeliveryFieldSyntax[] = [
   "text",
   "html",
-  "relative-url",
-  "literal",
 ];
 
-/** One tokenized field and how delivery shapes it. */
+/**
+ * A safety rule applied to the FINISHED value, after rendering — not to
+ * the values going into it.
+ *
+ *  - `relative-url` the field is a same-app path; a finished value that
+ *                   is not safe (absolute URL, "javascript:", "//host")
+ *                   is blanked, because delivery drops it too.
+ */
+export type DeliveryFieldSafety = "relative-url";
+
+/** The complete safety vocabulary, for validating a declaration. */
+export const DELIVERY_FIELD_SAFETY: readonly DeliveryFieldSafety[] = [
+  "relative-url",
+];
+
+/**
+ * How a token's value is cleaned on its way into a field.
+ *
+ * The container supplies this; token evaluation just calls it. That is
+ * the whole point of the shape: evaluating a token is a string
+ * operation that knows nothing about where the string is going, so the
+ * destination — and only the destination — decides what cleaning means.
+ *
+ * It is given the value and WHICH TOKEN produced it, and nothing about
+ * the template around it. A token's value must not change because of
+ * what the author typed before or after it.
+ */
+export type TokenValueCleaner = (value: string, token: CleanedToken) => string;
+
+/** Which token produced the value being cleaned. */
+export interface CleanedToken {
+  /** Leaf plugin id of the chain that produced it, when it has one. */
+  id: string | null;
+  /**
+   * The leaf declares its value is already markup. Information for the
+   * container to consult, NOT an override the token asserts: a plain
+   * text destination has no reason to care, and an HTML one decides for
+   * itself whether to trust it.
+   */
+  emitsHtml: boolean;
+}
+
+/**
+ * What cleaning MEANS for each container syntax — the one declaration
+ * preview and delivery both read.
+ *
+ * The HTML cleaner escapes; it does not allow-list. Escaped text is
+ * safe wherever it lands in an HTML document, including inside a link
+ * address, and shipped templates do build hrefs out of tokens. An
+ * allow-list would have to know where in the document the value sits;
+ * escaping does not, which is exactly why this can run per value with
+ * no knowledge of the surrounding template.
+ */
+const CLEAN_BY_SYNTAX: Record<DeliveryFieldSyntax, TokenValueCleaner> = {
+  text: (value) => value,
+  html: (value, token) => (token.emitsHtml ? value : escapeHtml(value)),
+};
+
+/**
+ * The cleaning function for one field, or `null` when the field is not
+ * tokenized at all (nothing is ever inserted into it, so there is
+ * nothing to clean and it must not be evaluated).
+ */
+export function tokenCleanerFor(spec: DeliveryFieldSpec): TokenValueCleaner | null {
+  if (spec.tokenized === false) return null;
+  return CLEAN_BY_SYNTAX[spec.syntax];
+}
+
+/** One field of a message and how delivery treats it. */
 export interface DeliveryFieldSpec {
   /** Field key; unique within the set, shared with the client. */
   key: string;
-  /** Delivery shaping for this field. Required — see the author check. */
-  media: DeliveryFieldMedia;
+  /** How the field is written. Required — see the author check. */
+  syntax: DeliveryFieldSyntax;
+  /** Safety rule for the finished value, when the field has one. */
+  safety?: DeliveryFieldSafety;
+  /**
+   * Set false when the field is NOT tokenized: delivery sends the
+   * stored value verbatim, so it is never evaluated and the preview
+   * shows it verbatim too (rendering it would show the author a
+   * substitution the recipient never gets). Defaults to true.
+   */
+  tokenized?: boolean;
   /**
    * Suppress this field entirely when the named field renders blank.
    * Mirrors delivery: an in-app link label is not shown when its URL
@@ -73,21 +149,25 @@ export interface DeliveryFieldSpec {
  */
 export const BULK_CHANNEL_FIELDS: Record<string, DeliveryFieldSpec[]> = {
   email: [
-    { key: "subject", media: "text", fallback: "(no subject)" },
+    { key: "subject", syntax: "text", fallback: "(no subject)" },
     // Authored HTML: token values are escaped, then the body is
     // sanitized (bodies can be written through the API without passing
     // the rich-text editor).
-    { key: "bodyHtml", media: "html" },
+    { key: "bodyHtml", syntax: "html" },
+    // The plain-text alternative part. Derived from the HTML body when
+    // a message is saved, but stored and rendered on its own — so it is
+    // its own destination, and says so.
+    { key: "bodyText", syntax: "text" },
   ],
-  sms: [{ key: "body", media: "text" }],
-  postal: [{ key: "description", media: "text" }],
+  sms: [{ key: "body", syntax: "text" }],
+  postal: [{ key: "description", syntax: "text" }],
   inapp: [
-    { key: "title", media: "text" },
-    { key: "body", media: "text" },
-    // A plain stored URL: its editor offers no token insertion and
-    // delivery sends it verbatim, so preview it verbatim too.
-    { key: "linkUrl", media: "literal" },
-    { key: "linkLabel", media: "text" },
+    { key: "title", syntax: "text" },
+    { key: "body", syntax: "text" },
+    // A plain stored URL: not tokenized, so delivery sends it verbatim
+    // and the preview shows it verbatim.
+    { key: "linkUrl", syntax: "text", tokenized: false },
+    { key: "linkLabel", syntax: "text" },
   ],
 };
 
@@ -102,15 +182,17 @@ export const BULK_CHANNEL_FIELDS: Record<string, DeliveryFieldSpec[]> = {
  */
 export const NOTIFIER_CHANNEL_FIELDS: Record<string, DeliveryFieldSpec[]> = {
   email: [
-    { key: "subject", media: "text", trim: true, requiredForMessage: true },
-    { key: "bodyHtml", media: "html" },
+    { key: "subject", syntax: "text", trim: true, requiredForMessage: true },
+    { key: "bodyHtml", syntax: "html" },
   ],
-  sms: [{ key: "message", media: "text", trim: true, requiredForMessage: true }],
+  sms: [{ key: "message", syntax: "text", trim: true, requiredForMessage: true }],
   inapp: [
-    { key: "title", media: "text", trim: true, requiredForMessage: true },
-    { key: "body", media: "text", trim: true, requiredForMessage: true },
-    { key: "linkUrl", media: "relative-url", trim: true },
-    { key: "linkLabel", media: "text", trim: true, blankWithout: "linkUrl" },
+    { key: "title", syntax: "text", trim: true, requiredForMessage: true },
+    { key: "body", syntax: "text", trim: true, requiredForMessage: true },
+    // Written as plain text, and dropped if what it renders to is not a
+    // same-app path.
+    { key: "linkUrl", syntax: "text", safety: "relative-url", trim: true },
+    { key: "linkLabel", syntax: "text", trim: true, blankWithout: "linkUrl" },
   ],
 };
 
@@ -158,9 +240,9 @@ export function applyFieldEligibility(
  *
  * Used in two places, on purpose: the author-time check script runs it
  * over the tables above, and the preview endpoint runs it over the
- * specs a caller posts. A field with no declared media has no defined
- * shaping, which is the one thing these declarations exist to prevent —
- * so it is rejected wherever it appears.
+ * specs a caller posts. A field with no declared syntax has no defined
+ * cleaning or shaping, which is the one thing these declarations exist
+ * to prevent — so it is rejected wherever it appears.
  *
  * Takes `unknown` because one of its callers is a request body.
  */
@@ -169,7 +251,8 @@ export function validateDeliveryFieldSpecs(specs: unknown): string[] {
   if (!Array.isArray(specs) || specs.length === 0) {
     return ["declares no fields"];
   }
-  const media = new Set<string>(DELIVERY_FIELD_MEDIA);
+  const syntaxes = new Set<string>(DELIVERY_FIELD_SYNTAX);
+  const safeties = new Set<string>(DELIVERY_FIELD_SAFETY);
   const seen = new Set<string>();
   for (const raw of specs) {
     const field = raw as Partial<DeliveryFieldSpec> | null;
@@ -181,10 +264,16 @@ export function validateDeliveryFieldSpecs(specs: unknown): string[] {
       problems.push(`declares field '${field.key}' more than once`);
     }
     seen.add(field.key);
-    if (!field.media) {
-      problems.push(`field '${field.key}' declares no media type`);
-    } else if (!media.has(field.media)) {
-      problems.push(`field '${field.key}' declares unknown media '${field.media}'`);
+    if (!field.syntax) {
+      problems.push(`field '${field.key}' declares no syntax`);
+    } else if (!syntaxes.has(field.syntax)) {
+      problems.push(`field '${field.key}' declares unknown syntax '${field.syntax}'`);
+    }
+    if (field.safety !== undefined && !safeties.has(field.safety)) {
+      problems.push(`field '${field.key}' declares unknown safety rule '${field.safety}'`);
+    }
+    if (field.tokenized !== undefined && typeof field.tokenized !== "boolean") {
+      problems.push(`field '${field.key}' has a non-boolean tokenized`);
     }
     if (field.blankWithout !== undefined && typeof field.blankWithout !== "string") {
       problems.push(`field '${field.key}' has a non-string blankWithout`);

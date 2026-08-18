@@ -6,6 +6,7 @@ import {
   BULK_CHANNEL_FIELDS,
   applyFieldEligibility,
   shapeRenderedValue,
+  tokenCleanerFor,
 } from "../../delivery/shape";
 
 export async function resolveUserId(storage: IStorage, contactId: string): Promise<string | null> {
@@ -16,9 +17,10 @@ export async function resolveUserId(storage: IStorage, contactId: string): Promi
 }
 
 /**
- * Shape one bulk in-app notification for delivery, field by field, with
- * the media each field declares — so the tokenized fields are rendered
- * and the literal link URL is sent exactly as stored. The template
+ * Shape one bulk in-app notification for delivery, field by field, as
+ * each field declares — so the tokenized fields are rendered with their
+ * destination's cleaning and the link URL, which is not tokenized at
+ * all, is sent exactly as stored. The template
  * studio previews through the same declarations and the same shaping
  * call, so an author sees what the recipient receives.
  */
@@ -29,10 +31,11 @@ export async function renderInappContentForDelivery(
   const shaped: Record<string, string> = {};
   for (const spec of BULK_CHANNEL_FIELDS.inapp) {
     const raw = (content as Record<string, string | null | undefined>)[spec.key] || "";
+    const clean = tokenCleanerFor(spec);
     const rendered =
-      spec.media === "literal"
+      clean === null
         ? raw
-        : (await renderTokens(raw, ctx, { strictUnknown: true })).output;
+        : (await renderTokens(raw, ctx, { strictUnknown: true, clean })).output;
     shaped[spec.key] = shapeRenderedValue(spec, rendered);
   }
   const { values } = applyFieldEligibility(BULK_CHANNEL_FIELDS.inapp, shaped);

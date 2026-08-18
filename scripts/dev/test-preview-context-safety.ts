@@ -73,7 +73,7 @@ async function main(): Promise<void> {
     return { status: res.status, body: (await res.json()) as any };
   };
 
-  const textField = [{ key: "subject", media: "text" as const }];
+  const textField = [{ key: "subject", syntax: "text" as const }];
   const anyId = "00000000-0000-0000-0000-000000000000";
 
   // ── The records form fails closed ─────────────────────────────────────────

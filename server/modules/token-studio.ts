@@ -387,9 +387,9 @@ export function registerTokenStudioRoutes(
    *   `fields` — the fields being previewed and how DELIVERY shapes
    *     each one, taken from the shared delivery declarations in
    *     `shared/delivery-fields.ts` (never hand-written): a field with
-   *     no declared media has no defined shaping, so its preview and
-   *     its delivered output could silently disagree, and it is
-   *     rejected here.
+   *     no declared syntax has no defined cleaning or shaping, so its
+   *     preview and its delivered output could silently disagree, and
+   *     it is rejected here.
    *   `values` — { fieldKey: template } — FINISHED template strings.
    *     Any caller-specific composition (a notifier's default-vs-override
    *     merge, a rich-text body flattened to plain text) has already

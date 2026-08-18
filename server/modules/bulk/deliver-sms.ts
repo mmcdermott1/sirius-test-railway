@@ -2,6 +2,9 @@ import type { IStorage } from "../../storage";
 import { sendSms, type SendSmsResult } from "../../services/comm/senders/sms";
 import type { DeliverContactResult } from "./deliver";
 import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
+import { BULK_CHANNEL_FIELDS, tokenCleanerFor } from "../../delivery/shape";
+
+const [BODY_SPEC] = BULK_CHANNEL_FIELDS.sms;
 
 export async function resolvePhoneNumber(storage: IStorage, contactId: string): Promise<string | null> {
   const phones = await storage.contacts.phoneNumbers.getPhoneNumbersByContact(contactId);
@@ -28,7 +31,12 @@ export async function deliverSms(
     return { success: false, error: "Contact has no phone number", errorCode: "NO_ADDRESS" };
   }
   const ctx = createTokenEvalContext(storage, contactId);
-  const renderedBody = (await renderTokens(smsContent.body || "", ctx, { strictUnknown: true })).output;
+  const renderedBody = (
+    await renderTokens(smsContent.body || "", ctx, {
+      strictUnknown: true,
+      clean: tokenCleanerFor(BODY_SPEC) ?? undefined,
+    })
+  ).output;
   const result: SendSmsResult = await sendSms({
     contactId,
     toPhoneNumber: phone,

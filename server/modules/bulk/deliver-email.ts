@@ -2,16 +2,20 @@ import type { IStorage } from "../../storage";
 import { sendEmail, type SendEmailResult } from "../../services/comm/senders/email";
 import type { DeliverContactResult } from "./deliver";
 import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
-import { BULK_CHANNEL_FIELDS, shapeRenderedValue } from "../../delivery/shape";
+import {
+  BULK_CHANNEL_FIELDS,
+  shapeRenderedValue,
+  tokenCleanerFor,
+} from "../../delivery/shape";
 
-const [SUBJECT_SPEC, BODY_HTML_SPEC] = BULK_CHANNEL_FIELDS.email;
+const [SUBJECT_SPEC, BODY_HTML_SPEC, BODY_TEXT_SPEC] = BULK_CHANNEL_FIELDS.email;
 
 /**
- * Shape one bulk email body for delivery: render its tokens with HTML
- * escaping (so a substituted value can never inject markup), then apply
- * the declared shaping for the field — the same call the template
- * studio's preview makes, so what an author previews is what the
- * recipient receives.
+ * Shape one bulk email body for delivery: render its tokens with the
+ * cleaning an HTML body declares (values are escaped, so a substituted
+ * value can never inject markup), then apply the declared shaping for
+ * the field — the same calls the template studio's preview makes, so
+ * what an author previews is what the recipient receives.
  */
 export async function renderEmailBodyHtmlForDelivery(
   bodyHtml: string,
@@ -19,7 +23,10 @@ export async function renderEmailBodyHtmlForDelivery(
 ): Promise<string> {
   if (!bodyHtml) return "";
   const rendered = (
-    await renderTokens(bodyHtml, ctx, { escapeHtml: true, strictUnknown: true })
+    await renderTokens(bodyHtml, ctx, {
+      clean: tokenCleanerFor(BODY_HTML_SPEC) ?? undefined,
+      strictUnknown: true,
+    })
   ).output;
   return shapeRenderedValue(BODY_HTML_SPEC, rendered);
 }
@@ -29,8 +36,31 @@ export async function renderEmailSubjectForDelivery(
   subject: string,
   ctx: Parameters<typeof renderTokens>[1],
 ): Promise<string> {
-  const rendered = (await renderTokens(subject || "", ctx, { strictUnknown: true })).output;
+  const rendered = (
+    await renderTokens(subject || "", ctx, {
+      clean: tokenCleanerFor(SUBJECT_SPEC) ?? undefined,
+      strictUnknown: true,
+    })
+  ).output;
   return shapeRenderedValue(SUBJECT_SPEC, rendered);
+}
+
+/**
+ * The plain-text alternative part: its own stored field, so it renders
+ * and shapes through its own declaration rather than borrowing the HTML
+ * body's.
+ */
+export async function renderEmailBodyTextForDelivery(
+  bodyText: string,
+  ctx: Parameters<typeof renderTokens>[1],
+): Promise<string> {
+  const rendered = (
+    await renderTokens(bodyText, ctx, {
+      clean: tokenCleanerFor(BODY_TEXT_SPEC) ?? undefined,
+      strictUnknown: true,
+    })
+  ).output;
+  return shapeRenderedValue(BODY_TEXT_SPEC, rendered);
 }
 
 export async function resolveEmailAddress(storage: IStorage, contactId: string): Promise<{ address: string; name?: string } | null> {
@@ -58,7 +88,7 @@ export async function deliverEmail(
   const ctx = createTokenEvalContext(storage, contactId);
   const renderedSubject = await renderEmailSubjectForDelivery(emailContent.subject || "", ctx);
   const renderedText = emailContent.bodyText
-    ? (await renderTokens(emailContent.bodyText, ctx, { strictUnknown: true })).output
+    ? await renderEmailBodyTextForDelivery(emailContent.bodyText, ctx)
     : undefined;
   const renderedHtml = emailContent.bodyHtml
     ? await renderEmailBodyHtmlForDelivery(emailContent.bodyHtml, ctx)

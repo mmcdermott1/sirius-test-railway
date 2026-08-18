@@ -4,18 +4,22 @@
  *
  * Every tokenized field previews through ONE route
  * (POST /api/template-studio/preview), which shapes each rendered field
- * according to the media type the request declares — plain text,
- * trusted HTML (escape then sanitize), safe-relative URL, or literal.
+ * according to what the request declares about it: the syntax it is
+ * written in (plain text or HTML), the safety rule its finished value
+ * must satisfy, and whether it is tokenized at all.
  *
- * A field with no declared media has no defined shaping, which means
+ * A field with no declared syntax has no defined shaping, which means
  * its preview and its delivered output can silently disagree. The
  * editors don't hand-write those declarations: they import the shared
  * field-shaping tables in `shared/delivery-fields.ts`, the same ones
  * the server's delivery paths shape with. So the tables are where the
  * agreement actually lives, and this check asserts, at author time,
  * that each one is structurally sound — every field declares a known
- * media type, keys are unique, and `blankWithout` points at a field
- * that exists in the same table.
+ * syntax (and a known safety rule, if any), keys are unique, and
+ * `blankWithout` points at a field that exists in the same table.
+ *
+ * What each destination MEANS by cleaning a token's value is checked
+ * separately, by check-token-cleaning.ts.
  *
  * (The preview route runs the very same validation over the specs a
  * caller posts, so a malformed declaration is rejected at request time
@@ -51,7 +55,12 @@ function main() {
         failures.push(`${name}.${channel}: ${problem}`);
       }
       const summary = (Array.isArray(fields) ? fields : [])
-        .map((f) => `${f.key}:${f.media}`)
+        .map(
+          (f) =>
+            `${f.key}:${f.syntax}` +
+            (f.safety ? `+${f.safety}` : "") +
+            (f.tokenized === false ? " (verbatim)" : ""),
+        )
         .join(", ");
       console.log(`  ${name}.${channel} — ${summary}`);
     }
@@ -60,7 +69,7 @@ function main() {
   console.log("");
   if (failures.length === 0) {
     console.log(
-      `PASS: ${channels} delivery channel(s), every field declares a media type`,
+      `PASS: ${channels} delivery channel(s), every field declares a syntax`,
     );
     process.exit(0);
   }

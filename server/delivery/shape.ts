@@ -12,13 +12,18 @@ import { isSafeRelativePath, type DeliveryFieldSpec } from "@shared/delivery-fie
 export {
   BULK_CHANNEL_FIELDS,
   NOTIFIER_CHANNEL_FIELDS,
-  DELIVERY_FIELD_MEDIA,
+  DELIVERY_FIELD_SYNTAX,
+  DELIVERY_FIELD_SAFETY,
   applyFieldEligibility,
   isSafeRelativePath,
+  tokenCleanerFor,
   validateDeliveryFieldSpecs,
-  type DeliveryFieldMedia,
+  type CleanedToken,
+  type DeliveryFieldSafety,
   type DeliveryFieldSpec,
+  type DeliveryFieldSyntax,
   type ShapedFields,
+  type TokenValueCleaner,
 } from "@shared/delivery-fields";
 
 /**
@@ -30,8 +35,13 @@ export {
  * Delivery code and the template studio's preview both call it, so a
  * change here can never make the two disagree.
  *
- * `literal` fields are never rendered at all (delivery sends the stored
- * value verbatim), so the caller passes the raw value through.
+ * This runs on the FINISHED string. Cleaning each token's value on its
+ * way in is a separate job with a separate owner — the container's
+ * `tokenCleanerFor` function, called during evaluation.
+ *
+ * Fields declared `tokenized: false` are never rendered at all
+ * (delivery sends the stored value verbatim), so the caller passes the
+ * raw value through.
  */
 export function shapeRenderedValue(
   spec: DeliveryFieldSpec,
@@ -39,12 +49,13 @@ export function shapeRenderedValue(
 ): string {
   let value = rendered;
   if (spec.trim) value = value.trim();
-  if (spec.media === "html") {
-    // Token values were escaped during render; the completed body then
+  if (spec.syntax === "html") {
+    // Token values were escaped on the way in; the completed body then
     // goes through the tag/attribute allowlist, because authored markup
     // can reach storage without passing the rich-text editor.
     value = sanitizeHtml(value, "rich-document");
-  } else if (spec.media === "relative-url") {
+  }
+  if (spec.safety === "relative-url") {
     // Trim first, then validate: delivery sends the trimmed URL, so a
     // padded but otherwise fine path must not preview as dropped.
     value = isSafeRelativePath(value) ? value : "";

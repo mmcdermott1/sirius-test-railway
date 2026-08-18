@@ -8,7 +8,7 @@ import {
   type TokenFieldCatalog,
   type TokenCatalogEntry,
 } from "@shared/tokens";
-import { escapeHtml } from "@shared/utils/html";
+import type { TokenValueCleaner } from "@shared/delivery-fields";
 import { getTableColumns } from "drizzle-orm";
 import type { IStorage } from "../../storage";
 import {
@@ -380,11 +380,17 @@ export interface RenderResult {
 
 export interface RenderOptions {
   /**
-   * Escape token values for safe HTML interpolation. Values from
-   * plugins that declare `emitsHtml` are inserted verbatim (the plugin
-   * is responsible for sanitizing).
+   * How the CONTAINER cleans each value on its way in.
+   *
+   * Rendering knows nothing about where the string is going: it calls
+   * this on every value it inserts, passing the value and which token
+   * produced it, and inserts whatever comes back. A caller that omits
+   * it gets the raw values.
+   *
+   * Deliberately not given the surrounding template — a token's value
+   * must not change with what the author typed around it.
    */
-  escapeHtml?: boolean;
+  clean?: TokenValueCleaner;
   /**
    * When true, invalid chains render as a visible
    * "[unknown token: …]" marker; otherwise they are left as-is.
@@ -437,10 +443,12 @@ export async function renderTokens(
         // the admin to spot a gap between two spaces.
         if (value === "") emptyValues.push(expr);
         const leaf = leafPluginFor(parsed.segments);
-        replacement =
-          options.escapeHtml && !leaf?.metadata.emitsHtml
-            ? escapeHtml(value)
-            : value;
+        replacement = options.clean
+          ? options.clean(value, {
+              id: leaf?.metadata.id ?? null,
+              emitsHtml: leaf?.metadata.emitsHtml === true,
+            })
+          : value;
       }
     }
     output += replacement;

@@ -151,7 +151,7 @@ export async function renderTemplatePreview({
 
   // ── Render ────────────────────────────────────────────────────────────────
   const { renderTokens, createTokenEvalContext } = await import("../plugins/tokens");
-  const { applyFieldEligibility, shapeRenderedValue } = await import(
+  const { applyFieldEligibility, shapeRenderedValue, tokenCleanerFor } = await import(
     "../delivery/shape"
   );
 
@@ -162,7 +162,7 @@ export async function renderTemplatePreview({
     const template = templates[spec.key];
     if (typeof template !== "string") continue;
 
-    if (spec.media === "literal") {
+    if (spec.tokenized === false) {
       // Delivery sends this field verbatim (its editor offers no token
       // insertion), so previewing a substitution would be a lie.
       fields[spec.key] = {
@@ -184,12 +184,14 @@ export async function renderTemplatePreview({
     });
     const result = await renderTokens(template, ctx, {
       strictUnknown: true,
-      escapeHtml: spec.media === "html",
+      // The destination's own cleaning function, read from the same
+      // declaration delivery reads it from.
+      clean: tokenCleanerFor(spec) ?? undefined,
     });
 
-    // Shape it the way delivery shapes it — same function delivery
-    // calls, driven by the media the caller declared from the shared
-    // delivery declarations.
+    // Shape the finished string the way delivery shapes it — same
+    // function delivery calls, driven by the declaration the caller
+    // took from the shared delivery tables.
     fields[spec.key] = {
       rendered: shapeRenderedValue(spec, result.output),
       unknownTokens: result.unknownTokens,
