@@ -16,6 +16,11 @@ import {
   type SimpleHtmlEditorApi,
 } from "@/components/ui/simple-html-editor";
 import { TokenTreeBrowser } from "./TokenTreeBrowser";
+import {
+  PreviewRecordPicker,
+  type PickableRoot,
+  type PickedPreviewRecord,
+} from "./PreviewRecordPicker";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Bell, Braces, Loader2 } from "lucide-react";
 import {
@@ -68,10 +73,17 @@ export type StudioChannel = "email" | "sms" | "inapp" | "postal" | "generic";
 
 /** One root of the render and whether it resolved real or sample data. */
 export interface StudioPreviewRootResult {
+  /** Root NAME — the segment a chain starts with (`dispatch`, `worker`). */
+  name: string;
   kind: string;
   label: string;
   recordId: string | null;
   real: boolean;
+  /**
+   * True when the author may pick a real record for this root: its kind
+   * declares how reading one is gated and that kind's component is on.
+   */
+  pickable: boolean;
 }
 
 /** A named sample persona the preview can render against. */
@@ -317,13 +329,28 @@ export function TemplateStudio({
   );
   const specsJson = JSON.stringify(specs);
   const rootNamesJson = JSON.stringify(rootNames ?? []);
-  const contextJson = JSON.stringify(previewContext ?? null);
 
   /** Which sample persona unseeded roots render as; null = the default. */
   const [sampleSetId, setSampleSetId] = useState<string | null>(null);
+  /**
+   * The real record the author picked, if any. Sample data is the
+   * default and a pick is deliberate: it is cleared whenever the studio
+   * closes, and the picker offers "use sample data instead" to drop it.
+   * A picked record REPLACES the host's own context — a preview renders
+   * against one thing, and the author's choice is that thing.
+   */
+  const [picked, setPicked] = useState<PickedPreviewRecord | null>(null);
   useEffect(() => {
-    if (!open) setSampleSetId(null);
+    if (!open) {
+      setSampleSetId(null);
+      setPicked(null);
+    }
   }, [open]);
+
+  const effectiveContext: StudioPreviewContext | undefined = picked
+    ? { entity: { kind: picked.kind, id: picked.id, rootName: picked.rootName } }
+    : previewContext;
+  const contextJson = JSON.stringify(effectiveContext ?? null);
 
   // ── Debounced preview ──────────────────────────────────────────────────────
   const valuesJson = JSON.stringify(templateValues ?? values);
@@ -363,7 +390,7 @@ export function TemplateStudio({
         values: JSON.parse(debouncedJson) as Record<string, string>,
         rootNames: rootNames ?? [],
       };
-      if (previewContext) body.context = previewContext;
+      if (effectiveContext) body.context = effectiveContext;
       if (sampleSetId) body.sampleSetId = sampleSetId;
       const res = await fetch("/api/template-studio/preview", {
         method: "POST",
@@ -434,6 +461,15 @@ export function TemplateStudio({
   // Honest sample/real reporting: a preview can mix real roots (records
   // the admin picked) with sample ones (roots left unpicked).
   const previewRoots = preview?.roots ?? [];
+  // The roots an author may pick a record for. Kept across renders so
+  // the picker doesn't blink out while a new preview is in flight.
+  const pickableRootsRef = useRef<PickableRoot[]>([]);
+  if (preview?.roots) {
+    pickableRootsRef.current = preview.roots
+      .filter((r) => r.pickable)
+      .map((r) => ({ name: r.name, kind: r.kind, label: r.label }));
+  }
+  const pickableRoots = pickableRootsRef.current;
   const realRootLabels = previewRoots.filter((r) => r.real).map((r) => r.label);
   const sampleRootLabels = previewRoots.filter((r) => !r.real).map((r) => r.label);
   // System values (this site's address, today's date) are never sampled —
@@ -673,12 +709,53 @@ export function TemplateStudio({
                   Made-up sample people. Roots with a real record behind them
                   render that record instead.
                 </p>
+                {pickableRoots.length > 0 && (
+                  <div className="pt-1.5 space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Or a real record
+                    </p>
+                    <PreviewRecordPicker
+                      roots={pickableRoots}
+                      picked={picked}
+                      onPick={setPicked}
+                    />
+                    {picked ? (
+                      <p
+                        className="text-xs text-muted-foreground"
+                        data-testid="studio-record-picked"
+                      >
+                        Previewing against a real record. Clear it to go back to
+                        sample data.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Search for a record you can already open — the surest way
+                        to catch a wrong link or date.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="min-h-0 flex-1 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-4 bg-muted/30">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live preview</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Live preview
+                    {preview && (
+                      <span
+                        className={cn(
+                          "ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal",
+                          realRootLabels.length > 0
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                        data-testid="studio-preview-data-badge"
+                      >
+                        {realRootLabels.length > 0 ? "Real record" : "Sample data"}
+                      </span>
+                    )}
+                  </p>
                   {previewLoading && (
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Loader2 className="h-3 w-3 animate-spin" /> Rendering…

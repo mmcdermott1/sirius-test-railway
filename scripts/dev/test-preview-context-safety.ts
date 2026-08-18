@@ -169,14 +169,16 @@ async function main(): Promise<void> {
   check("raw context refuses an unknown root", unknownRoot.status === 400, unknownRoot.body);
 
   // ── The entity form still fails closed ────────────────────────────────────
-  // No token kind declares how a preview read of it is gated, so no kind
-  // may be named yet. A kind that starts declaring one gets the gate,
-  // never an exemption.
+  // `address` is a real token entity kind that no root accepts and that
+  // declares nothing about how a preview read of it is gated, so it
+  // cannot be named at all — silence means "not previewable", never
+  // "open". (The per-kind declaration check itself is asserted directly
+  // in `test-preview-record-access.ts`.)
   const entity = await preview({
     fields: textField,
     values: { subject: "x" },
     context: {
-      entity: { kind: "contact", id: "00000000-0000-0000-0000-000000000000" },
+      entity: { kind: "address", id: "00000000-0000-0000-0000-000000000000" },
     },
   });
   check("entity context fails closed for an undeclared kind", entity.status === 400, entity.body);
@@ -186,7 +188,7 @@ async function main(): Promise<void> {
     values: { subject: "x" },
     context: {
       roots: { contact: { displayName: "x" } },
-      entity: { kind: "contact", id: "00000000-0000-0000-0000-000000000000" },
+      entity: { kind: "address", id: "00000000-0000-0000-0000-000000000000" },
     },
   });
   check("a context cannot be both forms at once", both.status === 400, both.body);

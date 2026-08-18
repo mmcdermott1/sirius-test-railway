@@ -72,6 +72,47 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: "edls",
     sampleSets: EDLS_SHEET_SAMPLE_SETS,
+    // A sheet has its own entity-scoped view policy, which is what the
+    // sheet page reads it behind; preview runs it per sheet.
+    previewEntity: {
+      gate: { scope: "record", policy: "edls.sheet.view" },
+      async search(storage, query, limit) {
+        const { edlsStatusLabel, edlsSheetDisplayTitle } = await import(
+          "../../event-notifier/plugins/edls-sheet-status-notifier"
+        );
+        const rows = await storage.edlsSheets.searchForPreview(query, limit);
+        return rows.map((row) => ({
+          id: row.id,
+          label: edlsSheetDisplayTitle(row.id, row.title),
+          hint: [edlsStatusLabel(row.status), row.ymd].filter(Boolean).join(" — "),
+        }));
+      },
+      async load(storage, id) {
+        // The notifier owns the derived wording; a preview that composed
+        // it separately would drift from what delivery actually sends.
+        const { edlsStatusLabel, edlsSheetDisplayTitle, edlsYmdDisplay } =
+          await import(
+            "../../event-notifier/plugins/edls-sheet-status-notifier"
+          );
+        const row = await storage.edlsSheets.get(id);
+        if (!row) return null;
+        const displayTitle = edlsSheetDisplayTitle(row.id, row.title);
+        return {
+          entity: {
+            kind: EDLS_SHEET_ENTITY_KIND,
+            row: {
+              ...(row as unknown as Record<string, unknown>),
+              display_title: displayTitle,
+              status_label: edlsStatusLabel(row.status),
+              ymd_display: edlsYmdDisplay(row.ymd),
+              worker_count: String(row.workerCount),
+            },
+            table: edlsSheets,
+          },
+          label: displayTitle,
+        };
+      },
+    },
   },
   async resolve() {
     return null;

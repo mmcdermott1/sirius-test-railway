@@ -1,0 +1,42 @@
+---
+name: Real-record preview gating per token entity kind
+description: How a token entity kind declares who may read one of its records for template preview, and why the declaration (not the offer list) is the authorization.
+---
+
+# Real-record preview is gated by the kind, per record
+
+Previewing a template against a real record is a READ of that record. The token
+plugin that owns the entity kind declares how such a read is authorized, and the
+picker enforces that declaration on BOTH paths: every search result and every
+load-by-id.
+
+## The rule
+- No declaration ⇒ the kind is not previewable at all. Silence is never "open",
+  so adding a token entity kind does not quietly add a way to read its records.
+- Two gate shapes, because the app has two: an ENTITY-scoped policy asked per
+  record (on the subject id the record yields — an availability row is read as a
+  read of its worker), and a broad ROUTE gate (role + component, no id) for kinds
+  whose pages have no per-record policy. Preview mirrors whichever the app
+  already uses; it never invents a stricter or looser rule.
+- A record-scoped gate with no subject id REFUSES rather than falling back to the
+  policy's id-less behaviour.
+- Component checks stay in force: a switched-off component's kind lists nothing.
+
+**Why:** the earlier design offered a fixed short list of recent records and the
+OFFER LIST itself was the authorization — which is why it could allow neither
+search nor load-by-id. Once authorization belongs to the record, both are safe
+and the arbitrary limit is pointless.
+
+**How to apply:** an author-time check validates every declaration (policy
+exists, its registered scope matches the declared gate scope, search and load
+both present) because a wrong policy id only ever looks like a permissions
+problem at runtime. Keep the per-record check injectable so enforcement can be
+tested without standing up users and policies.
+
+## Derived fields on a picked record
+A load must reproduce the row DELIVERY builds, extras included (status labels,
+display-title fallbacks), through the same shared helper — otherwise the preview
+renders something delivery never sends. Extras that only exist at event time
+(an added/removed action, a created/updated/deleted operation) have no truthful
+value for a standing record; the picker shows the wording of the event that
+brought the record into being.

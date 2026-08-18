@@ -47,10 +47,36 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: T631_INTERVIEW_SAMPLE_SETS,
-    // A few real interviews a surface may OFFER as preview subjects
-    // (there is no search and no load-by-id — a template author is not
-    // entitled to name an arbitrary record). Declared once with the
-    // entity kind, never per surface; gated on the interviews component.
+    // Interviews have no entity-scoped view policy: the interviews page
+    // is gated `admin` plus the interviews component, with no interview
+    // id passed. Preview enforces that same gate.
+    previewEntity: {
+      gate: { scope: "route", policy: "admin" },
+      async search(storage, query, limit) {
+        const rows = await storage.t631Interviews.searchForPicker(query, limit);
+        return rows.map((row) => ({
+          id: row.id,
+          label: `${row.workerName ?? "Unknown worker"} — ${row.jobTitle}`,
+          hint: previewStatusLabel(row.status),
+        }));
+      },
+      async load(storage, id) {
+        const row = await storage.t631Interviews.get(id);
+        if (!row) return null;
+        const workerName = await storage.workers.getWorkerDisplayName(
+          row.workerId,
+        );
+        const job = await storage.dispatchJobs.get(row.jobId);
+        return {
+          entity: {
+            kind: T631_INTERVIEW_ENTITY_KIND,
+            row: row as unknown as Record<string, unknown>,
+            table: sitespecificT631JobInterviews,
+          },
+          label: `${workerName} — ${job?.title ?? "Untitled job"} (${previewStatusLabel(row.status)})`,
+        };
+      },
+    },
   },
   async resolve() {
     return null;

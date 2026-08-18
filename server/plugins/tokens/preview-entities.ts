@@ -5,17 +5,20 @@ import type {
   TokenEntity,
   TokenEntityType,
   TokenPreviewEntitySource,
+  TokenPreviewGate,
+  TokenPreviewRecordRef,
 } from "./types";
 
 /**
- * Which token entity kinds may stand behind a preview context, and how
- * reading one of their records is gated.
+ * Which token entity kinds may stand behind a preview context, how
+ * reading one of their records is gated, and how an author finds one.
  *
  * Previewing a template against a real record is a READ of that record.
  * It is therefore gated exactly like any other read of it: the kind's
- * owning token plugin declares the access policy, and the same id is
- * both checked and loaded, so the check can never end up guarding a
- * different record than the one seeded.
+ * owning token plugin declares how a read is authorized, and BOTH the
+ * picker's search results and the load-by-id run that same gate on the
+ * same subject id the record yields — so the check can never end up
+ * guarding a different record than the one seeded.
  *
  * FAIL CLOSED: a kind with no declaration cannot be used as a preview
  * context at all. Adding a token entity kind therefore does not quietly
@@ -77,13 +80,166 @@ export function listTokenPreviewEntityKinds(): TokenEntityType[] {
   return [...collectPreviewEntities().keys()].sort();
 }
 
+/** What a kind declares, for the author-time gating check. */
+export function describeTokenPreviewEntities(): Array<{
+  kind: TokenEntityType;
+  pluginId: string;
+  gate: TokenPreviewGate;
+  requiredComponent?: string;
+  hasSearch: boolean;
+  hasLoad: boolean;
+}> {
+  return [...collectPreviewEntities().entries()]
+    .map(([kind, entry]) => ({
+      kind,
+      pluginId: entry.pluginId,
+      gate: entry.source.gate,
+      requiredComponent: entry.requiredComponent,
+      hasSearch: typeof entry.source.search === "function",
+      hasLoad: typeof entry.source.load === "function",
+    }))
+    .sort((a, b) => a.kind.localeCompare(b.kind));
+}
+
+/**
+ * The per-record read check.
+ *
+ * Injectable so the enforcement itself can be tested against a caller
+ * whose permissions are known, without standing up a user and a policy
+ * registry. Production always uses `checkAccessInline`, which is the
+ * very evaluator every other read of these records goes through.
+ */
+export type TokenPreviewAccessCheck = (
+  policy: string,
+  entityId?: string,
+) => Promise<{ granted: boolean; reason?: string }>;
+
+export interface TokenPreviewContext {
+  storage: IStorage;
+  req: Request;
+  /** Test seam — see {@link TokenPreviewAccessCheck}. */
+  checkAccess?: TokenPreviewAccessCheck;
+}
+
+function accessChecker(ctx: TokenPreviewContext): TokenPreviewAccessCheck {
+  if (ctx.checkAccess) return ctx.checkAccess;
+  return async (policy, entityId) => {
+    const { checkAccessInline } = await import(
+      "../../services/access-policy-evaluator"
+    );
+    return checkAccessInline(ctx.req, policy, entityId);
+  };
+}
+
+/** Component state — the same gate that hides a switched-off kind today. */
+async function componentAllows(
+  entry: RegisteredPreviewEntity,
+): Promise<boolean> {
+  if (!entry.requiredComponent) return true;
+  const { isComponentEnabled } = await import("../../modules/components");
+  return isComponentEnabled(entry.requiredComponent);
+}
+
+/**
+ * Run a kind's gate for one record.
+ *
+ * A `route` gate carries no id — it is the broad page gate — so it is
+ * asked once and the answer applies to every record of the kind. A
+ * `record` gate is asked per record, on the subject id that record
+ * yields.
+ */
+async function gateAllows(
+  gate: TokenPreviewGate,
+  check: TokenPreviewAccessCheck,
+  subjectId: string | undefined,
+  routeAnswer?: { granted: boolean; reason?: string },
+): Promise<{ granted: boolean; reason?: string }> {
+  if (gate.scope === "route") {
+    return routeAnswer ?? check(gate.policy);
+  }
+  // A record-scoped policy with nothing to evaluate against would fall
+  // back to the policy's id-less behaviour, which for these policies is
+  // "load nothing, grant nothing sensible" — refuse instead of guessing.
+  if (!subjectId) {
+    return { granted: false, reason: "Record has nothing to authorize against" };
+  }
+  return check(gate.policy, subjectId);
+}
+
+export type TokenPreviewSearchResult =
+  | { ok: true; records: TokenPreviewRecordRef[] }
+  | { ok: false; status: number; message: string };
+
+/**
+ * The picker's search: records of one kind the caller may actually
+ * read.
+ *
+ * The gate runs over the candidates the kind's own search returned, so
+ * a record the caller cannot open elsewhere in the app never appears
+ * here either. Over-fetching then filtering is deliberate: the search
+ * queries know how to find records, and the gate knows who may see
+ * them; keeping those two jobs apart is what stops a kind from
+ * hand-rolling its own idea of authorization.
+ */
+export async function searchTokenPreviewRecords(
+  kind: TokenEntityType,
+  query: string,
+  limit: number,
+  ctx: TokenPreviewContext,
+): Promise<TokenPreviewSearchResult> {
+  const entry = collectPreviewEntities().get(kind);
+  if (!entry) {
+    return {
+      ok: false,
+      status: 400,
+      message: `Records of kind "${kind}" cannot be used as a preview context`,
+    };
+  }
+  if (!(await componentAllows(entry))) {
+    // Same answer a switched-off component gives everywhere else: the
+    // kind simply offers nothing.
+    return { ok: true, records: [] };
+  }
+
+  const check = accessChecker(ctx);
+  const gate = entry.source.gate;
+  if (gate.scope === "route") {
+    const answer = await check(gate.policy);
+    if (!answer.granted) return { ok: true, records: [] };
+    const candidates = await entry.source.search(ctx.storage, query, limit);
+    return { ok: true, records: candidates.slice(0, limit) };
+  }
+
+  // Record-scoped: ask for more than we need, since the gate will drop
+  // some, and keep the first `limit` the caller may read.
+  const candidates = await entry.source.search(
+    ctx.storage,
+    query,
+    Math.min(limit * 4, 200),
+  );
+  const verdicts = await Promise.all(
+    candidates.map((record) =>
+      gateAllows(gate, check, record.gateEntityId ?? record.id).then(
+        (r) => r.granted,
+      ),
+    ),
+  );
+  const records = candidates.filter((_, i) => verdicts[i]).slice(0, limit);
+  return { ok: true, records };
+}
+
 export type TokenPreviewEntityResult =
-  | { ok: true; entity: TokenEntity }
+  | { ok: true; entity: TokenEntity; label: string }
   | { ok: false; status: number; message: string };
 
 /**
  * Resolve one named record into the entity a preview can be seeded
  * with, refusing at the first thing that isn't allowed.
+ *
+ * The record is loaded before the record-scoped gate runs, because the
+ * subject the gate asks about lives ON the record (a status entry is
+ * read as a read of its grievance). Nothing loaded is ever handed back
+ * until the gate says yes.
  *
  * Returns a result rather than throwing so the calling route decides
  * the HTTP shape; every refusal is a refusal, never a silent fallback
@@ -93,7 +249,7 @@ export type TokenPreviewEntityResult =
 export async function resolveTokenPreviewEntity(
   kind: TokenEntityType,
   id: string,
-  ctx: { storage: IStorage; req: Request },
+  ctx: TokenPreviewContext,
 ): Promise<TokenPreviewEntityResult> {
   const entry = collectPreviewEntities().get(kind);
   if (!entry) {
@@ -103,33 +259,62 @@ export async function resolveTokenPreviewEntity(
       message: `Records of kind "${kind}" cannot be used as a preview context`,
     };
   }
-  if (entry.requiredComponent) {
-    const { isComponentEnabled } = await import("../../modules/components");
-    if (!(await isComponentEnabled(entry.requiredComponent))) {
+  if (!(await componentAllows(entry))) {
+    return {
+      ok: false,
+      status: 400,
+      message: `Records of kind "${kind}" cannot be used as a preview context`,
+    };
+  }
+
+  const check = accessChecker(ctx);
+  const gate = entry.source.gate;
+
+  // A route gate has no subject, so it can be answered before anything
+  // is read at all.
+  if (gate.scope === "route") {
+    const answer = await check(gate.policy);
+    if (!answer.granted) {
       return {
         ok: false,
-        status: 400,
-        message: `Records of kind "${kind}" cannot be used as a preview context`,
+        status: 403,
+        message: answer.reason || "You may not preview against that record",
       };
     }
   }
 
-  // The read gate, against the very id that is about to be loaded.
-  const { checkAccessInline } = await import(
-    "../../services/access-policy-evaluator"
-  );
-  const access = await checkAccessInline(ctx.req, entry.source.policy, id);
-  if (!access.granted) {
-    return {
-      ok: false,
-      status: 403,
-      message: access.reason || "You may not preview against that record",
-    };
-  }
-
-  const entity = await entry.source.load(ctx.storage, id);
-  if (!entity) {
+  const loaded = await entry.source.load(ctx.storage, id);
+  if (!loaded) {
     return { ok: false, status: 404, message: "Record not found" };
   }
-  return { ok: true, entity };
+
+  if (gate.scope === "record") {
+    const answer = await gateAllows(
+      gate,
+      check,
+      loaded.gateEntityId ?? id,
+    );
+    if (!answer.granted) {
+      return {
+        ok: false,
+        status: 403,
+        message: answer.reason || "You may not preview against that record",
+      };
+    }
+  }
+
+  return { ok: true, entity: loaded.entity, label: loaded.label };
+}
+
+/**
+ * Kinds a caller may currently pick a record for: declared, and their
+ * component switched on. What the caller may READ is decided per record
+ * by the gate — this only says which kinds have a picker at all.
+ */
+export async function listPickableTokenPreviewKinds(): Promise<Set<TokenEntityType>> {
+  const out = new Set<TokenEntityType>();
+  for (const [kind, entry] of collectPreviewEntities()) {
+    if (await componentAllows(entry)) out.add(kind);
+  }
+  return out;
 }

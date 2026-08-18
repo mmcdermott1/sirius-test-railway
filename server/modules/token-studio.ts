@@ -312,6 +312,55 @@ export function registerTokenStudioRoutes(
   );
 
   /**
+   * The preview record picker: `?kind=worker&q=jane&limit=20`.
+   *
+   * Returns real records of ONE token entity kind that THIS caller may
+   * read — the kind's own `previewEntity` declaration says how a read is
+   * gated, and every candidate is checked against it before it is
+   * listed, so the picker can never advertise a record its owner could
+   * not open elsewhere in the app. An undeclared kind, or one whose
+   * component is switched off, offers nothing.
+   *
+   * Staff-gated like the preview route itself; the per-record check is
+   * what actually decides what comes back.
+   */
+  app.get(
+    "/api/template-studio/preview-records",
+    requireAuth,
+    requireAccess("staff"),
+    async (req: Request, res: Response) => {
+      try {
+        const kind = typeof req.query.kind === "string" ? req.query.kind : "";
+        if (!kind) {
+          return res.status(400).json({ message: "A record search needs a kind" });
+        }
+        const q = typeof req.query.q === "string" ? req.query.q : "";
+        const rawLimit = Number(req.query.limit);
+        const limit =
+          Number.isFinite(rawLimit) && rawLimit > 0
+            ? Math.min(Math.floor(rawLimit), 50)
+            : 20;
+
+        const { searchTokenPreviewRecords } = await import(
+          "../plugins/tokens/preview-entities"
+        );
+        const result = await searchTokenPreviewRecords(kind, q, limit, {
+          storage,
+          req,
+        });
+        if (!result.ok) {
+          return res.status(result.status).json({ message: result.message });
+        }
+        res.json({ records: result.records });
+      } catch (error: any) {
+        res
+          .status(500)
+          .json({ message: error.message || "Failed to search records" });
+      }
+    },
+  );
+
+  /**
    * THE preview route. POST body (JSON):
    *   `fields` — the fields being previewed and how DELIVERY shapes
    *     each one, taken from the shared delivery declarations in

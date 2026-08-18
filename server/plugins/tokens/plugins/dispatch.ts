@@ -154,6 +154,33 @@ registerTokenPlugin({
     requiredComponent: COMPONENT,
     defaultLeaf: "title",
     sampleSets: DISPATCH_JOB_SAMPLE_SETS,
+    // A dispatch job has no entity-scoped view policy: every page that
+    // reads one is gated `admin` plus the dispatch component, with no
+    // job id passed. Preview enforces exactly that gate — inventing a
+    // per-job rule here would make preview disagree with the job pages.
+    previewEntity: {
+      gate: { scope: "route", policy: "admin" },
+      async search(storage, query, limit) {
+        const jobs = await storage.dispatchJobs.searchForPreview(query, limit);
+        return jobs.map((job) => ({
+          id: job.id,
+          label: `${job.title} — ${job.startYmd}`,
+          hint: job.employerName ?? undefined,
+        }));
+      },
+      async load(storage, id) {
+        const row = await storage.dispatchJobs.get(id);
+        if (!row) return null;
+        return {
+          entity: {
+            kind: DISPATCH_JOB_ENTITY_KIND,
+            row: row as unknown as Record<string, unknown>,
+            table: dispatchJobs,
+          },
+          label: `${row.title} — ${row.startYmd}`,
+        };
+      },
+    },
   },
   async resolve(entity, _args, ctx) {
     const e = tokenEntityOf(entity, DISPATCH_FORE_ENTITY_KIND);
@@ -221,6 +248,57 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: DISPATCH_WORKER_STATUS_SAMPLE_SETS,
+    // An availability row is read as a read of its WORKER (`worker.view`
+    // on the worker id, plus the dispatch component) — the row has no
+    // policy of its own, so the gate subject is the worker, not the row.
+    previewEntity: {
+      gate: { scope: "record", policy: "worker.view" },
+      async search(_storage, query, limit) {
+        // Availability rows are their own storage module, not part of
+        // IStorage — the same one the notifier reads them through.
+        const [{ dispatchStatusLabel }, { createWorkerDispatchStatusStorage }] =
+          await Promise.all([
+            import("../../event-notifier/plugins/dispatch-status-notifier"),
+            import("../../../storage/dispatch/worker-status"),
+          ]);
+        const rows = await createWorkerDispatchStatusStorage().searchForPreview(
+          query,
+          limit,
+        );
+        return rows.map((row) => ({
+          id: row.id,
+          gateEntityId: row.workerId,
+          label: row.workerName || "Unnamed worker",
+          hint: dispatchStatusLabel(row.status),
+        }));
+      },
+      async load(storage, id) {
+        // The notifier owns the derived wording; composing it separately
+        // here would drift from what delivery actually sends.
+        const [{ dispatchStatusLabel }, { createWorkerDispatchStatusStorage }] =
+          await Promise.all([
+            import("../../event-notifier/plugins/dispatch-status-notifier"),
+            import("../../../storage/dispatch/worker-status"),
+          ]);
+        const row = await createWorkerDispatchStatusStorage().get(id);
+        if (!row) return null;
+        const workerName = await storage.workers.getWorkerDisplayName(
+          row.workerId,
+        );
+        return {
+          entity: {
+            kind: DISPATCH_WORKER_STATUS_ENTITY_KIND,
+            row: {
+              ...(row as unknown as Record<string, unknown>),
+              statusLabel: dispatchStatusLabel(row.status),
+            },
+            table: workerDispatchStatus,
+          },
+          label: `${workerName} — ${dispatchStatusLabel(row.status)}`,
+          gateEntityId: row.workerId,
+        };
+      },
+    },
   },
   async resolve() {
     return null;
@@ -306,6 +384,49 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: "dispatch.fore",
     sampleSets: DISPATCH_FORE_SAMPLE_SETS,
+    // A membership row is read as a read of the WORKER named as
+    // foreperson (`worker.view` on the worker id, plus the fore
+    // component).
+    previewEntity: {
+      gate: { scope: "record", policy: "worker.view" },
+      async search(storage, query, limit) {
+        const rows = await storage.dispatchJobFore.searchForPreview(query, limit);
+        return rows.map((row) => ({
+          id: row.id,
+          gateEntityId: row.workerId,
+          label: row.workerName || "Unnamed worker",
+          hint: [row.jobTitle || "Untitled job", row.employerName]
+            .filter(Boolean)
+            .join(" — "),
+        }));
+      },
+      async load(storage, id) {
+        const row = await storage.dispatchJobFore.get(id);
+        if (!row) return null;
+        const [workerName, job] = await Promise.all([
+          storage.workers.getWorkerDisplayName(row.workerId),
+          storage.dispatchJobs.get(row.jobId),
+        ]);
+        return {
+          entity: {
+            kind: DISPATCH_FORE_ENTITY_KIND,
+            row: {
+              ...(row as unknown as Record<string, unknown>),
+              // The membership exists, so the event it stands for is the
+              // one that added it — the same wording the picker has
+              // always shown for a record that is currently in place.
+              action: "added",
+              actionLabel: "Added",
+            },
+            table: dispatchJobFore,
+          },
+          label: [workerName, job?.title || "Untitled job"]
+            .filter(Boolean)
+            .join(" — "),
+          gateEntityId: row.workerId,
+        };
+      },
+    },
   },
   async resolve() {
     return null;

@@ -11,7 +11,7 @@ import {
   type DispatchJobFore,
   type InsertDispatchJobFore,
 } from "@shared/schema";
-import { eq, and, notExists, asc, desc } from "drizzle-orm";
+import { eq, and, notExists, asc, desc, sql } from "drizzle-orm";
 import { defineLoggingConfig } from "../middleware/logging";
 import { eventBus, EventType } from "../../services/event-bus";
 
@@ -61,12 +61,15 @@ export interface DispatchJobForeWithNames extends DispatchJobFore {
 export interface DispatchJobForeStorage {
   getByJob(jobId: string): Promise<DispatchJobForeWithWorker[]>;
   /**
-   * A handful of foreperson rows across all jobs, for offering real records
-   * as template-preview subjects. The table carries no created-at column, so
-   * "recent" means the most recently starting jobs (newest job start date
-   * first).
+   * Foreperson rows across all jobs matching `query` (worker name, job
+   * title or employer name; empty matches every row), for the Template
+   * Studio's record picker. The table carries no created-at column, so
+   * ordering is by the most recently starting jobs.
    */
-  listForPreview(limit: number): Promise<DispatchJobForeWithNames[]>;
+  searchForPreview(
+    query: string,
+    limit: number,
+  ): Promise<DispatchJobForeWithNames[]>;
   /** Foreperson rows for a worker joined with job and employer info. Read-only. */
   getByWorker(workerId: string): Promise<DispatchJobForeWithJob[]>;
   get(id: string): Promise<DispatchJobFore | undefined>;
@@ -202,8 +205,13 @@ export function createDispatchJobForeStorage(): DispatchJobForeStorage {
       }));
     },
 
-    async listForPreview(limit: number): Promise<DispatchJobForeWithNames[]> {
+    async searchForPreview(
+      query: string,
+      limit: number,
+    ): Promise<DispatchJobForeWithNames[]> {
       const client = getClient();
+      const trimmed = query.trim();
+      const term = `%${trimmed}%`;
       return client
         .select({
           id: dispatchJobFore.id,
@@ -219,6 +227,11 @@ export function createDispatchJobForeStorage(): DispatchJobForeStorage {
         .leftJoin(employers, eq(dispatchJobs.employerId, employers.id))
         .leftJoin(workers, eq(dispatchJobFore.workerId, workers.id))
         .leftJoin(contacts, eq(workers.contactId, contacts.id))
+        .where(
+          trimmed
+            ? sql`(${contacts.displayName} ILIKE ${term} OR ${dispatchJobs.title} ILIKE ${term} OR ${employers.name} ILIKE ${term})`
+            : undefined,
+        )
         .orderBy(desc(dispatchJobs.startYmd))
         .limit(limit);
     },

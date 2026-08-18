@@ -134,11 +134,12 @@ export interface EdlsSheetsStorage {
   getWithRelations(id: string): Promise<EdlsSheetWithRelations | undefined>;
   getByEmployer(employerId: string): Promise<EdlsSheet[]>;
   /**
-   * A small, most-recent-first slice of sheets for Template Studio preview
-   * subject selection. Ordered by ymd descending (most recent sheet date
-   * first), then by id for a stable tie-break. Excludes trashed sheets.
+   * Sheets matching `query` (title or id prefix; empty matches every
+   * sheet), for the Template Studio's record picker. Ordered by ymd
+   * descending (most recent sheet date first), then by id for a stable
+   * tie-break. Excludes trashed sheets.
    */
-  listForPreview(limit: number): Promise<EdlsSheet[]>;
+  searchForPreview(query: string, limit: number): Promise<EdlsSheet[]>;
   /**
    * Creates a sheet with its crews. Crews are required on create.
    * Validates that sheet.workerCount === sum of crew.workerCount.
@@ -431,12 +432,20 @@ export function createEdlsSheetsStorage(): EdlsSheetsStorage {
         .orderBy(desc(edlsSheets.ymd));
     },
 
-    async listForPreview(limit: number): Promise<EdlsSheet[]> {
+    async searchForPreview(query: string, limit: number): Promise<EdlsSheet[]> {
       const client = getClient();
+      const trimmed = query.trim();
+      const term = `%${trimmed}%`;
+      const match = trimmed
+        ? sql`(${edlsSheets.title} ILIKE ${term} OR ${edlsSheets.ymd} ILIKE ${term} OR ${edlsSheets.id}::text ILIKE ${term})`
+        : undefined;
+      const where = match
+        ? and(ne(edlsSheets.status, "trash"), match)
+        : ne(edlsSheets.status, "trash");
       return client
         .select()
         .from(edlsSheets)
-        .where(ne(edlsSheets.status, "trash"))
+        .where(where)
         .orderBy(desc(edlsSheets.ymd), desc(edlsSheets.id))
         .limit(limit);
     },

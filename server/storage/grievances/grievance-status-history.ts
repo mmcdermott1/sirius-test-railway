@@ -1,13 +1,15 @@
 import { getClient, runInTransaction, onAfterCommit } from "../transaction-context";
 import {
   grievances,
+  grievanceNameDenorm,
   grievanceStatusHistory,
+  optionsGrievanceCategory,
   optionsGrievanceStatus,
   TIMELINE_ADJUSTMENT_DATA_KEY,
   type GrievanceStatusHistory,
   type GrievanceTimelineAdjustment,
 } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { type StorageLoggingConfig } from "../middleware/logging";
 import { eventBus, EventType } from "../../services/event-bus";
 
@@ -94,6 +96,17 @@ export interface GrievanceStatusHistoryItem extends GrievanceStatusHistory {
 }
 
 /**
+ * A status entry plus the two parts its grievance's display title is
+ * composed from, so a caller listing entries across grievances can name
+ * the grievance each one is on without an N+1 per row.
+ */
+export interface GrievanceStatusHistoryPreviewItem
+  extends GrievanceStatusHistoryItem {
+  grievanceName: string | null;
+  grievanceCategoryName: string | null;
+}
+
+/**
  * Storage for a grievance's status history. Owned by the `grievance`
  * component. The grievance's current status is derived, not stored on the
  * grievance row: the history entry with the latest `date` is current.
@@ -107,15 +120,25 @@ export interface GrievanceStatusHistoryItem extends GrievanceStatusHistory {
 export interface GrievanceStatusHistoryStorage {
   list(grievanceId: string): Promise<GrievanceStatusHistoryItem[]>;
   /**
-   * The `limit` most recent status entries across ALL grievances, newest
-   * first by entry date. Read-only; used to offer real records as
-   * template-preview subjects.
+   * Status entries across ALL grievances matching `query` (grievance
+   * name or status name; empty matches every entry), newest first by
+   * entry date, with the parts their grievance's display title is
+   * composed from. Read-only; feeds the Template Studio record picker.
    */
-  listForPreview(limit: number): Promise<GrievanceStatusHistoryItem[]>;
+  searchForPreview(
+    query: string,
+    limit: number,
+  ): Promise<GrievanceStatusHistoryPreviewItem[]>;
   get(
     grievanceId: string,
     entryId: string,
   ): Promise<GrievanceStatusHistory | undefined>;
+  /**
+   * One entry by its own id, without knowing which grievance it is on —
+   * the grievance id comes back ON the row. For callers holding only an
+   * entry id (the preview picker hands back what it listed).
+   */
+  getById(entryId: string): Promise<GrievanceStatusHistory | undefined>;
   create(
     grievanceId: string,
     data: { statusId: string; date: Date; data?: unknown },
@@ -213,8 +236,13 @@ export function createGrievanceStatusHistoryStorage(): GrievanceStatusHistorySto
       return rows;
     },
 
-    async listForPreview(limit: number): Promise<GrievanceStatusHistoryItem[]> {
+    async searchForPreview(
+      query: string,
+      limit: number,
+    ): Promise<GrievanceStatusHistoryPreviewItem[]> {
       const client = getClient();
+      const trimmed = query.trim();
+      const term = `%${trimmed}%`;
       return client
         .select({
           id: grievanceStatusHistory.id,
@@ -225,14 +253,42 @@ export function createGrievanceStatusHistoryStorage(): GrievanceStatusHistorySto
           data: grievanceStatusHistory.data,
           statusName: optionsGrievanceStatus.name,
           statusOpen: optionsGrievanceStatus.open,
+          grievanceName: grievanceNameDenorm.name,
+          grievanceCategoryName: optionsGrievanceCategory.name,
         })
         .from(grievanceStatusHistory)
         .leftJoin(
           optionsGrievanceStatus,
           eq(grievanceStatusHistory.statusId, optionsGrievanceStatus.id),
         )
+        .leftJoin(
+          grievanceNameDenorm,
+          eq(grievanceStatusHistory.grievanceId, grievanceNameDenorm.grievanceId),
+        )
+        .leftJoin(
+          grievances,
+          eq(grievanceStatusHistory.grievanceId, grievances.id),
+        )
+        .leftJoin(
+          optionsGrievanceCategory,
+          eq(grievances.categoryId, optionsGrievanceCategory.id),
+        )
+        .where(
+          trimmed
+            ? sql`(${grievanceNameDenorm.name} ILIKE ${term} OR ${optionsGrievanceStatus.name} ILIKE ${term})`
+            : undefined,
+        )
         .orderBy(desc(grievanceStatusHistory.date))
         .limit(limit);
+    },
+
+    async getById(entryId: string): Promise<GrievanceStatusHistory | undefined> {
+      const client = getClient();
+      const [row] = await client
+        .select()
+        .from(grievanceStatusHistory)
+        .where(eq(grievanceStatusHistory.id, entryId));
+      return row || undefined;
     },
 
     async get(

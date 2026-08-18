@@ -70,6 +70,14 @@ const CONTACT_SAMPLE_SETS = [
   },
 ];
 
+/** Name parts, for a contact whose display name was never composed. */
+function contactFallbackName(row: {
+  given: string | null;
+  family: string | null;
+}): string {
+  return [row.given, row.family].filter(Boolean).join(" ").trim();
+}
+
 /** Root: {{contact...}} — the recipient's full contact record. */
 registerTokenPlugin({
   metadata: {
@@ -83,6 +91,33 @@ registerTokenPlugin({
     defaultLeaf: "display_name",
     recipientRooted: true,
     sampleSets: CONTACT_SAMPLE_SETS,
+    // Previewing against a real person is a read of that person's
+    // contact record, so it runs the contact's own entity view policy —
+    // per record, exactly as opening the contact elsewhere does.
+    previewEntity: {
+      gate: { scope: "record", policy: "contact.view" },
+      async search(storage, query, limit) {
+        const rows = await storage.contacts.searchWithPrimaryContactInfo(
+          query,
+          limit,
+        );
+        return rows.map((row) => ({
+          id: row.id,
+          label: row.displayName || contactFallbackName(row) || `Contact ${row.id.slice(0, 8)}`,
+          hint: row.email ?? undefined,
+        }));
+      },
+      async load(storage, id) {
+        const row = await storage.bulkTokens.getContactRow(id);
+        if (!row) return null;
+        return {
+          entity: { kind: "contact", row, table: contacts },
+          label:
+            (typeof row.displayName === "string" && row.displayName) ||
+            `Contact ${id.slice(0, 8)}`,
+        };
+      },
+    },
   },
   async resolve(_entity, _args, ctx) {
     // A seeded contact wins; otherwise the root means "the recipient".

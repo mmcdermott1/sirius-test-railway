@@ -43,6 +43,30 @@ registerTokenPlugin({
     defaultLeaf: "name",
     recipientRooted: true,
     sampleSets: EMPLOYER_SAMPLE_SETS,
+    // The employer detail page reads an employer behind
+    // `employer.steward.view`; preview enforces that same policy per
+    // employer rather than inventing a stricter or looser one.
+    previewEntity: {
+      gate: { scope: "record", policy: "employer.steward.view" },
+      async search(storage, query, limit) {
+        const rows = await storage.employers.searchByName(query, limit);
+        return rows.map((row) => ({
+          id: row.id,
+          label: row.name || `Employer ${row.id.slice(0, 8)}`,
+          hint: row.siriusId ?? undefined,
+        }));
+      },
+      async load(storage, id) {
+        const row = await storage.bulkTokens.getEmployerRow(id);
+        if (!row) return null;
+        return {
+          entity: { kind: "employer", row, table: employers },
+          label:
+            (typeof row.name === "string" && row.name) ||
+            `Employer ${id.slice(0, 8)}`,
+        };
+      },
+    },
   },
   async resolve(_entity, _args, ctx) {
     // A seeded employer wins; otherwise the root means "the recipient's

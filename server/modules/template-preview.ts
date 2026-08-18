@@ -30,6 +30,13 @@ export interface TemplatePreviewRoot {
   /** The record this root was previewed against, when one was seeded. */
   recordId: string | null;
   /**
+   * True when an author may pick a real record for this root: its kind
+   * declares how reading one is gated AND that kind's component is on.
+   * Whether this particular author may read any given record is decided
+   * per record, when the picker searches.
+   */
+  pickable: boolean;
+  /**
    * True when this root rendered real data — a seeded record, or (for
    * recipient-rooted roots) the recipient contact.
    */
@@ -137,11 +144,17 @@ export async function renderTemplatePreview({
     contactId ??
     (typeof seededContact?.row.id === "string" ? seededContact.row.id : undefined);
 
+  const { listPickableTokenPreviewKinds } = await import(
+    "../plugins/tokens/preview-entities"
+  );
+  const pickableKinds = await listPickableTokenPreviewKinds();
+
   const previewRoots: TemplatePreviewRoot[] = availableRoots.map((root) => ({
     name: root.name,
     kind: root.kind,
     label: root.label,
     recordId: rootRecordId(seeds, root.name),
+    pickable: pickableKinds.has(root.kind),
     real:
       seeds.some((seed) => seed.name === root.name) ||
       (root.recipientRooted && Boolean(recipientContactId)),

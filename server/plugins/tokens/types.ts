@@ -41,14 +41,62 @@ export interface TokenRootSeed {
 }
 
 /**
+ * How reading ONE record of a token entity kind is authorized.
+ *
+ * There is no shared "may this user read an entity of kind K" resolver
+ * in the codebase, and the two ways a read is gated today are genuinely
+ * different shapes, so each kind says which one it is:
+ *
+ *  - `record` — an entity-scoped policy evaluated against a specific id
+ *    (`worker.view`, `edls.sheet.view`). The id checked is the record's
+ *    own id unless the kind names another subject (a dispatch status row
+ *    is read as a read of its WORKER), which is why a search hit and a
+ *    load both carry the subject id they were authorized on.
+ *  - `route` — the broad gate the kind's own pages use, with no entity
+ *    id at all (a grievance read is `staff` plus the grievance
+ *    component; a dispatch job read is `admin` plus dispatch). Preview
+ *    enforces the SAME gate: it is not preview's job to invent a
+ *    per-record rule the rest of the app does not have.
+ */
+export type TokenPreviewGate =
+  | { scope: "record"; policy: string }
+  | { scope: "route"; policy: string };
+
+/** One record offered by the picker. */
+export interface TokenPreviewRecordRef {
+  /** Record id — what `load` is later called with. */
+  id: string;
+  /** Readable label for the picker row ("Ada Lovelace"). */
+  label: string;
+  /** Secondary line: whatever tells two same-named records apart. */
+  hint?: string;
+  /**
+   * Id a `record`-scoped gate is evaluated against. Defaults to `id`;
+   * set it where the read is authorized through another record (a
+   * dispatch status row is gated as a read of its worker).
+   */
+  gateEntityId?: string;
+}
+
+/** One record loaded by id, ready to seed a render. */
+export interface TokenPreviewLoadedRecord {
+  entity: TokenEntity;
+  /** Same label the picker showed, so the studio can name what it rendered. */
+  label: string;
+  /** Gate subject id — see {@link TokenPreviewRecordRef.gateEntityId}. */
+  gateEntityId?: string;
+}
+
+/**
  * How a REAL record of one token entity kind may be used as the context
  * a template is previewed against.
  *
  * A preview that renders against a real record is a read of that
- * record, so it has to be gated like one: the declaration names the
- * access policy the caller must satisfy for the named id, and loads the
- * record. Both halves resolve the SAME id, so the check and the read
- * can never drift apart.
+ * record, so it has to be gated like one: the declaration says how a
+ * read of this kind is authorized, offers records to pick from, and
+ * loads one by id. Both paths run the SAME gate on the SAME subject id
+ * the record itself yields, so what the picker offers and what the
+ * preview loads can never drift apart.
  *
  * FAIL CLOSED: a kind with no declaration cannot be used as a preview
  * context at all. Declaring one is a deliberate statement that "may
@@ -58,11 +106,8 @@ export interface TokenRootSeed {
  * Declared ONCE per entity kind, on the token plugin that owns the kind.
  */
 export interface TokenPreviewEntitySource {
-  /**
-   * Access policy evaluated against the requested record id — the same
-   * check any other read of that record would make.
-   */
-  policy: string;
+  /** How a read of one record of this kind is authorized. */
+  gate: TokenPreviewGate;
   /**
    * Component that must be enabled for this kind's data to be visible.
    * Defaults to the declaring plugin's `requiredComponent`: an optional
@@ -70,8 +115,19 @@ export interface TokenPreviewEntitySource {
    * unguarded load errors instead of refusing.
    */
   requiredComponent?: string;
+  /**
+   * Records to offer the picker. `query` is the author's search text —
+   * empty means "whatever you would show first". Return at most `limit`
+   * rows; the caller filters them by the gate afterwards, so returning
+   * records the caller may not read is expected, not a leak.
+   */
+  search(
+    storage: IStorage,
+    query: string,
+    limit: number,
+  ): Promise<TokenPreviewRecordRef[]>;
   /** Load the record, or null when there is no such record. */
-  load(storage: IStorage, id: string): Promise<TokenEntity | null>;
+  load(storage: IStorage, id: string): Promise<TokenPreviewLoadedRecord | null>;
 }
 
 /**

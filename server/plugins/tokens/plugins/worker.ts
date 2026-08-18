@@ -106,6 +106,27 @@ registerTokenPlugin({
     entityFields: WORKER_EXTRA_FIELDS,
     recipientRooted: true,
     sampleSets: WORKER_SAMPLE_SETS,
+    // A worker record is read behind `worker.view` on that worker
+    // everywhere else in the app; preview is no different.
+    previewEntity: {
+      gate: { scope: "record", policy: "worker.view" },
+      async search(storage, query, limit) {
+        const { workers: rows } = await storage.workers.searchWorkers(query, limit);
+        return rows.map((row) => ({
+          id: row.id,
+          label: row.displayName,
+          hint: row.siriusId != null ? `#${row.siriusId}` : undefined,
+        }));
+      },
+      async load(storage, id) {
+        const row = await storage.bulkTokens.getWorkerRowById(id);
+        if (!row) return null;
+        return {
+          entity: { kind: "worker", row, table: workers },
+          label: await storage.workers.getWorkerDisplayName(id),
+        };
+      },
+    },
   },
   async resolve(_entity, _args, ctx) {
     // A seeded worker wins; otherwise the root means "the recipient's

@@ -12,8 +12,8 @@ a root DECLARES (its kind's table columns + any extras), not from what its
 ## The failure mode this creates
 A field that is advertised but absent from the built row:
 - passes save-time validation,
-- renders a REAL value in the Template Studio preview (previews seed real rows
-  from `recentRecords`, which may merge extras delivery never merges),
+- renders a REAL value in the Template Studio preview (the picker's per-kind
+  loader seeds a real row and may merge extras delivery never merges),
 - and arrives BLANK in the delivered message.
 
 Nothing anywhere reports it. This is the one gap author-time static checks
