@@ -4,28 +4,31 @@
  *
  * POST /api/template-studio/preview renders tokenized text against a
  * context, and it takes that context in two forms with two very
- * different trust levels:
+ * different trust levels. A context NAMES its form — `source: "values"`
+ * or `source: "records"` — precisely because the form decides which
+ * trust level applies, and that must never be inferred:
  *
- *  - an ENTITY reference (kind + id) names a real record. Seeding it is
+ *  - `source: "records"` names real records (kind + id). Seeding one is
  *    a read of that record, so the token kind's own declaration decides
  *    whether this caller may read it, and a kind that has declared
  *    nothing is refused outright.
- *  - RAW ROOT VALUES are the text the author already has on screen.
- *    They are accepted on the route's plain staff gate, with no
- *    per-record check, and that is only defensible while they cannot
- *    reach a record.
+ *  - `source: "values"` is RAW ROOT VALUES — the text the author already
+ *    has on screen. They are accepted on the route's plain staff gate,
+ *    with no per-record check, and that is only defensible while they
+ *    cannot reach a record.
  *
  * The danger is the seam between the two: token plugins traverse to
  * related records by reading a foreign key off the row they stand on,
  * and the render treats a seeded contact's `id` as the recipient. So a
  * raw row carrying `grievanceId` or `id` would let a caller name any
  * record in the database and read it back through a relation — walking
- * straight around the gate the entity form exists to apply.
+ * straight around the gate the records form exists to apply.
  *
  * This test drives the real route (no mocks of the module under test)
  * and asserts the seam is closed: identifiers and nested records are
  * refused in a raw context, a raw context can never set the recipient
- * or resolve a relation, and the entity form still fails closed.
+ * or resolve a relation, the records form still fails closed, and a
+ * context that does not declare its form is refused rather than guessed.
  *
  * Run with:  npx tsx scripts/dev/test-preview-context-safety.ts
  */
@@ -95,7 +98,10 @@ async function main(): Promise<void> {
     const res = await preview({
       fields: textField,
       values: { subject: "x" },
-      context: { roots: { contact: { [key]: "00000000-0000-0000-0000-000000000000" } } },
+      context: {
+        source: "values",
+        roots: { contact: { [key]: "00000000-0000-0000-0000-000000000000" } },
+      },
     });
     check(`raw context refuses identifier "${key}"`, res.status === 400, res.body);
   }
@@ -107,7 +113,10 @@ async function main(): Promise<void> {
     const res = await preview({
       fields: textField,
       values: { subject: 'Hello {{contact.field(name="displayName")}}' },
-      context: { roots: { contact: { [key]: "Yes", displayName: "Ford Prefect" } } },
+      context: {
+        source: "values",
+        roots: { contact: { [key]: "Yes", displayName: "Ford Prefect" } },
+      },
     });
     check(
       `raw context still accepts a field named "${key}"`,
@@ -122,6 +131,7 @@ async function main(): Promise<void> {
     fields: textField,
     values: { subject: "x" },
     context: {
+      source: "values",
       roots: {
         contact: { grievance: { id: "00000000-0000-0000-0000-000000000000" } },
       },
@@ -136,7 +146,7 @@ async function main(): Promise<void> {
   const rawContact = await preview({
     fields: textField,
     values: { subject: 'Hello {{contact.field(name="displayName")}}' },
-    context: { roots: { contact: { displayName: "Ford Prefect" } } },
+    context: { source: "values", roots: { contact: { displayName: "Ford Prefect" } } },
   });
   check(
     "raw context renders its own literal value",
@@ -164,34 +174,140 @@ async function main(): Promise<void> {
   const unknownRoot = await preview({
     fields: textField,
     values: { subject: "x" },
-    context: { roots: { nonesuch: { a: "b" } } },
+    context: { source: "values", roots: { nonesuch: { a: "b" } } },
   });
   check("raw context refuses an unknown root", unknownRoot.status === 400, unknownRoot.body);
 
-  // ── The entity form still fails closed ────────────────────────────────────
+  // ── The records form still fails closed ───────────────────────────────────
   // `address` is a real token entity kind that no root accepts and that
   // declares nothing about how a preview read of it is gated, so it
   // cannot be named at all — silence means "not previewable", never
   // "open". (The per-kind declaration check itself is asserted directly
   // in `test-preview-record-access.ts`.)
-  const entity = await preview({
+  const records = await preview({
     fields: textField,
     values: { subject: "x" },
     context: {
-      entity: { kind: "address", id: "00000000-0000-0000-0000-000000000000" },
+      source: "records",
+      entities: [{ kind: "address", id: "00000000-0000-0000-0000-000000000000" }],
     },
   });
-  check("entity context fails closed for an undeclared kind", entity.status === 400, entity.body);
+  check(
+    "records context fails closed for an undeclared kind",
+    records.status === 400,
+    records.body,
+  );
 
-  const both = await preview({
+  // ── A context must declare which form it is ───────────────────────────────
+  // The form decides the trust level, so an undeclared context is
+  // refused rather than sniffed from whichever keys are present.
+  const untagged = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: { roots: { contact: { displayName: "x" } } },
+  });
+  check("a context must name its form", untagged.status === 400, untagged.body);
+
+  // ── …and cannot carry the other form's payload ────────────────────────────
+  // Silently ignoring the stowaway would mean rendering something other
+  // than what the caller described.
+  const mixedValues = await preview({
     fields: textField,
     values: { subject: "x" },
     context: {
+      source: "values",
       roots: { contact: { displayName: "x" } },
+      entities: [{ kind: "address", id: "00000000-0000-0000-0000-000000000000" }],
+    },
+  });
+  check(
+    "a values context refuses smuggled entities",
+    mixedValues.status === 400,
+    mixedValues.body,
+  );
+  const mixedRecords = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: {
+      source: "records",
+      entities: [],
+      roots: { contact: { displayName: "x" } },
+    },
+  });
+  check(
+    "a records context refuses smuggled root values",
+    mixedRecords.status === 400,
+    mixedRecords.body,
+  );
+
+  // ── The retired single-record form is refused, not silently accepted ──────
+  // It used to be a pure alias for a one-element list. A stale caller
+  // must be told, not quietly served.
+  const retired = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: {
       entity: { kind: "address", id: "00000000-0000-0000-0000-000000000000" },
     },
   });
-  check("a context cannot be both forms at once", both.status === 400, both.body);
+  check(
+    "the retired single-entity form is refused",
+    retired.status === 400 && /no single "entity" form/.test(retired.body.message ?? ""),
+    retired.body,
+  );
+
+  // ── …and refused on PRESENCE, not on being populated ──────────────────────
+  // `null` is valid JSON, so a key that is present but empty is still a
+  // caller describing a shape this route no longer has. Accepting it
+  // would render something other than what the caller asked for.
+  for (const [label, body] of [
+    [
+      "values",
+      {
+        source: "values",
+        entity: null,
+        roots: { contact: { displayName: "Ford Prefect" } },
+      },
+    ],
+    ["records", { source: "records", entity: null, entities: [] }],
+  ] as const) {
+    const res = await preview({
+      fields: textField,
+      values: { subject: "x" },
+      context: body,
+    });
+    check(
+      `a ${label} context refuses an empty retired "entity" key`,
+      res.status === 400 && /no single "entity" form/.test(res.body.message ?? ""),
+      res.body,
+    );
+  }
+
+  // Same rule for an empty stowaway of the other form's payload key.
+  const emptyStowawayValues = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: {
+      source: "values",
+      roots: { contact: { displayName: "Ford Prefect" } },
+      entities: null,
+    },
+  });
+  check(
+    "a values context refuses an empty entities key",
+    emptyStowawayValues.status === 400,
+    emptyStowawayValues.body,
+  );
+  const emptyStowawayRecords = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: { source: "records", entities: [], roots: null },
+  });
+  check(
+    "a records context refuses an empty roots key",
+    emptyStowawayRecords.status === 400,
+    emptyStowawayRecords.body,
+  );
 
   // ── With no context at all, nothing real is rendered ──────────────────────
   const samples = await preview({

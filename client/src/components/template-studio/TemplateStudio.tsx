@@ -118,15 +118,23 @@ export interface StudioPreviewResult {
 }
 
 /**
- * What a preview renders AGAINST, when it is not sample data. Either
- * raw root values the host already has on screen, or a real record
- * named by kind and id — which the server gates as a read of that
- * record before it seeds it.
+ * What a preview renders AGAINST, when it is not sample data.
+ *
+ * Two forms, and a context says which one it is rather than leaving the
+ * server to infer it from the keys present — the two carry different
+ * trust, so the choice is never guessed:
+ *
+ *  - `values` is raw root values the host already has on screen. They
+ *    render as literal text and cannot reach a real record.
+ *  - `records` names real records by kind and id, which the server gates
+ *    as a read of each record before it seeds it.
  */
 export type StudioPreviewContext =
-  | { roots: Record<string, Record<string, unknown>> }
-  | { entity: { kind: string; id: string; rootName?: string } }
-  | { entities: Array<{ kind: string; id: string; rootName?: string }> };
+  | { source: "values"; roots: Record<string, Record<string, unknown>> }
+  | {
+      source: "records";
+      entities: Array<{ kind: string; id: string; rootName?: string }>;
+    };
 
 export interface TemplateStudioProps {
   open: boolean;
@@ -365,6 +373,7 @@ export function TemplateStudio({
   const effectiveContext: StudioPreviewContext | undefined =
     pickedList.length > 0
       ? {
+          source: "records",
           entities: pickedList.map((p) => ({
             kind: p.kind,
             id: p.id,

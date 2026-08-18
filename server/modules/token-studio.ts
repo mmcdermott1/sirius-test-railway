@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import type { IStorage } from "../storage";
 import type { TokenRootSeed } from "../plugins/tokens/types";
+import type { TokenPreviewRoot } from "../plugins/tokens/preview-roots";
 import type { DeliveryFieldSpec } from "@shared/delivery-fields";
 
 type RequireAccess = (policy: any) => (req: Request, res: Response, next: () => void) => void;
@@ -38,8 +39,16 @@ function parseRootNames(raw: unknown): string[] {
 }
 
 type ResolvedPreviewContext =
-  | { seeds?: TokenRootSeed[]; contactId?: string }
+  | { seeds?: TokenRootSeed[] }
   | { status: number; message: string };
+
+/**
+ * The two forms a preview context comes in, named in every refusal so a
+ * caller that gets the shape wrong is told what the shapes are.
+ */
+const PREVIEW_CONTEXT_FORMS =
+  `{ source: "values", roots: { <rootName>: { …values } } } or ` +
+  `{ source: "records", entities: [{ kind, id, rootName? }] }`;
 
 /**
  * An identifier field — `id`, `grievance_id`, `workerId`.
@@ -118,77 +127,54 @@ function sanitizeRawRootValues(
 }
 
 /**
- * Turn the request's `context` into render seeds.
+ * `{ source: "values", roots: … }` — root values the caller already has.
  *
- * Two forms, and the difference between them is entirely about whose
- * data it is:
- *
- *  - `roots` is a plain JSON object of root values the author already
- *    has on screen. It renders as literal text and reaches no record —
- *    `sanitizeRawRootValues` is what enforces that — so the route's
- *    staff gate is the whole story.
- *  - `entity` names a REAL record. Seeding it is a read of that record,
- *    so the kind's own declaration decides whether this caller may read
- *    it — and a kind that has not declared how it is gated is refused
- *    outright rather than assumed safe.
+ * Every value is vetted by `sanitizeRawRootValues`, which is what keeps
+ * this form literal and therefore keeps the route's staff gate
+ * sufficient. Unknown root names are refused rather than ignored, so a
+ * caller is never told "rendered" about a root that was dropped.
  */
-async function resolvePreviewContext(
+function resolveRawRootValues(
   raw: unknown,
-  ctx: { storage: IStorage; req: Request; rootNames: string[] },
+  available: TokenPreviewRoot[],
+): ResolvedPreviewContext {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { status: 400, message: "Preview context roots must be an object" };
+  }
+  const seeds: TokenRootSeed[] = [];
+  for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
+    const root = available.find((r) => r.name === name);
+    if (!root) {
+      return { status: 400, message: `Unknown preview context root "${name}"` };
+    }
+    const vetted = sanitizeRawRootValues(name, value);
+    if (!vetted.ok) return { status: 400, message: vetted.message };
+    // No Drizzle table either: field names resolve off the supplied
+    // object alone, so nothing follows a foreign key to a named row.
+    seeds.push({ name, entity: { kind: root.kind, row: vetted.row } });
+  }
+  return { seeds };
+}
+
+/**
+ * `{ source: "records", entities: [ … ] }` — real records, by kind and id.
+ *
+ * Each named record is resolved and gated INDIVIDUALLY: per kind, per
+ * record, through the kind's own `previewEntity` declaration. Each
+ * resolved record seeds its own root, so a preview can mix several real
+ * roots with sample ones, and a kind that has declared nothing about how
+ * it is gated cannot be named at all.
+ */
+async function resolveRecordRefs(
+  raw: unknown,
+  available: TokenPreviewRoot[],
+  ctx: { storage: IStorage; req: Request },
 ): Promise<ResolvedPreviewContext> {
-  if (raw === undefined || raw === null) return {};
-  if (typeof raw !== "object") {
-    return { status: 400, message: "Invalid preview context" };
-  }
-  const context = raw as Record<string, unknown>;
-  const hasRoots = context.roots !== undefined && context.roots !== null;
-  const hasEntity = context.entity !== undefined && context.entity !== null;
-  const hasEntities = context.entities !== undefined && context.entities !== null;
-  if ((hasRoots ? 1 : 0) + (hasEntity ? 1 : 0) + (hasEntities ? 1 : 0) > 1) {
-    return {
-      status: 400,
-      message: "Give a preview context as root values OR entities, not both",
-    };
-  }
-  if (!hasRoots && !hasEntity && !hasEntities) return {};
-
-  const { listTokenPreviewRoots } = await import(
-    "../plugins/tokens/preview-roots"
-  );
-  const available = listTokenPreviewRoots(ctx.rootNames);
-
-  if (hasRoots) {
-    if (typeof context.roots !== "object" || Array.isArray(context.roots)) {
-      return { status: 400, message: "Preview context roots must be an object" };
-    }
-    const seeds: TokenRootSeed[] = [];
-    for (const [name, value] of Object.entries(
-      context.roots as Record<string, unknown>,
-    )) {
-      const root = available.find((r) => r.name === name);
-      if (!root) {
-        return { status: 400, message: `Unknown preview context root "${name}"` };
-      }
-      const vetted = sanitizeRawRootValues(name, value);
-      if (!vetted.ok) return { status: 400, message: vetted.message };
-      // No Drizzle table either: field names resolve off the supplied
-      // object alone, so nothing follows a foreign key to a named row.
-      seeds.push({ name, entity: { kind: root.kind, row: vetted.row } });
-    }
-    return { seeds };
-  }
-
-  // One entity or several — the single form is just a one-element list.
-  // Each named record is resolved and gated INDIVIDUALLY, exactly as a
-  // single pick is: per kind, per record, through the kind's own
-  // `previewEntity` declaration. Each resolved record seeds its own
-  // root, so a preview can mix several real roots with sample ones.
-  const rawEntities = hasEntities ? context.entities : [context.entity];
-  if (!Array.isArray(rawEntities)) {
+  if (!Array.isArray(raw)) {
     return { status: 400, message: "Preview context entities must be an array" };
   }
-  if (rawEntities.length === 0) return {};
-  if (rawEntities.length > available.length) {
+  if (raw.length === 0) return {};
+  if (raw.length > available.length) {
     return {
       status: 400,
       message: "A preview seeds at most one record per root",
@@ -201,7 +187,7 @@ async function resolvePreviewContext(
 
   const seeds: TokenRootSeed[] = [];
   const seededRoots = new Set<string>();
-  for (const rawEntity of rawEntities) {
+  for (const rawEntity of raw) {
     if (!rawEntity || typeof rawEntity !== "object" || Array.isArray(rawEntity)) {
       return { status: 400, message: "Invalid preview context entity" };
     }
@@ -244,6 +230,84 @@ async function resolvePreviewContext(
   // A seeded contact is also the render's recipient, exactly as on
   // delivery; `renderTemplatePreview` derives that from the seed.
   return { seeds };
+}
+
+/**
+ * Turn the request's `context` into render seeds.
+ *
+ * TWO forms, and the difference between them is entirely about whose
+ * data it is — which is why they cannot be collapsed into one:
+ *
+ *  - `source: "values"` is root values the author already has on screen.
+ *    They render as literal text and reach no record, so the route's
+ *    staff gate is the whole story.
+ *  - `source: "records"` names REAL records. Seeding one is a read of
+ *    it, so the kind's own declaration decides whether this caller may
+ *    read it, and an undeclared kind is refused rather than assumed safe.
+ *
+ * The form is DECLARED, not inferred from which keys happen to be
+ * present: a context that doesn't say what it is, or that carries the
+ * other form's payload, is refused. Guessing here would mean guessing
+ * which trust level to apply.
+ */
+async function resolvePreviewContext(
+  raw: unknown,
+  ctx: { storage: IStorage; req: Request; rootNames: string[] },
+): Promise<ResolvedPreviewContext> {
+  if (raw === undefined || raw === null) return {};
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    return { status: 400, message: "Invalid preview context" };
+  }
+  const context = raw as Record<string, unknown>;
+  // PRESENCE, not truthiness: `{"entity": null}` is valid JSON, and a
+  // key that is present but empty is still a caller describing a shape
+  // this route no longer has. Own-property so an inherited key can't
+  // masquerade as one the caller sent.
+  const sent = (key: string): boolean =>
+    Object.prototype.hasOwnProperty.call(context, key);
+
+  // A single record used to be its own notation, identical to a
+  // one-element list. Refused rather than quietly accepted, so a stale
+  // caller is told what to send instead of rendering differently.
+  if (sent("entity")) {
+    return {
+      status: 400,
+      message:
+        `A preview context has no single "entity" form — give ` +
+        PREVIEW_CONTEXT_FORMS,
+    };
+  }
+
+  const source = context.source;
+  if (source !== "values" && source !== "records") {
+    return {
+      status: 400,
+      message: `A preview context must name its form: ${PREVIEW_CONTEXT_FORMS}`,
+    };
+  }
+
+  const { listTokenPreviewRoots } = await import(
+    "../plugins/tokens/preview-roots"
+  );
+  const available = listTokenPreviewRoots(ctx.rootNames);
+
+  if (source === "values") {
+    if (sent("entities")) {
+      return {
+        status: 400,
+        message: `A "values" preview context cannot carry entities`,
+      };
+    }
+    return resolveRawRootValues(context.roots, available);
+  }
+
+  if (sent("roots")) {
+    return {
+      status: 400,
+      message: `A "records" preview context cannot carry root values`,
+    };
+  }
+  return resolveRecordRefs(context.entities, available, ctx);
 }
 
 export function registerTokenStudioRoutes(
@@ -409,17 +473,18 @@ export function registerTokenStudioRoutes(
    *   `rootNames` — the named record roots those templates address
    *     (`dispatch`, `event`); ordinary roots are always available.
    *   `sampleSetId` — which named sample persona unseeded roots render as.
-   *   `context` — what to render AGAINST, in one of two forms:
-   *     `{ roots: { <rootName>: { …values } } }` — raw JSON the author
-   *       is already looking at. Staff-gated like the rest of the route:
-   *       it is the caller's own content coming back.
-   *     `{ entity: { kind, id, rootName? } }` — a REAL record. Reading
-   *       it here is a read of it, so the kind's own `previewEntity`
-   *       declaration gates it before it is seeded, and a kind that has
-   *       not declared how it is gated cannot be used at all.
-   *     `{ entities: [{ kind, id, rootName? }, …] }` — several real
-   *       records, at most one per root. Each is gated exactly as a
-   *       single entity is; roots left unnamed keep sample data.
+   *   `context` — what to render AGAINST. It NAMES which of the two
+   *     forms it is, because the two carry different trust:
+   *     `{ source: "values", roots: { <rootName>: { …values } } }` — raw
+   *       JSON the author is already looking at. Staff-gated like the
+   *       rest of the route: it is the caller's own content coming back,
+   *       and `sanitizeRawRootValues` keeps it from reaching a record.
+   *     `{ source: "records", entities: [{ kind, id, rootName? }, …] }` —
+   *       REAL records, at most one per root. Reading one here is a read
+   *       of it, so the kind's own `previewEntity` declaration gates
+   *       each one before it is seeded, a kind that has not declared how
+   *       it is gated cannot be used at all, and roots left unnamed keep
+   *       sample data.
    *   Omit `context` to preview against sample personas.
    */
   app.post(
@@ -473,7 +538,6 @@ export function registerTokenStudioRoutes(
           templates,
           rootNames,
           seeds: resolved.seeds,
-          contactId: resolved.contactId,
           sampleSetId,
         });
         // The persona choices ship with the render so the studio's
