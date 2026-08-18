@@ -143,13 +143,14 @@ async function resolvePreviewContext(
   const context = raw as Record<string, unknown>;
   const hasRoots = context.roots !== undefined && context.roots !== null;
   const hasEntity = context.entity !== undefined && context.entity !== null;
-  if (hasRoots && hasEntity) {
+  const hasEntities = context.entities !== undefined && context.entities !== null;
+  if ((hasRoots ? 1 : 0) + (hasEntity ? 1 : 0) + (hasEntities ? 1 : 0) > 1) {
     return {
       status: 400,
-      message: "Give a preview context as root values OR an entity, not both",
+      message: "Give a preview context as root values OR entities, not both",
     };
   }
-  if (!hasRoots && !hasEntity) return {};
+  if (!hasRoots && !hasEntity && !hasEntities) return {};
 
   const { listTokenPreviewRoots } = await import(
     "../plugins/tokens/preview-roots"
@@ -177,36 +178,69 @@ async function resolvePreviewContext(
     return { seeds };
   }
 
-  const entity = context.entity as Record<string, unknown>;
-  const kind = typeof entity.kind === "string" ? entity.kind : "";
-  const id = typeof entity.id === "string" ? entity.id : "";
-  if (!kind || !id) {
-    return { status: 400, message: "A preview context entity needs a kind and an id" };
+  // One entity or several — the single form is just a one-element list.
+  // Each named record is resolved and gated INDIVIDUALLY, exactly as a
+  // single pick is: per kind, per record, through the kind's own
+  // `previewEntity` declaration. Each resolved record seeds its own
+  // root, so a preview can mix several real roots with sample ones.
+  const rawEntities = hasEntities ? context.entities : [context.entity];
+  if (!Array.isArray(rawEntities)) {
+    return { status: 400, message: "Preview context entities must be an array" };
   }
-
-  // Which root the record seeds: the caller may name it (two roots can
-  // share a kind), otherwise the first root of that kind.
-  const rootName = typeof entity.rootName === "string" ? entity.rootName : "";
-  const root = rootName
-    ? available.find((r) => r.name === rootName)
-    : available.find((r) => r.kind === kind);
-  if (!root || root.kind !== kind) {
+  if (rawEntities.length === 0) return {};
+  if (rawEntities.length > available.length) {
     return {
       status: 400,
-      message: `No preview root accepts a record of kind "${kind}"`,
+      message: "A preview seeds at most one record per root",
     };
   }
 
   const { resolveTokenPreviewEntity } = await import(
     "../plugins/tokens/preview-entities"
   );
-  const result = await resolveTokenPreviewEntity(kind, id, {
-    storage: ctx.storage,
-    req: ctx.req,
-  });
-  if (!result.ok) return { status: result.status, message: result.message };
 
-  const seeds: TokenRootSeed[] = [{ name: root.name, entity: result.entity }];
+  const seeds: TokenRootSeed[] = [];
+  const seededRoots = new Set<string>();
+  for (const rawEntity of rawEntities) {
+    if (!rawEntity || typeof rawEntity !== "object" || Array.isArray(rawEntity)) {
+      return { status: 400, message: "Invalid preview context entity" };
+    }
+    const entity = rawEntity as Record<string, unknown>;
+    const kind = typeof entity.kind === "string" ? entity.kind : "";
+    const id = typeof entity.id === "string" ? entity.id : "";
+    if (!kind || !id) {
+      return { status: 400, message: "A preview context entity needs a kind and an id" };
+    }
+
+    // Which root the record seeds: the caller may name it (two roots can
+    // share a kind), otherwise the first root of that kind.
+    const rootName = typeof entity.rootName === "string" ? entity.rootName : "";
+    const root = rootName
+      ? available.find((r) => r.name === rootName)
+      : available.find((r) => r.kind === kind && !seededRoots.has(r.name));
+    if (!root || root.kind !== kind) {
+      return {
+        status: 400,
+        message: `No preview root accepts a record of kind "${kind}"`,
+      };
+    }
+    if (seededRoots.has(root.name)) {
+      return {
+        status: 400,
+        message: `Preview root "${root.name}" is seeded more than once`,
+      };
+    }
+
+    const result = await resolveTokenPreviewEntity(kind, id, {
+      storage: ctx.storage,
+      req: ctx.req,
+    });
+    if (!result.ok) return { status: result.status, message: result.message };
+
+    seededRoots.add(root.name);
+    seeds.push({ name: root.name, entity: result.entity });
+  }
+
   // A seeded contact is also the render's recipient, exactly as on
   // delivery; `renderTemplatePreview` derives that from the seed.
   return { seeds };
@@ -383,6 +417,9 @@ export function registerTokenStudioRoutes(
    *       it here is a read of it, so the kind's own `previewEntity`
    *       declaration gates it before it is seeded, and a kind that has
    *       not declared how it is gated cannot be used at all.
+   *     `{ entities: [{ kind, id, rootName? }, …] }` — several real
+   *       records, at most one per root. Each is gated exactly as a
+   *       single entity is; roots left unnamed keep sample data.
    *   Omit `context` to preview against sample personas.
    */
   app.post(

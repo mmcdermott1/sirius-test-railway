@@ -125,7 +125,8 @@ export interface StudioPreviewResult {
  */
 export type StudioPreviewContext =
   | { roots: Record<string, Record<string, unknown>> }
-  | { entity: { kind: string; id: string; rootName?: string } };
+  | { entity: { kind: string; id: string; rootName?: string } }
+  | { entities: Array<{ kind: string; id: string; rootName?: string }> };
 
 export interface TemplateStudioProps {
   open: boolean;
@@ -333,23 +334,44 @@ export function TemplateStudio({
   /** Which sample persona unseeded roots render as; null = the default. */
   const [sampleSetId, setSampleSetId] = useState<string | null>(null);
   /**
-   * The real record the author picked, if any. Sample data is the
-   * default and a pick is deliberate: it is cleared whenever the studio
-   * closes, and the picker offers "use sample data instead" to drop it.
-   * A picked record REPLACES the host's own context — a preview renders
-   * against one thing, and the author's choice is that thing.
+   * The real records the author picked, keyed by root NAME — at most
+   * one per root, and each root's pick is independent: clearing one
+   * returns that root, and only that root, to sample data. Sample data
+   * is the default and a pick is deliberate: all picks are cleared
+   * whenever the studio closes. Any pick REPLACES the host's own
+   * context — a preview renders against one thing, and the author's
+   * choice is that thing.
    */
-  const [picked, setPicked] = useState<PickedPreviewRecord | null>(null);
+  const [picked, setPicked] = useState<Record<string, PickedPreviewRecord>>({});
+  const pickRecord = useCallback(
+    (rootName: string, record: PickedPreviewRecord | null) => {
+      setPicked((prev) => {
+        const next = { ...prev };
+        if (record) next[rootName] = record;
+        else delete next[rootName];
+        return next;
+      });
+    },
+    [],
+  );
   useEffect(() => {
     if (!open) {
       setSampleSetId(null);
-      setPicked(null);
+      setPicked({});
     }
   }, [open]);
 
-  const effectiveContext: StudioPreviewContext | undefined = picked
-    ? { entity: { kind: picked.kind, id: picked.id, rootName: picked.rootName } }
-    : previewContext;
+  const pickedList = Object.values(picked);
+  const effectiveContext: StudioPreviewContext | undefined =
+    pickedList.length > 0
+      ? {
+          entities: pickedList.map((p) => ({
+            kind: p.kind,
+            id: p.id,
+            rootName: p.rootName,
+          })),
+        }
+      : previewContext;
   const contextJson = JSON.stringify(effectiveContext ?? null);
 
   // ── Debounced preview ──────────────────────────────────────────────────────
@@ -717,15 +739,16 @@ export function TemplateStudio({
                     <PreviewRecordPicker
                       roots={pickableRoots}
                       picked={picked}
-                      onPick={setPicked}
+                      onPick={pickRecord}
                     />
-                    {picked ? (
+                    {pickedList.length > 0 ? (
                       <p
                         className="text-xs text-muted-foreground"
                         data-testid="studio-record-picked"
                       >
-                        Previewing against a real record. Clear it to go back to
-                        sample data.
+                        {pickedList.length === 1
+                          ? "Previewing against a real record. Clear it to go back to sample data."
+                          : `Previewing against ${pickedList.length} real records. Clear one to return that root to sample data.`}
                       </p>
                     ) : (
                       <p className="text-xs text-muted-foreground">

@@ -44,10 +44,12 @@ interface PreviewRecordRef {
 }
 
 /**
- * Pick a REAL record to preview a template against.
+ * Pick REAL records to preview a template against — one per root.
  *
  * Sample personas stay the default: picking a record is a deliberate
- * act, and clearing the choice goes straight back to samples. The
+ * act, per root, and clearing a pick returns that root — and only that
+ * root — to samples. A template composed of several roots (a grievance
+ * plus its settlement) can therefore be made real piece by piece. The
  * search only ever returns records this author may read — the server
  * runs the entity kind's own read gate over every candidate — so an
  * empty result is an honest "nothing you can open matches", not a
@@ -59,23 +61,23 @@ export function PreviewRecordPicker({
   onPick,
 }: {
   roots: PickableRoot[];
-  picked: PickedPreviewRecord | null;
-  onPick: (record: PickedPreviewRecord | null) => void;
+  /** The record picked for each root, keyed by root NAME. */
+  picked: Record<string, PickedPreviewRecord>;
+  /** Set (or clear, with null) the pick for ONE root. */
+  onPick: (rootName: string, record: PickedPreviewRecord | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [rootName, setRootName] = useState<string>(
-    picked?.rootName ?? roots[0]?.name ?? "",
-  );
+  const [rootName, setRootName] = useState<string>(roots[0]?.name ?? "");
 
   // The offered roots depend on the render (a switched-off component
   // offers none); keep the selection on one that still exists.
   useEffect(() => {
     if (roots.length === 0) return;
     if (!roots.some((r) => r.name === rootName)) {
-      setRootName(picked?.rootName ?? roots[0].name);
+      setRootName(roots[0].name);
     }
-  }, [roots, rootName, picked]);
+  }, [roots, rootName]);
 
   const root = roots.find((r) => r.name === rootName) ?? roots[0];
 
@@ -109,6 +111,7 @@ export function PreviewRecordPicker({
 
   if (roots.length === 0) return null;
   const records = data?.records ?? [];
+  const pickedForRoot = root ? (picked[root.name] ?? null) : null;
 
   return (
     <div className="space-y-1.5" data-testid="studio-record-picker">
@@ -124,6 +127,7 @@ export function PreviewRecordPicker({
               onClick={() => setRootName(r.name)}
               data-testid={`studio-record-root-${r.name}`}
             >
+              {picked[r.name] && <Check className="mr-1 h-3 w-3" />}
               {r.label}
             </Button>
           ))}
@@ -140,8 +144,8 @@ export function PreviewRecordPicker({
             data-testid="button-studio-record-picker"
           >
             <span className="truncate">
-              {picked
-                ? picked.label
+              {pickedForRoot
+                ? pickedForRoot.label
                 : `Find a real ${root?.label.toLowerCase() ?? "record"}…`}
             </span>
             <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
@@ -183,7 +187,7 @@ export function PreviewRecordPicker({
                       key={record.id}
                       value={record.id}
                       onSelect={() => {
-                        onPick({
+                        onPick(root!.name, {
                           rootName: root!.name,
                           kind: root!.kind,
                           id: record.id,
@@ -196,7 +200,7 @@ export function PreviewRecordPicker({
                       <Check
                         className={cn(
                           "mr-2 h-3.5 w-3.5",
-                          picked?.id === record.id ? "opacity-100" : "opacity-0",
+                          pickedForRoot?.id === record.id ? "opacity-100" : "opacity-0",
                         )}
                       />
                       <span className="min-w-0">
@@ -213,14 +217,14 @@ export function PreviewRecordPicker({
                   ))}
                 </CommandGroup>
               )}
-              {picked && (
+              {pickedForRoot && (
                 <>
                   <CommandSeparator />
                   <CommandGroup>
                     <CommandItem
                       value="__sample__"
                       onSelect={() => {
-                        onPick(null);
+                        onPick(root!.name, null);
                         setOpen(false);
                       }}
                       data-testid="studio-record-clear"
