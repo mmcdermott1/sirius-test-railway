@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { TemplateStudio, type StudioField, type StudioFieldMode } from "./TemplateStudio";
+import { NOTIFIER_CHANNEL_FIELDS } from "@shared/delivery-fields";
 import type {
   TokenCatalogEntry,
   TokenFieldCatalog,
@@ -38,7 +39,6 @@ export interface NotifierTokenCatalog {
 export interface NotifierTemplateStudioProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pluginId: string;
   /** "email" | "sms" | "inapp" — the channel group being edited. */
   channel: string;
   /** Fields for this channel, derived from the server JSON Schema (templatesSchemaBlock).
@@ -54,16 +54,17 @@ export interface NotifierTemplateStudioProps {
 }
 
 /**
- * Event-notifier host for the Template Studio: edits one channel group of
- * `data.templates` and previews through the notifier preview endpoint
- * (which mirrors delivery-time template composition). What the preview
- * renders against — sample personas, or a few of this notifier's own
- * recent events — is offered by the surface, server-side.
+ * Event-notifier host for the Template Studio: edits one channel group
+ * of `data.templates` and previews through the shared preview route.
+ *
+ * The default-vs-override merge that delivery performs happens HERE:
+ * the studio posts the finished template strings, so the preview route
+ * does no notifier-specific work and cannot compose them differently
+ * from the way this editor shows them.
  */
 export function NotifierTemplateStudio({
   open,
   onOpenChange,
-  pluginId,
   channel,
   schemaRows,
   catalog,
@@ -127,17 +128,19 @@ export function NotifierTemplateStudio({
     updateConfigData(`templates.${channel}.${key}`, normalized);
   };
 
-  // Strip `configData.templates` from surfaceParams: the in-progress
-  // template text is already forwarded as `values` (debounced), so
-  // including the full configData would change the preview query key on
-  // every keystroke and defeat the 500 ms debounce. Only non-template
-  // config (notifier-level settings, channel choice, etc.) needs to live
-  // in surfaceParams to trigger a fresh preview when it genuinely changes.
-  const configDataWithoutTemplates = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { templates: _t, ...rest } = configData as Record<string, unknown>;
-    return rest;
-  }, [configData]);
+  // The effective template delivery would use, for EVERY field of the
+  // channel — not just the rows on screen. An optional field the editor
+  // hides still ships when the notifier declares a default for it, and
+  // a required one that is blank is what makes the message
+  // undeliverable, so both have to be in the preview request.
+  const deliveryFields = NOTIFIER_CHANNEL_FIELDS[channel] ?? [];
+  const templateValues: Record<string, string> = {};
+  for (const spec of deliveryFields) {
+    const override = overrideOf(spec.key);
+    templateValues[spec.key] =
+      edited[spec.key] ??
+      (override.trim() !== "" ? override : (defaults[spec.key] ?? ""));
+  }
 
   if (disabled) return null;
 
@@ -151,11 +154,10 @@ export function NotifierTemplateStudio({
       fields={fields}
       values={channelValues}
       onValueChange={handleValueChange}
-      // The surface's resolver merges these in-progress values into the
-      // config's templates and re-resolves defaults, exactly as delivery
-      // composes them.
-      surfaceId="event-notifier"
-      surfaceParams={{ pluginId, channel, configData: configDataWithoutTemplates }}
+      // Delivery's own field shaping for this channel, and the merged
+      // text delivery would send — composed above, not on the server.
+      fieldSpecs={deliveryFields}
+      templateValues={templateValues}
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}

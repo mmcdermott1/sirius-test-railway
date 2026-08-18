@@ -51,27 +51,6 @@ registerTokenPlugin({
     // (there is no search and no load-by-id — a template author is not
     // entitled to name an arbitrary record). Declared once with the
     // entity kind, never per surface; gated on the interviews component.
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const rows = await storage.t631Interviews.searchForPicker("", limit);
-        const out = [];
-        for (const r of rows) {
-          const row = await storage.t631Interviews.get(r.id);
-          if (!row) continue;
-          out.push({
-            id: r.id,
-            label: `${r.workerName ?? "Unknown worker"} — ${r.jobTitle} (${previewStatusLabel(r.status)})`,
-            entity: {
-              kind: T631_INTERVIEW_ENTITY_KIND,
-              row: row as unknown as Record<string, unknown>,
-              table: sitespecificT631JobInterviews,
-            },
-          });
-        }
-        return out;
-      },
-    },
   },
   async resolve() {
     return null;

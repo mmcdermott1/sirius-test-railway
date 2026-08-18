@@ -82,24 +82,6 @@ registerTokenPlugin({
     entityTable: contacts,
     defaultLeaf: "display_name",
     recipientRooted: true,
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const rows = await storage.contacts.searchWithPrimaryContactInfo("", limit);
-        const out = [];
-        for (const r of rows) {
-          const row = await storage.bulkTokens.getContactRow(r.id);
-          if (!row) continue;
-          const name = r.displayName || r.email || r.id;
-          out.push({
-            id: r.id,
-            label: r.email ? `${name} — ${r.email}` : name,
-            entity: { kind: "contact", row, table: contacts },
-          });
-        }
-        return out;
-      },
-    },
     sampleSets: CONTACT_SAMPLE_SETS,
   },
   async resolve(_entity, _args, ctx) {

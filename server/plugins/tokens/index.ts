@@ -1,15 +1,19 @@
 import { logger } from "../../logger";
 import { registerPluginKind } from "../_core/kinds";
 import { tokenPluginRegistry } from "./registry";
-import { validateTokenRecentRecords } from "./preview-roots";
+import { validateTokenPreviewEntities } from "./preview-entities";
 import { validateTokenSampleSets } from "./sample-sets";
 
 export * from "./types";
 export {
-  getEnabledTokenRecentRecords,
   listTokenPreviewRoots,
   type TokenPreviewRoot,
 } from "./preview-roots";
+export {
+  resolveTokenPreviewEntity,
+  listTokenPreviewEntityKinds,
+  type TokenPreviewEntityResult,
+} from "./preview-entities";
 export {
   getSampleSetsForKind,
   resolveSampleSet,
@@ -74,15 +78,15 @@ function registerTokenKind(): void {
  */
 export function initializeTokenPluginSystem(): void {
   registerTokenKind();
-  // Project the plugins' `recentRecords` and `sampleSets` declarations
+  // Project the plugins' `previewEntity` and `sampleSets` declarations
   // into their per-kind registries once at boot, so two declarations for
   // one entity kind fail loudly here instead of at the first preview.
-  const recentRecordKinds = validateTokenRecentRecords();
+  const previewEntityKinds = validateTokenPreviewEntities();
   const sampleSetKinds = validateTokenSampleSets();
   logger.info("Token plugins registered", {
     service: "tokens",
     plugins: tokenPluginRegistry.listIds(),
-    recentRecordKinds,
+    previewEntityKinds,
     sampleSetKinds,
   });
 }

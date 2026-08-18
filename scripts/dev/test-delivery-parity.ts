@@ -1,35 +1,39 @@
 /**
- * Delivery-parity check for registered template surfaces.
+ * Delivery-parity check for the template preview path.
  *
- * A template surface exists for one reason: what an author previews in
- * the studio must be what the recipient receives. This check renders
- * fields through the preview pipeline and through the SAME functions
- * delivery uses, then asserts the two agree — including the fields that
- * are deliberately NOT tokenized (a literal link URL must preview
- * verbatim, not substituted).
+ * The whole point of one shared shaping implementation is that what an
+ * author previews in the studio is what the recipient receives. This
+ * check renders fields through the preview pipeline and through the
+ * SAME functions delivery uses, then asserts the two agree — including
+ * the fields that are deliberately NOT tokenized (a literal link URL
+ * must preview verbatim, not substituted) and ordinary content the
+ * shaping must leave completely alone.
+ *
+ * The preview side is driven by exactly what an editor posts: the
+ * shared delivery field tables plus the finished template strings.
  *
  * Covered today:
  *   - bulk email body (HTML: escape tokens, then sanitize)
  *   - bulk in-app (tokenized title/body/label, literal link URL)
- *   - event-notifier in-app (tokenized fields incl. the link label)
+ *   - event-notifier email / SMS / in-app, incl. whitespace, blank
+ *     required fields and an unsafe link
  *
- * Run: npx tsx scripts/dev/test-template-surface-parity.ts
+ * Run: npx tsx scripts/dev/test-delivery-parity.ts
  */
 import { storage } from "../../server/storage";
 import { loadComponentCache } from "../../server/services/component-cache";
 import { initializeTokenPluginSystem, createTokenEvalContext } from "../../server/plugins/tokens";
-import {
-  getTemplateSurface,
-  initializeTemplateSurfaces,
-  renderTemplateSurface,
-} from "../../server/plugins/template-surfaces";
+import { renderTemplatePreview } from "../../server/modules/template-preview";
 import { renderEmailBodyHtmlForDelivery } from "../../server/modules/bulk/deliver-email";
 import { renderInappContentForDelivery } from "../../server/modules/bulk/deliver-inapp";
 import { initializeEventNotifierPluginSystem } from "../../server/plugins/event-notifier";
 import { eventNotifierRegistry } from "../../server/plugins/event-notifier/registry";
 import { composeFromTemplates, resolveTemplates } from "../../server/plugins/event-notifier/token-templates";
-import { NOTIFIER_CHANNEL_FIELDS } from "../../server/plugins/event-notifier/field-media";
-import { applyFieldEligibility } from "../../server/plugins/template-surfaces/shape";
+import {
+  BULK_CHANNEL_FIELDS,
+  NOTIFIER_CHANNEL_FIELDS,
+  applyFieldEligibility,
+} from "../../shared/delivery-fields";
 
 /** A token every contact resolves (display name), so both paths substitute real text. */
 const CONTACT_TOKEN = "{{contact}}";
@@ -70,11 +74,6 @@ async function main() {
   await loadComponentCache();
   initializeTokenPluginSystem();
   initializeEventNotifierPluginSystem();
-  initializeTemplateSurfaces();
-
-  const bulk = getTemplateSurface("bulk-message");
-  const notifier = getTemplateSurface("event-notifier");
-  if (!bulk || !notifier) throw new Error("expected surfaces are not registered");
 
   // A real contact so preview and delivery substitute the same values.
   const { db } = await import("../../server/storage/db");
@@ -89,11 +88,10 @@ async function main() {
 
   // ── bulk email body ───────────────────────────────────────────────────────
   for (const { label, bodyHtml } of [...HTML_CASES, { label: "ordinary markup", bodyHtml: PRESERVED_HTML }]) {
-    const preview = await renderTemplateSurface({
+    const preview = await renderTemplatePreview({
       storage,
-      surface: bulk,
-      params: { channel: "email" },
-      values: { subject: "s", bodyHtml },
+      fields: BULK_CHANNEL_FIELDS.email,
+      templates: { subject: "s", bodyHtml },
       contactId: contact.id,
     });
     const delivered = await renderEmailBodyHtmlForDelivery(bodyHtml, evalCtx());
@@ -117,24 +115,23 @@ async function main() {
       linkUrl: `https://example.test/notice?who=${CONTACT_TOKEN}`,
       linkLabel: `Open, ${CONTACT_TOKEN}`,
     };
-    const preview = await renderTemplateSurface({
+    // Delivery stores the body flattened to plain text, then renders
+    // it — and so the editor previews the flattened text, not the
+    // rich-text it edits.
+    const { htmlToPlainText } = await import("../../shared/html-to-text");
+    const sent = {
+      title: content.title,
+      body: htmlToPlainText(content.bodyHtml),
+      linkUrl: content.linkUrl,
+      linkLabel: content.linkLabel,
+    };
+    const preview = await renderTemplatePreview({
       storage,
-      surface: bulk,
-      params: { channel: "inapp" },
-      values: content,
+      fields: BULK_CHANNEL_FIELDS.inapp,
+      templates: sent,
       contactId: contact.id,
     });
-    // Delivery stores the body flattened to plain text, then renders it.
-    const { htmlToPlainText } = await import("../../shared/html-to-text");
-    const delivered = await renderInappContentForDelivery(
-      {
-        title: content.title,
-        body: htmlToPlainText(content.bodyHtml),
-        linkUrl: content.linkUrl,
-        linkLabel: content.linkLabel,
-      },
-      evalCtx(),
-    );
+    const delivered = await renderInappContentForDelivery(sent, evalCtx());
     check("bulk in-app — title matches delivery", preview.fields.title?.rendered === delivered.title, {
       previewed: preview.fields.title?.rendered,
       delivered: delivered.title,
@@ -186,19 +183,30 @@ async function main() {
       expect?: { deliverable?: boolean },
     ) => {
       const configData = { templates: { [channel]: channelTemplates } };
+      // The notifier's default-vs-override merge is the CALLER's job
+      // now, exactly as the studio does it before it posts — so both
+      // sides start from the same resolved templates.
+      const resolved = resolveTemplates(plugin, configData);
       const delivered: any = await composeFromTemplates(
         plugin,
         channel as any,
         { contactId: contact.id },
         seeds as any,
-        resolveTemplates(plugin, configData),
+        resolved,
         new Map<string, unknown>(),
       );
-      const preview = await renderTemplateSurface({
+      const merged: Record<string, string> = {};
+      for (const spec of NOTIFIER_CHANNEL_FIELDS[channel]) {
+        const value = (resolved as any)[channel]?.[spec.key];
+        if (typeof value === "string") merged[spec.key] = value;
+      }
+      const preview = await renderTemplatePreview({
         storage,
-        surface: notifier,
-        params: { pluginId: plugin.id, channel, configData },
-        values: channelTemplates,
+        fields: NOTIFIER_CHANNEL_FIELDS[channel],
+        templates: merged,
+        rootNames: (plugin.tokenTemplates.roots as Array<{ name: string }>).map(
+          (r) => r.name,
+        ),
         contactId: contact.id,
         // Seed the same roots delivery composes with: parity is about
         // shaping, and an unseeded root would render sample values
@@ -308,7 +316,7 @@ async function main() {
 function finish(): never {
   console.log(
     failures === 0
-      ? "\nPASS: previews match delivery for every checked surface field"
+      ? "\nPASS: previews match delivery for every checked field"
       : `\nFAIL: ${failures} parity problem(s)`,
   );
   process.exit(failures === 0 ? 0 : 1);

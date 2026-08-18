@@ -239,195 +239,68 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: GRIEVANCE_SAMPLE_SETS,
-    // A few real grievances a surface may OFFER as preview subjects
-    // (there is no search and no load-by-id — a template author is not
-    // entitled to name an arbitrary record). Gated on the grievance
-    // component (inherited from the plugin): its tables need not exist
-    // at all when the component is off.
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const rows = await storage.grievances.search();
-        const picked = rows.slice(0, limit);
-        const out = [];
-        for (const g of picked) {
-          const [base, info] = await Promise.all([
-            storage.grievances.get(g.id),
-            storage.grievances.getAssignmentTitleInfo(g.id),
-          ]);
-          if (!base) continue;
-          const entity = {
-            kind: GRIEVANCE_ENTITY_KIND,
-            row: {
-              ...(base as unknown as Record<string, unknown>),
-              displayTitle: composeGrievanceDisplayTitle(g.id, info),
-            },
-            table: grievances,
-          };
-          out.push({
-            id: g.id,
-            label: [
-              composeGrievanceDisplayTitle(g.id, {
-                name: null,
-                categoryName: g.categoryName,
-              }),
-              g.grievantSummary || null,
-              g.statusName || null,
-            ]
-              .filter(Boolean)
-              .join(" — "),
-            entity,
-          });
-        }
-        return out;
-      },
-    },
   },
-  async resolve() {
-    return null;
+  async resolve(entity, _args, ctx) {
+    const e =
+      tokenEntityOf(entity, GRIEVANCE_STATUS_HISTORY_ENTITY_KIND) ??
+      tokenEntityOf(entity, GRIEVANCE_SETTLEMENT_ENTITY_KIND);
+    const grievanceId = e?.row.grievanceId;
+    if (typeof grievanceId !== "string") return null;
+    return loadGrievanceEntity(ctx, grievanceId);
   },
 });
 
-/**
- * Status-history entry descriptor. The kind offers its OWN columns and
- * nothing else: `status_id` renders the status option's name through the
- * FK, and the grievance's title is reached through the `grievance`
- * relation below. There are deliberately no flattened extras — an extra
- * named after a related record's value ("grievance_title") reads like a
- * column of this table, and only resolves when whoever seeded the record
- * remembered to merge it.
- */
+/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
 registerTokenPlugin({
   metadata: {
-    id: "token.grievance_status_history",
-    name: "Grievance status entry",
-    description: "Descriptor for the grievance status-history entity kind",
-    segmentName: "__grievance_status_history",
-    inputTypes: [],
-    outputType: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-    entityTable: grievanceStatusHistory,
+    id: "token.grievance_relation.grievance",
+    name: "Grievance",
+    description: "The grievance this record belongs to",
+    segmentName: "grievance",
+    inputTypes: [
+      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
+      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
+    ],
+    outputType: GRIEVANCE_ENTITY_KIND,
+    entityTable: grievances,
+    entityFields: ["name", "display_title"],
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
-    sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
-    // The most recent real status entries a surface may OFFER as preview
-    // subjects (no search, no load-by-id). The grievance title appears in
-    // the LABEL (so an author can tell the entries apart) but not on the
-    // row: the row is the entry's own columns, exactly as delivery seeds it.
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const rows = await storage.grievanceStatusHistory.listForPreview(limit);
-        // One title query for the whole batch, not one per row.
-        const titles = await storage.grievances.getAssignmentTitleInfoMany(
-          rows.map((row) => row.grievanceId),
-        );
-        const out = [];
-        for (const row of rows) {
-          const grievanceTitle = composeGrievanceDisplayTitle(
-            row.grievanceId,
-            titles.get(row.grievanceId),
-          );
-          out.push({
-            id: row.id,
-            label: [
-              grievanceTitle,
-              row.statusName || null,
-              row.date ? new Date(row.date).toISOString().slice(0, 10) : null,
-            ]
-              .filter(Boolean)
-              .join(" — "),
-            entity: {
-              kind: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
-              row: {
-                ...(row as unknown as Record<string, unknown>),
-              },
-              table: grievanceStatusHistory,
-            },
-          });
-        }
-        return out;
-      },
-    },
   },
-  async resolve() {
-    return null;
+  async resolve(entity, _args, ctx) {
+    const e =
+      tokenEntityOf(entity, GRIEVANCE_STATUS_HISTORY_ENTITY_KIND) ??
+      tokenEntityOf(entity, GRIEVANCE_SETTLEMENT_ENTITY_KIND);
+    const grievanceId = e?.row.grievanceId;
+    if (typeof grievanceId !== "string") return null;
+    return loadGrievanceEntity(ctx, grievanceId);
   },
 });
 
-/**
- * Settlement descriptor. `operation` is a derived extra: the settlement
- * notifier merges the event's operation (created/updated/deleted) onto
- * the row, so templates can say `was {{event.field(name="operation")}}`.
- */
+/** {{event.grievance.field(name="…")}} — the entry's/settlement's grievance. */
 registerTokenPlugin({
   metadata: {
-    id: "token.grievance_settlement",
-    name: "Grievance settlement",
-    description: "Descriptor for the grievance settlement entity kind",
-    segmentName: "__grievance_settlement",
-    inputTypes: [],
-    outputType: GRIEVANCE_SETTLEMENT_ENTITY_KIND,
-    entityTable: grievanceSettlements,
-    // Derived extras, not columns: the event's operation and the whole
-    // legacy per-operation sentence built from it. Nothing about the
-    // grievance — that is its own record, reached through the relation
-    // below (or the grievance root the settlement notifier seeds).
-    entityFields: ["operation", "summary"],
+    id: "token.grievance_relation.grievance",
+    name: "Grievance",
+    description: "The grievance this record belongs to",
+    segmentName: "grievance",
+    inputTypes: [
+      GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
+      GRIEVANCE_SETTLEMENT_ENTITY_KIND,
+    ],
+    outputType: GRIEVANCE_ENTITY_KIND,
+    entityTable: grievances,
+    entityFields: ["name", "display_title"],
     hiddenFromCatalog: true,
-    requiredComponent: "grievance.settlement",
-    sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,
-    // A few real settlements a surface may OFFER as preview subjects. A
-    // settlement that exists was created, so the derived `operation` (and
-    // the `summary` sentence built from it) reads "created"; the amended
-    // and voided wordings are covered by the personas.
-    recentRecords: {
-      async recent(limit) {
-        const [{ storage }, { settlementSummary }] = await Promise.all([
-          import("../../../storage"),
-          import(
-            "../../event-notifier/plugins/grievance-settlement-notifier"
-          ),
-        ]);
-        const rows = await storage.grievanceSettlements.listForPreview(limit);
-        // One title query for the whole batch, not one per row.
-        const titles = await storage.grievances.getAssignmentTitleInfoMany(
-          rows.map((row) => row.grievanceId),
-        );
-        const out = [];
-        for (const row of rows) {
-          const grievanceTitle = composeGrievanceDisplayTitle(
-            row.grievanceId,
-            titles.get(row.grievanceId),
-          );
-          out.push({
-            id: row.id,
-            label: [grievanceTitle, row.description || null]
-              .filter(Boolean)
-              .join(" — "),
-            entity: {
-              kind: GRIEVANCE_SETTLEMENT_ENTITY_KIND,
-              row: {
-                ...(row as unknown as Record<string, unknown>),
-                operation: "created",
-                // The title appears in the LABEL (so an author can tell the
-                // entries apart) and inside the legacy summary sentence, but
-                // never as a field of the settlement itself.
-                summary: settlementSummary(
-                  "created",
-                  grievanceTitle,
-                  row.amount,
-                ),
-              },
-              table: grievanceSettlements,
-            },
-          });
-        }
-        return out;
-      },
-    },
+    requiredComponent: COMPONENT,
   },
-  async resolve() {
-    return null;
+  async resolve(entity, _args, ctx) {
+    const e =
+      tokenEntityOf(entity, GRIEVANCE_STATUS_HISTORY_ENTITY_KIND) ??
+      tokenEntityOf(entity, GRIEVANCE_SETTLEMENT_ENTITY_KIND);
+    const grievanceId = e?.row.grievanceId;
+    if (typeof grievanceId !== "string") return null;
+    return loadGrievanceEntity(ctx, grievanceId);
   },
 });
 

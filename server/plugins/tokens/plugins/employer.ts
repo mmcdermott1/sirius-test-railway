@@ -42,23 +42,6 @@ registerTokenPlugin({
     entityTable: employers,
     defaultLeaf: "name",
     recipientRooted: true,
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const all = await storage.employers.getAllEmployers();
-        const out = [];
-        for (const e of all.slice(0, limit)) {
-          const row = await storage.bulkTokens.getEmployerRow(e.id);
-          if (!row) continue;
-          out.push({
-            id: e.id,
-            label: e.siriusId ? `${e.name} (${e.siriusId})` : e.name,
-            entity: { kind: "employer", row, table: employers },
-          });
-        }
-        return out;
-      },
-    },
     sampleSets: EMPLOYER_SAMPLE_SETS,
   },
   async resolve(_entity, _args, ctx) {

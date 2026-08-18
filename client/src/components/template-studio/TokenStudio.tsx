@@ -6,7 +6,9 @@ import {
   TemplateStudio,
   type StudioChannel,
   type StudioField,
+  type StudioPreviewContext,
 } from "./TemplateStudio";
+import type { DeliveryFieldSpec } from "@shared/delivery-fields";
 import type {
   TokenCatalogEntry,
   TokenFieldCatalog,
@@ -30,10 +32,17 @@ export interface TokenStudioProps {
   fields: StudioField[];
   values: Record<string, string>;
   onValueChange: (key: string, value: string) => void;
-  /** Registered template surface the values belong to. */
-  surfaceId: string;
-  /** Surface-specific parameters (e.g. which medium is being edited). */
-  surfaceParams?: Record<string, unknown>;
+  /**
+   * How delivery shapes each field, from the shared delivery
+   * declarations. Omit for an ad-hoc tokenized field with no delivery
+   * composition of its own: each editor's mode then decides plain text
+   * vs HTML, which is exactly what such a field gets.
+   */
+  fieldSpecs?: DeliveryFieldSpec[];
+  /** Finished template strings, when they differ from the editor values. */
+  templateValues?: Record<string, string>;
+  /** What to preview against; omit for sample personas. */
+  previewContext?: StudioPreviewContext;
   /**
    * Named record roots this host seeds (`dispatch`, `event`, …). Roots
    * not named here don't exist for these tokens.
@@ -42,8 +51,8 @@ export interface TokenStudioProps {
   /** Token catalog endpoint (defaults to the generic studio catalog). */
   catalogUrl?: string;
   /**
-   * Browsable-tree endpoints for this surface (defaults to the studio's
-   * own). Surfaces gated differently — bulk messaging — serve the same
+   * Browsable-tree endpoints for this host (defaults to the studio's
+   * own). Hosts gated differently — bulk messaging — serve the same
    * tree behind their own gate and pass it here.
    */
   treeBaseUrl?: string;
@@ -51,13 +60,13 @@ export interface TokenStudioProps {
 
 /**
  * THE generic token-editing popup: any tokenized string field anywhere
- * can open this. It loads a token catalog and hands it to the shared
- * studio, which previews through the single preview route for the
- * surface id given here. What the preview renders against (sample
- * personas, or the real records this surface offers) is decided
- * server-side, so no host has to arrange it.
+ * can open this, with no registration step of any kind. It loads a
+ * token catalog and hands it to the shared studio, which previews
+ * through the single preview route — the request carries the field
+ * shaping and the template text, so nothing has to be declared
+ * server-side for a new field to work.
  *
- * A surface only needs its own host when it has editor-side logic of its
+ * A caller only needs its own host when it has editor-side logic of its
  * own (the event notifier's default-vs-override text); previewing never
  * requires one.
  */
@@ -70,8 +79,9 @@ export function TokenStudio({
   fields,
   values,
   onValueChange,
-  surfaceId,
-  surfaceParams,
+  fieldSpecs,
+  templateValues,
+  previewContext,
   rootNames,
   catalogUrl,
   treeBaseUrl,
@@ -97,8 +107,9 @@ export function TokenStudio({
       fields={fields}
       values={values}
       onValueChange={onValueChange}
-      surfaceId={surfaceId}
-      surfaceParams={roots ? { ...surfaceParams, rootNames: roots } : surfaceParams}
+      fieldSpecs={fieldSpecs}
+      templateValues={templateValues}
+      previewContext={previewContext}
       tokens={catalog?.tokens ?? []}
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}

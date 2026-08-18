@@ -40,38 +40,38 @@ export interface TokenRootSeed {
   entity: TokenEntity;
 }
 
-/** One real record a surface may offer as a preview subject. */
-export interface TokenRecentRecordRef {
-  id: string;
-  /** Human label for the picker (e.g. "Jane Doe — Crane Operator"). */
-  label: string;
-  /** The loaded record itself — the offer IS the data, never an id to load later. */
-  entity: TokenEntity;
-}
-
 /**
- * A short, non-searchable list of recent real records of one token
- * entity kind, offered to template editors as preview subjects.
+ * How a REAL record of one token entity kind may be used as the context
+ * a template is previewed against.
  *
- * There is deliberately NO search and NO load-by-id: the studio must
- * not be a general-purpose record browser (a template author is not
- * thereby entitled to read any record in the system). A surface asks
- * for the handful of records it is willing to offer, offers them by
- * label, and the client can only choose from what it was offered.
+ * A preview that renders against a real record is a read of that
+ * record, so it has to be gated like one: the declaration names the
+ * access policy the caller must satisfy for the named id, and loads the
+ * record. Both halves resolve the SAME id, so the check and the read
+ * can never drift apart.
  *
- * Declared ONCE per entity kind, on the token plugin that owns the kind
- * (`recentRecords` in its metadata) — never per notifier or surface.
+ * FAIL CLOSED: a kind with no declaration cannot be used as a preview
+ * context at all. Declaring one is a deliberate statement that "may
+ * this user read this record?" has an answer here; without it the
+ * preview endpoint refuses the kind rather than guessing.
+ *
+ * Declared ONCE per entity kind, on the token plugin that owns the kind.
  */
-export interface TokenRecentRecordProvider {
+export interface TokenPreviewEntitySource {
+  /**
+   * Access policy evaluated against the requested record id — the same
+   * check any other read of that record would make.
+   */
+  policy: string;
   /**
    * Component that must be enabled for this kind's data to be visible.
    * Defaults to the declaring plugin's `requiredComponent`: an optional
    * component's tables can be absent from the database entirely, so an
-   * unguarded listing errors instead of returning nothing.
+   * unguarded load errors instead of refusing.
    */
   requiredComponent?: string;
-  /** The `limit` most recent records, newest first where the store allows. */
-  recent(limit: number): Promise<TokenRecentRecordRef[]>;
+  /** Load the record, or null when there is no such record. */
+  load(storage: IStorage, id: string): Promise<TokenEntity | null>;
 }
 
 /**
@@ -193,13 +193,15 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
    */
   seedless?: boolean;
   /**
-   * The handful of recent real records of the kind this plugin produces
-   * that a template surface may OFFER as preview subjects. Declare on
-   * exactly ONE plugin per entity kind (the one that owns the kind —
-   * its root or its entity descriptor); the registry is built from
-   * these at boot and refuses two providers for one kind.
+   * How a real record of the kind this plugin produces may be named as
+   * a preview context, and how reading it is gated (see
+   * {@link TokenPreviewEntitySource}). Declare on exactly ONE plugin
+   * per entity kind (the one that owns the kind — its root or its
+   * entity descriptor); the projection is built at boot and refuses two
+   * declarations for one kind. Absent means the kind cannot be
+   * previewed against.
    */
-  recentRecords?: TokenRecentRecordProvider;
+  previewEntity?: TokenPreviewEntitySource;
   /**
    * Named sample personas for the kind this plugin produces (see
    * {@link TokenSampleSet}). Declare on the plugin that owns the kind.

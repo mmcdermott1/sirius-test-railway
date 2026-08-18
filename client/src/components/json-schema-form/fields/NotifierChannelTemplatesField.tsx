@@ -43,7 +43,6 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
   const schemaAny = schema as Record<string, unknown>;
 
   const channel = (schemaAny["x-token-channel"] as string) ?? "";
-  const pluginId = (schemaAny["x-token-plugin-id"] as string) ?? "";
   const catalogUrl = (schemaAny["x-token-catalog-url"] as string) ?? "";
   const title = (schemaAny.title as string) || channel;
   // Marked by the server when this notifier can't actually deliver on
@@ -201,7 +200,6 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
         <NotifierTemplateStudio
           open={studioOpen}
           onOpenChange={setStudioOpen}
-          pluginId={pluginId}
           channel={channel}
           schemaRows={rows}
           catalog={catalog}

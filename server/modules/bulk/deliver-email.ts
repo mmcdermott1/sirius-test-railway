@@ -2,8 +2,7 @@ import type { IStorage } from "../../storage";
 import { sendEmail, type SendEmailResult } from "../../services/comm/senders/email";
 import type { DeliverContactResult } from "./deliver";
 import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
-import { shapeRenderedValue } from "../../plugins/template-surfaces/shape";
-import { BULK_CHANNEL_FIELDS } from "./field-media";
+import { BULK_CHANNEL_FIELDS, shapeRenderedValue } from "../../delivery/shape";
 
 const [SUBJECT_SPEC, BODY_HTML_SPEC] = BULK_CHANNEL_FIELDS.email;
 

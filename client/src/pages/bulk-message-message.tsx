@@ -18,6 +18,7 @@ import { SimpleHtmlEditor } from "@/components/ui/simple-html-editor";
 import { cn } from "@/lib/utils";
 import { analyzeTemplateTokens, type TokenSegmentSpec, type TokenFieldCatalog } from "@shared/tokens";
 import { htmlToPlainText } from "@shared/html-to-text";
+import { BULK_CHANNEL_FIELDS } from "@shared/delivery-fields";
 
 type TokenInsertTarget = HTMLInputElement | HTMLTextAreaElement;
 
@@ -132,8 +133,7 @@ function EmailForm({ record, onSave, isPending, messageId }: FormProps) {
       <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        surfaceId="bulk-message"
-        surfaceParams={{ channel: "email", messageId }}
+        fieldSpecs={BULK_CHANNEL_FIELDS.email}
         catalogUrl="/api/bulk-tokens"
         treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="Email message"
@@ -193,8 +193,7 @@ function SmsForm({ record, onSave, isPending, messageId }: FormProps) {
       <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        surfaceId="bulk-message"
-        surfaceParams={{ channel: "sms", messageId }}
+        fieldSpecs={BULK_CHANNEL_FIELDS.sms}
         catalogUrl="/api/bulk-tokens"
         treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="SMS message"
@@ -254,8 +253,7 @@ function PostalForm({ record, onSave, isPending, messageId }: FormProps) {
       <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        surfaceId="bulk-message"
-        surfaceParams={{ channel: "postal", messageId }}
+        fieldSpecs={BULK_CHANNEL_FIELDS.postal}
         catalogUrl="/api/bulk-tokens"
         treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="Postal letter"
@@ -351,8 +349,7 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
       <TokenStudio
         open={studioOpen}
         onOpenChange={setStudioOpen}
-        surfaceId="bulk-message"
-        surfaceParams={{ channel: "inapp", messageId }}
+        fieldSpecs={BULK_CHANNEL_FIELDS.inapp}
         catalogUrl="/api/bulk-tokens"
         treeBaseUrl={BULK_TOKEN_TREE_URL}
         title="In-app notification"
@@ -364,6 +361,15 @@ function InappForm({ record, onSave, isPending, messageId }: FormProps) {
           { key: "linkLabel", label: "Link label", mode: "line" },
         ]}
         values={{ title: form.title, bodyHtml: form.bodyHtml, linkUrl: form.linkUrl, linkLabel: form.linkLabel }}
+        // Delivery sends a flattened plain-text `body`, not the
+        // rich-text `bodyHtml` the editor holds — flatten it here so
+        // the preview renders what is actually sent.
+        templateValues={{
+          title: form.title,
+          body: derivedBody,
+          linkUrl: form.linkUrl,
+          linkLabel: form.linkLabel,
+        }}
         onValueChange={(key, value) => setForm((p) => ({ ...p, [key]: value }))}
       />
       <div className="space-y-2">

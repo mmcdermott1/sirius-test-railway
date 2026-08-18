@@ -153,26 +153,6 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     defaultLeaf: "title",
-    // A few real dispatch jobs a surface may OFFER as preview subjects
-    // (there is no search and no load-by-id — a template author is not
-    // entitled to name an arbitrary record). Gated on the dispatch
-    // component (inherited from the plugin): the job tables need not
-    // exist at all when it is off.
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const jobs = await storage.dispatchJobs.getAll();
-        return jobs.slice(0, limit).map((j) => ({
-          id: j.id,
-          label: `${j.title} — ${j.startYmd}`,
-          entity: {
-            kind: DISPATCH_JOB_ENTITY_KIND,
-            row: j as unknown as Record<string, unknown>,
-            table: dispatchJobs,
-          },
-        }));
-      },
-    },
     sampleSets: DISPATCH_JOB_SAMPLE_SETS,
   },
   async resolve(entity, _args, ctx) {
@@ -236,44 +216,11 @@ registerTokenPlugin({
     outputType: DISPATCH_WORKER_STATUS_ENTITY_KIND,
     entityTable: workerDispatchStatus,
     // `status_label` is derived, not a column: the notifier merges it onto
-    // the row and the recent-record provider below computes the same way.
+    // the row from the event.
     entityFields: ["status_label"],
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: DISPATCH_WORKER_STATUS_SAMPLE_SETS,
-    // A few real dispatch-status rows a surface may OFFER as preview
-    // subjects (no search, no load-by-id — a template author is not
-    // entitled to name an arbitrary record). Rows carry the same derived
-    // `status_label` the notifier merges on, so a preview against a real
-    // record renders exactly what delivery would.
-    recentRecords: {
-      async recent(limit) {
-        const [{ createWorkerDispatchStatusStorage }, { dispatchStatusLabel }] =
-          await Promise.all([
-            import("../../../storage/dispatch/worker-status"),
-            import(
-              "../../event-notifier/plugins/dispatch-status-notifier"
-            ),
-          ]);
-        const rows =
-          await createWorkerDispatchStatusStorage().listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: `${row.workerName || "Unnamed worker"} — ${dispatchStatusLabel(row.status)}`,
-          entity: {
-            kind: DISPATCH_WORKER_STATUS_ENTITY_KIND,
-            row: {
-              id: row.id,
-              workerId: row.workerId,
-              status: row.status,
-              seniorityDate: row.seniorityDate,
-              statusLabel: dispatchStatusLabel(row.status),
-            },
-            table: workerDispatchStatus,
-          },
-        }));
-      },
-    },
   },
   async resolve() {
     return null;
@@ -351,46 +298,14 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: DISPATCH_FORE_ENTITY_KIND,
     entityTable: dispatchJobFore,
-    // Derived extras, not columns: every surface that builds a membership
-    // merges these (the notifier from the event, the recent-record provider
-    // below from the fact that the row exists). The job's title and the
+    // Derived extras, not columns: whoever builds a membership merges
+    // these on (the notifier, from the event). The job's title and the
     // employer's name are NOT here — they belong to the job, and templates
     // reach them through it.
     entityFields: ["action", "action_label"],
     hiddenFromCatalog: true,
     requiredComponent: "dispatch.fore",
     sampleSets: DISPATCH_FORE_SAMPLE_SETS,
-    // A few real foreperson rows a surface may OFFER as preview subjects.
-    // A membership that exists was added, so the derived `action` reads
-    // "added"; the removal wording is covered by the personas.
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const rows = await storage.dispatchJobFore.listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: [
-            row.workerName || "Unnamed worker",
-            row.jobTitle || "Untitled job",
-            row.employerName || null,
-          ]
-            .filter(Boolean)
-            .join(" — "),
-          entity: {
-            kind: DISPATCH_FORE_ENTITY_KIND,
-            row: {
-              id: row.id,
-              jobId: row.jobId,
-              workerId: row.workerId,
-              data: row.data,
-              action: "added",
-              actionLabel: "Added",
-            },
-            table: dispatchJobFore,
-          },
-        }));
-      },
-    },
   },
   async resolve() {
     return null;

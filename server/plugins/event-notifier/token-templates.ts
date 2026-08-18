@@ -7,8 +7,11 @@ import type {
   NotifierRecipient,
 } from "./types";
 import type { TokenRootSeed } from "../tokens/types";
-import { NOTIFIER_CHANNEL_FIELDS } from "./field-media";
-import { applyFieldEligibility, shapeRenderedValue } from "../template-surfaces/shape";
+import {
+  NOTIFIER_CHANNEL_FIELDS,
+  applyFieldEligibility,
+  shapeRenderedValue,
+} from "../../delivery/shape";
 
 const SERVICE = "event-notifier-token-templates";
 
@@ -31,7 +34,7 @@ function customTemplatesOf(configData: unknown): Record<string, Record<string, u
   return out;
 }
 
-export { isSafeRelativePath } from "../template-surfaces/shape";
+export { isSafeRelativePath } from "../../delivery/shape";
 
 /** A custom field wins only when it is a non-blank string. */
 function pick(custom: unknown, fallback: string | undefined): string {
@@ -115,7 +118,7 @@ export async function composeFromTemplates(
   // Media the templates don't cover (e.g. postal) are skipped.
   if (!channelTemplates || !specs) return null;
 
-  // Render every field, then shape it exactly as the template surface
+  // Render every field, then shape it exactly as the template studio
   // previews it: trimming, HTML sanitizing (AFTER token rendering, so a
   // substituted value used as a whole href faces the allowlist too),
   // relative-link enforcement and companion-field suppression all live

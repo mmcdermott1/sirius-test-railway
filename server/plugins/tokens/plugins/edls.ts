@@ -72,47 +72,6 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: "edls",
     sampleSets: EDLS_SHEET_SAMPLE_SETS,
-    // A few real EDLS sheets a surface may OFFER as preview subjects
-    // (no search and no load-by-id — a template author is not entitled
-    // to name an arbitrary record). Gated on the edls component
-    // (inherited from the plugin): its tables need not exist at all
-    // when the component is off.
-    recentRecords: {
-      async recent(limit) {
-        // The notifier owns the derived wording; a preview that composed it
-        // separately would drift from what delivery actually sends.
-        const [
-          { storage },
-          { edlsStatusLabel, edlsSheetDisplayTitle, edlsYmdDisplay },
-        ] = await Promise.all([
-          import("../../../storage"),
-          import("../../event-notifier/plugins/edls-sheet-status-notifier"),
-        ]);
-        const rows = await storage.edlsSheets.listForPreview(limit);
-        return rows.map((row) => {
-          const displayTitle = edlsSheetDisplayTitle(row.id, row.title);
-          const statusLabel = edlsStatusLabel(row.status);
-          const ymdDisplay = edlsYmdDisplay(row.ymd);
-          return {
-            id: row.id,
-            label: [displayTitle, statusLabel, row.ymd]
-              .filter(Boolean)
-              .join(" — "),
-            entity: {
-              kind: EDLS_SHEET_ENTITY_KIND,
-              row: {
-                ...(row as unknown as Record<string, unknown>),
-                display_title: displayTitle,
-                status_label: statusLabel,
-                ymd_display: ymdDisplay,
-                worker_count: String(row.workerCount),
-              },
-              table: edlsSheets,
-            },
-          };
-        });
-      },
-    },
   },
   async resolve() {
     return null;

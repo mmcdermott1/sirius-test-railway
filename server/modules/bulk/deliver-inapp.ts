@@ -2,8 +2,11 @@ import type { IStorage } from "../../storage";
 import { sendInapp, type SendInappResult } from "../../services/comm/senders/inapp";
 import type { DeliverContactResult } from "./deliver";
 import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
-import { applyFieldEligibility, shapeRenderedValue } from "../../plugins/template-surfaces/shape";
-import { BULK_CHANNEL_FIELDS } from "./field-media";
+import {
+  BULK_CHANNEL_FIELDS,
+  applyFieldEligibility,
+  shapeRenderedValue,
+} from "../../delivery/shape";
 
 export async function resolveUserId(storage: IStorage, contactId: string): Promise<string | null> {
   const contact = await storage.contacts.getContact(contactId);

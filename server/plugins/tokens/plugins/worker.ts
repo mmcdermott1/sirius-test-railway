@@ -105,25 +105,6 @@ registerTokenPlugin({
     entityTable: workers,
     entityFields: WORKER_EXTRA_FIELDS,
     recipientRooted: true,
-    recentRecords: {
-      async recent(limit) {
-        const { storage } = await import("../../../storage");
-        const { workers: found } = await storage.workers.searchWorkers("", limit);
-        const out = [];
-        for (const w of found) {
-          const row = await storage.bulkTokens.getWorkerRowById(w.id);
-          if (!row) continue;
-          out.push({
-            id: w.id,
-            label: w.siriusId
-              ? `${w.displayName ?? "Unnamed worker"} (#${w.siriusId})`
-              : (w.displayName ?? "Unnamed worker"),
-            entity: { kind: "worker", row, table: workers },
-          });
-        }
-        return out;
-      },
-    },
     sampleSets: WORKER_SAMPLE_SETS,
   },
   async resolve(_entity, _args, ctx) {

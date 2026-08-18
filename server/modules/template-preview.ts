@@ -1,6 +1,17 @@
-import type { IStorage } from "../../storage";
-import type { TokenRootSeed } from "../tokens/types";
-import { TemplateSurfaceError, type TemplateSurface } from "./types";
+import type { IStorage } from "../storage";
+import type { TokenRootSeed } from "../plugins/tokens/types";
+import type { DeliveryFieldSpec } from "@shared/delivery-fields";
+
+/**
+ * Rendering a tokenized template the way delivery would.
+ *
+ * A caller describes what it wants rendered — the template strings, and
+ * how each field is shaped when it is actually sent — and this renders
+ * them against whatever context it was given. There is no registration
+ * step and no notion of "which editor is asking": the request says
+ * everything, and the shaping runs through the same functions delivery
+ * runs through (`server/delivery/shape.ts`), so the two cannot drift.
+ */
 
 export interface TemplateFieldPreview {
   rendered: string;
@@ -11,22 +22,21 @@ export interface TemplateFieldPreview {
 }
 
 /** One root of the render, and whether it resolved real or sample data. */
-export interface TemplateSurfacePreviewRoot {
+export interface TemplatePreviewRoot {
   /** Root NAME — the segment a chain starts with (`dispatch`, `worker`). */
   name: string;
   kind: string;
   label: string;
-  /** The record this root was previewed against, when one was picked. */
+  /** The record this root was previewed against, when one was seeded. */
   recordId: string | null;
   /**
-   * True when this root rendered real data — a picked record, or (for
+   * True when this root rendered real data — a seeded record, or (for
    * recipient-rooted roots) the recipient contact.
    */
   real: boolean;
 }
 
-export interface TemplateSurfacePreview {
-  surfaceId: string;
+export interface TemplatePreview {
   /**
    * True when NO root had a real record — every RECORD in the render is a
    * sample. It does not mean nothing in the render is real: the system
@@ -38,7 +48,7 @@ export interface TemplateSurfacePreview {
    * Per-root sample-vs-real, so the studio can say which parts of the
    * preview are real instead of claiming all-or-nothing.
    */
-  roots: TemplateSurfacePreviewRoot[];
+  roots: TemplatePreviewRoot[];
   contactId: string | null;
   /** Rendered output per field key (declaration order). */
   fields: Record<string, TemplateFieldPreview>;
@@ -50,23 +60,30 @@ export interface TemplateSurfacePreview {
   deliverable: boolean;
 }
 
-export interface RenderSurfaceRequest {
+export interface RenderTemplatePreviewRequest {
   storage: IStorage;
-  surface: TemplateSurface;
-  /** Surface-specific parameters from the request body. */
-  params: Record<string, unknown>;
-  /** The editor's in-progress values. */
-  values: Record<string, string>;
+  /** The fields being rendered and how delivery shapes each of them. */
+  fields: DeliveryFieldSpec[];
+  /**
+   * FINISHED template string per field key. Any caller-specific
+   * composition (a notifier's default-vs-override merge, a rich-text
+   * body flattened to plain text) has already happened: this renders
+   * what it is given. A key with no string here is simply not rendered.
+   */
+  templates: Record<string, string>;
+  /**
+   * The named record roots these templates may address (`dispatch`,
+   * `event`). Ordinary roots (contact, worker, employer) are always
+   * available and need not be listed.
+   */
+  rootNames?: string[];
   /**
    * Recipient contact for the render. Set by the caller from a resolved
-   * preview context or by an internal caller that already holds one —
-   * NEVER from a contact id the client names.
+   * and gated context, or by an internal caller that already holds one.
    */
   contactId?: string;
   /**
-   * Roots this render is seeded with, each under its root NAME: the
-   * records behind a surface's resolved preview context, or (for the
-   * delivery-parity check) the very records delivery composes with.
+   * Roots this render is seeded with, each under its root NAME.
    * Anything not seeded here renders sample values, so one preview can
    * mix real and sample roots.
    */
@@ -85,46 +102,27 @@ function rootRecordId(seeds: TokenRootSeed[], name: string): string | null {
 }
 
 /**
- * Render one surface's fields: resolve the surface's templates, build
- * the eval context from the request's seeds (recipient contact and/or
- * event entity), render every field and apply the declared media rules.
+ * Render a set of tokenized fields and shape each one exactly as
+ * delivery shapes it.
  *
- * This is the ONE place delivery shaping happens, so every surface
- * inherits it: HTML is escaped-then-sanitized exactly like a delivered
- * email body, a relative-URL field that renders something unsafe is
- * blanked exactly as delivery would drop it, and a field declared
+ * This is the ONE place preview shaping happens: HTML is
+ * escaped-then-sanitized exactly like a delivered email body, a
+ * relative-URL field that renders something unsafe is blanked exactly
+ * as delivery would drop it, a `literal` field is never rendered at all
+ * because delivery sends it verbatim, and a field declared
  * `blankWithout` disappears when the field it depends on is blank.
- *
- * Throws {@link TemplateSurfaceError} for request-level problems (bad
- * surface parameters, unknown record) so the route can map them to a
- * status code.
  */
-export async function renderTemplateSurface({
+export async function renderTemplatePreview({
   storage,
-  surface,
-  params,
-  values,
+  fields: specs,
+  templates,
+  rootNames = [],
   contactId,
   seeds: seedsIn,
   sampleSetId,
-}: RenderSurfaceRequest): Promise<TemplateSurfacePreview> {
-  const resolution = await surface.resolve({ storage, params, values });
-
-  const declared = new Map(surface.fields.map((f) => [f.key, f]));
-  for (const key of Object.keys(resolution.templates)) {
-    if (!declared.has(key)) {
-      // A surface resolving an undeclared field has no media, so its
-      // preview shaping is unknown — that is exactly the disagreement
-      // this registry exists to prevent.
-      throw new Error(
-        `Template surface "${surface.id}" resolved undeclared field '${key}'`,
-      );
-    }
-  }
-
+}: RenderTemplatePreviewRequest): Promise<TemplatePreview> {
   // ── Seeds: whatever real records the caller resolved, all optional ────────
-  const rootNames = resolution.rootNames ?? [];
-  const { listTokenPreviewRoots } = await import("../tokens/preview-roots");
+  const { listTokenPreviewRoots } = await import("../plugins/tokens/preview-roots");
   const availableRoots = listTokenPreviewRoots(rootNames);
 
   const seeds: TokenRootSeed[] = [...(seedsIn ?? [])];
@@ -139,7 +137,7 @@ export async function renderTemplateSurface({
     contactId ??
     (typeof seededContact?.row.id === "string" ? seededContact.row.id : undefined);
 
-  const previewRoots: TemplateSurfacePreviewRoot[] = availableRoots.map((root) => ({
+  const previewRoots: TemplatePreviewRoot[] = availableRoots.map((root) => ({
     name: root.name,
     kind: root.kind,
     label: root.label,
@@ -151,14 +149,16 @@ export async function renderTemplateSurface({
   const useSample = !previewRoots.some((r) => r.real);
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const { renderTokens, createTokenEvalContext } = await import("../tokens");
-  const { applyFieldEligibility, shapeRenderedValue } = await import("./shape");
+  const { renderTokens, createTokenEvalContext } = await import("../plugins/tokens");
+  const { applyFieldEligibility, shapeRenderedValue } = await import(
+    "../delivery/shape"
+  );
 
   const cache = new Map<string, unknown>();
   const fields: Record<string, TemplateFieldPreview> = {};
 
-  for (const spec of surface.fields) {
-    const template = resolution.templates[spec.key];
+  for (const spec of specs) {
+    const template = templates[spec.key];
     if (typeof template !== "string") continue;
 
     if (spec.media === "literal") {
@@ -174,7 +174,7 @@ export async function renderTemplateSurface({
     }
 
     // Sample fallback is always on in a preview: it applies per root, so
-    // a root with a picked record still resolves against real data.
+    // a root with a seeded record still resolves against real data.
     const ctx = createTokenEvalContext(storage, recipientContactId, {
       sample: true,
       sampleSetId,
@@ -187,7 +187,8 @@ export async function renderTemplateSurface({
     });
 
     // Shape it the way delivery shapes it — same function delivery
-    // calls, driven by the media the surface declared.
+    // calls, driven by the media the caller declared from the shared
+    // delivery declarations.
     fields[spec.key] = {
       rendered: shapeRenderedValue(spec, result.output),
       unknownTokens: result.unknownTokens,
@@ -200,11 +201,11 @@ export async function renderTemplateSurface({
   // field it depends on, and a blank required field means no message.
   const rendered: Record<string, string> = {};
   for (const [key, field] of Object.entries(fields)) rendered[key] = field.rendered;
-  // Only the fields this render covers count: a surface declares every
-  // channel's fields, but one preview renders one channel, and another
-  // channel's required field is not missing — it is not in play.
-  const inPlay = surface.fields.filter(
-    (spec) => typeof resolution.templates[spec.key] === "string",
+  // Only the fields this render covers count: a caller may declare more
+  // fields than it supplies templates for, and a field with no template
+  // is not missing — it is not in play.
+  const inPlay = specs.filter(
+    (spec) => typeof templates[spec.key] === "string",
   );
   const eligibility = applyFieldEligibility(inPlay, rendered);
   for (const key of Object.keys(fields)) {
@@ -212,7 +213,6 @@ export async function renderTemplateSurface({
   }
 
   return {
-    surfaceId: surface.id,
     sample: useSample,
     roots: previewRoots,
     contactId: recipientContactId ?? null,
