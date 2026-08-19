@@ -69,9 +69,9 @@ export function edlsYmdDisplay(ymd: string): string {
 
 /** Default per-channel templates, rendered against a payload snapshot of
  * the transition (an intervening save must not change the message). */
-const TITLE = '{{edls_sheet.field(name="display_title")}}';
+const TITLE = "{{edls_sheet}}";
 const SENTENCE =
-  'The EDLS sheet "{{edls_sheet.field(name="display_title")}}" ' +
+  'The EDLS sheet "{{edls_sheet}}" ' +
   '({{edls_sheet.field(name="ymd_display")}}) has reached the status ' +
   '"{{edls_sheet.field(name="status_label")}}".';
 const LINK_PATH = '/edls/sheet/{{edls_sheet.field(name="id")}}';

@@ -39,7 +39,7 @@ function configuredRoleIds(configData: unknown): string[] {
  * grievance is seeded as its own root, so anything about the grievance —
  * starting with its title — is read from the grievance itself.
  */
-const TITLE = '{{grievance.field(name="display_title")}}';
+const TITLE = "{{grievance}}";
 const SENTENCE = '{{grievance_settlement.field(name="summary")}}';
 
 /** Settlement amount as US currency ("$100", "$100.50"); null when the

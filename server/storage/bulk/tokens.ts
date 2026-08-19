@@ -62,6 +62,24 @@ export interface BulkTokensStorage {
     keyColumn: string,
     id: string,
   ): Promise<string | null>;
+  /**
+   * FULL referenced row, used by the generated entity relations to walk
+   * a foreign key to the record it points at. Same contract as the
+   * entity getters above — every column, so `field(name=…)` can read
+   * any of them — and the same trust boundary as
+   * {@link getNameByReference}: table and column names come from the
+   * Drizzle schema config, never from user input.
+   *
+   * Only used for kinds whose whole field catalog IS their table. A
+   * kind that advertises derived fields loads itself through its own
+   * loader instead, so a relation never lands on a row that is missing
+   * fields the catalog promises.
+   */
+  getRowByReference(
+    tableName: string,
+    keyColumn: string,
+    id: string,
+  ): Promise<Row | null>;
 }
 
 // NOTE: the correlation must be spelled as a literal qualified
@@ -250,6 +268,15 @@ export function createBulkTokensStorage(): BulkTokensStorage {
       );
       const row = (result.rows?.[0] ?? undefined) as { name?: unknown } | undefined;
       return row?.name == null ? null : String(row.name);
+    },
+
+    async getRowByReference(tableName, keyColumn, id) {
+      const client = getClient();
+      const result = await client.execute(
+        sql`SELECT * FROM ${sql.identifier(tableName)} WHERE ${sql.identifier(keyColumn)} = ${id} LIMIT 1`,
+      );
+      const row = (result.rows?.[0] ?? undefined) as Row | undefined;
+      return row ?? null;
     },
   };
 }

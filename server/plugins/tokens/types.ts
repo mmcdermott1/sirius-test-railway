@@ -218,6 +218,16 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
   /** Hide from the generated picker catalog (still evaluatable). */
   hiddenFromCatalog?: boolean;
   /**
+   * Set by the relation sweeps on a segment they DERIVED from a foreign
+   * key, rather than one someone wrote. A sweep refuses to generate a
+   * relation a hand-written plugin already declares, but it can only
+   * refuse what is registered by the time it runs: registration is not a
+   * boot-only event. So the flag also settles the reverse order —
+   * `findSegmentPlugin` prefers the hand-written plugin, which knows
+   * something the sweep does not.
+   */
+  generated?: boolean;
+  /**
    * Root segments only: this root exists ONLY in renders whose surface
    * declares it by name — the records a notifier seeds
    * (`{{dispatch.…}}`, `{{sitespecific_t631_interview.…}}`) and the

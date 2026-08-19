@@ -4,6 +4,7 @@ import { tokenPluginRegistry } from "./registry";
 import { validateTokenPreviewEntities } from "./preview-entities";
 import { validateTokenSampleSets } from "./sample-sets";
 import { registerOptionsTokens } from "./plugins/options";
+import { registerEntityRelationTokens } from "./plugins/entity-relations";
 
 export * from "./types";
 export {
@@ -83,6 +84,10 @@ export function initializeTokenPluginSystem(): void {
   // hand-written plugins declare (their tables' foreign keys), so they
   // must exist before the projections below are validated.
   const optionsTokens = registerOptionsTokens();
+  // Entity relations come after the options sweep: an options table is
+  // neither owner nor target here, and running second keeps the two
+  // sweeps' skip rules reading in the order they are documented.
+  const entityRelationTokens = registerEntityRelationTokens();
   // Project the plugins' `previewEntity` and `sampleSets` declarations
   // into their per-kind registries once at boot, so two declarations for
   // one entity kind fail loudly here instead of at the first preview.
@@ -94,6 +99,7 @@ export function initializeTokenPluginSystem(): void {
     previewEntityKinds,
     sampleSetKinds,
     optionsTokens,
+    entityRelationTokens,
   });
 }
 

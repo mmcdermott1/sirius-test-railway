@@ -21,16 +21,19 @@ function payloadOf(ctx: EventNotifierEventContext): DispatchForeSavedPayload {
  * with the event's `action` (added/removed) merged on, so
  * one sentence stays grammatical for both. `action_label` carries the
  * capitalized form so the title matches the pre-token wording ("Added as
- * Foreperson" / "Removed as Foreperson"). The job is its own root, so its
- * title and employer are read off the job instead of being copied onto
- * the membership; `employer_id` is a foreign key and renders the
- * employer's name.
+ * Foreperson" / "Removed as Foreperson"); it stays spelled out rather
+ * than written as the bare `{{dispatch_fore}}` so that it reads as the
+ * pair of the `action` in the sentence below. The job is its own root,
+ * so its title and employer are read off the job instead of being copied
+ * onto the membership: `{{dispatch_job}}` is the job's title, and
+ * `{{dispatch_job.employer}}` walks the job's employer foreign key to the
+ * employer record and renders its name.
  */
 const TITLE = '{{dispatch_fore.field(name="action_label")}} as Foreperson';
 const SENTENCE =
   'You have been {{dispatch_fore.field(name="action")}} as a Foreperson ' +
-  'on "{{dispatch_job.field(name="title")}}" ' +
-  'at {{dispatch_job.field(name="employer_id")}}.';
+  'on "{{dispatch_job}}" ' +
+  "at {{dispatch_job.employer}}.";
 const LINK_PATH = '/dispatch/job/{{dispatch_job.field(name="id")}}';
 const LINK_LABEL = "View Job";
 

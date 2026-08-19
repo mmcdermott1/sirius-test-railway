@@ -59,9 +59,9 @@ export function findSegmentPlugin(
   name: string,
   inputType: TokenEntityType,
 ): TokenPlugin | undefined {
-  return tokenPluginRegistry
+  const matches = tokenPluginRegistry
     .listEnabledSync()
-    .find(
+    .filter(
       (p) =>
         p.metadata.segmentName === name &&
         (p.metadata.inputTypes.includes(inputType) ||
@@ -69,4 +69,9 @@ export function findSegmentPlugin(
             inputType !== "root" &&
             inputType !== "value")),
     );
+  // A hand-written segment always beats a derived one of the same name,
+  // whichever registered first: the sweep that derived it skips names
+  // already declared, but a plugin registered after the sweep ran cannot
+  // be skipped, only deferred to.
+  return matches.find((p) => !p.metadata.generated) ?? matches[0];
 }

@@ -39,15 +39,17 @@ function configuredIds(configData: unknown, key: string): string[] {
  *
  * `grievance_status_history` is the status-history ROW the event is about,
  * loaded by its own id (so a later transition can't make the message
- * describe a status this entry never had); `status_id` auto-renders the
- * status option's name through the FK. `grievance` is the linked grievance,
- * seeded as its own root — its `display_title` is the same title the
- * grievance pages show.
+ * describe a status this entry never had). `grievance` is the linked
+ * grievance, seeded as its own root.
+ *
+ * Both are written as the bare record: a record token renders the kind's
+ * default leaf, which is the grievance's `display_title` (the same title
+ * the grievance pages show) and the entry's status name.
  */
-const TITLE = '{{grievance.field(name="display_title")}}';
+const TITLE = "{{grievance}}";
 const SENTENCE =
-  'The grievance "{{grievance.field(name="display_title")}}" ' +
-  'has reached the status "{{grievance_status_history.field(name="status_id")}}".';
+  'The grievance "{{grievance}}" ' +
+  'has reached the status "{{grievance_status_history}}".';
 const LINK_PATH = '/grievance/{{grievance.field(name="id")}}';
 const LINK_LABEL = "View Grievance";
 

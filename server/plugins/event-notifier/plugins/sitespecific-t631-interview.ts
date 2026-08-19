@@ -82,11 +82,11 @@ function linkPathTemplate(recipientKind: InterviewNotifierConfig["recipientKind"
 }
 
 const SENTENCE =
-  `The interview for {{${ROOT}.worker.contact.field(name="display_name")}} ` +
-  `on the job "{{${ROOT}.dispatch_job.field(name="title")}}" ` +
-  `is now {{${ROOT}.field(name="status")}}.`;
+  `The interview for {{${ROOT}.worker.contact}} ` +
+  `on the job "{{${ROOT}.dispatch_job}}" ` +
+  `is now {{${ROOT}}}.`;
 
-const TITLE = `Interview {{${ROOT}.field(name="status")}}`;
+const TITLE = `Interview {{${ROOT}}}`;
 
 /** Default per-channel templates; the link target varies with the recipient kind. */
 function defaultTemplates(configData?: unknown): NotifierChannelTemplates {

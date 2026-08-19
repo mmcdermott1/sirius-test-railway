@@ -38,8 +38,7 @@ export function dispatchStatusLabel(status: string): string {
  * availability row (the one the event names).
  */
 const TITLE = "Dispatch Status Changed";
-const SENTENCE =
-  `Your dispatch status is now {{${ROOT}.field(name="status_label")}}.`;
+const SENTENCE = `Your dispatch status is now {{${ROOT}}}.`;
 // worker_id is a column of the row itself — no relation to come up empty.
 const LINK_PATH =
   `/workers/{{${ROOT}.field(name="worker_id")}}/dispatch/status`;
