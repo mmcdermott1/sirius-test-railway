@@ -139,7 +139,7 @@ export const grievanceDeadlineNotifier: EventNotifierPlugin = {
     const body = `The grievance "${grievanceTitle}" has ${step} due on ${dueDate} — ${offset} ${dayWord} from now.`;
     const linkUrl = `/grievance/${grievanceId}`;
     const absoluteUrl = absoluteGrievanceUrl(grievanceId);
-    const title = "Grievance Deadline Reminder";
+    const title = `Grievance - deadline - ${grievanceTitle}`;
 
     switch (medium) {
       case "inapp":

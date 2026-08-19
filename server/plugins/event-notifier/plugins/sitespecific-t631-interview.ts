@@ -86,7 +86,14 @@ const SENTENCE =
   `on the job "{{${ROOT}.dispatch_job}}" ` +
   `is now {{${ROOT}}}.`;
 
-const TITLE = `Interview {{${ROOT}}}`;
+/**
+ * Subject/title: area, what happened, then the record that identifies it
+ * to the reader. The job names the interview for every recipient kind —
+ * a worker recipient already knows who they are, and a staff or employer
+ * recipient is reading about that job. The new status is the sentence's
+ * job, not the subject's.
+ */
+const TITLE = `Interview - status change - {{${ROOT}.dispatch_job}}`;
 
 /** Default per-channel templates; the link target varies with the recipient kind. */
 function defaultTemplates(configData?: unknown): NotifierChannelTemplates {

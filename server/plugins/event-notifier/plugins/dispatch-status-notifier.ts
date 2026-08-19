@@ -37,7 +37,7 @@ export function dispatchStatusLabel(status: string): string {
  * Default per-channel templates, rendered against the worker's real
  * availability row (the one the event names).
  */
-const TITLE = "Dispatch Status Changed";
+const TITLE = `Dispatch - status change - {{${ROOT}}}`;
 const SENTENCE = `Your dispatch status is now {{${ROOT}}}.`;
 // worker_id is a column of the row itself — no relation to come up empty.
 const LINK_PATH =

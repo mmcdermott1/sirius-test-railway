@@ -19,17 +19,19 @@ function payloadOf(ctx: EventNotifierEventContext): DispatchForeSavedPayload {
  * Default per-channel templates. `dispatch_fore` is the fore-membership
  * row as the event carried it (a removal's row is gone by delivery time)
  * with the event's `action` (added/removed) merged on, so
- * one sentence stays grammatical for both. `action_label` carries the
- * capitalized form so the title matches the pre-token wording ("Added as
- * Foreperson" / "Removed as Foreperson"); it stays spelled out rather
- * than written as the bare `{{dispatch_fore}}` so that it reads as the
- * pair of the `action` in the sentence below. The job is its own root,
+ * one sentence stays grammatical for both. Subject and sentence both
+ * write the lower-case `action`, which reads correctly mid-phrase in
+ * each ("Dispatch - foreperson added - …", "You have been added …");
+ * `action_label` carries the capitalized form for a template that needs
+ * to open a line with it. The job is its own root,
  * so its title and employer are read off the job instead of being copied
  * onto the membership: `{{dispatch_job}}` is the job's title, and
  * `{{dispatch_job.employer}}` walks the job's employer foreign key to the
  * employer record and renders its name.
  */
-const TITLE = '{{dispatch_fore.field(name="action_label")}} as Foreperson';
+const TITLE =
+  'Dispatch - foreperson {{dispatch_fore.field(name="action")}} - ' +
+  "{{dispatch_job}}";
 const SENTENCE =
   'You have been {{dispatch_fore.field(name="action")}} as a Foreperson ' +
   'on "{{dispatch_job}}" ' +

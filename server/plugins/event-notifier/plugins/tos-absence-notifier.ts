@@ -62,7 +62,9 @@ export const tosAbsenceNotifier: EventNotifierPlugin = {
     const { workerId, offset, absenceStartDate } = payloadOf(ctx);
     const dayWord = offset === 1 ? "day" : "days";
     const body = `It has been ${offset} ${dayWord} since an absence beginning ${absenceStartDate}.`;
-    const title = "Absence Reminder";
+    // Two segments: the reminder is about the recipient's own absence,
+    // and the body already dates it.
+    const title = "TOS - absence reminder";
     const linkUrl = `/workers/${workerId}`;
     const absoluteUrl = absoluteWorkerUrl(workerId);
 

@@ -6,7 +6,7 @@
  *  - storage emits carry the status transition (previousStatus/isDeleted)
  *  - shouldDispatch fires only on transitions INTO the target status
  *  - recipient resolution for worker / employer / staff kinds
- *  - per-medium message composition (sanitized email intro, links)
+ *  - the shipped token templates render per medium (subject, body, links)
  *  - staff-recipient save-time validation (non-staff ids rejected)
  *
  * Run: npx tsx scripts/oneoffs/verify-t631-interview-notifier.ts
@@ -308,68 +308,109 @@ async function main(): Promise<void> {
     });
     check("staff kind with no picks → nobody", staffEmpty.length === 0);
 
-    console.log("== message composition ==");
-    const cfgMsg = {
-      targetStatus: "accepted",
-      recipientKind: "employer",
-      emailSubject: "Interview update for your job",
-      emailIntroHtml: '<p>Hello <strong>there</strong></p><script>alert(1)</script>',
-      textIntro: "Heads up:",
-    };
-    const recipient = { contactId: ecA };
-    const email = await plugin.getMessage("email", recipient, ctxOf(basePayload), cfgMsg);
-    check("email uses custom subject", email?.subject === "Interview update for your job");
-    check(
-      "email html keeps intro, strips script",
-      !!email?.bodyHtml &&
-        email.bodyHtml.includes("<strong>there</strong>") &&
-        !email.bodyHtml.includes("<script>"),
-      email?.bodyHtml,
+    // Message composition moved to token templates: the plugin no longer
+    // composes strings itself, so render its shipped defaults the way the
+    // framework does and assert on the rendered output.
+    console.log("== message composition (shipped token templates) ==");
+    const { renderTokens, createTokenEvalContext, initializeTokenPluginSystem } =
+      await import("../../server/plugins/tokens");
+    const { loadComponentCache } = await import(
+      "../../server/services/component-cache"
     );
-    check(
-      "email html has absolute job link + generated text",
-      !!email?.bodyHtml &&
-        email.bodyHtml.includes(`https://`) &&
-        email.bodyHtml.includes(`/dispatch/job/${jobId}/sitespecific_t631_interviews`) &&
-        email.bodyHtml.includes("is now Accepted"),
-      email?.bodyHtml,
-    );
-    check(
-      "email text fallback has intro + link",
-      !!email?.bodyText && email.bodyText.includes("Hello there") && email.bodyText.includes(jobId),
-      email?.bodyText,
-    );
-
-    const emailDefault = await plugin.getMessage("email", recipient, ctxOf(basePayload), {
-      targetStatus: "accepted",
-      recipientKind: "worker",
+    await loadComponentCache();
+    initializeTokenPluginSystem();
+    // The interview above was deleted by the transition checks; the roots
+    // read the live row, so render against a fresh one.
+    const live = await storage.t631Interviews.create({
+      workerId,
+      jobId,
+      status: "accepted",
+      data: { note: FIXTURE_TAG },
     });
+    cleanup.push(async () => {
+      await db.execute(
+        sql`DELETE FROM sitespecific_t631_job_interviews WHERE id = ${live.id}`,
+      );
+    });
+    const livePayload = {
+      ...basePayload,
+      interviewId: live.id,
+      status: "accepted",
+      previousStatus: "offered",
+      isDeleted: false,
+    };
+
+    const seeds: Array<{ name: string; entity: unknown }> = [];
+    for (const root of plugin.tokenTemplates!.roots) {
+      const built = await root.build(ctxOf(livePayload));
+      check(`token root {{${root.name}}} builds a record`, built !== null);
+      if (built) seeds.push({ name: root.name, entity: built });
+    }
+    const evalCtx = createTokenEvalContext(storage, null, { seeds } as never);
+    const renderFor = async (recipientKind: string) => {
+      const templates = plugin.tokenTemplates!.defaultTemplates!({
+        targetStatus: "accepted",
+        recipientKind,
+      });
+      const out: Record<string, string> = {};
+      for (const [channel, fields] of Object.entries(templates)) {
+        for (const [field, template] of Object.entries(
+          fields as Record<string, string>,
+        )) {
+          const r = await renderTokens(template, evalCtx);
+          check(
+            `${recipientKind}: ${channel}.${field} renders every token`,
+            r.unknownTokens.length === 0 &&
+              r.missingValues.length === 0 &&
+              r.emptyValues.length === 0,
+            [...r.unknownTokens, ...r.missingValues, ...r.emptyValues],
+          );
+          out[`${channel}.${field}`] = r.output;
+        }
+      }
+      return out;
+    };
+
+    const expectedTitle = `Interview - status change - [fixture] job ${FIXTURE_TAG}`;
+    const workerOut = await renderFor("worker");
     check(
-      "email default subject + worker link for worker kind",
-      emailDefault?.subject === "Interview Accepted" &&
-        !!emailDefault?.bodyHtml &&
-        emailDefault.bodyHtml.includes(`/workers/${workerId}/dispatch/sitespecific_t631_interviews`),
-      emailDefault,
+      "worker kind: subject names the area, the change and the job",
+      workerOut["email.subject"] === expectedTitle &&
+        workerOut["inapp.title"] === expectedTitle,
+      workerOut,
+    );
+    check(
+      "worker kind: email links absolutely to the worker's interviews tab",
+      workerOut["email.bodyHtml"].includes(
+        `/workers/${workerId}/dispatch/sitespecific_t631_interviews`,
+      ) && workerOut["email.bodyHtml"].includes("https://"),
+      workerOut["email.bodyHtml"],
+    );
+    check(
+      "worker kind: body says which status it is now",
+      workerOut["inapp.body"].includes("is now accepted"),
+      workerOut["inapp.body"],
     );
 
-    const smsMsg = await plugin.getMessage("sms", recipient, ctxOf(basePayload), cfgMsg);
+    const employerOut = await renderFor("employer");
     check(
-      "sms = intro + generated + absolute link",
-      !!smsMsg?.message &&
-        smsMsg.message.startsWith("Heads up:") &&
-        smsMsg.message.includes("is now Accepted") &&
-        smsMsg.message.includes("https://"),
-      smsMsg,
+      "employer kind: same subject",
+      employerOut["email.subject"] === expectedTitle &&
+        employerOut["inapp.title"] === expectedTitle,
+      employerOut,
     );
-
-    const inapp = await plugin.getMessage("inapp", recipient, ctxOf(basePayload), cfgMsg);
     check(
-      "inapp uses relative link + intro",
-      inapp?.linkUrl === `/dispatch/job/${jobId}/sitespecific_t631_interviews` &&
-        !!inapp?.body &&
-        inapp.body.startsWith("Heads up:") &&
-        !!inapp?.title,
-      inapp,
+      "employer kind: in-app link is relative to the job's interviews page",
+      employerOut["inapp.linkUrl"] ===
+        `/dispatch/job/${jobId}/sitespecific_t631_interviews`,
+      employerOut["inapp.linkUrl"],
+    );
+    check(
+      "employer kind: sms carries the sentence and an absolute link, no subject",
+      employerOut["sms.message"].includes("is now accepted") &&
+        employerOut["sms.message"].includes("https://") &&
+        !("sms.subject" in employerOut),
+      employerOut["sms.message"],
     );
 
     console.log("== save-time staff recipient validation ==");

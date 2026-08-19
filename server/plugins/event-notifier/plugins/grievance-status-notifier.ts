@@ -46,7 +46,7 @@ function configuredIds(configData: unknown, key: string): string[] {
  * default leaf, which is the grievance's `display_title` (the same title
  * the grievance pages show) and the entry's status name.
  */
-const TITLE = "{{grievance}}";
+const TITLE = "Grievance - status change - {{grievance}}";
 const SENTENCE =
   'The grievance "{{grievance}}" ' +
   'has reached the status "{{grievance_status_history}}".';
