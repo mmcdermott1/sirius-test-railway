@@ -578,8 +578,20 @@ export function TokenTreeBrowser({
           </div>
         ) : (
           <div className="p-2 space-y-0.5">
+            {roots.map(renderRootRow)}
+            {rootsLoading && (
+              <div className="p-2 text-sm text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tokens…
+              </div>
+            )}
+            {!rootsLoading && roots.length === 0 && (
+              <div className="p-2 text-sm text-muted-foreground" data-testid="text-no-tokens-found">
+                No token records are available here.
+              </div>
+            )}
             {recent.length > 0 && (
               <div data-testid="section-recent-tokens">
+                <div className="border-t my-1" />
                 <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   Recently used
@@ -595,17 +607,6 @@ export function TokenTreeBrowser({
                     {collapseFieldSegments(expression)}
                   </button>
                 ))}
-              </div>
-            )}
-            {roots.map(renderRootRow)}
-            {rootsLoading && (
-              <div className="p-2 text-sm text-muted-foreground flex items-center gap-1.5">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tokens…
-              </div>
-            )}
-            {!rootsLoading && roots.length === 0 && (
-              <div className="p-2 text-sm text-muted-foreground" data-testid="text-no-tokens-found">
-                No token records are available here.
               </div>
             )}
           </div>
