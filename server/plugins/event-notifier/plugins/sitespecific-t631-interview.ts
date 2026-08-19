@@ -162,7 +162,7 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
       // Per-channel message templates, from the shared framework builder.
       // The default link target varies with the recipient kind, so the
       // editor re-fetches the defaults when that field changes.
-      templates: templatesSchemaBlock(PLUGIN_ID, {
+      templates: templatesSchemaBlock({
         exampleTokens: [
           `{{${ROOT}.field(name="status")}}`,
           `{{${ROOT}.worker.contact.field(name="display_name")}}`,

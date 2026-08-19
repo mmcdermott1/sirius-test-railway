@@ -36,8 +36,6 @@ const RECIPIENT_SHEET_SUPERVISOR = "sheet_supervisor";
 const RECIPIENT_SHEET_ASSIGNEE = "sheet_assignee";
 const RECIPIENT_CREW_SUPERVISORS = "crew_supervisors";
 
-const PLUGIN_ID = "edls-sheet-status-notifier";
-
 /** Display labels for sheet statuses, merged onto the event entity as
  * `status_label` so the default wording matches the pre-token notifier
  * ("Locked", not "lock"). Raw `status` stays available for templates. */
@@ -163,7 +161,7 @@ export const edlsSheetStatusNotifier: EventNotifierPlugin = {
           ],
         },
       },
-      templates: templatesSchemaBlock(PLUGIN_ID, {
+      templates: templatesSchemaBlock({
         exampleTokens: [
           '{{edls_sheet.field(name="title")}}',
           '{{edls_sheet.field(name="status")}}',

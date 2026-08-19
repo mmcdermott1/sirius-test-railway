@@ -15,8 +15,6 @@ function payloadOf(ctx: EventNotifierEventContext): DispatchStatusSavedPayload {
   return ctx.payload as DispatchStatusSavedPayload;
 }
 
-const PLUGIN_ID = "dispatch-status-notifier";
-
 /** Root name: the entity kind of the record the notice is about. */
 const ROOT = "dispatch_worker_status";
 
@@ -93,7 +91,7 @@ export const dispatchStatusNotifier: EventNotifierPlugin = {
   configSchema: {
     type: "object",
     properties: {
-      templates: templatesSchemaBlock(PLUGIN_ID, {
+      templates: templatesSchemaBlock({
         exampleTokens: [
           `{{${ROOT}.field(name="status")}}`,
           `{{${ROOT}.worker.contact.field(name="display_name")}}`,

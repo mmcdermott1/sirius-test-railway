@@ -6,6 +6,7 @@ import {
   registerTokenContextRoot,
 } from "../tokens/context-roots";
 import { tokenPluginRegistry } from "../tokens/registry";
+import { stampNotifierTemplateIds } from "./template-schema";
 import type {
   EventNotifierPlugin,
   EventNotifierManifestEntry,
@@ -48,7 +49,22 @@ export function registerEventNotifier(plugin: EventNotifierPlugin): void {
       `Event notifier "${plugin.id}" must declare tokenTemplates or implement getMessage`,
     );
   }
-  if (plugin.tokenTemplates) registerRecordRoots(plugin);
+  if (plugin.tokenTemplates) {
+    registerRecordRoots(plugin);
+    // The template cards address the catalog endpoint by plugin id, so
+    // the id comes from the registration itself — never from a constant
+    // the plugin file writes out a second time.
+    //
+    // No card to stamp means the notifier renders messages from token
+    // templates that nobody can see or edit — the same silent nothing
+    // this stamping exists to prevent. Fail at boot instead.
+    if (stampNotifierTemplateIds(plugin.configSchema, plugin.id) === 0) {
+      throw new Error(
+        `Event notifier "${plugin.id}" declares tokenTemplates but its configSchema ` +
+          `has no message-template channel groups; build the block with templatesSchemaBlock().`,
+      );
+    }
+  }
   eventNotifierRegistry.register(plugin);
 }
 

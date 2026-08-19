@@ -31,8 +31,6 @@ function configuredRoleIds(configData: unknown): string[] {
   return ids.filter((v): v is string => typeof v === "string");
 }
 
-const PLUGIN_ID = "grievance-settlement-notifier";
-
 /**
  * Default per-channel templates. `grievance_settlement` is the settlement
  * row (reconstructed from the payload for deletes, whose row is gone by
@@ -140,7 +138,7 @@ export const grievanceSettlementNotifier: EventNotifierPlugin = {
         items: { type: "string" },
         "x-options-resource": "grievance-role",
       },
-      templates: templatesSchemaBlock(PLUGIN_ID, {
+      templates: templatesSchemaBlock({
         exampleTokens: [
           '{{grievance.field(name="name")}}',
           '{{grievance_settlement.field(name="amount")}}',

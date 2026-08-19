@@ -92,4 +92,5 @@
 - [Vite SSR transform exposes import cycles](vite-ssr-transform-import-cycles.md) — "X is not a function" at module top level under Vitest = a real cycle Node's function hoisting hides; break the backwards edge with a lazy import.
 - [Regression-test bar](regression-test-bar.md) — never propose a follow-up test task (generic title templates push you to); bar + lint-vs-test split live in replit.md; gates fixed at lint/typecheck/migrations.
 - [Derived token segments](derived-token-segments.md) — generated segments (options relations from FK+options metadata) must regenerate on LATE plugin registration, name themselves after the target table, skip ambiguous pairs.
+- [Plugin id in client schema metadata](plugin-id-in-client-schema-metadata.md) — never hand-write a plugin's id into schema metadata addressing a by-id endpoint; stamp it at registration (drift 404s silently = empty editor).
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.

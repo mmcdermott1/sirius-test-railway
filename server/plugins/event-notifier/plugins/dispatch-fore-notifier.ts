@@ -15,8 +15,6 @@ function payloadOf(ctx: EventNotifierEventContext): DispatchForeSavedPayload {
   return ctx.payload as DispatchForeSavedPayload;
 }
 
-const PLUGIN_ID = "dispatch-fore-notifier";
-
 /**
  * Default per-channel templates. `dispatch_fore` is the fore-membership
  * row as the event carried it (a removal's row is gone by delivery time)
@@ -77,7 +75,7 @@ export const dispatchForeNotifier: EventNotifierPlugin = {
   configSchema: {
     type: "object",
     properties: {
-      templates: templatesSchemaBlock(PLUGIN_ID, {
+      templates: templatesSchemaBlock({
         exampleTokens: [
           '{{dispatch_fore.field(name="action")}}',
           '{{dispatch_job.field(name="start_ymd")}}',

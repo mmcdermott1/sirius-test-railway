@@ -34,8 +34,6 @@ function configuredIds(configData: unknown, key: string): string[] {
   return ids.filter((v): v is string => typeof v === "string");
 }
 
-const PLUGIN_ID = "grievance-status-notifier";
-
 /**
  * Default per-channel templates.
  *
@@ -121,7 +119,7 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
         items: { type: "string" },
         "x-options-resource": "grievance-role",
       },
-      templates: templatesSchemaBlock(PLUGIN_ID, {
+      templates: templatesSchemaBlock({
         exampleTokens: [
           '{{grievance.field(name="sirius_id")}}',
           '{{grievance_status_history.field(name="status_id")}}',

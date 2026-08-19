@@ -122,6 +122,39 @@ export function hideUndeliverableTemplateChannels(
   };
 }
 
+/**
+ * Name the notifier every template card in `configSchema` belongs to, so
+ * the card can fetch that notifier's token catalog.
+ *
+ * Called once per notifier at registration, from the id the notifier is
+ * actually registered under. It is deliberately NOT something a plugin
+ * passes in: the catalog endpoint looks the notifier up by this id, and
+ * a hand-written copy that drifts from the real one 404s — leaving the
+ * Template Studio with no tokens, no defaults and no preview roots, with
+ * nothing anywhere saying why.
+ */
+export function stampNotifierTemplateIds(
+  configSchema: Record<string, unknown> | undefined,
+  pluginId: string,
+): number {
+  const props = configSchema?.properties as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  const groups = props?.templates?.properties as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  if (!groups) return 0;
+  let stamped = 0;
+  for (const group of Object.values(groups)) {
+    if (group["x-widget"] !== "notifier-channel-templates") continue;
+    group["x-token-plugin-id"] = pluginId;
+    group["x-token-catalog-url"] =
+      `/api/event-notifier/token-catalog/${encodeURIComponent(pluginId)}`;
+    stamped++;
+  }
+  return stamped;
+}
+
 /** One token-template field: metadata only; the medium owns the editor. */
 function templateField(
   title: string,
@@ -144,9 +177,13 @@ function templateField(
   return field;
 }
 
-/** One medium's group: the unit the client renders as a single card. */
+/**
+ * One medium's group: the unit the client renders as a single card.
+ *
+ * The notifier it belongs to is NOT named here — `stampNotifierTemplateIds`
+ * fills that in from the id the notifier actually registers under.
+ */
 function channelGroup(
-  pluginId: string,
   channel: string,
   title: string,
   properties: Record<string, unknown>,
@@ -157,8 +194,6 @@ function channelGroup(
     title,
     "x-widget": "notifier-channel-templates",
     "x-token-channel": channel,
-    "x-token-plugin-id": pluginId,
-    "x-token-catalog-url": `/api/event-notifier/token-catalog/${pluginId}`,
     properties,
   };
   if (defaultsDeps && defaultsDeps.length > 0) {
@@ -175,7 +210,6 @@ function channelGroup(
  * block's description so authors see a couple of relevant tokens.
  */
 export function templatesSchemaBlock(
-  pluginId: string,
   opts?: { exampleTokens?: string[]; defaultsDeps?: string[] },
 ): Record<string, unknown> {
   const deps = opts?.defaultsDeps;
@@ -185,7 +219,6 @@ export function templatesSchemaBlock(
     title: "Message templates",
     properties: {
       email: channelGroup(
-        pluginId,
         "email",
         "Email",
         {
@@ -195,7 +228,6 @@ export function templatesSchemaBlock(
         deps,
       ),
       sms: channelGroup(
-        pluginId,
         "sms",
         "SMS",
         {
@@ -204,7 +236,6 @@ export function templatesSchemaBlock(
         deps,
       ),
       inapp: channelGroup(
-        pluginId,
         "inapp",
         "In-app",
         {
