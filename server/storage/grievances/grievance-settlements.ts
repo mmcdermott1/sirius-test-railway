@@ -107,14 +107,11 @@ export interface GrievanceSettlementStorage {
    * Settlements across ALL grievances matching `query` (grievance name
    * or settlement description; empty matches every settlement), with the
    * parts their grievance's display title is composed from. Feeds the
-   * Template Studio record picker. The table carries no created-at
+   * Template Studio's preview seeds. The table carries no created-at
    * column, so the order is stable rather than recent (by grievance,
    * then id).
    */
-  searchForPreview(
-    query: string,
-    limit: number,
-  ): Promise<GrievanceSettlementPreviewItem[]>;
+  listForPreview(limit: number): Promise<GrievanceSettlementPreviewItem[]>;
   get(
     grievanceId: string,
     settlementId: string,
@@ -156,13 +153,10 @@ export function createGrievanceSettlementStorage(): GrievanceSettlementStorage {
         .orderBy(asc(grievanceSettlements.id));
     },
 
-    async searchForPreview(
-      query: string,
+    async listForPreview(
       limit: number,
     ): Promise<GrievanceSettlementPreviewItem[]> {
       const client = getClient();
-      const trimmed = query.trim();
-      const term = `%${trimmed}%`;
       const rows = await client
         .select({
           settlement: grievanceSettlements,
@@ -178,11 +172,6 @@ export function createGrievanceSettlementStorage(): GrievanceSettlementStorage {
         .leftJoin(
           optionsGrievanceCategory,
           eq(grievances.categoryId, optionsGrievanceCategory.id),
-        )
-        .where(
-          trimmed
-            ? sql`(${grievanceNameDenorm.name} ILIKE ${term} OR ${grievanceSettlements.description} ILIKE ${term})`
-            : undefined,
         )
         .orderBy(asc(grievanceSettlements.grievanceId), asc(grievanceSettlements.id))
         .limit(limit);

@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
-import { TemplateStudio, type StudioField, type StudioFieldMode } from "./TemplateStudio";
+import {
+  TemplateStudio,
+  type StudioContext,
+  type StudioField,
+  type StudioFieldMode,
+} from "./TemplateStudio";
 import { NOTIFIER_CHANNEL_FIELDS } from "@shared/delivery-fields";
 import type {
   TokenCatalogEntry,
@@ -35,6 +40,8 @@ export interface NotifierTokenCatalog {
   fields?: TokenFieldCatalog;
   defaults?: Record<string, Record<string, string>>;
   tokens?: TokenCatalogEntry[];
+  /** What each of those roots may be previewed as. */
+  studioContext?: StudioContext;
 }
 export interface NotifierTemplateStudioProps {
   open: boolean;
@@ -164,6 +171,7 @@ export function NotifierTemplateStudio({
       // The notifier's own records first; the event envelope and the
       // ordinary roots (contact, system…) after them.
       rootNames={catalog?.rootNames ?? []}
+      studioContext={catalog?.studioContext}
     />
   );
 }

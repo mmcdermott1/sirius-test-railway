@@ -125,10 +125,7 @@ export interface GrievanceStatusHistoryStorage {
    * entry date, with the parts their grievance's display title is
    * composed from. Read-only; feeds the Template Studio record picker.
    */
-  searchForPreview(
-    query: string,
-    limit: number,
-  ): Promise<GrievanceStatusHistoryPreviewItem[]>;
+  listForPreview(limit: number): Promise<GrievanceStatusHistoryPreviewItem[]>;
   get(
     grievanceId: string,
     entryId: string,
@@ -236,13 +233,10 @@ export function createGrievanceStatusHistoryStorage(): GrievanceStatusHistorySto
       return rows;
     },
 
-    async searchForPreview(
-      query: string,
+    async listForPreview(
       limit: number,
     ): Promise<GrievanceStatusHistoryPreviewItem[]> {
       const client = getClient();
-      const trimmed = query.trim();
-      const term = `%${trimmed}%`;
       return client
         .select({
           id: grievanceStatusHistory.id,
@@ -272,11 +266,6 @@ export function createGrievanceStatusHistoryStorage(): GrievanceStatusHistorySto
         .leftJoin(
           optionsGrievanceCategory,
           eq(grievances.categoryId, optionsGrievanceCategory.id),
-        )
-        .where(
-          trimmed
-            ? sql`(${grievanceNameDenorm.name} ILIKE ${term} OR ${optionsGrievanceStatus.name} ILIKE ${term})`
-            : undefined,
         )
         .orderBy(desc(grievanceStatusHistory.date))
         .limit(limit);

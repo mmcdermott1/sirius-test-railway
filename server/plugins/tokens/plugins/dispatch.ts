@@ -160,8 +160,8 @@ registerTokenPlugin({
     // per-job rule here would make preview disagree with the job pages.
     previewEntity: {
       gate: { scope: "route", policy: "admin" },
-      async search(storage, query, limit) {
-        const jobs = await storage.dispatchJobs.searchForPreview(query, limit);
+      async offer(storage, limit) {
+        const jobs = await storage.dispatchJobs.listForPreview(limit);
         return jobs.map((job) => ({
           id: job.id,
           label: `${job.title} — ${job.startYmd}`,
@@ -253,7 +253,7 @@ registerTokenPlugin({
     // policy of its own, so the gate subject is the worker, not the row.
     previewEntity: {
       gate: { scope: "record", policy: "worker.view" },
-      async search(_storage, query, limit) {
+      async offer(_storage, limit) {
         // Availability rows are their own storage module, not part of
         // IStorage — the same one the notifier reads them through.
         const [{ dispatchStatusLabel }, { createWorkerDispatchStatusStorage }] =
@@ -261,10 +261,8 @@ registerTokenPlugin({
             import("../../event-notifier/plugins/dispatch-status-notifier"),
             import("../../../storage/dispatch/worker-status"),
           ]);
-        const rows = await createWorkerDispatchStatusStorage().searchForPreview(
-          query,
-          limit,
-        );
+        const rows =
+          await createWorkerDispatchStatusStorage().listForPreview(limit);
         return rows.map((row) => ({
           id: row.id,
           gateEntityId: row.workerId,
@@ -389,8 +387,8 @@ registerTokenPlugin({
     // component).
     previewEntity: {
       gate: { scope: "record", policy: "worker.view" },
-      async search(storage, query, limit) {
-        const rows = await storage.dispatchJobFore.searchForPreview(query, limit);
+      async offer(storage, limit) {
+        const rows = await storage.dispatchJobFore.listForPreview(limit);
         return rows.map((row) => ({
           id: row.id,
           gateEntityId: row.workerId,

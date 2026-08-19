@@ -2,13 +2,13 @@
 /**
  * Test Preview Record Access
  *
- * The Template Studio's record picker lets an author find a real record
- * and preview a template against it. That is a READ of the record, and
- * the only thing standing between an author and every record of a
- * previewable kind is the kind's declared gate — run over each search
- * result, and again on the load by id.
+ * The Template Studio offers an author real records to preview a
+ * template against. That is a READ of the record, and the only thing
+ * standing between an author and every record of a previewable kind is
+ * the kind's declared gate — run over each record OFFERED, and again on
+ * the load by id.
  *
- * Both halves matter, and they fail differently: a search that skipped
+ * Both halves matter, and they fail differently: an offer that skipped
  * the gate would ADVERTISE records the author cannot open (a listing
  * leak of names and hints, even if loading then refused), while a load
  * that skipped it would hand over the record itself to anyone who
@@ -22,7 +22,7 @@
  *
  * The access check is injected, so this asserts the ENFORCEMENT rather
  * than re-testing the policy evaluator: the caller's verdicts are fixed
- * up front and the test watches what the picker does with them.
+ * up front and the test watches what the offer does with them.
  *
  * Run with:  npx tsx scripts/dev/test-preview-record-access.ts
  */
@@ -32,8 +32,8 @@ import { initializeEventNotifierPluginSystem } from "../../server/plugins/event-
 import { initializeTokenPluginSystem } from "../../server/plugins/tokens";
 import { registerTokenPlugin } from "../../server/plugins/tokens/registry";
 import {
+  offerTokenPreviewRecords,
   resolveTokenPreviewEntity,
-  searchTokenPreviewRecords,
   type TokenPreviewAccessCheck,
 } from "../../server/plugins/tokens/preview-entities";
 import type { IStorage } from "../../server/storage";
@@ -74,7 +74,7 @@ function registerTestKinds(): void {
         hiddenFromCatalog: true,
         previewEntity: {
           gate,
-          async search() {
+          async offer() {
             return RECORDS.map((r) => ({
               id: r.id,
               label: r.label,
@@ -122,20 +122,19 @@ async function main(): Promise<void> {
   const req = {} as any;
 
   // ── A record gate hides exactly the record it denies ──────────────────────
-  const recordSearch = await searchTokenPreviewRecords(
+  const recordOffer = await offerTokenPreviewRecords(
     "test_preview_record_scope",
-    "",
     10,
     { storage, req, checkAccess: denyOne },
   );
-  const listed = recordSearch.ok ? recordSearch.records.map((r) => r.id) : [];
+  const listed = recordOffer.ok ? recordOffer.records.map((r) => r.id) : [];
   check(
-    "search lists a record the caller may read",
+    "the offer includes a record the caller may read",
     listed.includes("rec-open"),
     listed,
   );
   check(
-    "search never lists a record the caller may not read",
+    "the offer never includes a record the caller may not read",
     !listed.includes("rec-denied"),
     listed,
   );
@@ -164,16 +163,15 @@ async function main(): Promise<void> {
   );
 
   // ── A route gate takes the whole kind with it ─────────────────────────────
-  const routeSearch = await searchTokenPreviewRecords(
+  const routeOffer = await offerTokenPreviewRecords(
     "test_preview_route_scope",
-    "",
     10,
     { storage, req, checkAccess: denyAll },
   );
   check(
-    "a denied route gate lists nothing",
-    routeSearch.ok && routeSearch.records.length === 0,
-    routeSearch,
+    "a denied route gate offers nothing",
+    routeOffer.ok && routeOffer.records.length === 0,
+    routeOffer,
   );
   const routeLoad = await resolveTokenPreviewEntity(
     "test_preview_route_scope",
@@ -185,29 +183,27 @@ async function main(): Promise<void> {
     !routeLoad.ok && routeLoad.status === 403,
     routeLoad,
   );
-  const routeAllowed = await searchTokenPreviewRecords(
+  const routeAllowed = await offerTokenPreviewRecords(
     "test_preview_route_scope",
-    "",
     10,
     { storage, req, checkAccess: async () => ({ granted: true }) },
   );
   check(
-    "a granted route gate lists the kind's records",
+    "a granted route gate offers the kind's records",
     routeAllowed.ok && routeAllowed.records.length === RECORDS.length,
     routeAllowed,
   );
 
   // ── A kind that declares nothing is not previewable ───────────────────────
-  const undeclaredSearch = await searchTokenPreviewRecords(
-    "address",
-    "",
-    10,
-    { storage, req, checkAccess: async () => ({ granted: true }) },
-  );
+  const undeclaredOffer = await offerTokenPreviewRecords("address", 10, {
+    storage,
+    req,
+    checkAccess: async () => ({ granted: true }),
+  });
   check(
-    "an undeclared kind cannot be searched",
-    !undeclaredSearch.ok && undeclaredSearch.status === 400,
-    undeclaredSearch,
+    "an undeclared kind offers nothing at all",
+    !undeclaredOffer.ok && undeclaredOffer.status === 400,
+    undeclaredOffer,
   );
   const undeclaredLoad = await resolveTokenPreviewEntity("address", "x", {
     storage,
@@ -222,7 +218,7 @@ async function main(): Promise<void> {
 
   console.log(
     failures === 0
-      ? "\nPASS: a record the caller cannot read is neither listed nor loadable"
+      ? "\nPASS: a record the caller cannot read is neither offered nor loadable"
       : `\nFAIL: ${failures} preview record-access problem(s)`,
   );
   process.exit(failures === 0 ? 0 : 1);

@@ -89,19 +89,22 @@ export interface TokenSampleSetChoice {
 }
 
 /**
- * The sample personas a template editor can preview with: the union of
- * every declared set id across all kinds, labelled by the first kind
- * that declares it. Always non-empty — a deployment that declares no
- * set at all still offers the implicit one, where every token renders
- * its own `example`.
+ * The sample personas offered for ONE root: the sets its kind declares.
+ * The persona is chosen per root, so what is offered is what that
+ * kind actually has — never a union that renders as somebody else's
+ * first set.
+ *
+ * Always non-empty: a kind that declares nothing still offers the
+ * implicit persona, where every token renders its own `example`.
  */
-export function listSampleSetChoices(): TokenSampleSetChoice[] {
-  const choices = new Map<string, string>();
-  for (const { sets } of collect().values()) {
-    for (const set of sets) if (!choices.has(set.id)) choices.set(set.id, set.label);
+export function listSampleSetChoicesForKind(
+  kind: TokenEntityType,
+): TokenSampleSetChoice[] {
+  const sets = getSampleSetsForKind(kind);
+  if (sets.length === 0) {
+    return [{ id: DEFAULT_SAMPLE_SET_ID, label: "Sample data" }];
   }
-  if (choices.size === 0) choices.set(DEFAULT_SAMPLE_SET_ID, "Sample data");
-  return Array.from(choices, ([id, label]) => ({ id, label }));
+  return sets.map((set) => ({ id: set.id, label: set.label }));
 }
 
 /** Fallback id when nothing declares a named set. */

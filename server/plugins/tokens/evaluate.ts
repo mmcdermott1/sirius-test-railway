@@ -140,10 +140,11 @@ export interface TokenEvalContextOptions {
    */
   seeds?: TokenRootSeed[];
   /**
-   * Which named sample persona sample-mode chains render (see
-   * `TokenSampleSet`). Preview only.
+   * Which named sample persona a sample-mode chain renders, keyed by
+   * the ROOT NAME the chain starts at (see `TokenSampleSet`). Preview
+   * only.
    */
-  sampleSetId?: string;
+  sampleSetIds?: Record<string, string>;
 }
 
 export function createTokenEvalContext(
@@ -158,7 +159,7 @@ export function createTokenEvalContext(
     contactId,
     now: new Date(),
     sample: options?.sample,
-    sampleSetId: options?.sampleSetId,
+    sampleSetIds: options?.sampleSetIds,
     roots,
     cache: options?.cache ?? new Map(),
     vars: {},
@@ -186,16 +187,18 @@ function rootIsSeeded(ctx: TokenEvalContext, plugin: TokenPlugin): boolean {
 }
 
 /**
- * What a value leaf renders in sample mode. The chosen sample persona
- * wins when it names this leaf, so one pick renders a coherent story
- * across the whole template; otherwise the token's own declared sample
- * data applies (which is what a kind with no named set always uses).
+ * What a value leaf renders in sample mode. The persona chosen for the
+ * chain's ROOT wins when it names this leaf, so one pick renders a
+ * coherent story through everything hanging off that root — martian
+ * grievance, martian grievant, martian employer; otherwise the token's
+ * own declared sample data applies (which is what a kind with no named
+ * set always uses).
  *
  * `entityKind` is the kind the leaf reads FROM — the chain's current
  * type at the leaf, not the leaf's own output type.
  */
 function sampleLeafValue(
-  ctx: TokenEvalContext,
+  sampleSetId: string | undefined,
   entityKind: TokenEntityType,
   plugin: TokenPlugin,
   args: Record<string, string>,
@@ -207,7 +210,7 @@ function sampleLeafValue(
       ? args.name
       : plugin.metadata.segmentName;
   return (
-    sampleSetValue(entityKind, ctx.sampleSetId, key) ??
+    sampleSetValue(entityKind, sampleSetId, key) ??
     plugin.sampleValue?.(args) ??
     plugin.metadata.example ??
     plugin.metadata.defaultValue ??
@@ -248,6 +251,9 @@ export async function evaluateChain(
   // chain renders samples only when sample fallback is on AND the root
   // it hangs off has no real record behind it.
   let sample = Boolean(ctx.sample);
+  // …and which persona those samples are, likewise: the pick belongs to
+  // the root the chain starts at, not to the kind each leaf reads from.
+  let sampleSetId: string | undefined;
 
   for (const seg of segments) {
     const plugin = findSegmentPlugin(seg.name, currentType);
@@ -257,7 +263,10 @@ export async function evaluateChain(
         error: `unknown segment '${seg.name}' for type '${currentType}'`,
       };
     }
-    if (currentType === "root") sample = Boolean(ctx.sample) && !rootIsSeeded(ctx, plugin);
+    if (currentType === "root") {
+      sample = Boolean(ctx.sample) && !rootIsSeeded(ctx, plugin);
+      sampleSetId = ctx.sampleSetIds?.[plugin.metadata.segmentName];
+    }
     leaf = plugin;
     const declaredArgs = plugin.metadata.args || {};
     for (const key of Object.keys(seg.args)) {
@@ -293,7 +302,10 @@ export async function evaluateChain(
       }
     }
     if (sample && plugin.metadata.outputType === "value") {
-      return { status: "ok", value: sampleLeafValue(ctx, currentType, plugin, args) };
+      return {
+        status: "ok",
+        value: sampleLeafValue(sampleSetId, currentType, plugin, args),
+      };
     }
     if (!sample && entity === null && currentType !== "root") {
       // an intermediate segment resolved to nothing — chain is missing
@@ -316,7 +328,7 @@ export async function evaluateChain(
         if (sample) {
           return {
             status: "ok",
-            value: sampleLeafValue(ctx, currentType, fieldPlugin, args),
+            value: sampleLeafValue(sampleSetId, currentType, fieldPlugin, args),
           };
         }
         if (entity === null) {

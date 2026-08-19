@@ -5,6 +5,7 @@ import { Maximize2 } from "lucide-react";
 import {
   TemplateStudio,
   type StudioChannel,
+  type StudioContext,
   type StudioField,
 } from "./TemplateStudio";
 import type { DeliveryFieldSpec } from "@shared/delivery-fields";
@@ -23,6 +24,8 @@ interface TokenStudioCatalog {
   segments: TokenSegmentSpec[];
   fields?: TokenFieldCatalog;
   tokens: TokenCatalogEntry[];
+  /** What each root may be previewed as — records and personas. */
+  studioContext?: StudioContext;
 }
 
 export interface TokenStudioProps {
@@ -113,6 +116,7 @@ export function TokenStudio({
       segments={catalog?.segments}
       fieldCatalog={catalog?.fields}
       rootNames={roots}
+      studioContext={catalog?.studioContext}
       treeBaseUrl={treeBaseUrl}
     />
   );

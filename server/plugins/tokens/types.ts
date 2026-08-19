@@ -116,16 +116,15 @@ export interface TokenPreviewEntitySource {
    */
   requiredComponent?: string;
   /**
-   * Records to offer the picker. `query` is the author's search text —
-   * empty means "whatever you would show first". Return at most `limit`
-   * rows; the caller filters them by the gate afterwards, so returning
+   * The records this kind OFFERS as preview seeds: the ones it would
+   * show first, at most `limit` of them. There is no query — a template
+   * editor is not a record finder, and a surface that has particular
+   * records in hand supplies them itself instead of asking here.
+   *
+   * The caller filters these by the gate afterwards, so returning
    * records the caller may not read is expected, not a leak.
    */
-  search(
-    storage: IStorage,
-    query: string,
-    limit: number,
-  ): Promise<TokenPreviewRecordRef[]>;
+  offer(storage: IStorage, limit: number): Promise<TokenPreviewRecordRef[]>;
   /** Load the record, or null when there is no such record. */
   load(storage: IStorage, id: string): Promise<TokenPreviewLoadedRecord | null>;
 }
@@ -293,13 +292,15 @@ export interface TokenEvalContext {
 
   sample?: boolean;
   /**
-   * Which named sample persona sample-mode chains render (see
-   * {@link TokenSampleSet}). Unset — or a kind that does not declare
-   * this id — renders that kind's first declared set, and then the
-   * token's own `example`.
+   * Which named sample persona a sample-mode chain renders, keyed by the
+   * ROOT NAME the chain starts at (see {@link TokenSampleSet}). The
+   * persona is chosen per root, so two sample roots in one render can
+   * be two different people. A root with no entry here — or a kind that
+   * does not declare the chosen id — renders that kind's first declared
+   * set, and then the token's own `example`.
    */
 
-  sampleSetId?: string;
+  sampleSetIds?: Record<string, string>;
   /**
    * Seeded root entities keyed by ROOT NAME — the segment a chain
    * starts with (`dispatch`, `contact`, `event`), not the entity kind:

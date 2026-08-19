@@ -238,9 +238,14 @@ async function main() {
     // No seeds at all: a seeded root would resolve for real (per-root
     // sample mode) and this check has no database. Context roots still
     // walk — an unseeded root is exactly what sample mode renders.
+    //
+    // The persona is chosen per ROOT, so it goes under the root this
+    // chain starts at — the same place the studio would put it.
+    const rootName = parsed.segments[0]?.name;
     const ctx = createTokenEvalContext(noStorage, undefined, {
       sample: true,
-      sampleSetId,
+      sampleSetIds:
+        sampleSetId && rootName ? { [rootName]: sampleSetId } : undefined,
     });
     const result = await evaluateChain(parsed.segments, ctx);
     rendered++;

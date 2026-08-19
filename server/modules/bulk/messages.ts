@@ -647,8 +647,68 @@ export function registerBulkMessageRoutes(
   // Token catalog (picker entries) plus the segment graph the client
   // uses for static chain validation. Both are derived live from the
   // token plugin registry.
-  app.get("/api/bulk-tokens", requireAuth, requireAccess('bulk.edit'), (_req, res) => {
-    res.json({ tokens: buildTokenCatalog(), segments: buildSegmentSpecs(), fields: buildFieldCatalog() });
+  //
+  // The catalog belongs to ONE message, because the studio it feeds
+  // previews against that message's OWN recipients: a bulk author is
+  // writing to a list they have already chosen, so the seeds on offer
+  // are people who will actually receive this message rather than
+  // whoever the author could look up. The recipients are still filtered
+  // by the contact/worker read gates, like every other preview seed.
+  app.get("/api/bulk-tokens/:id", requireAuth, requireAccess('bulk.edit'), async (req, res) => {
+    try {
+      const bulk = await storage.bulkMessages.getById(req.params.id);
+      if (!bulk) {
+        return res.status(404).json({ message: "Bulk message not found" });
+      }
+
+      const { listTokenPreviewRoots } = await import("../../plugins/tokens/preview-roots");
+      const { buildTokenStudioContext } = await import(
+        "../../plugins/tokens/studio-context"
+      );
+
+      const participants = await storage.bulkParticipants.listForMessageWithRelations(
+        req.params.id,
+      );
+      // One entry per person: a recipient on three media is still one
+      // recipient to preview as.
+      const contactRecords = new Map<string, { id: string; label: string }>();
+      const workerRecords = new Map<string, { id: string; label: string; hint?: string }>();
+      for (const p of participants) {
+        const label = p.contactDisplayName || "Unnamed contact";
+        if (p.contactId && !contactRecords.has(p.contactId)) {
+          contactRecords.set(p.contactId, { id: p.contactId, label });
+        }
+        if (p.workerId && !workerRecords.has(p.workerId)) {
+          workerRecords.set(p.workerId, {
+            id: p.workerId,
+            label,
+            ...(p.workerSiriusId ? { hint: `#${p.workerSiriusId}` } : {}),
+          });
+        }
+      }
+
+      // Bulk seeds no named context roots, so the roots are the ordinary
+      // ones; the recipient-side kinds are the ones this message has
+      // records for.
+      const recordsByRoot: Record<string, Array<{ id: string; label: string; hint?: string }>> = {};
+      for (const root of listTokenPreviewRoots([])) {
+        if (root.kind === "contact") recordsByRoot[root.name] = [...contactRecords.values()];
+        else if (root.kind === "worker") recordsByRoot[root.name] = [...workerRecords.values()];
+      }
+
+      res.json({
+        tokens: buildTokenCatalog(),
+        segments: buildSegmentSpecs(),
+        fields: buildFieldCatalog(),
+        studioContext: await buildTokenStudioContext(
+          { storage, req },
+          { recordsByRoot },
+        ),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to load token catalog";
+      res.status(500).json({ message });
+    }
   });
 
   // Browsable token tree for bulk messaging — the same lazy tree the

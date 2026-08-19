@@ -48,8 +48,8 @@ registerTokenPlugin({
     // employer rather than inventing a stricter or looser one.
     previewEntity: {
       gate: { scope: "record", policy: "employer.steward.view" },
-      async search(storage, query, limit) {
-        const rows = await storage.employers.searchByName(query, limit);
+      async offer(storage, limit) {
+        const rows = await storage.employers.searchByName("", limit);
         return rows.map((row) => ({
           id: row.id,
           label: row.name || `Employer ${row.id.slice(0, 8)}`,

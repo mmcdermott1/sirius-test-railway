@@ -11,12 +11,13 @@ import type {
 
 /**
  * Which token entity kinds may stand behind a preview context, how
- * reading one of their records is gated, and how an author finds one.
+ * reading one of their records is gated, and which records the kind
+ * offers as seeds.
  *
  * Previewing a template against a real record is a READ of that record.
  * It is therefore gated exactly like any other read of it: the kind's
  * owning token plugin declares how a read is authorized, and BOTH the
- * picker's search results and the load-by-id run that same gate on the
+ * records offered as seeds and the load-by-id run that same gate on the
  * same subject id the record yields — so the check can never end up
  * guarding a different record than the one seeded.
  *
@@ -86,7 +87,7 @@ export function describeTokenPreviewEntities(): Array<{
   pluginId: string;
   gate: TokenPreviewGate;
   requiredComponent?: string;
-  hasSearch: boolean;
+  hasOffer: boolean;
   hasLoad: boolean;
 }> {
   return [...collectPreviewEntities().entries()]
@@ -95,7 +96,7 @@ export function describeTokenPreviewEntities(): Array<{
       pluginId: entry.pluginId,
       gate: entry.source.gate,
       requiredComponent: entry.requiredComponent,
-      hasSearch: typeof entry.source.search === "function",
+      hasOffer: typeof entry.source.offer === "function",
       hasLoad: typeof entry.source.load === "function",
     }))
     .sort((a, b) => a.kind.localeCompare(b.kind));
@@ -166,27 +167,26 @@ async function gateAllows(
   return check(gate.policy, subjectId);
 }
 
-export type TokenPreviewSearchResult =
+export type TokenPreviewOfferResult =
   | { ok: true; records: TokenPreviewRecordRef[] }
   | { ok: false; status: number; message: string };
 
 /**
- * The picker's search: records of one kind the caller may actually
- * read.
+ * Keep only the records this caller may actually read.
  *
- * The gate runs over the candidates the kind's own search returned, so
- * a record the caller cannot open elsewhere in the app never appears
- * here either. Over-fetching then filtering is deliberate: the search
- * queries know how to find records, and the gate knows who may see
- * them; keeping those two jobs apart is what stops a kind from
- * hand-rolling its own idea of authorization.
+ * Used for BOTH the records a kind offers itself and the records a
+ * surface supplies from what it has in hand (a bulk message's own
+ * recipients): whoever produced the candidates, no seed is ever offered
+ * that its owner could not open elsewhere in the app. Deciding who may
+ * see a record stays here, so a surface cannot hand-roll its own idea
+ * of authorization by supplying its own list.
  */
-export async function searchTokenPreviewRecords(
+export async function filterTokenPreviewRecords(
   kind: TokenEntityType,
-  query: string,
+  candidates: TokenPreviewRecordRef[],
   limit: number,
   ctx: TokenPreviewContext,
-): Promise<TokenPreviewSearchResult> {
+): Promise<TokenPreviewOfferResult> {
   const entry = collectPreviewEntities().get(kind);
   if (!entry) {
     return {
@@ -206,17 +206,9 @@ export async function searchTokenPreviewRecords(
   if (gate.scope === "route") {
     const answer = await check(gate.policy);
     if (!answer.granted) return { ok: true, records: [] };
-    const candidates = await entry.source.search(ctx.storage, query, limit);
     return { ok: true, records: candidates.slice(0, limit) };
   }
 
-  // Record-scoped: ask for more than we need, since the gate will drop
-  // some, and keep the first `limit` the caller may read.
-  const candidates = await entry.source.search(
-    ctx.storage,
-    query,
-    Math.min(limit * 4, 200),
-  );
   const verdicts = await Promise.all(
     candidates.map((record) =>
       gateAllows(gate, check, record.gateEntityId ?? record.id).then(
@@ -226,6 +218,38 @@ export async function searchTokenPreviewRecords(
   );
   const records = candidates.filter((_, i) => verdicts[i]).slice(0, limit);
   return { ok: true, records };
+}
+
+/**
+ * The seeds one kind offers on its own: the records it would show
+ * first, filtered by the gate.
+ *
+ * Over-fetching then filtering is deliberate: the kind knows which
+ * records to show, and the gate knows who may see them; keeping those
+ * two jobs apart is what stops a kind from inventing its own
+ * authorization.
+ */
+export async function offerTokenPreviewRecords(
+  kind: TokenEntityType,
+  limit: number,
+  ctx: TokenPreviewContext,
+): Promise<TokenPreviewOfferResult> {
+  const entry = collectPreviewEntities().get(kind);
+  if (!entry) {
+    return {
+      ok: false,
+      status: 400,
+      message: `Records of kind "${kind}" cannot be used as a preview context`,
+    };
+  }
+  if (!(await componentAllows(entry))) return { ok: true, records: [] };
+
+  // A record gate drops some of what the kind offers, so ask for more
+  // than we need; a route gate keeps all or nothing.
+  const wanted =
+    entry.source.gate.scope === "record" ? Math.min(limit * 4, 200) : limit;
+  const candidates = await entry.source.offer(ctx.storage, wanted);
+  return filterTokenPreviewRecords(kind, candidates, limit, ctx);
 }
 
 export type TokenPreviewEntityResult =

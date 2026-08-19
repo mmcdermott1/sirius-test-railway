@@ -436,6 +436,12 @@ async function main() {
     "../../server/plugins/tokens/sample-sets"
   );
   const { absoluteBaseUrl } = await import("../../server/lib/base-url");
+  const { listTokenPreviewRoots } = await import(
+    "../../server/plugins/tokens/preview-roots"
+  );
+  const { EVENT_ROOT_NAME } = await import(
+    "../../server/plugins/tokens/plugins/event"
+  );
   const personaIds = Array.from(
     new Set(
       listSampleSetDeclarations().flatMap(({ sets }) =>
@@ -453,11 +459,22 @@ async function main() {
     const templates = resolveTemplates(plugin, {})[channel] ?? {};
     const cache = new Map<string, unknown>();
     const parts: string[] = [];
+    // The persona is chosen per ROOT, so rendering a whole template as
+    // one persona means naming it for every root the notifier's
+    // templates can address.
+    const rootNames: string[] = [
+      ...(plugin.tokenTemplates?.roots ?? []).map((root: any) => root.name),
+      EVENT_ROOT_NAME,
+    ];
+    const sampleSetIds: Record<string, string> = {};
+    for (const root of listTokenPreviewRoots(rootNames)) {
+      sampleSetIds[root.name] = personaId;
+    }
     for (const value of Object.values(templates)) {
       if (typeof value !== "string") continue;
       const ctx = createTokenEvalContext(storage, undefined, {
         sample: true,
-        sampleSetId: personaId,
+        sampleSetIds,
         cache,
       });
       parts.push((await renderTokens(value, ctx)).output);

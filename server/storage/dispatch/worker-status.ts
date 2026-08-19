@@ -95,10 +95,7 @@ export interface WorkerDispatchStatusStorage {
    * not derivable here and name order at least stays stable between
    * opens.
    */
-  searchForPreview(
-    query: string,
-    limit: number,
-  ): Promise<WorkerDispatchStatusWithWorkerName[]>;
+  listForPreview(limit: number): Promise<WorkerDispatchStatusWithWorkerName[]>;
   get(id: string): Promise<WorkerDispatchStatus | undefined>;
   getByWorker(workerId: string): Promise<WorkerDispatchStatus | undefined>;
   create(status: InsertWorkerDispatchStatus): Promise<WorkerDispatchStatus>;
@@ -194,12 +191,10 @@ export function createWorkerDispatchStatusStorage(): WorkerDispatchStatusStorage
       return client.select().from(workerDispatchStatus);
     },
 
-    async searchForPreview(
-      query: string,
+    async listForPreview(
       limit: number,
     ): Promise<WorkerDispatchStatusWithWorkerName[]> {
       const client = getClient();
-      const trimmed = query.trim();
       return client
         .select({
           id: workerDispatchStatus.id,
@@ -211,9 +206,6 @@ export function createWorkerDispatchStatusStorage(): WorkerDispatchStatusStorage
         .from(workerDispatchStatus)
         .leftJoin(workers, eq(workerDispatchStatus.workerId, workers.id))
         .leftJoin(contacts, eq(workers.contactId, contacts.id))
-        .where(
-          trimmed ? ilike(contacts.displayName, `%${trimmed}%`) : undefined,
-        )
         .orderBy(asc(contacts.displayName))
         .limit(limit);
     },

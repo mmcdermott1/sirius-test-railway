@@ -89,10 +89,12 @@ export interface RenderTemplatePreviewRequest {
    */
   seeds?: TokenRootSeed[];
   /**
-   * Which named sample persona the sample roots render as. Unknown ids
-   * fall back per kind — see `TokenSampleSet`.
+   * Which named sample persona each sample root renders as, keyed by
+   * ROOT NAME: the persona is chosen per root, alongside the records
+   * that seed the others. Unknown ids fall back per kind — see
+   * `TokenSampleSet`.
    */
-  sampleSetId?: string;
+  sampleSetIds?: Record<string, string>;
 }
 
 /** The id of the seeded record for one root, for the studio's report. */
@@ -119,7 +121,7 @@ export async function renderTemplatePreview({
   rootNames = [],
   contactId,
   seeds: seedsIn,
-  sampleSetId,
+  sampleSetIds,
 }: RenderTemplatePreviewRequest): Promise<TemplatePreview> {
   // ── Seeds: whatever real records the caller resolved, all optional ────────
   const { listTokenPreviewRoots } = await import("../plugins/tokens/preview-roots");
@@ -178,7 +180,7 @@ export async function renderTemplatePreview({
     // a root with a seeded record still resolves against real data.
     const ctx = createTokenEvalContext(storage, recipientContactId, {
       sample: true,
-      sampleSetId,
+      sampleSetIds,
       cache,
       seeds,
     });

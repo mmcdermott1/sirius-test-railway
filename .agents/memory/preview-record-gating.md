@@ -7,8 +7,16 @@ description: How a token entity kind declares who may read one of its records fo
 
 Previewing a template against a real record is a READ of that record. The token
 plugin that owns the entity kind declares how such a read is authorized, and the
-picker enforces that declaration on BOTH paths: every search result and every
-load-by-id.
+declaration is enforced on BOTH paths: every record OFFERED as a seed and every
+load-by-id at render time.
+
+The studio has no record finder. The container that opens it builds a studio
+context server-side (roots + per root the personas and the records that may seed
+it) and hands it over with the catalog it already fetches; a surface holding its
+own records supplies them, anywhere else the kind offers what it would show
+first. The offer is UX, not the boundary — the render route re-runs the kind's
+gate on whatever id the client finally names, so a generous or stale offer can
+never become an unauthorized read.
 
 ## The rule
 - No declaration ⇒ the kind is not previewable at all. Silence is never "open",

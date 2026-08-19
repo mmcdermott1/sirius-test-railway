@@ -3,23 +3,21 @@
  * Test Preview Context Safety
  *
  * POST /api/template-studio/preview renders tokenized text against a
- * context, and a context comes in ONE form: real records, named by kind
- * and id. Seeding one is a read of that record, so the token kind's own
- * declaration decides whether this caller may read it, and a kind that
- * has declared nothing is refused outright — silence means "not
- * previewable", never "open".
+ * context, and a context comes in ONE form: a seed per root, each
+ * naming either a real record or a sample persona. Seeding a record is
+ * a read of it, so the token kind's own declaration decides whether
+ * this caller may read it, and a kind that has declared nothing is
+ * refused outright — silence means "not previewable", never "open".
  *
- * The route used to take a second form — raw root VALUES the author
- * already had on screen — accepted on the plain staff gate with no
- * per-record check, which took a wall of guards to keep from reaching a
- * record through a foreign key. Nothing ever sent it, so the form and
- * its guards are gone. What remains is the obligation to say so: a
- * caller sending a shape this route no longer has is describing a
+ * The route used to take other forms — raw root VALUES the author
+ * already had on screen, a bare list of records, one persona for the
+ * whole render. None survive. What remains is the obligation to say so:
+ * a caller sending a shape this route no longer has is describing a
  * render it will not get, and quietly rendering something else is the
  * one lie a preview must never tell.
  *
  * This test drives the real route (no mocks of the module under test)
- * and asserts: the records form fails closed for an undeclared kind,
+ * and asserts: a seeded record fails closed for an undeclared kind,
  * every retired shape is REFUSED by presence rather than ignored, and
  * no context at all renders samples only.
  *
@@ -29,6 +27,7 @@ import express from "express";
 import { storage } from "../../server/storage";
 import { loadComponentCache } from "../../server/services/component-cache";
 import { initializeTokenPluginSystem } from "../../server/plugins/tokens";
+import { listSampleSetChoicesForKind } from "../../server/plugins/tokens/sample-sets";
 import { registerTokenStudioRoutes } from "../../server/modules/token-studio";
 import { NOTIFIER_CHANNEL_FIELDS } from "../../shared/delivery-fields";
 
@@ -75,6 +74,9 @@ async function main(): Promise<void> {
 
   const textField = [{ key: "subject", syntax: "text" as const }];
   const anyId = "00000000-0000-0000-0000-000000000000";
+  // A persona the contact root really offers, so the assertions below
+  // fail on what they are about rather than on an unknown id.
+  const persona = listSampleSetChoicesForKind("contact")[0].id;
 
   // ── The records form fails closed ─────────────────────────────────────────
   // `address` is a real token entity kind that no root accepts and that
@@ -84,10 +86,12 @@ async function main(): Promise<void> {
   const undeclared = await preview({
     fields: textField,
     values: { subject: "x" },
-    context: { entities: [{ kind: "address", id: anyId }] },
+    context: {
+      seeds: [{ rootName: "contact", record: { kind: "address", id: anyId } }],
+    },
   });
   check(
-    "a context fails closed for an undeclared kind",
+    "a seed fails closed for an undeclared kind",
     undeclared.status === 400,
     undeclared.body,
   );
@@ -104,19 +108,25 @@ async function main(): Promise<void> {
       { entity: { kind: "address", id: anyId } },
       /no single "entity" form/,
     ],
-    ["an empty retired entity key", { entity: null, entities: [] }, /no single "entity" form/],
+    ["an empty retired entity key", { entity: null, seeds: [] }, /no single "entity" form/],
+    [
+      "the retired bare records list",
+      { entities: [{ kind: "contact", id: anyId }] },
+      /no longer takes an "entities" list/,
+    ],
+    ["an empty retired entities key", { entities: null, seeds: [] }, /no longer takes an "entities" list/],
     [
       "the retired raw root values form",
       { roots: { contact: { displayName: "Ford Prefect" } } },
       /no longer takes raw root values/,
     ],
-    ["an empty retired roots key", { entities: [], roots: null }, /no longer takes raw root values/],
+    ["an empty retired roots key", { seeds: [], roots: null }, /no longer takes raw root values/],
     [
       "the retired form discriminant",
-      { source: "records", entities: [] },
+      { source: "records", seeds: [] },
       /only one form and does not name it/,
     ],
-    ["an empty retired source key", { source: null, entities: [] }, /only one form and does not name it/],
+    ["an empty retired source key", { source: null, seeds: [] }, /only one form and does not name it/],
   ] as const) {
     const res = await preview({
       fields: textField,
@@ -137,7 +147,70 @@ async function main(): Promise<void> {
     values: { subject: "x" },
     context: {},
   });
-  check("a context with no entities is refused", empty.status === 400, empty.body);
+  check("a context with no seeds is refused", empty.status === 400, empty.body);
+
+  // ── One persona for the whole render is gone ──────────────────────────────
+  // The persona is now chosen per root, inside the seeds, so a
+  // render-wide one at the top of the body would silently apply to
+  // nothing.
+  const globalPersona = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    sampleSetId: null,
+  });
+  check(
+    "a render-wide sample persona is refused",
+    globalPersona.status === 400 &&
+      /no longer takes one sample persona/.test(globalPersona.body.message ?? ""),
+    globalPersona.body,
+  );
+
+  // ── A seed says exactly one thing ─────────────────────────────────────────
+  const bothAtOnce = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: {
+      seeds: [
+        {
+          rootName: "contact",
+          record: { kind: "contact", id: anyId },
+          sampleSetId: persona,
+        },
+      ],
+    },
+  });
+  check(
+    "a seed naming both a record and a persona is refused",
+    bothAtOnce.status === 400,
+    bothAtOnce.body,
+  );
+
+  const unknownRoot = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: { seeds: [{ rootName: "no_such_root", sampleSetId: persona }] },
+  });
+  check(
+    "a seed for a root these templates do not address is refused",
+    unknownRoot.status === 400,
+    unknownRoot.body,
+  );
+
+  const twice = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    context: {
+      seeds: [
+        { rootName: "contact", sampleSetId: persona },
+        { rootName: "contact", sampleSetId: persona },
+      ],
+    },
+  });
+  check(
+    "a root seeded twice is refused",
+    twice.status === 400 && /more than once/.test(twice.body.message ?? ""),
+    twice.body,
+  );
 
   // ── With no context at all, nothing real is rendered ──────────────────────
   const samples = await preview({

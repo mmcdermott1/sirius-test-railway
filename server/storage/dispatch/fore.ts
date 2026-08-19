@@ -66,10 +66,7 @@ export interface DispatchJobForeStorage {
    * Studio's record picker. The table carries no created-at column, so
    * ordering is by the most recently starting jobs.
    */
-  searchForPreview(
-    query: string,
-    limit: number,
-  ): Promise<DispatchJobForeWithNames[]>;
+  listForPreview(limit: number): Promise<DispatchJobForeWithNames[]>;
   /** Foreperson rows for a worker joined with job and employer info. Read-only. */
   getByWorker(workerId: string): Promise<DispatchJobForeWithJob[]>;
   get(id: string): Promise<DispatchJobFore | undefined>;
@@ -205,13 +202,8 @@ export function createDispatchJobForeStorage(): DispatchJobForeStorage {
       }));
     },
 
-    async searchForPreview(
-      query: string,
-      limit: number,
-    ): Promise<DispatchJobForeWithNames[]> {
+    async listForPreview(limit: number): Promise<DispatchJobForeWithNames[]> {
       const client = getClient();
-      const trimmed = query.trim();
-      const term = `%${trimmed}%`;
       return client
         .select({
           id: dispatchJobFore.id,
@@ -227,11 +219,6 @@ export function createDispatchJobForeStorage(): DispatchJobForeStorage {
         .leftJoin(employers, eq(dispatchJobs.employerId, employers.id))
         .leftJoin(workers, eq(dispatchJobFore.workerId, workers.id))
         .leftJoin(contacts, eq(workers.contactId, contacts.id))
-        .where(
-          trimmed
-            ? sql`(${contacts.displayName} ILIKE ${term} OR ${dispatchJobs.title} ILIKE ${term} OR ${employers.name} ILIKE ${term})`
-            : undefined,
-        )
         .orderBy(desc(dispatchJobs.startYmd))
         .limit(limit);
     },

@@ -73,7 +73,7 @@ export interface DispatchJobStorage {
    * every job), newest start date first, for the Template Studio's
    * record picker.
    */
-  searchForPreview(query: string, limit: number): Promise<Array<DispatchJob & { employerName: string | null }>>;
+  listForPreview(limit: number): Promise<Array<DispatchJob & { employerName: string | null }>>;
   /**
    * `facilityId` (dispatch.facility component) is a first-class optional
    * field delegated to the dispatchJobFacility child storage AFTER the job
@@ -346,22 +346,14 @@ export function createDispatchJobStorage(): DispatchJobStorage {
         .orderBy(desc(dispatchJobs.startYmd));
     },
 
-    async searchForPreview(
-      query: string,
+    async listForPreview(
       limit: number,
     ): Promise<Array<DispatchJob & { employerName: string | null }>> {
       const client = getClient();
-      const trimmed = query.trim();
-      const term = `%${trimmed}%`;
       const rows = await client
         .select({ job: dispatchJobs, employerName: employers.name })
         .from(dispatchJobs)
         .leftJoin(employers, eq(dispatchJobs.employerId, employers.id))
-        .where(
-          trimmed
-            ? sql`(${dispatchJobs.title} ILIKE ${term} OR ${employers.name} ILIKE ${term})`
-            : undefined,
-        )
         .orderBy(desc(dispatchJobs.startYmd))
         .limit(limit);
       return rows.map((r) => ({ ...r.job, employerName: r.employerName }));

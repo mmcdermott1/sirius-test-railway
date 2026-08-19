@@ -110,8 +110,8 @@ registerTokenPlugin({
     // everywhere else in the app; preview is no different.
     previewEntity: {
       gate: { scope: "record", policy: "worker.view" },
-      async search(storage, query, limit) {
-        const { workers: rows } = await storage.workers.searchWorkers(query, limit);
+      async offer(storage, limit) {
+        const { workers: rows } = await storage.workers.searchWorkers("", limit);
         return rows.map((row) => ({
           id: row.id,
           label: row.displayName,

@@ -164,7 +164,7 @@ export interface GrievanceStorage {
    * matches every grievance), newest Sirius id first, for the Template
    * Studio's record picker.
    */
-  searchForPreview(query: string, limit: number): Promise<GrievancePreviewItem[]>;
+  listForPreview(limit: number): Promise<GrievancePreviewItem[]>;
   get(id: string): Promise<(Grievance & { name: string | null }) | undefined>;
   getWithDetails(id: string): Promise<GrievanceWithDetails | undefined>;
   create(data: InsertGrievance): Promise<Grievance>;
@@ -827,13 +827,8 @@ export function createGrievanceStorage(): GrievanceStorage {
       return !!row;
     },
 
-    async searchForPreview(
-      query: string,
-      limit: number,
-    ): Promise<GrievancePreviewItem[]> {
+    async listForPreview(limit: number): Promise<GrievancePreviewItem[]> {
       const client = getClient();
-      const trimmed = query.trim();
-      const term = `%${trimmed}%`;
       return client
         .select({
           id: grievances.id,
@@ -861,11 +856,6 @@ export function createGrievanceStorage(): GrievanceStorage {
         .leftJoin(
           optionsGrievanceStatus,
           eq(grievanceStatusHistory.statusId, optionsGrievanceStatus.id),
-        )
-        .where(
-          trimmed
-            ? sql`(${grievanceNameDenorm.name} ILIKE ${term} OR ${grievances.siriusId} ILIKE ${term})`
-            : undefined,
         )
         .orderBy(sql`${grievances.siriusId} DESC NULLS LAST`)
         .limit(limit);

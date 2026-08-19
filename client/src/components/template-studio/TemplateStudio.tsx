@@ -17,11 +17,6 @@ import {
 } from "@/components/ui/simple-html-editor";
 import { TokenTreeBrowser } from "./TokenTreeBrowser";
 import { SlashTokenField } from "./SlashTokenField";
-import {
-  PreviewRecordPicker,
-  type PickableRoot,
-  type PickedPreviewRecord,
-} from "./PreviewRecordPicker";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Bell, Braces, Loader2 } from "lucide-react";
 import {
@@ -88,10 +83,41 @@ export interface StudioPreviewRootResult {
   real: boolean;
 }
 
-/** A named sample persona the preview can render against. */
+/** A named sample persona a root can render as. */
 export interface StudioSampleSet {
   id: string;
   label: string;
+}
+
+/** A real record a root can render as, offered by the host's context. */
+export interface StudioSeedRecord {
+  id: string;
+  label: string;
+  hint?: string;
+}
+
+/** One root and everything it may be previewed as. */
+export interface StudioContextRoot {
+  /** Root NAME — the segment a chain starts with (`dispatch`, `worker`). */
+  name: string;
+  kind: string;
+  label: string;
+  samples: StudioSampleSet[];
+  records: StudioSeedRecord[];
+}
+
+/**
+ * What this studio can preview against, built by whatever OPENED it:
+ * the roots, and per root the real records that container has to offer
+ * plus the sample personas.
+ *
+ * There is no search box, because a template editor is not a record
+ * finder: the container already knows which records this template is
+ * about (a bulk message knows its own recipients), and every record
+ * here has already passed its kind's read gate for this author.
+ */
+export interface StudioContext {
+  roots: StudioContextRoot[];
 }
 
 /** The preview render route's response shape. */
@@ -115,15 +141,16 @@ export interface StudioPreviewResult {
 }
 
 /**
- * What a preview renders AGAINST, when it is not sample data: the real
- * records the AUTHOR picked, by kind and id. The server gates each one
- * as a read of that record before it seeds it.
- *
- * Not a prop. A host describes its FIELDS and its ROOTS; which record
- * to render against is the author's choice, made in here.
+ * What the preview renders against: one entry per root, each naming
+ * either a real record or a sample persona. The server gates every
+ * named record as a read of it before seeding — the offer the studio
+ * was opened with is UX, not the authorization boundary.
  */
-interface PreviewRecordContext {
-  entities: Array<{ kind: string; id: string; rootName?: string }>;
+interface PreviewSeedRequest {
+  seeds: Array<
+    | { rootName: string; record: { kind: string; id: string } }
+    | { rootName: string; sampleSetId: string }
+  >;
 }
 
 export interface TemplateStudioProps {
@@ -163,6 +190,13 @@ export interface TemplateStudioProps {
    * the preview will resolve.
    */
   rootNames?: string[];
+  /**
+   * What this studio may preview against, built server-side by the
+   * container that opened it (see {@link StudioContext}). Absent — a
+   * catalog still loading — means sample data only, chosen by the
+   * server's own per-kind fallback.
+   */
+  studioContext?: StudioContext;
   /** Tree endpoints for this host (defaults to the studio's own). */
   treeBaseUrl?: string;
 }
@@ -311,6 +345,7 @@ export function TemplateStudio({
   segments,
   fieldCatalog,
   rootNames,
+  studioContext,
   treeBaseUrl,
 }: TemplateStudioProps) {
   const activeEditorRef = useRef<ActiveEditorRef | null>(null);
@@ -341,92 +376,56 @@ export function TemplateStudio({
     [specsJson], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // ── The studio's context ───────────────────────────────────────────────────
-  // Which roots an author may pick a real record for and which sample
-  // personas are available. This follows from registered declarations
-  // alone — not from template text or a render — so it is fetched once
-  // when the studio opens and holds still while the author types.
-  // Whether this author may read any PARTICULAR record is decided per
-  // record, when the picker searches.
-  const previewRootsUrl = useMemo(() => {
-    const named = (rootNames ?? []).join(",");
-    return named
-      ? `/api/template-studio/preview-roots?roots=${encodeURIComponent(named)}`
-      : "/api/template-studio/preview-roots";
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rootNamesJson]);
-  const { data: studioContextData } = useQuery<{
-    roots: PickableRoot[];
-    sampleSets: StudioSampleSet[];
-  }>({
-    queryKey: [previewRootsUrl],
-    enabled: open,
-  });
-  const pickableRoots = studioContextData?.roots ?? [];
-  const sampleSets = studioContextData?.sampleSets ?? [];
+  // ── What each root renders as ──────────────────────────────────────────────
+  // The container that opened this studio already said what is on offer
+  // (`studioContext`), so there is nothing to look up and nothing to
+  // search: the author picks one thing per root from a list that was
+  // gated for them before it arrived.
+  const contextRoots = studioContext?.roots ?? [];
 
-  /** Which sample persona unseeded roots render as; null = the default. */
-  const [sampleSetId, setSampleSetId] = useState<string | null>(null);
   /**
-   * The real records the author picked, keyed by root NAME — at most
-   * one per root, and each root's pick is independent: clearing one
-   * returns that root, and only that root, to sample data. Sample data
-   * is the default and a pick is deliberate: all picks are cleared
-   * whenever the studio closes. Any pick REPLACES the host's own
-   * context — a preview renders against one thing, and the author's
-   * choice is that thing.
+   * The author's pick per root NAME, as `record:<id>` / `sample:<id>`.
+   * Only what they actually changed is kept; every root falls back to
+   * the default below, so a pick can never outlive the offer it was
+   * made from — an option that is gone is simply not chosen any more.
+   * Picks are deliberate and do not survive the studio closing.
    */
-  const [picked, setPicked] = useState<Record<string, PickedPreviewRecord>>({});
-  const pickRecord = useCallback(
-    (rootName: string, record: PickedPreviewRecord | null) => {
-      setPicked((prev) => {
-        const next = { ...prev };
-        if (record) next[rootName] = record;
-        else delete next[rootName];
-        return next;
-      });
-    },
-    [],
-  );
+  const [chosen, setChosen] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (!open) {
-      setSampleSetId(null);
-      setPicked({});
-    }
+    if (!open) setChosen({});
   }, [open]);
 
-  // A pick outlives the root it was made for if the host changes which
-  // roots these templates address. The preview would then name a root
-  // this studio no longer offers — refused by the server, and with the
-  // picker gone the author has nothing to clear. So a pick survives only
-  // while its root is still offered, under the same kind it was picked
-  // for. Only reconcile against a list we actually have: an in-flight
-  // refetch is not evidence that a root went away.
-  const pickableSignature = studioContextData
-    ? pickableRoots.map((r) => `${r.name}:${r.kind}`).join(",")
-    : null;
-  useEffect(() => {
-    if (pickableSignature === null) return;
-    const offered = new Map(pickableRoots.map((r) => [r.name, r.kind]));
-    setPicked((prev) => {
-      const next: Record<string, PickedPreviewRecord> = {};
-      for (const [rootName, record] of Object.entries(prev)) {
-        if (offered.get(rootName) === record.kind) next[rootName] = record;
-      }
-      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickableSignature]);
+  // Default: the first real record the container offered for this root,
+  // else its first persona. A container that has records in hand is
+  // saying "this is what the template is about", so previewing against
+  // one of them is what the author wants to see first.
+  const defaultChoice = (root: StudioContextRoot): string =>
+    root.records[0]
+      ? `record:${root.records[0].id}`
+      : `sample:${root.samples[0]?.id ?? ""}`;
 
-  const pickedList = Object.values(picked);
-  const effectiveContext: PreviewRecordContext | undefined =
-    pickedList.length > 0
+  const choiceFor = (root: StudioContextRoot): string => {
+    const picked = chosen[root.name];
+    if (picked?.startsWith("record:")) {
+      const id = picked.slice("record:".length);
+      if (root.records.some((r) => r.id === id)) return picked;
+    } else if (picked?.startsWith("sample:")) {
+      const id = picked.slice("sample:".length);
+      if (root.samples.some((s) => s.id === id)) return picked;
+    }
+    return defaultChoice(root);
+  };
+
+  const effectiveContext: PreviewSeedRequest | undefined =
+    contextRoots.length > 0
       ? {
-          entities: pickedList.map((p) => ({
-            kind: p.kind,
-            id: p.id,
-            rootName: p.rootName,
-          })),
+          seeds: contextRoots.map((root) => {
+            const choice = choiceFor(root);
+            const id = choice.slice(choice.indexOf(":") + 1);
+            return choice.startsWith("record:")
+              ? { rootName: root.name, record: { kind: root.kind, id } }
+              : { rootName: root.name, sampleSetId: id };
+          }),
         }
       : undefined;
   const contextJson = JSON.stringify(effectiveContext ?? null);
@@ -443,10 +442,12 @@ export function TemplateStudio({
       if (timer.current) clearTimeout(timer.current);
     };
   }, [valuesJson, open]);
+  // Changing what a root renders as re-previews at once: the author
+  // asked to see something different, not to wait out a keystroke timer.
   useEffect(() => {
     if (open) setDebouncedJson(valuesJson);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, sampleSetId]);
+  }, [open, contextJson]);
 
   const {
     data: preview,
@@ -458,7 +459,6 @@ export function TemplateStudio({
       specsJson,
       rootNamesJson,
       contextJson,
-      sampleSetId ?? "",
       debouncedJson,
     ],
     enabled: open,
@@ -470,7 +470,6 @@ export function TemplateStudio({
         rootNames: rootNames ?? [],
       };
       if (effectiveContext) body.context = effectiveContext;
-      if (sampleSetId) body.sampleSetId = sampleSetId;
       const res = await fetch("/api/template-studio/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -819,59 +818,70 @@ export function TemplateStudio({
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Preview with
                 </p>
-                <Select
-                  value={sampleSetId ?? sampleSets[0]?.id ?? ""}
-                  onValueChange={(v) => setSampleSetId(v)}
-                >
-                  <SelectTrigger className="h-8 text-sm" data-testid="select-studio-subject">
-                    <SelectValue placeholder="Sample data" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>Sample data</SelectLabel>
-                      {sampleSets.map((s) => (
-                        <SelectItem
-                          key={s.id}
-                          value={s.id}
-                          data-testid={`studio-subject-sample-${s.id}`}
-                        >
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Made-up sample people. Roots with a real record behind them
-                  render that record instead.
-                </p>
-                {pickableRoots.length > 0 && (
-                  <div className="pt-1.5 space-y-1.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Or a real record
-                    </p>
-                    <PreviewRecordPicker
-                      roots={pickableRoots}
-                      picked={picked}
-                      onPick={pickRecord}
-                    />
-                    {pickedList.length > 0 ? (
-                      <p
-                        className="text-xs text-muted-foreground"
-                        data-testid="studio-record-picked"
+                {contextRoots.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Sample data.
+                  </p>
+                ) : (
+                  contextRoots.map((root) => (
+                    <div key={root.name} className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">
+                        {root.label}
+                      </Label>
+                      <Select
+                        value={choiceFor(root)}
+                        onValueChange={(v) =>
+                          setChosen((prev) => ({ ...prev, [root.name]: v }))
+                        }
                       >
-                        {pickedList.length === 1
-                          ? "Previewing against a real record. Clear it to go back to sample data."
-                          : `Previewing against ${pickedList.length} real records. Clear one to return that root to sample data.`}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Search for a record you can already open — the surest way
-                        to catch a wrong link or date.
-                      </p>
-                    )}
-                  </div>
+                        <SelectTrigger
+                          className="h-8 text-sm"
+                          data-testid={`select-studio-seed-${root.name}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {root.records.length > 0 && (
+                            <SelectGroup>
+                              <SelectLabel>Real records</SelectLabel>
+                              {root.records.map((r) => (
+                                <SelectItem
+                                  key={r.id}
+                                  value={`record:${r.id}`}
+                                  data-testid={`studio-seed-record-${r.id}`}
+                                >
+                                  {r.label}
+                                  {r.hint ? (
+                                    <span className="ml-1.5 text-xs text-muted-foreground">
+                                      {r.hint}
+                                    </span>
+                                  ) : null}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          )}
+                          <SelectGroup>
+                            <SelectLabel>Sample data</SelectLabel>
+                            {root.samples.map((s) => (
+                              <SelectItem
+                                key={s.id}
+                                value={`sample:${s.id}`}
+                                data-testid={`studio-seed-sample-${root.name}-${s.id}`}
+                              >
+                                {s.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Real records come from what you are editing here; sample
+                  people are made up. Dates and links always use this site's
+                  real values.
+                </p>
               </div>
             </div>
             <div className="min-h-0 flex-1 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">

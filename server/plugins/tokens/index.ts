@@ -18,7 +18,7 @@ export {
   getSampleSetsForKind,
   resolveSampleSet,
   sampleSetValue,
-  listSampleSetChoices,
+  listSampleSetChoicesForKind,
   DEFAULT_SAMPLE_SET_ID,
   type TokenSampleSetChoice,
 } from "./sample-sets";

@@ -96,9 +96,9 @@ registerTokenPlugin({
     // per record, exactly as opening the contact elsewhere does.
     previewEntity: {
       gate: { scope: "record", policy: "contact.view" },
-      async search(storage, query, limit) {
+      async offer(storage, limit) {
         const rows = await storage.contacts.searchWithPrimaryContactInfo(
-          query,
+          "",
           limit,
         );
         return rows.map((row) => ({

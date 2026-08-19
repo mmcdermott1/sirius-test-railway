@@ -3,10 +3,10 @@
  * Check Token Preview Entity Declarations
  *
  * Previewing a template against a REAL record is a read of that record.
- * The Template Studio's record picker therefore only offers kinds whose
- * owning token plugin says how such a read is authorized — the
- * `previewEntity` declaration — and it runs that declaration over every
- * candidate it lists and every record it loads.
+ * The studio context therefore only offers kinds whose owning token
+ * plugin says how such a read is authorized — the `previewEntity`
+ * declaration — and it runs that declaration over every record it
+ * offers and every record it loads.
  *
  * The whole design rests on the declaration being TRUE, and nothing at
  * runtime can tell a wrong policy id from a right one: an unknown
@@ -20,8 +20,9 @@
  *    asked about a specific record) and a `route` gate names a
  *    ROUTE-scoped one (a broad page gate with no id) — a mismatch would
  *    quietly authorize the wrong thing;
- *  - the kind can both be searched and loaded, since the picker needs
- *    both halves and a missing one only shows up as an empty list.
+ *  - the kind can both offer records and load one by id, since the
+ *    studio needs both halves and a missing one only shows up as an
+ *    empty dropdown.
  *
  * Run with:  npx tsx scripts/dev/check-token-preview-entities.ts
  */
@@ -47,8 +48,8 @@ function main(): void {
   const declared = describeTokenPreviewEntities();
   if (declared.length === 0) {
     fail(
-      "No token entity kind declares a preview gate — the record picker " +
-        "would offer nothing at all.",
+      "No token entity kind declares a preview gate — the studio would " +
+        "offer nothing at all.",
     );
   }
 
@@ -87,7 +88,7 @@ function main(): void {
       );
     }
 
-    if (!entry.hasSearch) fail(`${where} declares no search for the picker.`);
+    if (!entry.hasOffer) fail(`${where} declares no offer for the studio.`);
     if (!entry.hasLoad) fail(`${where} declares no load-by-id.`);
 
     if (failures === 0) {

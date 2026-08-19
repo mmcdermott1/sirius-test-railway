@@ -52,8 +52,8 @@ registerTokenPlugin({
     // id passed. Preview enforces that same gate.
     previewEntity: {
       gate: { scope: "route", policy: "admin" },
-      async search(storage, query, limit) {
-        const rows = await storage.t631Interviews.searchForPicker(query, limit);
+      async offer(storage, limit) {
+        const rows = await storage.t631Interviews.searchForPicker("", limit);
         return rows.map((row) => ({
           id: row.id,
           label: `${row.workerName ?? "Unknown worker"} — ${row.jobTitle}`,

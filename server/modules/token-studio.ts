@@ -37,73 +37,115 @@ function parseRootNames(raw: unknown): string[] {
 }
 
 type ResolvedPreviewContext =
-  | { seeds?: TokenRootSeed[] }
+  | { seeds?: TokenRootSeed[]; sampleSetIds?: Record<string, string> }
   | { status: number; message: string };
 
 /**
  * The one form a preview context comes in, named in every refusal so a
  * caller that gets the shape wrong is told what the shape is.
  */
-const PREVIEW_CONTEXT_FORM = `{ entities: [{ kind, id, rootName? }] }`;
+const PREVIEW_CONTEXT_FORM = `{ seeds: [{ rootName, record: { kind, id } } | { rootName, sampleSetId }] }`;
 
 /**
- * `entities: [ … ]` — real records, by kind and id.
+ * `seeds: [ … ]` — what each root renders as: one entry per root, and
+ * each entry names EITHER a real record or a sample persona.
  *
- * Each named record is resolved and gated INDIVIDUALLY: per kind, per
- * record, through the kind's own `previewEntity` declaration. Each
- * resolved record seeds its own root, so a preview can mix several real
- * roots with sample ones, and a kind that has declared nothing about how
- * it is gated cannot be named at all.
+ * One entry per root because a root renders as one thing. A named
+ * record is resolved and gated INDIVIDUALLY — per kind, per record,
+ * through the kind's own `previewEntity` declaration — so a preview can
+ * mix real roots with sample ones and a kind that has declared nothing
+ * about how it is gated cannot be named at all. A named persona is
+ * checked against what its root's kind actually declares, because a
+ * preview that silently rendered a different persona than the one asked
+ * for would be describing somebody else's data.
  */
-async function resolveRecordRefs(
+async function resolveSeeds(
   raw: unknown,
   available: TokenPreviewRoot[],
   ctx: { storage: IStorage; req: Request },
 ): Promise<ResolvedPreviewContext> {
   if (!Array.isArray(raw)) {
-    return { status: 400, message: "Preview context entities must be an array" };
+    return { status: 400, message: "Preview context seeds must be an array" };
   }
   if (raw.length === 0) return {};
-  if (raw.length > available.length) {
-    return {
-      status: 400,
-      message: "A preview seeds at most one record per root",
-    };
-  }
 
-  const { resolveTokenPreviewEntity } = await import(
-    "../plugins/tokens/preview-entities"
-  );
+  const [{ resolveTokenPreviewEntity }, { listSampleSetChoicesForKind }] =
+    await Promise.all([
+      import("../plugins/tokens/preview-entities"),
+      import("../plugins/tokens/sample-sets"),
+    ]);
 
   const seeds: TokenRootSeed[] = [];
-  const seededRoots = new Set<string>();
-  for (const rawEntity of raw) {
-    if (!rawEntity || typeof rawEntity !== "object" || Array.isArray(rawEntity)) {
-      return { status: 400, message: "Invalid preview context entity" };
+  const sampleSetIds: Record<string, string> = {};
+  const seen = new Set<string>();
+  for (const rawSeed of raw) {
+    if (!rawSeed || typeof rawSeed !== "object" || Array.isArray(rawSeed)) {
+      return { status: 400, message: "Invalid preview context seed" };
     }
-    const entity = rawEntity as Record<string, unknown>;
-    const kind = typeof entity.kind === "string" ? entity.kind : "";
-    const id = typeof entity.id === "string" ? entity.id : "";
-    if (!kind || !id) {
-      return { status: 400, message: "A preview context entity needs a kind and an id" };
-    }
-
-    // Which root the record seeds: the caller may name it (two roots can
-    // share a kind), otherwise the first root of that kind.
-    const rootName = typeof entity.rootName === "string" ? entity.rootName : "";
-    const root = rootName
-      ? available.find((r) => r.name === rootName)
-      : available.find((r) => r.kind === kind && !seededRoots.has(r.name));
-    if (!root || root.kind !== kind) {
+    const seed = rawSeed as Record<string, unknown>;
+    const rootName = typeof seed.rootName === "string" ? seed.rootName : "";
+    const root = available.find((r) => r.name === rootName);
+    if (!root) {
       return {
         status: 400,
-        message: `No preview root accepts a record of kind "${kind}"`,
+        message: `No preview root named "${rootName}"`,
       };
     }
-    if (seededRoots.has(root.name)) {
+    if (seen.has(root.name)) {
       return {
         status: 400,
         message: `Preview root "${root.name}" is seeded more than once`,
+      };
+    }
+    seen.add(root.name);
+
+    const hasRecord = seed.record !== undefined && seed.record !== null;
+    const hasSample = seed.sampleSetId !== undefined && seed.sampleSetId !== null;
+    if (hasRecord === hasSample) {
+      return {
+        status: 400,
+        message:
+          `Preview root "${root.name}" must name either a record or a ` +
+          `sample persona, not ${hasRecord ? "both" : "neither"}`,
+      };
+    }
+
+    if (hasSample) {
+      const sampleSetId = seed.sampleSetId;
+      if (typeof sampleSetId !== "string" || !sampleSetId) {
+        return { status: 400, message: "A preview sample persona needs an id" };
+      }
+      const offered = listSampleSetChoicesForKind(root.kind);
+      if (!offered.some((choice) => choice.id === sampleSetId)) {
+        return {
+          status: 400,
+          message:
+            `Preview root "${root.name}" has no sample persona ` +
+            `"${sampleSetId}"`,
+        };
+      }
+      sampleSetIds[root.name] = sampleSetId;
+      continue;
+    }
+
+    const record = seed.record as Record<string, unknown>;
+    if (typeof record !== "object" || Array.isArray(record)) {
+      return { status: 400, message: "Invalid preview context record" };
+    }
+    const kind = typeof record.kind === "string" ? record.kind : "";
+    const id = typeof record.id === "string" ? record.id : "";
+    if (!kind || !id) {
+      return {
+        status: 400,
+        message: "A preview context record needs a kind and an id",
+      };
+    }
+    if (kind !== root.kind) {
+      return {
+        status: 400,
+        message:
+          `Preview root "${root.name}" takes a record of kind ` +
+          `"${root.kind}", not "${kind}"`,
       };
     }
 
@@ -113,13 +155,12 @@ async function resolveRecordRefs(
     });
     if (!result.ok) return { status: result.status, message: result.message };
 
-    seededRoots.add(root.name);
     seeds.push({ name: root.name, entity: result.entity });
   }
 
   // A seeded contact is also the render's recipient, exactly as on
   // delivery; `renderTemplatePreview` derives that from the seed.
-  return { seeds };
+  return { seeds, sampleSetIds };
 }
 
 /**
@@ -161,6 +202,19 @@ async function resolvePreviewContext(
     };
   }
 
+  // Records used to be the only thing a context could name, with the
+  // persona chosen once for the whole render. Now every root says what
+  // it renders as, so records arrive as seeds alongside personas.
+  if (sent("entities")) {
+    return {
+      status: 400,
+      message:
+        `A preview context no longer takes an "entities" list — say what ` +
+        `each root renders as: ` +
+        PREVIEW_CONTEXT_FORM,
+    };
+  }
+
   // Raw root VALUES used to be a second form, trusted differently
   // because they reached no record. Nothing ever sent them, so they are
   // gone — along with the guards that kept them from reaching one.
@@ -190,7 +244,13 @@ async function resolvePreviewContext(
     "../plugins/tokens/preview-roots"
   );
   const available = listTokenPreviewRoots(ctx.rootNames);
-  return resolveRecordRefs(context.entities, available, ctx);
+  if (!sent("seeds")) {
+    return {
+      status: 400,
+      message: `A preview context names what each root renders as: ` + PREVIEW_CONTEXT_FORM,
+    };
+  }
+  return resolveSeeds(context.seeds, available, ctx);
 }
 
 export function registerTokenStudioRoutes(
@@ -203,6 +263,11 @@ export function registerTokenStudioRoutes(
    * Token catalog for the generic studio. Optional `?roots=a,b` names
    * the context roots the caller's templates address (`dispatch`,
    * `event`, …); without them only the ordinary roots are offered.
+   *
+   * Carries the studio's own context — what each root may be previewed
+   * as — so the studio opens ready to preview, with no second request
+   * and no search box. A generic caller has no particular records in
+   * hand, so each root offers what its kind offers.
    */
   app.get(
     "/api/token-studio/catalog",
@@ -215,12 +280,19 @@ export function registerTokenStudioRoutes(
           buildFieldCatalog,
           buildTokenCatalogForRoots,
         } = await import("../plugins/tokens");
+        const { buildTokenStudioContext } = await import(
+          "../plugins/tokens/studio-context"
+        );
         const rootNames = parseRootNames(req.query.roots);
         res.json({
           rootNames,
           segments: buildSegmentSpecsForRoots(rootNames),
           fields: buildFieldCatalog(),
           tokens: buildTokenCatalogForRoots(rootNames),
+          studioContext: await buildTokenStudioContext(
+            { storage, req },
+            { rootNames },
+          ),
         });
       } catch (error: any) {
         res
@@ -293,100 +365,6 @@ export function registerTokenStudioRoutes(
   );
 
   /**
-   * THE STUDIO'S OWN CONTEXT: which roots an author may pick a real
-   * record for, plus the registered sample personas. The persona list
-   * is global; `?roots=dispatch,event` names the context roots the
-   * caller's templates address.
-   *
-   * This depends on the roots alone — a kind declares how a preview
-   * read of it is gated, and its component is on — never on a render.
-   * So the studio fetches it once when it opens, and the picker is
-   * usable before anything has been previewed at all. Whether THIS
-   * author may read any PARTICULAR record is a different question,
-   * decided per record when the picker searches.
-   */
-  app.get(
-    "/api/template-studio/preview-roots",
-    requireAuth,
-    requireAccess("staff"),
-    async (req: Request, res: Response) => {
-      try {
-        const { listTokenPreviewRoots } = await import(
-          "../plugins/tokens/preview-roots"
-        );
-        const { listPickableTokenPreviewKinds } = await import(
-          "../plugins/tokens/preview-entities"
-        );
-        const { listSampleSetChoices } = await import(
-          "../plugins/tokens/sample-sets"
-        );
-        const pickableKinds = await listPickableTokenPreviewKinds();
-        const roots = listTokenPreviewRoots(parseRootNames(req.query.roots))
-          .filter((root) => pickableKinds.has(root.kind))
-          .map((root) => ({
-            name: root.name,
-            kind: root.kind,
-            label: root.label,
-          }));
-        res.json({ roots, sampleSets: listSampleSetChoices() });
-      } catch (error: any) {
-        res
-          .status(500)
-          .json({ message: error.message || "Failed to load preview roots" });
-      }
-    },
-  );
-
-  /**
-   * The preview record picker: `?kind=worker&q=jane&limit=20`.
-   *
-   * Returns real records of ONE token entity kind that THIS caller may
-   * read — the kind's own `previewEntity` declaration says how a read is
-   * gated, and every candidate is checked against it before it is
-   * listed, so the picker can never advertise a record its owner could
-   * not open elsewhere in the app. An undeclared kind, or one whose
-   * component is switched off, offers nothing.
-   *
-   * Staff-gated like the preview route itself; the per-record check is
-   * what actually decides what comes back.
-   */
-  app.get(
-    "/api/template-studio/preview-records",
-    requireAuth,
-    requireAccess("staff"),
-    async (req: Request, res: Response) => {
-      try {
-        const kind = typeof req.query.kind === "string" ? req.query.kind : "";
-        if (!kind) {
-          return res.status(400).json({ message: "A record search needs a kind" });
-        }
-        const q = typeof req.query.q === "string" ? req.query.q : "";
-        const rawLimit = Number(req.query.limit);
-        const limit =
-          Number.isFinite(rawLimit) && rawLimit > 0
-            ? Math.min(Math.floor(rawLimit), 50)
-            : 20;
-
-        const { searchTokenPreviewRecords } = await import(
-          "../plugins/tokens/preview-entities"
-        );
-        const result = await searchTokenPreviewRecords(kind, q, limit, {
-          storage,
-          req,
-        });
-        if (!result.ok) {
-          return res.status(result.status).json({ message: result.message });
-        }
-        res.json({ records: result.records });
-      } catch (error: any) {
-        res
-          .status(500)
-          .json({ message: error.message || "Failed to search records" });
-      }
-    },
-  );
-
-  /**
    * THE preview route. POST body (JSON):
    *   `fields` — the fields being previewed and how DELIVERY shapes
    *     each one, taken from the shared delivery declarations in
@@ -400,14 +378,14 @@ export function registerTokenStudioRoutes(
    *     happened on the caller's side.
    *   `rootNames` — the named record roots those templates address
    *     (`dispatch`, `event`); ordinary roots are always available.
-   *   `sampleSetId` — which named sample persona unseeded roots render as.
-   *   `context` — what to render AGAINST: REAL records, at most one
-   *     per root — `{ entities: [{ kind, id, rootName? }, …] }`.
-   *     Reading one here is a read of it, so the kind's own
-   *     `previewEntity` declaration gates each one before it is
-   *     seeded, a kind that has not declared how it is gated cannot be
-   *     used at all, and roots left unnamed keep sample data.
-   *   Omit `context` to preview against sample personas.
+   *   `context` — what each root renders as, one entry per root:
+   *     `{ seeds: [{ rootName, record: { kind, id } } |
+   *                { rootName, sampleSetId }, …] }`.
+   *     Naming a record is a read of it, so the kind's own
+   *     `previewEntity` declaration gates each one before it is seeded,
+   *     and a kind that has not declared how it is gated cannot be used
+   *     at all. Roots left out keep sample data.
+   *   Omit `context` to preview every root against sample data.
    */
   app.post(
     "/api/template-studio/preview",
@@ -438,10 +416,18 @@ export function registerTokenStudioRoutes(
         }
 
         const rootNames = parseRootNames(body.rootNames);
-        const sampleSetId =
-          typeof body.sampleSetId === "string" && body.sampleSetId
-            ? body.sampleSetId
-            : undefined;
+
+        // The persona used to be chosen once for the whole render.
+        // It is now per root, inside the context — refused by PRESENCE
+        // here for the same reason every retired shape is: a caller
+        // sending it is describing a render it will not get.
+        if (Object.prototype.hasOwnProperty.call(body, "sampleSetId")) {
+          return res.status(400).json({
+            message:
+              `A preview no longer takes one sample persona for the whole ` +
+              `render — each root names its own: ${PREVIEW_CONTEXT_FORM}`,
+          });
+        }
 
         const resolved = await resolvePreviewContext(body.context, {
           storage,
@@ -459,7 +445,7 @@ export function registerTokenStudioRoutes(
           templates,
           rootNames,
           seeds: resolved.seeds,
-          sampleSetId,
+          sampleSetIds: resolved.sampleSetIds,
         });
         res.json(preview);
       } catch (error: any) {

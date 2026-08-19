@@ -244,8 +244,8 @@ registerTokenPlugin({
     // enforces exactly that gate.
     previewEntity: {
       gate: { scope: "route", policy: "staff" },
-      async search(storage, query, limit) {
-        const rows = await storage.grievances.searchForPreview(query, limit);
+      async offer(storage, limit) {
+        const rows = await storage.grievances.listForPreview(limit);
         return rows.map((row) => ({
           id: row.id,
           label: composeGrievanceDisplayTitle(row.id, {
@@ -300,11 +300,8 @@ registerTokenPlugin({
     // grievance component, no per-record policy.
     previewEntity: {
       gate: { scope: "route", policy: "staff" },
-      async search(storage, query, limit) {
-        const rows = await storage.grievanceStatusHistory.searchForPreview(
-          query,
-          limit,
-        );
+      async offer(storage, limit) {
+        const rows = await storage.grievanceStatusHistory.listForPreview(limit);
         return rows.map((row) => ({
           id: row.id,
           label: composeGrievanceDisplayTitle(row.grievanceId, {
@@ -369,11 +366,8 @@ registerTokenPlugin({
     // the settlement component, no per-record policy.
     previewEntity: {
       gate: { scope: "route", policy: "staff" },
-      async search(storage, query, limit) {
-        const rows = await storage.grievanceSettlements.searchForPreview(
-          query,
-          limit,
-        );
+      async offer(storage, limit) {
+        const rows = await storage.grievanceSettlements.listForPreview(limit);
         return rows.map((row) => ({
           id: row.id,
           label: composeGrievanceDisplayTitle(row.grievanceId, {

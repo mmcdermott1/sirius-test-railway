@@ -77,6 +77,9 @@ export function registerEventNotifierMetaRoutes(
         const { EVENT_ROOT_NAME } = await import(
           "../plugins/tokens/plugins/event"
         );
+        const { buildTokenStudioContext } = await import(
+          "../plugins/tokens/studio-context"
+        );
         // The notifier's own named record roots, plus the event envelope
         // every notifier seeds.
         const rootNames = [
@@ -106,6 +109,14 @@ export function registerEventNotifierMetaRoutes(
           // Lazy tree roots, so the picker can browse deep chains
           // without the flat catalog enumerating them all.
           treeRoots: listTokenTreeRoots(rootNames),
+          // What the studio may preview each of those roots as. A
+          // notifier config holds no particular record — it describes
+          // events that have not happened yet — so every root offers
+          // what its own kind offers.
+          studioContext: await buildTokenStudioContext(
+            { storage, req },
+            { rootNames },
+          ),
         });
       } catch (error: any) {
         res

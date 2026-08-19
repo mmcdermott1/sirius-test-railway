@@ -76,11 +76,11 @@ registerTokenPlugin({
     // sheet page reads it behind; preview runs it per sheet.
     previewEntity: {
       gate: { scope: "record", policy: "edls.sheet.view" },
-      async search(storage, query, limit) {
+      async offer(storage, limit) {
         const { edlsStatusLabel, edlsSheetDisplayTitle } = await import(
           "../../event-notifier/plugins/edls-sheet-status-notifier"
         );
-        const rows = await storage.edlsSheets.searchForPreview(query, limit);
+        const rows = await storage.edlsSheets.listForPreview(limit);
         return rows.map((row) => ({
           id: row.id,
           label: edlsSheetDisplayTitle(row.id, row.title),
