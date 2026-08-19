@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useModalSeed } from "@/hooks/use-modal-seed";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -391,9 +392,9 @@ export function TemplateStudio({
    * Picks are deliberate and do not survive the studio closing.
    */
   const [chosen, setChosen] = useState<Record<string, string>>({});
-  useEffect(() => {
-    if (!open) setChosen({});
-  }, [open]);
+  // Cleared during the render that opens the studio, so the seed pickers never
+  // render the previous session's picks before the reset lands.
+  useModalSeed(open, null, () => setChosen({}));
 
   // Default: the first real record the container offered for this root,
   // else its first persona. A container that has records in hand is
@@ -442,12 +443,12 @@ export function TemplateStudio({
       if (timer.current) clearTimeout(timer.current);
     };
   }, [valuesJson, open]);
-  // Changing what a root renders as re-previews at once: the author
-  // asked to see something different, not to wait out a keystroke timer.
-  useEffect(() => {
-    if (open) setDebouncedJson(valuesJson);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, contextJson]);
+  // Opening the studio previews the current values immediately — seeded in the
+  // render phase so the preview pane's first render is this session's template,
+  // not the last one's. Changing what a root renders as re-previews at once
+  // too: the author asked to see something different, not to wait out a
+  // keystroke timer.
+  useModalSeed(open, contextJson, () => setDebouncedJson(valuesJson));
 
   const {
     data: preview,

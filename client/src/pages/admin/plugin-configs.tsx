@@ -80,6 +80,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useModalSeed } from "@/hooks/use-modal-seed";
 import { useToast } from "@/hooks/use-toast";
 import {
   apiRequest,
@@ -909,8 +910,23 @@ function GenericConfigDialog({
   // Per-plugin field values, seeded from / persisted into the config's `data`.
   const [pluginData, setPluginData] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (!open) return;
+  // Seeding runs in the render phase (see useModalSeed): the settings form
+  // must see the config's values on its FIRST render, or it initializes itself
+  // from empty state and keeps that.
+  //
+  // envelopeFields/pluginFields/lockedEnvelope contribute to the key so a
+  // create dialog opened before the kind metadata finishes loading still seeds
+  // locked values (and per-field defaults) once the fields arrive.
+  const seedKey = [
+    config?.id ?? "new",
+    plugin.id,
+    envelopeFields.map((f) => f.name).join(","),
+    pluginFields.map((f) => f.name).join(","),
+    Object.entries(lockedEnvelope)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(","),
+  ].join("|");
+  useModalSeed(open, seedKey, () => {
     const data = (config?.data as Record<string, unknown>) ?? {};
     if (config) {
       setName(config.name ?? "");
@@ -953,11 +969,7 @@ function GenericConfigDialog({
       );
       setPluginData(Object.fromEntries(pluginFields.map((f) => [f.name, ""])));
     }
-    // envelopeFields/lockedEnvelope are included so a create dialog opened
-    // before the kind metadata finishes loading still seeds locked values
-    // (and per-field defaults) once the fields arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, config, plugin.id, pluginFields, envelopeFields, lockedEnvelope]);
+  });
 
   const handleSubmit = (validSettings: Record<string, unknown>) => {
     // Block save if any required envelope field is empty (client-side mirror of
