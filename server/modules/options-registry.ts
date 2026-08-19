@@ -91,6 +91,7 @@ export const optionsTypeRegistry: Record<string, OptionsTypeConfig> = {
   "grievance-role": createTypeConfig("grievance-role"),
   "grievance-settlement-type": createTypeConfig("grievance-settlement-type"),
   "worker-ban-type": createTypeConfig("worker-ban-type"),
+  "note-type": createTypeConfig("note-type"),
 };
 
 export function getOptionsType(type: string): OptionsTypeConfig | undefined {

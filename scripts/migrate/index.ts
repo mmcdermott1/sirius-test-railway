@@ -58,6 +58,8 @@ import "./core/1053_create_help";
 import "./core/1054_options_event_type_sirius_id_nullable";
 import "./core/1055_files_file_system_id";
 import "./core/1056_create_options_worker_ban_type";
+import "./core/1057_create_options_note_type";
+import "./core/1058_create_notes";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

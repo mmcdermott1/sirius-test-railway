@@ -1,4 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { isNoteEntityType } from "@shared/notes";
 import { getOptionsType, getAllOptionsTypes, getOptionsStorage } from "./options-registry";
 import { requireAccess } from "../services/access-policy-evaluator";
 import { OptionsTypeName } from "../storage/unified-options";
@@ -96,6 +97,24 @@ async function validateWorkerBanTypePlugins(data: unknown): Promise<string | nul
     if (typeof defaultDurationDays !== "number" || !Number.isInteger(defaultDurationDays) || defaultDurationDays < 1) {
       return "Default duration (days) must be a positive integer";
     }
+  }
+  return null;
+}
+
+/**
+ * Validation for `note-type` writes: `data.entityTypes` must be a non-empty
+ * array of record types registered in the shared note-entity registry. The
+ * form constrains this via a multi-select, but a direct API call must not be
+ * able to declare a type for a record kind that cannot hold notes.
+ */
+function validateNoteTypeEntityTypes(data: unknown): string | null {
+  const entityTypes = (data as { entityTypes?: unknown } | null | undefined)?.entityTypes;
+  if (!Array.isArray(entityTypes) || entityTypes.length === 0) {
+    return "At least one record type is required";
+  }
+  const unknown = entityTypes.filter((t) => typeof t !== "string" || !isNoteEntityType(t));
+  if (unknown.length > 0) {
+    return `Unknown record type(s): ${unknown.join(", ")}`;
   }
   return null;
 }
@@ -392,6 +411,13 @@ export function registerConsolidatedOptionsRoutes(app: Express) {
         }
       }
 
+      if (type === "note-type") {
+        const entityTypeError = validateNoteTypeEntityTypes(data.data);
+        if (entityTypeError) {
+          return res.status(400).json({ message: entityTypeError });
+        }
+      }
+
       if (type === "worker-ban-type") {
         const pluginError = await validateWorkerBanTypePlugins(data.data);
         if (pluginError) {
@@ -458,6 +484,13 @@ export function registerConsolidatedOptionsRoutes(app: Express) {
         const bullpenError = validateDispatchJobTypeBullpen(updates.data);
         if (bullpenError) {
           return res.status(400).json({ message: bullpenError });
+        }
+      }
+
+      if (type === "note-type" && updates.data !== undefined) {
+        const entityTypeError = validateNoteTypeEntityTypes(updates.data);
+        if (entityTypeError) {
+          return res.status(400).json({ message: entityTypeError });
         }
       }
 
@@ -530,6 +563,18 @@ export function registerConsolidatedOptionsRoutes(app: Express) {
           return res.status(409).json({
             message:
               "This status is used by a grievance timeline template and cannot be deleted. Remove it from all timeline steps first.",
+          });
+        }
+      }
+
+      // A note type still used by any note cannot be deleted. The FK is ON
+      // DELETE RESTRICT so the database would refuse anyway; this pre-check
+      // turns that into a message that says what to do about it.
+      if (type === "note-type") {
+        const inUse = await storage.notes.countByTypeId(id);
+        if (inUse > 0) {
+          return res.status(409).json({
+            message: `This note type is used by ${inUse} note${inUse === 1 ? "" : "s"} and cannot be deleted. Retype or delete those notes first.`,
           });
         }
       }

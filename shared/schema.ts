@@ -294,6 +294,43 @@ export const optionsWorkerBanType = pgTable("options_worker_ban_type", {
   data: jsonb("data"),
 });
 
+/**
+ * Note types (unified options kind `note-type`). `data.entityTypes` holds the
+ * record types a type applies to, validated against the shared note-entity
+ * registry (`shared/notes.ts`) on save.
+ */
+export const optionsNoteType = pgTable("options_note_type", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  siriusId: text("sirius_id").unique(),
+  data: jsonb("data"),
+});
+
+/**
+ * Staff notes attached to a record.
+ *
+ * `entity_type` / `entity_id` are a polymorphic pair (the house convention —
+ * see `files`), so there is no FK to the parent: existence is checked at the
+ * API layer against the shared note-entity registry and orphans are swept by
+ * the `notes_orphan_sweep` cron. `type_id` DOES have a real FK, on delete
+ * restrict, so a note type in use cannot be deleted out from under its notes.
+ */
+export const notes = pgTable("notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: varchar("entity_type").notNull(),
+  entityId: varchar("entity_id").notNull(),
+  typeId: varchar("type_id").notNull().references(() => optionsNoteType.id, { onDelete: 'restrict' }),
+  subject: text("subject").notNull(),
+  body: text("body"),
+  data: jsonb("data"),
+  timestamp: timestamp("timestamp").default(sql`now()`).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+}, (table) => [
+  index("idx_notes_entity").on(table.entityType, table.entityId),
+  index("idx_notes_type_id").on(table.typeId),
+]);
+
 export const workerBans = pgTable("worker_bans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
@@ -1400,6 +1437,15 @@ export const insertWorkerBanSchema = createInsertSchema(workerBans).omit({
   type: z.string().optional().nullable(),
 });
 
+export const insertNoteSchema = createInsertSchema(notes).omit({
+  id: true,
+  timestamp: true,
+}).extend({
+  body: z.string().optional().nullable(),
+  data: z.record(z.unknown()).optional().nullable(),
+  userId: z.string().optional().nullable(),
+});
+
 export const insertEmployerSchema = createInsertSchema(employers).omit({
   id: true,
 });
@@ -1692,6 +1738,10 @@ export type Worker = Omit<typeof workers.$inferSelect, "data"> & {
 
 export type InsertWorkerBan = z.infer<typeof insertWorkerBanSchema>;
 export type WorkerBan = typeof workerBans.$inferSelect;
+
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type Note = typeof notes.$inferSelect;
+export type OptionsNoteType = typeof optionsNoteType.$inferSelect;
 
 export type InsertEmployer = z.infer<typeof insertEmployerSchema>;
 export type Employer = typeof employers.$inferSelect;

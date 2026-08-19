@@ -60,6 +60,9 @@ const DispatchJobEmployerContactsPage = lazy(() => import("@/pages/dispatch/job-
 const WorkerDispatchEba = lazy(() => import("@/pages/workers/dispatch-eba"));
 const WorkerDispatchAsi = lazy(() => import("@/pages/workers/dispatch-asi"));
 const WorkerBans = lazy(() => import("@/pages/workers/bans"));
+const WorkerNotes = lazy(() => import("@/pages/workers/notes"));
+const EmployerNotes = lazy(() => import("@/pages/employers/notes"));
+const TrustProviderNotesPage = lazy(() => import("@/pages/trust-provider-notes"));
 const WorkerEdls = lazy(() => import("@/pages/worker-edls"));
 const WorkerSecondShift = lazy(() => import("@/pages/worker-sitespecific-freeman-2shift"));
 const WorkerBaoBeneficiaries = lazy(() => import("@/pages/worker-sitespecific-bao-beneficiaries"));
@@ -848,6 +851,14 @@ function Router() {
         <ProtectedRoute tabId="bans" entityType="worker">
           <AuthenticatedLayout>
             <WorkerBans />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/notes">
+        <ProtectedRoute tabId="notes" entityType="worker">
+          <AuthenticatedLayout>
+            <WorkerNotes />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -1734,6 +1745,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/employers/:id/notes">
+        <ProtectedRoute tabId="notes" entityType="employer">
+          <AuthenticatedLayout>
+            <EmployerNotes />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/employers/:id/policy-history">
         <ProtectedRoute tabId="policy-history" entityType="employer">
           <AuthenticatedLayout>
@@ -2117,6 +2136,14 @@ function Router() {
         <ProtectedRoute tabId="logs" entityType="provider">
           <AuthenticatedLayout>
             <TrustProviderLogsPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust/provider/:id/notes">
+        <ProtectedRoute tabId="notes" entityType="provider">
+          <AuthenticatedLayout>
+            <TrustProviderNotesPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
