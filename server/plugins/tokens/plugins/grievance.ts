@@ -236,6 +236,12 @@ registerTokenPlugin({
     outputType: GRIEVANCE_ENTITY_KIND,
     entityTable: grievances,
     entityFields: ["name", "display_title"],
+    // `{{grievance}}` on its own means the grievance's display title —
+    // the one thing a template naming a grievance almost always wants.
+    // Declared here (the plugin that OWNS the kind), so every way of
+    // arriving at a grievance — the notifiers' seeded root, the relation
+    // below — ends the same way.
+    defaultLeaf: "display_title",
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: GRIEVANCE_SAMPLE_SETS,

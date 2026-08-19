@@ -91,4 +91,5 @@
 - [Modal seeding runs in render phase](modal-render-phase-seeding.md) — seed dialog state with useModalSeed during the opening render; an effect on `open` lands after the portal body captured empty state (first open blank).
 - [Vite SSR transform exposes import cycles](vite-ssr-transform-import-cycles.md) — "X is not a function" at module top level under Vitest = a real cycle Node's function hoisting hides; break the backwards edge with a lazy import.
 - [Regression-test bar](regression-test-bar.md) — never propose a follow-up test task (generic title templates push you to); bar + lint-vs-test split live in replit.md; gates fixed at lint/typecheck/migrations.
+- [Derived token segments](derived-token-segments.md) — generated segments (options relations from FK+options metadata) must regenerate on LATE plugin registration, name themselves after the target table, skip ambiguous pairs.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.

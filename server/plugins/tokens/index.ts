@@ -3,6 +3,7 @@ import { registerPluginKind } from "../_core/kinds";
 import { tokenPluginRegistry } from "./registry";
 import { validateTokenPreviewEntities } from "./preview-entities";
 import { validateTokenSampleSets } from "./sample-sets";
+import { registerOptionsTokens } from "./plugins/options";
 
 export * from "./types";
 export {
@@ -78,6 +79,10 @@ function registerTokenKind(): void {
  */
 export function initializeTokenPluginSystem(): void {
   registerTokenKind();
+  // Generated segments come first: they are derived from what the
+  // hand-written plugins declare (their tables' foreign keys), so they
+  // must exist before the projections below are validated.
+  const optionsTokens = registerOptionsTokens();
   // Project the plugins' `previewEntity` and `sampleSets` declarations
   // into their per-kind registries once at boot, so two declarations for
   // one entity kind fail loudly here instead of at the first preview.
@@ -88,6 +93,7 @@ export function initializeTokenPluginSystem(): void {
     plugins: tokenPluginRegistry.listIds(),
     previewEntityKinds,
     sampleSetKinds,
+    optionsTokens,
   });
 }
 

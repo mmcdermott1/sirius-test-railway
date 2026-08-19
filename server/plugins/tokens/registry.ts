@@ -9,9 +9,25 @@ export const tokenPluginRegistry = new PluginRegistry<TokenPlugin, TokenPluginMe
 
 let registrations = 0;
 
+type TokenPluginListener = (plugin: TokenPlugin) => void;
+const registrationListeners: TokenPluginListener[] = [];
+
+/**
+ * Watch registrations. For the parts of the graph that are DERIVED from
+ * what other plugins declare (the options relations, generated from an
+ * entity table's foreign keys): registration is not a boot-only event —
+ * a notifier module imported after the first render registers plugins
+ * too — so a derived segment cannot be generated in one pass and then
+ * assumed complete, or a late plugin silently has none.
+ */
+export function onTokenPluginRegistered(listener: TokenPluginListener): void {
+  registrationListeners.push(listener);
+}
+
 export function registerTokenPlugin(plugin: TokenPlugin): void {
   tokenPluginRegistry.register(plugin);
   registrations++;
+  for (const listener of registrationListeners) listener(plugin);
 }
 
 /**
