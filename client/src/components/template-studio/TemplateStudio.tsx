@@ -94,7 +94,7 @@ export interface StudioSampleSet {
   label: string;
 }
 
-/** The single preview route's response shape. */
+/** The preview render route's response shape. */
 export interface StudioPreviewResult {
   /**
    * True when NO root had a real record — every RECORD in the render is a
@@ -112,11 +112,6 @@ export interface StudioPreviewResult {
    * required field — an in-app title, an email subject — is blank).
    */
   deliverable: boolean;
-  /**
-   * The sample personas available, shipped with the render so the
-   * "preview with" picker costs no extra request.
-   */
-  sampleSets?: StudioSampleSet[];
 }
 
 /**
@@ -347,11 +342,12 @@ export function TemplateStudio({
   );
 
   // ── The studio's context ───────────────────────────────────────────────────
-  // Which roots an author may pick a real record for. This follows from
-  // the roots alone — not from the template text, and not from a render
-  // — so it is fetched once when the studio opens and holds still while
-  // the author types. Whether this author may read any PARTICULAR record
-  // is decided per record, when the picker searches.
+  // Which roots an author may pick a real record for and which sample
+  // personas are available. This follows from registered declarations
+  // alone — not from template text or a render — so it is fetched once
+  // when the studio opens and holds still while the author types.
+  // Whether this author may read any PARTICULAR record is decided per
+  // record, when the picker searches.
   const previewRootsUrl = useMemo(() => {
     const named = (rootNames ?? []).join(",");
     return named
@@ -359,11 +355,15 @@ export function TemplateStudio({
       : "/api/template-studio/preview-roots";
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootNamesJson]);
-  const { data: pickableRootsData } = useQuery<{ roots: PickableRoot[] }>({
+  const { data: studioContextData } = useQuery<{
+    roots: PickableRoot[];
+    sampleSets: StudioSampleSet[];
+  }>({
     queryKey: [previewRootsUrl],
     enabled: open,
   });
-  const pickableRoots = pickableRootsData?.roots ?? [];
+  const pickableRoots = studioContextData?.roots ?? [];
+  const sampleSets = studioContextData?.sampleSets ?? [];
 
   /** Which sample persona unseeded roots render as; null = the default. */
   const [sampleSetId, setSampleSetId] = useState<string | null>(null);
@@ -402,7 +402,7 @@ export function TemplateStudio({
   // while its root is still offered, under the same kind it was picked
   // for. Only reconcile against a list we actually have: an in-flight
   // refetch is not evidence that a root went away.
-  const pickableSignature = pickableRootsData
+  const pickableSignature = studioContextData
     ? pickableRoots.map((r) => `${r.name}:${r.kind}`).join(",")
     : null;
   useEffect(() => {
@@ -486,12 +486,6 @@ export function TemplateStudio({
       return (await res.json()) as StudioPreviewResult;
     },
   });
-
-  // The persona list rides along with the render; keep the last one so
-  // the picker doesn't empty out while a new preview is in flight.
-  const sampleSetsRef = useRef<StudioSampleSet[]>([]);
-  if (preview?.sampleSets?.length) sampleSetsRef.current = preview.sampleSets;
-  const sampleSets = sampleSetsRef.current;
 
   // ── Token insertion ────────────────────────────────────────────────────────
   const insertSnippet = useCallback(

@@ -294,7 +294,8 @@ export function registerTokenStudioRoutes(
 
   /**
    * THE STUDIO'S OWN CONTEXT: which roots an author may pick a real
-   * record for. `?roots=dispatch,event` names the context roots the
+   * record for, plus the registered sample personas. The persona list
+   * is global; `?roots=dispatch,event` names the context roots the
    * caller's templates address.
    *
    * This depends on the roots alone — a kind declares how a preview
@@ -316,6 +317,9 @@ export function registerTokenStudioRoutes(
         const { listPickableTokenPreviewKinds } = await import(
           "../plugins/tokens/preview-entities"
         );
+        const { listSampleSetChoices } = await import(
+          "../plugins/tokens/sample-sets"
+        );
         const pickableKinds = await listPickableTokenPreviewKinds();
         const roots = listTokenPreviewRoots(parseRootNames(req.query.roots))
           .filter((root) => pickableKinds.has(root.kind))
@@ -324,7 +328,7 @@ export function registerTokenStudioRoutes(
             kind: root.kind,
             label: root.label,
           }));
-        res.json({ roots });
+        res.json({ roots, sampleSets: listSampleSetChoices() });
       } catch (error: any) {
         res
           .status(500)
@@ -449,7 +453,6 @@ export function registerTokenStudioRoutes(
         }
 
         const { renderTemplatePreview } = await import("./template-preview");
-        const { listSampleSetChoices } = await import("../plugins/tokens");
         const preview = await renderTemplatePreview({
           storage,
           fields,
@@ -458,9 +461,7 @@ export function registerTokenStudioRoutes(
           seeds: resolved.seeds,
           sampleSetId,
         });
-        // The persona choices ship with the render so the studio's
-        // "preview with" picker needs no separate request.
-        res.json({ ...preview, sampleSets: listSampleSetChoices() });
+        res.json(preview);
       } catch (error: any) {
         res
           .status(500)
