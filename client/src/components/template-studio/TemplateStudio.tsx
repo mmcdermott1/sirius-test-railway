@@ -395,6 +395,29 @@ export function TemplateStudio({
     }
   }, [open]);
 
+  // A pick outlives the root it was made for if the host changes which
+  // roots these templates address. The preview would then name a root
+  // this studio no longer offers — refused by the server, and with the
+  // picker gone the author has nothing to clear. So a pick survives only
+  // while its root is still offered, under the same kind it was picked
+  // for. Only reconcile against a list we actually have: an in-flight
+  // refetch is not evidence that a root went away.
+  const pickableSignature = pickableRootsData
+    ? pickableRoots.map((r) => `${r.name}:${r.kind}`).join(",")
+    : null;
+  useEffect(() => {
+    if (pickableSignature === null) return;
+    const offered = new Map(pickableRoots.map((r) => [r.name, r.kind]));
+    setPicked((prev) => {
+      const next: Record<string, PickedPreviewRecord> = {};
+      for (const [rootName, record] of Object.entries(prev)) {
+        if (offered.get(rootName) === record.kind) next[rootName] = record;
+      }
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickableSignature]);
+
   const pickedList = Object.values(picked);
   const effectiveContext: PreviewRecordContext | undefined =
     pickedList.length > 0

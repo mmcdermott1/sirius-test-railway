@@ -76,6 +76,25 @@ differently under it: a default that touches only fields no persona names
 makes the picker look broken. Give each persona a distinct value for every
 field the defaults use, including the record `id` behind a link path.
 
+## Authoring affordances come from the studio context, never a render
+
+What an author may CHOOSE (which roots accept a real record, which
+personas exist) depends on the roots and the registry alone — never on
+the template text, the picks, or a render. Serve it from the studio's own
+context endpoint, fetched once when the studio opens.
+
+**Why:** shipping a choice list inside the render response makes the
+affordance unavailable until something has been previewed, and forces a
+client-side "last good value" holding slot so the control doesn't blink
+out mid-render. Two symptoms of one misplacement.
+
+**How to apply:** if a client keeps a `useRef` of the last response just
+to stop a control flickering, that data is studio context wearing a
+render's clothes. Corollary: a pick keyed by root name must be reconciled
+against the CURRENT offered roots (name AND kind) whenever they change —
+otherwise the preview names a root the studio no longer offers, the
+server refuses it, and the picker is gone so the author cannot clear it.
+
 ## Seedless (system) roots are never sampled
 
 A root with no record behind it (`system` — site origin, today's date)
