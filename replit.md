@@ -38,7 +38,9 @@ Sirius is a full-stack web application designed for comprehensive worker managem
     `@shared` path aliases. A new test goes in the suite for its subject,
     or a new subject directory — **not** in a new script under
     `scripts/dev/`. Tests do not run as a completion gate; run them on
-    demand and before merging.
+    demand and before merging. *Whether* a test should be written at all
+    is settled by the non-negotiable rule "A regression test must earn
+    its place" below.
 
 -   **`scripts/dev/` holds developer checks only.** Operational tools and
     data audits a human runs deliberately live in `scripts/tools/`;
@@ -246,14 +248,90 @@ reserved for the durable tooling that the app and its checks depend on
 The rest of `scripts/` is split by who runs it and when:
 
 -   `scripts/dev/` — checks. The six architecture-lint rules behind
-    `scripts/dev/lint.ts`, plus the provider-EDI format checks. Nothing
-    here is a behavioral test; those go in `tests/`.
+    `scripts/dev/lint.ts`, plus the provider-EDI format checks (legacy
+    stragglers, not a pattern to copy). Nothing here is a behavioral
+    test; those go in `tests/`. A new check is a rule in the `RULES`
+    table of `lint.ts` or a case under `tests/` — never a new script
+    here with its own workflow or registered validation.
 -   `scripts/tools/` — repeatable operational tools and data audits a
     human runs deliberately, never automatically: the Freeman
     auto-approve poller, the structure-change git review tool, and the
     signed-document sanitize audit. Run via
     `npx tsx scripts/tools/<name>.ts`.
 -   `scripts/oneoffs/` — one-time-use scripts, as above.
+
+## A regression test must earn its place
+
+**A test never ships as a follow-up task.** If a change is worth
+protecting, the protection is written inside the task that changes the
+behavior — same branch, same review. Do NOT propose "prevent a
+regression in X", "confirm X still works", or "catch Y before it ships"
+as a follow-up task, and do not accept one. Either the test belonged in
+the original task, or it should not be written at all. This is the
+default that must stop: a task ending with a proposed test task is a
+defect in the task, not thoroughness.
+
+**The bar.** Write the test only when **all six** hold:
+
+1.  **It has broken, or a concrete change would break it.** A real past
+    breakage, or a specific foreseeable change — not "someone might one
+    day touch this."
+2.  **The subsystem is finished.** Its design has settled and is not
+    still being actively built out.
+3.  **The breakage would be silent** — wrong-but-plausible output, a
+    missing notification, a permission that quietly stops being
+    enforced. If it would crash loudly or fail typecheck, the crash is
+    the test.
+4.  **Nothing already catches it** — not `typecheck`, not an existing
+    architecture-lint rule.
+5.  **It runs cheaply** — no live database record, no spawned server, no
+    network.
+6.  **It fits an existing subject suite**, or the subject is substantial
+    enough to justify a new one.
+
+**Do not write it** when any of these is true — these are
+disqualifying, not debatable:
+
+-   **The subsystem is still under active development.** Testing an
+    unfinished design pins decisions nobody has made yet, and the tests
+    fight the remaining work instead of protecting it. Wait until it
+    settles.
+-   It restates a guarantee the type system already provides.
+-   It guards a hypothetical future refactor nobody has planned — the
+    "in case someone adds a new channel someday" test.
+-   It is one-time verification that a migration or conversion worked.
+    Verify it once by hand, then throw the verification away; it has no
+    ongoing value.
+-   It needs a live DB row or a spawned server to assert anything, which
+    usually means it is testing plumbing rather than a rule.
+-   An existing suite already covers the same invariant from another
+    angle.
+
+**Lint rule or test?** Two mechanisms, and the choice is not taste:
+
+-   **A repo-wide architecture-lint rule** when the risk is
+    *structural* — "this kind of code must not appear in that kind of
+    place" (a raw `sql` template outside `server/storage/`, a
+    `process.env` read outside the registry). One rule covers the whole
+    class permanently, where a test only covers the instance in front of
+    you. It goes in the `RULES` table in `scripts/dev/lint.ts` and runs
+    under the existing `lint` gate.
+-   **A subject test suite** when the risk is *behavioral* — a specific
+    invariant about what the code computes or decides. It goes in
+    `tests/<subject>/*.test.ts` and runs under `npm test`.
+
+    The finished-subsystem rule applies to lint rules too: a structural
+    rule about a design still in flux constrains decisions that have not
+    been made yet. Do not write one for a subsystem you are still
+    building.
+
+**Where it goes.** Adding a test means adding a case to the suite for
+its subject, or a new `tests/<subject>/` directory when the subject is
+substantial. Adding a rule means adding a row to the `RULES` table.
+**The anti-pattern — do not do this — is a new top-level script under
+`scripts/dev/` with its own workflow / registered validation.** The
+automated gates are exactly the three listed in Run & Operate, and that
+list does not grow one check at a time.
 
 ## Environment variables (registry required)
 

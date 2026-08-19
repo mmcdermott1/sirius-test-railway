@@ -90,4 +90,5 @@
 - [Token editing invariants](token-editing-invariants.md) — the studio is the ONLY place a tokenized string is edited; evaluation is medium-independent; cleaning is the container's job and never reads a token's surroundings.
 - [Modal seeding runs in render phase](modal-render-phase-seeding.md) — seed dialog state with useModalSeed during the opening render; an effect on `open` lands after the portal body captured empty state (first open blank).
 - [Vite SSR transform exposes import cycles](vite-ssr-transform-import-cycles.md) — "X is not a function" at module top level under Vitest = a real cycle Node's function hoisting hides; break the backwards edge with a lazy import.
+- [Regression-test bar](regression-test-bar.md) — never propose a follow-up test task (generic title templates push you to); bar + lint-vs-test split live in replit.md; gates fixed at lint/typecheck/migrations.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.
