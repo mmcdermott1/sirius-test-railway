@@ -247,12 +247,12 @@ reserved for the durable tooling that the app and its checks depend on
 
 The rest of `scripts/` is split by who runs it and when:
 
--   `scripts/dev/` — checks. The six architecture-lint rules behind
-    `scripts/dev/lint.ts`, plus the provider-EDI format checks (legacy
-    stragglers, not a pattern to copy). Nothing here is a behavioral
-    test; those go in `tests/`. A new check is a rule in the `RULES`
-    table of `lint.ts` or a case under `tests/` — never a new script
-    here with its own workflow or registered validation.
+-   `scripts/dev/` — checks. The lint entry point (`lint.ts`) and the
+    six architecture-lint rules it registers — every file here is
+    reachable from `npm run lint`. Nothing here is a behavioral test;
+    those go in `tests/`. A new check is a rule in the `RULES` table of
+    `lint.ts` or a case under `tests/` — never a new script here with
+    its own workflow or registered validation.
 -   `scripts/tools/` — repeatable operational tools and data audits a
     human runs deliberately, never automatically: the Freeman
     auto-approve poller, the structure-change git review tool, and the
