@@ -299,6 +299,10 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: GRIEVANCE_STATUS_HISTORY_ENTITY_KIND,
     entityTable: grievanceStatusHistory,
+    // `{{grievance_status}}` on its own means the status's name — a human
+    // naming a status entry says the status ("Filed", "Arbitration"), and
+    // the FK column renders the referenced option's name.
+    defaultLeaf: "status_id",
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
@@ -365,6 +369,11 @@ registerTokenPlugin({
     // grievance — that is its own record, reached through the relation
     // below (or the grievance root the settlement notifier seeds).
     entityFields: ["operation", "summary"],
+    // `{{settlement}}` on its own means the settlement's description —
+    // the phrase a human uses to say WHICH settlement this is (the picker
+    // hint shows the same thing). `summary` is a whole sentence about an
+    // operation, not a name.
+    defaultLeaf: "description",
     hiddenFromCatalog: true,
     requiredComponent: "grievance.settlement",
     sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,

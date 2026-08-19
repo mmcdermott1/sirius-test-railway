@@ -66,6 +66,9 @@ registerTokenPlugin({
     outputType: "address",
     entityTable: contactPostal,
     entityFields: ["zip", "full"],
+    // `{{contact.address}}` on its own means the one-line composed
+    // address — what a human means by "their address".
+    defaultLeaf: "full",
     args: {
       primary: {
         default: "true",

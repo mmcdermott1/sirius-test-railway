@@ -35,6 +35,9 @@ registerTokenPlugin({
     // A closed, framework-owned field set — the envelope is not a table
     // row, so there is nothing else to read off it.
     entityFields: ["type"],
+    // `{{event}}` on its own means the event's type — the only field the
+    // envelope carries, and the phrase a human uses to say WHICH event.
+    defaultLeaf: "type",
   },
   async resolve(_entity, _args, ctx) {
     return ctx.roots.event ?? null;

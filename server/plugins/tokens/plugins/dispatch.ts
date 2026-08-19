@@ -245,6 +245,9 @@ registerTokenPlugin({
     // `status_label` is derived, not a column: the notifier merges it onto
     // the row from the event.
     entityFields: ["status_label"],
+    // `{{dispatch}}` on its own means the availability's human label —
+    // "Available", "Not available" — the phrase that names the row.
+    defaultLeaf: "status_label",
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: DISPATCH_WORKER_STATUS_SAMPLE_SETS,
@@ -379,6 +382,10 @@ registerTokenPlugin({
     // employer's name are NOT here — they belong to the job, and templates
     // reach them through it.
     entityFields: ["action", "action_label"],
+    // `{{fore}}` on its own means what happened to the membership —
+    // "Added"/"Removed" — the phrase that names the row (worker and job
+    // are their own records, reached through relations).
+    defaultLeaf: "action_label",
     hiddenFromCatalog: true,
     requiredComponent: "dispatch.fore",
     sampleSets: DISPATCH_FORE_SAMPLE_SETS,

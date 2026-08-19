@@ -44,6 +44,11 @@ registerTokenPlugin({
     inputTypes: [],
     outputType: T631_INTERVIEW_ENTITY_KIND,
     entityTable: sitespecificT631JobInterviews,
+    // `{{interview}}` on its own means the interview's status — the one
+    // fact a human states about an interview ("offered", "accepted"), and
+    // what the picker's hint shows. Worker and job are separate records,
+    // reached through their relations.
+    defaultLeaf: "status",
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: T631_INTERVIEW_SAMPLE_SETS,

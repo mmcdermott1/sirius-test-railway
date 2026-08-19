@@ -69,6 +69,9 @@ registerTokenPlugin({
     // Every surface that builds a sheet composes them with the same helpers,
     // so a preview renders what delivery renders.
     entityFields: ["status_label", "display_title", "ymd_display"],
+    // `{{sheet}}` on its own means the sheet's display title — the same
+    // composed phrase the picker and the notifier use to name a sheet.
+    defaultLeaf: "display_title",
     hiddenFromCatalog: true,
     requiredComponent: "edls",
     sampleSets: EDLS_SHEET_SAMPLE_SETS,
