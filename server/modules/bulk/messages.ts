@@ -661,7 +661,9 @@ export function registerBulkMessageRoutes(
         return res.status(404).json({ message: "Bulk message not found" });
       }
 
-      const { listTokenPreviewRoots } = await import("../../plugins/tokens/preview-roots");
+      const { listTokenPreviewRoots, ordinaryPreviewRootNames } = await import(
+        "../../plugins/tokens/preview-roots"
+      );
       const { buildTokenStudioContext } = await import(
         "../../plugins/tokens/studio-context"
       );
@@ -687,11 +689,12 @@ export function registerBulkMessageRoutes(
         }
       }
 
-      // Bulk seeds no named context roots, so the roots are the ordinary
-      // ones; the recipient-side kinds are the ones this message has
-      // records for.
+      // A bulk message is ABOUT its recipients, so the roots it offers
+      // are the ordinary ones; the recipient-side kinds are the ones
+      // this message has records for.
+      const rootNames = ordinaryPreviewRootNames();
       const recordsByRoot: Record<string, Array<{ id: string; label: string; hint?: string }>> = {};
-      for (const root of listTokenPreviewRoots([])) {
+      for (const root of listTokenPreviewRoots(rootNames)) {
         if (root.kind === "contact") recordsByRoot[root.name] = [...contactRecords.values()];
         else if (root.kind === "worker") recordsByRoot[root.name] = [...workerRecords.values()];
       }
@@ -702,7 +705,7 @@ export function registerBulkMessageRoutes(
         fields: buildFieldCatalog(),
         studioContext: await buildTokenStudioContext(
           { storage, req },
-          { recordsByRoot },
+          { rootNames, recordsByRoot },
         ),
       });
     } catch (error: unknown) {

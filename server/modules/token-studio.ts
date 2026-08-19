@@ -283,15 +283,21 @@ export function registerTokenStudioRoutes(
         const { buildTokenStudioContext } = await import(
           "../plugins/tokens/studio-context"
         );
+        const { ordinaryPreviewRootNames } = await import(
+          "../plugins/tokens/preview-roots"
+        );
         const rootNames = parseRootNames(req.query.roots);
         res.json({
           rootNames,
           segments: buildSegmentSpecsForRoots(rootNames),
           fields: buildFieldCatalog(),
           tokens: buildTokenCatalogForRoots(rootNames),
+          // A generic caller has no subject of its own, so it offers the
+          // roots it named plus the ordinary recipient-side ones — the
+          // only roots there are to offer here.
           studioContext: await buildTokenStudioContext(
             { storage, req },
-            { rootNames },
+            { rootNames: [...rootNames, ...ordinaryPreviewRootNames()] },
           ),
         });
       } catch (error: any) {

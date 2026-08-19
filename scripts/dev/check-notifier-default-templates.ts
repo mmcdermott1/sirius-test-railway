@@ -436,7 +436,7 @@ async function main() {
     "../../server/plugins/tokens/sample-sets"
   );
   const { absoluteBaseUrl } = await import("../../server/lib/base-url");
-  const { listTokenPreviewRoots } = await import(
+  const { listTokenPreviewRoots, ordinaryPreviewRootNames } = await import(
     "../../server/plugins/tokens/preview-roots"
   );
   const { EVENT_ROOT_NAME } = await import(
@@ -461,10 +461,13 @@ async function main() {
     const parts: string[] = [];
     // The persona is chosen per ROOT, so rendering a whole template as
     // one persona means naming it for every root the notifier's
-    // templates can address.
+    // templates can address — the notifier's own, the event envelope,
+    // and the recipient-side roots a template may reach for even though
+    // the studio does not offer them as separate seeds.
     const rootNames: string[] = [
       ...(plugin.tokenTemplates?.roots ?? []).map((root: any) => root.name),
       EVENT_ROOT_NAME,
+      ...ordinaryPreviewRootNames(),
     ];
     const sampleSetIds: Record<string, string> = {};
     for (const root of listTokenPreviewRoots(rootNames)) {

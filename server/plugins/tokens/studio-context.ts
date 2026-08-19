@@ -64,7 +64,14 @@ export interface TokenStudioContext {
 export const STUDIO_CONTEXT_RECORD_LIMIT = 20;
 
 export interface BuildTokenStudioContextOptions {
-  /** Named context roots this container's templates address. */
+  /**
+   * The COMPLETE ordered list of roots this container offers as seeds,
+   * by root NAME. It is the panel the author sees, top to bottom, so
+   * lead with the record the templates are really about. Nothing is
+   * added implicitly — a container whose templates are about the
+   * recipient asks for the ordinary roots by name
+   * (`ordinaryPreviewRootNames`).
+   */
   rootNames?: string[];
   /**
    * Records the container has in hand, keyed by ROOT NAME. A root named
@@ -82,6 +89,15 @@ export async function buildTokenStudioContext(
 ): Promise<TokenStudioContext> {
   const limit = options.limit ?? STUDIO_CONTEXT_RECORD_LIMIT;
   const supplied = options.recordsByRoot ?? {};
+  // A container that names no roots is offering nothing to preview
+  // against, which is never what it meant: the list is the panel. Since
+  // nothing is added implicitly any more, say so loudly here rather than
+  // shipping an empty "Preview With" to the author.
+  if (!options.rootNames?.length) {
+    throw new Error(
+      "buildTokenStudioContext needs the complete list of roots this container offers (see ordinaryPreviewRootNames for recipient-side surfaces)",
+    );
+  }
 
   const roots = await Promise.all(
     listTokenPreviewRoots(options.rootNames ?? []).map(async (root) => {

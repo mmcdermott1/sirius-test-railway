@@ -72,9 +72,14 @@ export interface RenderTemplatePreviewRequest {
    */
   templates: Record<string, string>;
   /**
-   * The named record roots these templates may address (`dispatch`,
-   * `event`). Ordinary roots (contact, worker, employer) are always
-   * available and need not be listed.
+   * The COMPLETE ordered list of roots this render reports on and may
+   * be seeded at, by root NAME (`grievance`, `event`, `contact`).
+   *
+   * Nothing is implicit: a root left off this list cannot be seeded and
+   * is not reported on, which is how a surface keeps its report to the
+   * roots its author can actually see and choose. Tokens rooted
+   * elsewhere still render — a `worker.` chain resolves from the
+   * recipient contact or samples, exactly as it does on delivery.
    */
   rootNames?: string[];
   /**

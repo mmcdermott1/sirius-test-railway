@@ -86,6 +86,7 @@ async function main(): Promise<void> {
   const undeclared = await preview({
     fields: textField,
     values: { subject: "x" },
+    rootNames: ["contact"],
     context: {
       seeds: [{ rootName: "contact", record: { kind: "address", id: anyId } }],
     },
@@ -169,6 +170,7 @@ async function main(): Promise<void> {
   const bothAtOnce = await preview({
     fields: textField,
     values: { subject: "x" },
+    rootNames: ["contact"],
     context: {
       seeds: [
         {
@@ -188,6 +190,7 @@ async function main(): Promise<void> {
   const unknownRoot = await preview({
     fields: textField,
     values: { subject: "x" },
+    rootNames: ["contact"],
     context: { seeds: [{ rootName: "no_such_root", sampleSetId: persona }] },
   });
   check(
@@ -196,9 +199,29 @@ async function main(): Promise<void> {
     unknownRoot.body,
   );
 
+  // The caller's root list is the WHOLE list: a root that exists in the
+  // registry but that this render does not name is not seedable either.
+  // That is what lets a surface offer only the roots its author can
+  // really pick (a notifier offers the recipient contact, never a
+  // free-floating worker, because delivery resolves the worker FROM the
+  // recipient).
+  const unnamedRoot = await preview({
+    fields: textField,
+    values: { subject: "x" },
+    rootNames: ["event"],
+    context: { seeds: [{ rootName: "contact", sampleSetId: persona }] },
+  });
+  check(
+    "a seed for a real root this render did not name is refused",
+    unnamedRoot.status === 400 &&
+      /No preview root named "contact"/.test(unnamedRoot.body.message ?? ""),
+    unnamedRoot.body,
+  );
+
   const twice = await preview({
     fields: textField,
     values: { subject: "x" },
+    rootNames: ["contact"],
     context: {
       seeds: [
         { rootName: "contact", sampleSetId: persona },

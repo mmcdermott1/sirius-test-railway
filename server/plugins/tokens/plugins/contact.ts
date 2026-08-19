@@ -78,13 +78,21 @@ function contactFallbackName(row: {
   return [row.given, row.family].filter(Boolean).join(" ").trim();
 }
 
+/**
+ * Root NAME of the recipient's contact. A surface that offers "who is
+ * this going to" as a preview seed names this root, and the roots that
+ * follow the recipient (worker, employer) resolve from whatever it is
+ * seeded with.
+ */
+export const CONTACT_ROOT_NAME = "contact";
+
 /** Root: {{contact...}} — the recipient's full contact record. */
 registerTokenPlugin({
   metadata: {
     id: "token.contact",
     name: "Contact",
     description: "The recipient's contact record",
-    segmentName: "contact",
+    segmentName: CONTACT_ROOT_NAME,
     inputTypes: ["root"],
     outputType: "contact",
     entityTable: contacts,

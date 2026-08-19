@@ -131,7 +131,27 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
   },
 
   tokenTemplates: {
+    // Declaration order is what the editor shows: the message is about a
+    // grievance, so the grievance leads and the entry it just reached
+    // follows.
     roots: [
+      {
+        name: "grievance",
+        kind: "grievance",
+        label: "Grievance",
+        description: "The grievance whose status changed",
+        async build(ctx) {
+          // Convenience root: the grievance is also reachable from the entry
+          // (`grievance_status_history.grievance`), but the message is about
+          // a grievance, so templates get to say so directly.
+          const { grievanceId } = payloadOf(ctx);
+          const { storage } = await import("../../../storage");
+          const { buildGrievanceEntity } = await import(
+            "../../tokens/plugins/grievance"
+          );
+          return buildGrievanceEntity(storage, grievanceId);
+        },
+      },
       {
         name: "grievance_status_history",
         kind: "grievance_status_history",
@@ -160,23 +180,6 @@ export const grievanceStatusNotifier: EventNotifierPlugin = {
             row: row as unknown as Record<string, unknown>,
             table: grievanceStatusHistory,
           };
-        },
-      },
-      {
-        name: "grievance",
-        kind: "grievance",
-        label: "Grievance",
-        description: "The grievance whose status changed",
-        async build(ctx) {
-          // Convenience root: the grievance is also reachable from the entry
-          // (`grievance_status_history.grievance`), but the message is about
-          // a grievance, so templates get to say so directly.
-          const { grievanceId } = payloadOf(ctx);
-          const { storage } = await import("../../../storage");
-          const { buildGrievanceEntity } = await import(
-            "../../tokens/plugins/grievance"
-          );
-          return buildGrievanceEntity(storage, grievanceId);
         },
       },
     ],

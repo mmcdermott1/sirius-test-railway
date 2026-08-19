@@ -187,8 +187,7 @@ export interface TemplateStudioProps {
   fieldCatalog?: TokenFieldCatalog;
   /**
    * Named record roots these templates address (`dispatch`, `event`,
-   * …) — the roots the token browser starts its tree at, and the roots
-   * the preview will resolve.
+   * …) — the roots the token browser starts its tree at.
    */
   rootNames?: string[];
   /**
@@ -448,6 +447,17 @@ export function TemplateStudio({
   const contextRoots = studioContext?.roots ?? [];
 
   /**
+   * The roots the render reports on: exactly the ones on offer here, in
+   * the order the container put them in. The panel and the preview's
+   * real-vs-sample report can therefore never disagree, and a root the
+   * author cannot see is never claimed to have been rendered. Before the
+   * context arrives the named roots are the best the studio knows.
+   */
+  const previewRootNames =
+    contextRoots.length > 0 ? contextRoots.map((r) => r.name) : (rootNames ?? []);
+  const previewRootNamesJson = JSON.stringify(previewRootNames);
+
+  /**
    * The author's pick per root NAME, as `record:<id>` / `sample:<id>`.
    * Only what they actually changed is kept; every root falls back to
    * the default below, so a pick can never outlive the offer it was
@@ -529,7 +539,7 @@ export function TemplateStudio({
     queryKey: [
       "template-studio-preview",
       specsJson,
-      rootNamesJson,
+      previewRootNamesJson,
       contextJson,
       debouncedJson,
     ],
@@ -539,7 +549,7 @@ export function TemplateStudio({
       const body: Record<string, unknown> = {
         fields: specs,
         values: JSON.parse(debouncedJson) as Record<string, string>,
-        rootNames: rootNames ?? [],
+        rootNames: previewRootNames,
       };
       if (effectiveContext) body.context = effectiveContext;
       const res = await fetch("/api/template-studio/preview", {
@@ -1006,11 +1016,6 @@ export function TemplateStudio({
                     </div>
                   ))
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Real records come from what you are editing here; sample
-                  people are made up. Dates and links always use this site's
-                  real values.
-                </p>
               </div>
             </StudioPanel>
 
