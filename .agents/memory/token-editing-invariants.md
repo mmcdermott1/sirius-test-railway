@@ -75,6 +75,27 @@ Sanitizing the finished string is a separate, later step. A token's
 override the token asserts — a plain-text destination has no reason to
 care.
 
+## Tokens are plain text in the rich editor, normalized on serialize
+
+In the studio's visual (rich-text) editor a token is ordinary `{{...}}`
+text the author can type, edit and copy — not an uneditable widget.
+
+**Why:** a widget can't be copied out as its token, can't have one
+argument edited in place, and only *looks* authoritative — it never was
+the validator. Validation is the studio's re-analysis of the whole
+authored string plus the preview pane, both of which see plain text.
+
+**How to apply:** the thing a widget really bought was atomicity, so buy
+it back at serialize time instead: before reporting a change, flatten
+each `{{...}}` run back to plain straight-quoted text (inline markup
+from bolding across it, smart quotes and nbsp from a word processor).
+The token grammar is strict enough that a token carrying any of those is
+not even *extracted*, so it would deliver as literal text with no
+warning at all. A run must never cross a block boundary or `<br>` —
+`{{` on one line and `}}` on the next is prose. Normalize a clone of the
+DOM (never the live one, or you move the author's caret), and repair
+runs back to front so one pass fixes a document with any number of them.
+
 ## A field's medium was three questions, not one
 
 A delivery field declares them separately: the SYNTAX it is written in

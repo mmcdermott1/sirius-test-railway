@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { TOKEN_PATTERN, type TokenCatalogEntry as TokenDefinition } from "@shared/tokens";
+import { type TokenCatalogEntry as TokenDefinition } from "@shared/tokens";
 import { escapeHtml, sanitizeHtml } from "@shared/utils/html";
 
 const SPECIAL_CHARACTERS = [
@@ -44,14 +44,15 @@ interface SimpleHtmlEditorProps {
   placeholder?: string;
   className?: string;
   /**
-   * Turn on token chips and the `/` menu.
+   * Turn on token support: the `/` menu, and keeping `{{...}}` runs
+   * parseable as the author formats and pastes around them.
    *
    * Only the Template Studio should pass this: the studio is the one place
    * a tokenized string is edited. Nothing enforces that — it is a
    * convention. Everywhere else this is a plain rich-text editor.
    */
   enableTokens?: boolean;
-  /** The catalog for the slash menu + chips; the host owns it. */
+  /** The catalog for the slash menu; the host owns it. */
   tokens?: TokenDefinition[];
   minHeight?: number;
   disabled?: boolean;
@@ -76,61 +77,169 @@ function sanitizeEditorHtml(html: string): string {
   return sanitizeHtml(html, EDITOR_POLICY);
 }
 
-function buildChipHtml(id: string, tokens: TokenDefinition[]): string {
-  const t = tokens.find((x) => x.id === id);
-  const label = t?.label ?? id;
-  const safeId = escapeHtml(id);
-  return `<span data-token="${safeId}" contenteditable="false" class="token-chip" title="{{${safeId}}}"><span class="token-chip-label">${escapeHtml(label)}</span><span class="token-chip-remove" data-token-remove="true" role="button" aria-label="Remove ${escapeHtml(label)} token" title="Remove token">\u00D7</span></span>`;
-}
-
-function renderTokensAsChips(html: string, tokens: TokenDefinition[]): string {
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  const walker = document.createTreeWalker(temp, NodeFilter.SHOW_TEXT);
-  const targets: Text[] = [];
-  let n: Node | null = walker.nextNode();
-  while (n) {
-    if ((n.textContent || '').includes('{{')) targets.push(n as Text);
-    n = walker.nextNode();
-  }
-  for (const textNode of targets) {
-    const text = textNode.textContent || '';
-    TOKEN_PATTERN.lastIndex = 0;
-    if (!TOKEN_PATTERN.test(text)) continue;
-    TOKEN_PATTERN.lastIndex = 0;
-    const wrapper = document.createElement('span');
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = TOKEN_PATTERN.exec(text)) !== null) {
-      if (m.index > last) {
-        wrapper.appendChild(document.createTextNode(text.slice(last, m.index)));
-      }
-      const tmp = document.createElement('div');
-      tmp.innerHTML = buildChipHtml(m[1], tokens);
-      const chip = tmp.firstChild;
-      if (chip) wrapper.appendChild(chip);
-      last = m.index + m[0].length;
-    }
-    if (last < text.length) {
-      wrapper.appendChild(document.createTextNode(text.slice(last)));
-    }
-    const parent = textNode.parentNode;
-    if (!parent) continue;
-    while (wrapper.firstChild) {
-      parent.insertBefore(wrapper.firstChild, textNode);
-    }
-    parent.removeChild(textNode);
-  }
-  return temp.innerHTML;
-}
-
-function serializeChipsToTokens(root: HTMLElement): string {
-  const clone = root.cloneNode(true) as HTMLElement;
-  clone.querySelectorAll('span[data-token]').forEach((el) => {
+/**
+ * A token is plain `{{...}}` text here, exactly as it is in raw-HTML
+ * mode, so the author can edit one in place and copy one out. It used
+ * to be an uneditable "chip", which is why old values may still carry
+ * chip markup: read those back as their token text.
+ */
+function replaceLegacyChips(root: HTMLElement): void {
+  root.querySelectorAll('span[data-token]').forEach((el) => {
     const id = el.getAttribute('data-token') || '';
     el.replaceWith(document.createTextNode(`{{${id}}}`));
   });
-  return clone.innerHTML;
+}
+
+function legacyChipsToText(html: string): string {
+  if (!html.includes('data-token')) return html;
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  replaceLegacyChips(temp);
+  return temp.innerHTML;
+}
+
+/**
+ * The price of tokens being ordinary text is that ordinary text can be
+ * formatted, pasted over, and autocorrected. Bolding a paragraph turns
+ * `{{worker.field(name="id")}}` into `{{worker.<b>field</b>(...)}}`, and
+ * a word processor turns its quotes curly — neither of which the token
+ * grammar accepts, so the token would quietly deliver as literal text
+ * rather than as anything the studio could flag. Flatten every token
+ * run back to plain, straight-quoted text on the way out.
+ *
+ * A run never crosses a block boundary: `{{` on one line and `}}` on
+ * the next is two pieces of the author's prose, not a token.
+ */
+const BLOCK_TAGS = new Set([
+  'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'BR', 'DD', 'DIV', 'DL', 'DT',
+  'FIGURE', 'FOOTER', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'HR', 'LI',
+  'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE', 'TBODY', 'TD', 'TFOOT',
+  'TH', 'THEAD', 'TR', 'UL',
+]);
+
+/** A `{{...}}` run in the text, stopping at block boundaries (\u0000). */
+const LOOSE_TOKEN_RUN = /\{\{([^{}\u0000]*)\}\}/g;
+
+interface TextPiece {
+  node: Text | null;
+  text: string;
+  start: number;
+}
+
+/** Text of the subtree in document order, block boundaries marked. */
+function collectTextPieces(root: HTMLElement): TextPiece[] {
+  const pieces: TextPiece[] = [];
+  let offset = 0;
+  const push = (node: Text | null, text: string) => {
+    if (!text) return;
+    pieces.push({ node, text, start: offset });
+    offset += text.length;
+  };
+  const walk = (parent: Node) => {
+    parent.childNodes.forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        push(child as Text, child.textContent || '');
+        return;
+      }
+      if (child.nodeType !== Node.ELEMENT_NODE) return;
+      const isBlock = BLOCK_TAGS.has((child as Element).tagName);
+      if (isBlock) push(null, '\u0000');
+      walk(child);
+      if (isBlock) push(null, '\u0000');
+    });
+  };
+  walk(root);
+  return pieces;
+}
+
+function normalizeTokenText(inner: string): string {
+  return inner
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u00A0\u2007\u202F]/g, ' ');
+}
+
+/** The piece holding a global text index, found by binary search. */
+function locate(pieces: TextPiece[], index: number): { node: Text; offset: number } | null {
+  let lo = 0;
+  let hi = pieces.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const piece = pieces[mid];
+    if (index < piece.start) {
+      hi = mid - 1;
+    } else if (index >= piece.start + piece.text.length) {
+      lo = mid + 1;
+    } else {
+      return piece.node ? { node: piece.node, offset: index - piece.start } : null;
+    }
+  }
+  return null;
+}
+
+function ancestorsWithin(node: Node, root: HTMLElement): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  let el = node.parentNode;
+  while (el && el !== root && el.nodeType === Node.ELEMENT_NODE) {
+    out.push(el as HTMLElement);
+    el = el.parentNode;
+  }
+  return out;
+}
+
+/** Markup the run was split across, left behind empty. */
+function pruneEmptyInline(elements: HTMLElement[], root: HTMLElement): void {
+  // An emptied text node still counts as a child, so test the text.
+  const isEmptyInline = (el: HTMLElement) =>
+    !BLOCK_TAGS.has(el.tagName) &&
+    el.textContent === '' &&
+    el.querySelector('br, img, hr, input, svg') === null;
+  for (const el of elements) {
+    let current: HTMLElement | null = el;
+    while (current && current !== root && isEmptyInline(current)) {
+      const parent = current.parentNode as HTMLElement | null;
+      current.remove();
+      current = parent;
+    }
+  }
+}
+
+/** Rewrite one run as plain, straight-quoted text. */
+function flattenRun(root: HTMLElement, pieces: TextPiece[], run: RegExpExecArray): void {
+  const start = locate(pieces, run.index);
+  const end = locate(pieces, run.index + run[0].length - 1);
+  if (!start || !end) return;
+  const replacement = `{{${normalizeTokenText(run[1])}}}`;
+  // Already one clean piece of text: leave the author's node alone.
+  if (start.node === end.node && replacement === run[0]) return;
+  const range = document.createRange();
+  try {
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset + 1);
+  } catch {
+    return;
+  }
+  const touched = [
+    ...ancestorsWithin(start.node, root),
+    ...ancestorsWithin(end.node, root),
+  ];
+  range.deleteContents();
+  range.insertNode(document.createTextNode(replacement));
+  pruneEmptyInline(touched, root);
+}
+
+function flattenTokenRuns(root: HTMLElement): void {
+  const pieces = collectTextPieces(root);
+  const text = pieces.map((p) => p.text).join('');
+  if (!text.includes('{{')) return;
+  LOOSE_TOKEN_RUN.lastIndex = 0;
+  const runs: RegExpExecArray[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = LOOSE_TOKEN_RUN.exec(text)) !== null) runs.push(m);
+  // Repair back to front: rewriting a run only touches nodes at or after
+  // its own start, so every earlier run's node and offset stay valid and
+  // one pass fixes the whole document, however many runs it holds.
+  for (let i = runs.length - 1; i >= 0; i--) flattenRun(root, pieces, runs[i]);
 }
 
 const RECENT_KEY = "token-picker-recent";
@@ -226,13 +335,16 @@ export function SimpleHtmlEditor({
 
   useEffect(() => {
     if (editorRef.current && !isFocused && !rawMode) {
-      const sanitized = sanitizeEditorHtml(value);
-      const rendered = enableTokens ? renderTokensAsChips(sanitized, tokens) : sanitized;
+      // Tokens are shown as the text they are; only stale chip markup
+      // from the old editor needs converting on the way in.
+      const rendered = sanitizeEditorHtml(
+        enableTokens ? legacyChipsToText(value) : value,
+      );
       if (editorRef.current.innerHTML !== rendered) {
         editorRef.current.innerHTML = rendered;
       }
     }
-  }, [value, isFocused, rawMode, enableTokens, tokens]);
+  }, [value, isFocused, rawMode, enableTokens]);
 
   useEffect(() => {
     if (!rawMode) {
@@ -286,16 +398,8 @@ export function SimpleHtmlEditor({
           sel.removeAllRanges();
           sel.addRange(saved);
         }
-        // Tokens render as chips when token support is on; everything
-        // else is inserted as escaped text.
-        TOKEN_PATTERN.lastIndex = 0;
-        const m = enableTokens ? TOKEN_PATTERN.exec(snippet) : null;
-        TOKEN_PATTERN.lastIndex = 0;
-        const html =
-          m && m[0] === snippet.trim()
-            ? buildChipHtml(m[1], tokens)
-            : escapeHtml(snippet);
-        document.execCommand("insertHTML", false, html);
+        // A token is text like any other snippet.
+        document.execCommand("insertHTML", false, escapeHtml(snippet));
         saveRichSelection();
         handleInput();
       },
@@ -306,13 +410,18 @@ export function SimpleHtmlEditor({
   });
 
   const handleInput = () => {
-    if (editorRef.current) {
-      const serialized = enableTokens
-        ? serializeChipsToTokens(editorRef.current)
-        : editorRef.current.innerHTML;
-      const sanitized = sanitizeEditorHtml(serialized);
-      onChange(sanitized);
+    if (!editorRef.current) return;
+    let serialized: string;
+    if (enableTokens) {
+      const clone = editorRef.current.cloneNode(true) as HTMLElement;
+      replaceLegacyChips(clone);
+      flattenTokenRuns(clone);
+      clone.normalize();
+      serialized = clone.innerHTML;
+    } else {
+      serialized = editorRef.current.innerHTML;
     }
+    onChange(sanitizeEditorHtml(serialized));
   };
 
   const execCommand = (command: string, value?: string) => {
@@ -477,19 +586,10 @@ export function SimpleHtmlEditor({
         return;
       }
       replace.deleteContents();
-      const tmp = document.createElement('div');
-      tmp.innerHTML = buildChipHtml(t.id, tokens);
-      const chip = tmp.firstChild as HTMLElement | null;
-      if (!chip) return;
-      replace.insertNode(chip);
+      const inserted = document.createTextNode(snippet);
+      replace.insertNode(inserted);
       const after = document.createRange();
-      const next = chip.nextSibling;
-      const nextText = next && next.nodeType === Node.TEXT_NODE ? (next.textContent || '') : '';
-      if (next && nextText.length > 0 && /^[\s\u00A0]/.test(nextText)) {
-        after.setStart(next, 1);
-      } else {
-        after.setStartAfter(chip);
-      }
+      after.setStartAfter(inserted);
       after.collapse(true);
       sel.removeAllRanges();
       sel.addRange(after);
@@ -513,47 +613,8 @@ export function SimpleHtmlEditor({
     closeSlash();
   };
 
-  const removeChip = (chip: HTMLElement) => {
-    if (!editorRef.current) return;
-    const parent = chip.parentNode;
-    const nextSibling = chip.nextSibling;
-    chip.remove();
-    const sel = window.getSelection();
-    if (sel && parent) {
-      const range = document.createRange();
-      try {
-        if (nextSibling) {
-          range.setStartBefore(nextSibling);
-        } else {
-          range.selectNodeContents(parent);
-          range.collapse(false);
-        }
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      } catch {
-        /* noop */
-      }
-    }
-    handleInput();
-    editorRef.current.focus();
-  };
-
-  const handleEditorClick = (e: React.MouseEvent) => {
-    if (enableTokens) {
-      const target = e.target as HTMLElement | null;
-      const removeBtn = target?.closest('[data-token-remove]') as HTMLElement | null;
-      if (removeBtn && editorRef.current?.contains(removeBtn)) {
-        const chip = removeBtn.closest('[data-token]') as HTMLElement | null;
-        if (chip && editorRef.current.contains(chip)) {
-          e.preventDefault();
-          e.stopPropagation();
-          removeChip(chip);
-          return;
-        }
-      }
-      detectSlashRich();
-    }
+  const handleEditorClick = () => {
+    if (enableTokens) detectSlashRich();
   };
 
   const handleEditorInput = () => {
@@ -714,7 +775,7 @@ export function SimpleHtmlEditor({
           }}
           onClick={(e) => {
             saveRichSelection();
-            handleEditorClick(e);
+            handleEditorClick();
           }}
           data-placeholder={placeholder}
           data-testid={testId}
@@ -806,61 +867,6 @@ export function SimpleHtmlEditor({
         }
         [contenteditable] a:hover {
           opacity: 0.8;
-        }
-        .token-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.125rem;
-          padding: 1px 0.375rem;
-          margin: 0 2px;
-          border-radius: 0.25rem;
-          background: #e5e7eb;
-          color: #1f2937;
-          border: 1px solid #9ca3af;
-          font-size: 0.8125rem;
-          font-weight: 500;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          line-height: 1.3;
-          vertical-align: baseline;
-          white-space: nowrap;
-          user-select: all;
-          cursor: default;
-        }
-        .dark .token-chip {
-          background: #374151;
-          color: #f3f4f6;
-          border-color: #6b7280;
-        }
-        .token-chip-label {
-          user-select: all;
-        }
-        .token-chip-remove {
-          display: none;
-          align-items: center;
-          justify-content: center;
-          width: 1rem;
-          height: 1rem;
-          margin-left: 0.125rem;
-          margin-right: -0.125rem;
-          border-radius: 9999px;
-          font-size: 0.875rem;
-          line-height: 1;
-          color: hsl(var(--muted-foreground));
-          cursor: pointer;
-          user-select: none;
-        }
-        .token-chip:hover .token-chip-remove,
-        .token-chip:focus-within .token-chip-remove {
-          display: inline-flex;
-        }
-        .token-chip-remove:hover {
-          background: hsl(var(--destructive));
-          color: hsl(var(--destructive-foreground));
-        }
-        @media (hover: none) {
-          .token-chip-remove {
-            display: inline-flex;
-          }
         }
       `}</style>
     </div>
