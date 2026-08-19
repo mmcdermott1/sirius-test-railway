@@ -34,7 +34,7 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 
 -   **`npm test` is the test suite** (Vitest; `npm run test:watch` to
     watch). Tests live in `tests/<subject>/*.test.ts`, grouped by subject
-    (`tests/html/`, `tests/auth/`, `tests/env/`), and reuse the `@` /
+    (`tests/html/`, `tests/auth/`, `tests/env/`, `tests/edi/`), and reuse the `@` /
     `@shared` path aliases. A new test goes in the suite for its subject,
     or a new subject directory — **not** in a new script under
     `scripts/dev/`. Tests do not run as a completion gate; run them on
