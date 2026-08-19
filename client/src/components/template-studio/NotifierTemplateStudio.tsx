@@ -101,11 +101,12 @@ export function NotifierTemplateStudio({
         key: f.key,
         label: f.label,
         mode: f.mode,
+        // Only the customized state earns a line under the editor: it is the
+        // one the author can act on (empty the field to go back to the
+        // notifier's default). Sitting on the default needs no narration.
         hint:
-          defaults[f.key] !== undefined
-            ? overrideOf(f.key).trim() !== ""
-              ? "Customized — this text overrides the notifier's default template."
-              : "Default template — edit to customize; until then it keeps tracking default updates."
+          defaults[f.key] !== undefined && overrideOf(f.key).trim() !== ""
+            ? "Customized — this text overrides the notifier's default template."
             : undefined,
       }));
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -18,7 +18,7 @@ import {
 import { TokenTreeBrowser } from "./TokenTreeBrowser";
 import { SlashTokenField } from "./SlashTokenField";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Bell, Braces, Loader2 } from "lucide-react";
+import { AlertTriangle, Bell, ChevronDown, Loader2 } from "lucide-react";
 import {
   analyzeTemplateTokens,
   type TokenCatalogEntry,
@@ -288,6 +288,69 @@ function InappPreviewCard({
   );
 }
 
+/** Which of the right-hand column's three sections is expanded. */
+type StudioPanelId = "preview" | "context" | "tokens";
+
+/**
+ * One collapsible section of the studio's right-hand column. Exactly one
+ * is open at a time and it takes the column's remaining height — all
+ * three expanded left each of them a squeezed slice of the dialog.
+ *
+ * A closed section stays MOUNTED behind `hidden` rather than being
+ * unmounted: collapsing the token browser must not throw away where the
+ * author had browsed to, and collapsing the preview must not make it
+ * render again on the way back.
+ */
+function StudioPanel({
+  id,
+  title,
+  status,
+  open,
+  onOpen,
+  children,
+}: {
+  id: StudioPanelId;
+  title: string;
+  /** Shown beside the title, so it still reads while the section is closed. */
+  status?: React.ReactNode;
+  open: boolean;
+  onOpen: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn("flex flex-col min-h-0 border-b last:border-b-0", open && "flex-1")}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-expanded={open}
+        aria-controls={`studio-panel-${id}`}
+        className="shrink-0 flex items-center gap-2 px-4 py-2.5 text-left hover-elevate"
+        data-testid={`button-studio-panel-${id}`}
+      >
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+            open ? "" : "-rotate-90",
+          )}
+        />
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </span>
+        {status}
+      </button>
+      <div
+        id={`studio-panel-${id}`}
+        data-testid={`studio-panel-body-${id}`}
+        className={cn("min-h-0 flex-1 flex flex-col", !open && "hidden")}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function FieldIssues({ field }: { field: StudioPreviewField | undefined }) {
   if (!field) return null;
   return (
@@ -392,9 +455,17 @@ export function TemplateStudio({
    * Picks are deliberate and do not survive the studio closing.
    */
   const [chosen, setChosen] = useState<Record<string, string>>({});
-  // Cleared during the render that opens the studio, so the seed pickers never
-  // render the previous session's picks before the reset lands.
-  useModalSeed(open, null, () => setChosen({}));
+
+  /** The expanded right-hand section; the studio always opens on the preview. */
+  const [panel, setPanel] = useState<StudioPanelId>("preview");
+
+  // Both cleared during the render that opens the studio, so the seed pickers
+  // never render the previous session's picks before the reset lands, and the
+  // column never flashes the section the last session was left on.
+  useModalSeed(open, null, () => {
+    setChosen({});
+    setPanel("preview");
+  });
 
   // Default: the first real record the container offered for this root,
   // else its first persona. A container that has records in hand is
@@ -806,19 +877,76 @@ export function TemplateStudio({
                 )}
               </div>
             ))}
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Braces className="h-3.5 w-3.5" />
-              Pick a token on the right to insert it at the cursor of the last edited field.
-            </p>
           </div>
 
           {/* ── Preview + context + token browser ── */}
           <div className="min-h-0 min-w-0 flex flex-col">
-            <div className="shrink-0 border-b">
-              <div className="px-4 pt-3 pb-2 space-y-1.5" data-testid="studio-subject-panel">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Preview with
-                </p>
+            <StudioPanel
+              id="preview"
+              title="Preview"
+              open={panel === "preview"}
+              onOpen={() => setPanel("preview")}
+              status={
+                <span className="ml-auto flex items-center gap-2">
+                  {preview && (
+                    <span
+                      className={cn(
+                        "rounded px-1.5 py-0.5 text-[10px] font-medium",
+                        realRootLabels.length > 0
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                      data-testid="studio-preview-data-badge"
+                    >
+                      {realRootLabels.length > 0 ? "Real record" : "Sample data"}
+                    </span>
+                  )}
+                  {previewLoading && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Rendering…
+                    </span>
+                  )}
+                </span>
+              }
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 bg-muted/30">
+                {previewError && !previewLoading ? (
+                  <p className="text-xs text-destructive" data-testid="studio-preview-error">
+                    Preview unavailable:{" "}
+                    {previewError instanceof Error ? previewError.message : "Unknown error"}
+                  </p>
+                ) : (
+                  renderPreviewBody()
+                )}
+                {preview && !preview.deliverable && !previewLoading && (
+                  <p
+                    className="mt-3 text-xs text-destructive border-t pt-2"
+                    data-testid="studio-preview-undeliverable"
+                  >
+                    Nothing would be sent — a required field is empty for this recipient.
+                  </p>
+                )}
+                {preview && sampleNote && (
+                  <p
+                    className="mt-3 text-xs text-muted-foreground border-t pt-2"
+                    data-testid="studio-preview-sample-note"
+                  >
+                    {sampleNote}
+                  </p>
+                )}
+              </div>
+            </StudioPanel>
+
+            <StudioPanel
+              id="context"
+              title="Preview with"
+              open={panel === "context"}
+              onOpen={() => setPanel("context")}
+            >
+              <div
+                className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 space-y-1.5"
+                data-testid="studio-subject-panel"
+              >
                 {contextRoots.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     Sample data.
@@ -884,64 +1012,23 @@ export function TemplateStudio({
                   real values.
                 </p>
               </div>
-            </div>
-            <div className="min-h-0 flex-1 grid grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
-              <div className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-4 bg-muted/30">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Live preview
-                    {preview && (
-                      <span
-                        className={cn(
-                          "ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal",
-                          realRootLabels.length > 0
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                            : "bg-muted text-muted-foreground",
-                        )}
-                        data-testid="studio-preview-data-badge"
-                      >
-                        {realRootLabels.length > 0 ? "Real record" : "Sample data"}
-                      </span>
-                    )}
-                  </p>
-                  {previewLoading && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Rendering…
-                    </span>
-                  )}
-                </div>
-                {previewError && !previewLoading ? (
-                  <p className="text-xs text-destructive" data-testid="studio-preview-error">
-                    Preview unavailable: {previewError instanceof Error ? previewError.message : "Unknown error"}
-                  </p>
-                ) : (
-                  renderPreviewBody()
-                )}
-                {preview && !preview.deliverable && !previewLoading && (
-                  <p
-                    className="mt-3 text-xs text-destructive border-t pt-2"
-                    data-testid="studio-preview-undeliverable"
-                  >
-                    Nothing would be sent — a required field is empty for this recipient.
-                  </p>
-                )}
-                {preview && sampleNote && (
-                  <p
-                    className="mt-3 text-xs text-muted-foreground border-t pt-2"
-                    data-testid="studio-preview-sample-note"
-                  >
-                    {sampleNote}
-                  </p>
-                )}
-              </div>
-              <div className={cn("min-h-0 min-w-0 border-t flex flex-col overflow-hidden")}>
-                <TokenTreeBrowser
-                  onInsert={insertSnippet}
-                  rootNames={rootNames}
-                  treeBaseUrl={treeBaseUrl}
-                />
-              </div>
-            </div>
+            </StudioPanel>
+
+            <StudioPanel
+              id="tokens"
+              title="Tokens"
+              open={panel === "tokens"}
+              onOpen={() => setPanel("tokens")}
+            >
+              <TokenTreeBrowser
+                onInsert={insertSnippet}
+                rootNames={rootNames}
+                treeBaseUrl={treeBaseUrl}
+                // The section header already says what this is.
+                hideHeading
+                className="min-h-0 flex-1 min-w-0 flex flex-col overflow-hidden"
+              />
+            </StudioPanel>
           </div>
         </div>
 

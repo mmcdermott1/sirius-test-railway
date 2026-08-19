@@ -181,6 +181,11 @@ export interface TokenTreeBrowserProps {
   treeBaseUrl?: string;
   /** Named record roots this surface seeds (`dispatch`, `event`, …). */
   rootNames?: string[];
+  /**
+   * Drop the browser's own "Insert a personalization token" title, for a
+   * host that already titles the area it is embedded in.
+   */
+  hideHeading?: boolean;
   className?: string;
 }
 
@@ -188,6 +193,7 @@ export function TokenTreeBrowser({
   onInsert,
   treeBaseUrl = "/api/token-studio/tree",
   rootNames,
+  hideHeading,
   className,
 }: TokenTreeBrowserProps) {
   const rootsParam = rootNames?.length ? rootNames.join(",") : "";
@@ -432,9 +438,11 @@ export function TokenTreeBrowser({
 
   return (
     <div className={className ?? "flex flex-col min-h-0 h-full"}>
-      <div className="p-3 border-b shrink-0">
-        <p className="text-sm font-medium">Insert a personalization token</p>
-        <div className="relative mt-2">
+      <div className={cn("border-b shrink-0", hideHeading ? "px-4 pb-3" : "p-3")}>
+        {!hideHeading && (
+          <p className="text-sm font-medium">Insert a personalization token</p>
+        )}
+        <div className={cn("relative", hideHeading ? "" : "mt-2")}>
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             value={search}

@@ -38,3 +38,6 @@ registering nothing.
   **Why:** a single global "sample" flag made real preview all-or-nothing and reachable only by relation-walking from contact-or-event.
   **How to apply:** delivery never enables sample fallback, so per-root logic must live behind that flag or delivery starts rendering examples. A root that needs no record (system values) must follow the render instead of always sampling.
 - A delivery-parity check must seed the very root delivery composes with; otherwise the unseeded root samples and parity fails for a behavior that is correct.
+- The studio's right-hand column is a single-open disclosure (preview / seed pickers / token browser), hand-rolled rather than the shared Radix accordion.
+  **Why:** the open section has to FILL the dialog's remaining height, and Radix animates content height and unmounts the closed sections — unmounting throws away where the author had browsed to in the token tree and re-runs the preview on every toggle.
+  **How to apply:** don't "clean this up" by swapping in the shared accordion. Closed sections stay mounted behind `hidden`; the open one is the flex child that grows and scrolls internally.
