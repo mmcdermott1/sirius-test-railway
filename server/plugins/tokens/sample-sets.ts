@@ -112,9 +112,9 @@ export const DEFAULT_SAMPLE_SET_ID = "sample";
 
 /**
  * Boot-time author check: one declaration per kind, and no set with an
- * empty id/label. Field-name validity is checked by
- * `scripts/dev/check-token-sample-data.ts`, which owns the field
- * catalog walk. Returns the kinds that declare sample sets.
+ * empty id/label. Field-name validity is NOT checked — nothing walks the
+ * field catalog to confirm a declared sample field exists. Returns the
+ * kinds that declare sample sets.
  */
 export function validateTokenSampleSets(): TokenEntityType[] {
   const map = collect();

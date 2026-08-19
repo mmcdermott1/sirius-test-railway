@@ -20,8 +20,11 @@ per record, which is the check the guards were imitating.
 **How to apply:** a retired shape is REFUSED, not ignored — by key
 PRESENCE (`{"entity": null}` still names a shape this route no longer
 has), naming the one accepted form in the message.
-`scripts/dev/test-preview-context-safety.ts` drives the real route and
-asserts every retired key is refused and the records path fails closed.
+
+Nothing tests this. The script that drove the real route and asserted every
+retired key is refused was deleted along with the rest of the token/studio
+test cluster — the subsystem is still being designed, so the refusal is a
+code-review responsibility, not an enforced guarantee.
 
 ## Which roots are pickable is studio context, not render output
 
@@ -67,9 +70,10 @@ leaves. A chain like `{{worker.member_status}}` desugars to the
 the plugin that owns the produced kind, reusing the same persona id so
 one pick tells one coherent story across kinds.
 
-**How to apply:** the author check (`scripts/dev/check-token-sample-data`)
-enforces this — every persona key must be a field of its kind or a value
-leaf reading it, and the whole catalog is re-rendered once per persona.
+**How to apply:** nothing enforces this. The author check that verified every
+persona key is a field of its kind (or a value leaf reading it) was deleted
+with the rest of the token/studio test cluster, so a misplaced persona key
+now fails silently — it just never renders.
 
 A persona only earns its place if the DEFAULT templates render visibly
 differently under it: a default that touches only fields no persona names

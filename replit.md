@@ -4,18 +4,45 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 
 ## Run & Operate
 
--   **Automated validations** (registered, run on every task completion —
-    no manual invocation needed): `constraint-names`
-    (`scripts/dev/check-constraint-names.ts`), `migrations`
-    (`scripts/check-migrations.ts --base=origin/main`),
-    `storage-encapsulation` (`scripts/dev/check-storage-encapsulation.ts`),
-    and `typecheck` (`NODE_OPTIONS=--max-old-space-size=8192 npm run check`
-    — tsc with the memory headroom it needs; incremental, so re-runs are
-    fast).
-    A violation blocks completion with the script's actionable error.
-    `check-migrations` now also sees untracked files (`git ls-files
-    --others`), so a freshly written migration counts before it is
-    committed.
+-   **Starting the project runs the app, and nothing else.** No check runs
+    alongside it.
+
+-   **Automated gates — exactly three** (registered validations, run on
+    every task completion; no manual invocation needed):
+
+    | Gate | Command |
+    | --- | --- |
+    | `lint` | `npx tsx scripts/dev/lint.ts` |
+    | `typecheck` | `NODE_OPTIONS=--max-old-space-size=8192 npm run check` |
+    | `migrations` | `npx tsx scripts/check-migrations.ts --base=origin/main` |
+
+    A violation blocks completion with the underlying check's own
+    actionable error. `typecheck` is tsc with the memory headroom it needs
+    (incremental, so re-runs are fast) and covers `tests/` too.
+    `check-migrations` also sees untracked files (`git ls-files --others`),
+    so a freshly written migration counts before it is committed.
+
+-   **`npm run lint` is the architecture-lint suite** — one entry point for
+    every repo-wide architecture rule (`scripts/dev/lint.ts`). It runs all
+    six rules and reports **every** violation in one pass rather than
+    stopping at the first, each with its own fix instructions:
+    `env-registry`, `storage-encapsulation`, `denorm-declarations`,
+    `html-utils`, `constraint-names`, `component-table-order`. Run one rule
+    with `npx tsx scripts/dev/lint.ts <rule-id>`, list them with `--list`.
+    A new repo-wide rule is added to the `RULES` table in that file — never
+    as its own workflow.
+
+-   **`npm test` is the test suite** (Vitest; `npm run test:watch` to
+    watch). Tests live in `tests/<subject>/*.test.ts`, grouped by subject
+    (`tests/html/`, `tests/auth/`, `tests/env/`), and reuse the `@` /
+    `@shared` path aliases. A new test goes in the suite for its subject,
+    or a new subject directory — **not** in a new script under
+    `scripts/dev/`. Tests do not run as a completion gate; run them on
+    demand and before merging.
+
+-   **`scripts/dev/` holds developer checks only.** Operational tools and
+    data audits a human runs deliberately live in `scripts/tools/`;
+    one-time-use scripts live in `scripts/oneoffs/` (see below).
 
 ## Stack
 
@@ -201,7 +228,7 @@ missing, extra, or mistyped.
     `foreignKey({ name, columns, foreignColumns })` builder, or use
     `unique("name").on(...)`. The name-length check is NOT skipped by
     `[skip-migration-check]`, and can be run standalone via
-    `npx tsx scripts/dev/check-constraint-names.ts`.
+    `npx tsx scripts/dev/lint.ts constraint-names`.
 
 **Dev-only escape hatch for the startup gate:** setting
 `SKIP_SCHEMA_DRIFT_CHECK=1` skips the check at boot. This exists so a
@@ -216,6 +243,18 @@ never at the top level of `scripts/`. The top level of `scripts/` is
 reserved for the durable tooling that the app and its checks depend on
 (`migrate/`, `db-push.ts`, `check-migrations.ts`, etc.).
 
+The rest of `scripts/` is split by who runs it and when:
+
+-   `scripts/dev/` — checks. The six architecture-lint rules behind
+    `scripts/dev/lint.ts`, plus the provider-EDI format checks. Nothing
+    here is a behavioral test; those go in `tests/`.
+-   `scripts/tools/` — repeatable operational tools and data audits a
+    human runs deliberately, never automatically: the Freeman
+    auto-approve poller, the structure-change git review tool, and the
+    signed-document sanitize audit. Run via
+    `npx tsx scripts/tools/<name>.ts`.
+-   `scripts/oneoffs/` — one-time-use scripts, as above.
+
 ## Environment variables (registry required)
 
 All environment variables the app reads must be declared in the central
@@ -228,11 +267,12 @@ settings, payment-gateway `secretName`, address-validation `apiKeyName`)
 register at parse/resolve time as secrets. Client-side
 `import.meta.env.VITE_*` reads are exempt (compile-time substitution).
 
-The author-time check enforces the rule (covers untracked files):
+The `env-registry` architecture-lint rule enforces this (it covers untracked
+files), as part of the `lint` gate. To run just that rule:
 
-    npx tsx scripts/dev/check-env-registry.ts
+    npx tsx scripts/dev/lint.ts env-registry
 
-Registry + enforcement tests: `npx tsx scripts/dev/test-env-registry.ts`.
+Registry + enforcement tests: `npm test -- tests/env`.
 
 Because files in `scripts/oneoffs/` are one level deeper, their
 relative imports use `../../` (e.g. `../../server/storage/database`,
@@ -280,8 +320,8 @@ metadata (`BasePluginMetadata` in `server/plugins/_core/types.ts`,
 surfaced by the dashboard, trust-eligibility, charge, and
 event-notifier registries). This keeps the escape hatch visible and
 auditable. **Mutations always stay in storage** — the opt-in covers
-reads only. The author-time guard
-`scripts/dev/check-storage-encapsulation.ts` fails any file under
+reads only. The `storage-encapsulation` architecture-lint rule
+(`npx tsx scripts/dev/lint.ts storage-encapsulation`) fails any file under
 `server/plugins/` that calls `readOnly.query(...)` without declaring
 `needsReadOnlyDb` (shared plugin-kind infrastructure such as
 `server/plugins/trust/eligibility/executor.ts` is allowlisted there).

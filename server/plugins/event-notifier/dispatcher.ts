@@ -16,6 +16,7 @@ import {
   getRequestContext,
 } from "../../middleware/request-context";
 import { recordSentNotification } from "./flash-summary";
+import { getEnvironmentVariable } from "../../config/env-registry";
 
 const SERVICE = "event-notifier-dispatcher";
 
@@ -41,7 +42,7 @@ async function warnOnUncoveredRoot(
   rootName: string,
   entity: import("../tokens/types").TokenEntity,
 ): Promise<void> {
-  if (process.env.NODE_ENV !== "development") return;
+  if (getEnvironmentVariable("NODE_ENV") !== "development") return;
   const key = `${pluginId}:${rootName}`;
   if (reportedUncoveredRoots.has(key)) return;
   reportedUncoveredRoots.add(key);

@@ -89,4 +89,5 @@
 - [Post-merge verification](post-merge-verification.md) — restart before diagnosing (lazy imports of deleted modules fail only at request time); registries throw on duplicate ids but a dropped registration boots clean.
 - [Token editing invariants](token-editing-invariants.md) — the studio is the ONLY place a tokenized string is edited; evaluation is medium-independent; cleaning is the container's job and never reads a token's surroundings.
 - [Modal seeding runs in render phase](modal-render-phase-seeding.md) — seed dialog state with useModalSeed during the opening render; an effect on `open` lands after the portal body captured empty state (first open blank).
+- [Vite SSR transform exposes import cycles](vite-ssr-transform-import-cycles.md) — "X is not a function" at module top level under Vitest = a real cycle Node's function hoisting hides; break the backwards edge with a lazy import.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.

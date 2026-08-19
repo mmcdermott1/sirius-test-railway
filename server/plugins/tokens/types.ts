@@ -184,7 +184,6 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
    * with none of them renders an empty string and the preview shows an
    * invisible hole. Write a realistic, obviously-fake value ("Apr 17,
    * 2026", "https://example.com") — static metadata, never randomized.
-   * Enforced by scripts/dev/check-token-sample-data.ts.
    */
   example?: string;
   /** Short label fragment used to build catalog labels. */

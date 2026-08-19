@@ -118,8 +118,9 @@ export const HTML_SANITIZE_POLICIES = {
    * survive; what survives is layout.
    *
    * Sized against the stored corpus, and that sizing is re-checkable:
-   * `scripts/dev/test-signed-document-sanitize.ts` sanitizes every stored
-   * record under this policy and reports any whose bytes change.
+   * `scripts/tools/audit-signed-document-sanitize.ts` sanitizes every
+   * stored record under this policy and reports any whose bytes change.
+   * It is a data audit a human runs deliberately, not an automatic gate.
    */
   "signed-document": {
     description: "Signed e-signature document snapshots, rendered back read-only",

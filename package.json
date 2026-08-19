@@ -8,7 +8,9 @@
     "build": "npm run db:push && VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY_PROD:-$VITE_CLERK_PUBLISHABLE_KEY} vite build && esbuild server/production-entry.ts server/app-init.ts --platform=node --packages=external --bundle --format=esm --splitting --outdir=dist",
     "start": "NODE_ENV=production node dist/production-entry.js",
     "check": "tsc",
-    "check:storage": "tsx scripts/dev/check-storage-encapsulation.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsx scripts/dev/lint.ts",
     "db:push": "tsx scripts/db-push.ts",
     "db:push:component": "tsx scripts/db-push-component.ts",
     "demo:snapshot": "tsx scripts/demo-snapshot.ts",
@@ -156,7 +158,8 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
     "typescript": "5.6.3",
-    "vite": "^5.4.20"
+    "vite": "^5.4.20",
+    "vitest": "^4.1.11"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

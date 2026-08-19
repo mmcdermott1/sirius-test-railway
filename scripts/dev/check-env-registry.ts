@@ -38,9 +38,6 @@ const EXEMPT_FILES = new Set<string>([
   "scripts/post-merge-db-push.cjs",
   // This check script itself: needs the literal pattern to search for.
   "scripts/dev/check-env-registry.ts",
-  // The registry/enforcement test: writes fixture files containing the
-  // forbidden pattern to prove the check catches them.
-  "scripts/dev/test-env-registry.ts",
 ]);
 
 const SCANNED_PREFIXES = ["server/", "shared/", "scripts/"];

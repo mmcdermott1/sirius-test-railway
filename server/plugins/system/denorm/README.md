@@ -61,9 +61,9 @@ Writes to a `soleWriter: false` target MUST be convergent:
 
 ## Enforcement
 
-`scripts/dev/check-denorm-declarations.ts` (registered as the
-`denorm-declarations` validation, alongside `typecheck`,
-`storage-encapsulation`, etc.) fails the build when:
+`scripts/dev/check-denorm-declarations.ts` (the `denorm-declarations` rule in
+the architecture-lint suite — `npm run lint`, registered as the `lint`
+validation alongside `typecheck` and `migrations`) fails the build when:
 
 1. A plugin uses a storage namespace not declared in `reads`/`writes`, or a
    mutating-looking call (`create`/`update`/`delete`/`replace`/`upsert`/

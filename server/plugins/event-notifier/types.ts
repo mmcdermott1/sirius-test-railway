@@ -107,7 +107,7 @@ export interface NotifierRecordRoot {
    * `{{grievance_status_history.…}}` can look the record up and find out
    * exactly what it holds. A shortened or prettified name (`grievance_status`
    * for a `grievance_status_history` row) reads like a different record than
-   * the one it carries — `check-notifier-root-fields` rejects it.
+   * the one it carries. Nothing enforces this — it is on the author.
    *
    * The name is global across notifiers: two notifiers may share one, but
    * only for the same entity kind.
@@ -128,8 +128,7 @@ export interface NotifierRecordRoot {
    * a flattened `grievance_title` reads like a column of the record it is
    * merged onto, so the template says something the schema does not, and it
    * only resolves for as long as whoever seeds the record remembers to merge
-   * it. Reach the related record instead. Every declared extra needs an
-   * entry in `check-notifier-root-fields`.
+   * it. Reach the related record instead.
    */
   fields?: string[];
   /**

@@ -1,6 +1,5 @@
-#!/usr/bin/env npx tsx
 /**
- * Tests for request-time SAML configuration (Task #1108):
+ * Request-time SAML configuration:
  *   - The SAML provider registers dormant (no vars) and its login handler
  *     redirects to /auth-error?error=saml_not_configured
  *   - EACH missing variable (SAML_ENTRY_POINT, SAML_ISSUER, SAML_CERT)
@@ -13,13 +12,8 @@
  *     login redirects to the NEW entry point
  *   - Releasing a variable (blank / __UNSET__) makes SAML cleanly
  *     unconfigured again
- *
- * Run: npx tsx scripts/dev/test-saml-live-config.ts
- * Exits 0 when all assertions pass, 1 otherwise.
  */
-
-// Avoid pulling app-wide side effects into a standalone tsx script.
-import "../../server/storage";
+import { beforeAll, describe, expect, it } from "vitest";
 import express from "express";
 import passport from "passport";
 import { createProvider } from "../../server/auth/providers/saml";
@@ -38,17 +32,24 @@ MAoGCCqGSM49BAMCA0gAMEUCIQDsampledatasampledatasampledatasample
 AiBsampledatasampledatasampledatasampledatasampledata
 -----END CERTIFICATE-----`;
 
-let failures = 0;
-function assert(cond: unknown, msg: string): void {
-  if (!cond) throw new Error(msg);
-}
-async function check(name: string, fn: () => void | Promise<void>): Promise<void> {
-  try {
-    await fn();
-    console.log(`  PASS: ${name}`);
-  } catch (err) {
-    failures++;
-    console.error(`  FAIL: ${name} — ${(err as Error).message}`);
+const SAML_VARS = [
+  "SAML_ENTRY_POINT",
+  "SAML_ISSUER",
+  "SAML_CERT",
+  "SAML_CALLBACK_PATH",
+] as const;
+
+function setVars(
+  vars: Partial<Record<(typeof SAML_VARS)[number], string>>,
+): void {
+  // Simulating raw environment values is the point of this test, so it uses
+  // the sanctioned whole-environment accessor rather than reading/writing the
+  // environment object directly.
+  const env = getRawProcessEnv();
+  for (const name of SAML_VARS) {
+    const v = vars[name];
+    if (v === undefined) delete env[name];
+    else env[name] = v;
   }
 }
 
@@ -90,82 +91,66 @@ function runLogin(handler: express.RequestHandler): Promise<string> {
   });
 }
 
-const SAML_VARS = ["SAML_ENTRY_POINT", "SAML_ISSUER", "SAML_CERT", "SAML_CALLBACK_PATH"] as const;
+const FULL = {
+  SAML_ENTRY_POINT: "https://idp-one.example.com/sso/saml",
+  SAML_ISSUER: "https://sp.example.com",
+  SAML_CERT: TEST_CERT,
+};
 
-function setVars(vars: Partial<Record<(typeof SAML_VARS)[number], string>>): void {
-  // Simulating raw environment values is the point of this test, so it uses
-  // the sanctioned whole-environment accessor rather than reading/writing the
-  // environment object directly.
-  const env = getRawProcessEnv();
-  for (const name of SAML_VARS) {
-    const v = vars[name];
-    if (v === undefined) delete env[name];
-    else env[name] = v;
-  }
-}
+describe("request-time SAML configuration", () => {
+  let provider: Awaited<ReturnType<typeof createProvider>>;
 
-async function main() {
-  console.log("[test-saml-live-config] request-time SAML configuration");
+  beforeAll(async () => {
+    // Avoid pulling app-wide side effects in: only the storage module the
+    // provider itself needs.
+    await import("../../server/storage");
 
-  // Start with NO SAML vars: provider must still set up (dormant).
-  setVars({});
-
-  const app = express();
-  app.use(passport.initialize());
-  const provider = createProvider({ type: "saml", enabled: true });
-  await provider.setup(app);
-
-  await check("dormant provider: no vars → saml_not_configured redirect", async () => {
-    const url = await runLogin(provider.getLoginHandler());
-    assert(url.includes("error=saml_not_configured"), `got ${url}`);
+    // Start with NO SAML vars: provider must still set up (dormant).
+    setVars({});
+    const app = express();
+    app.use(passport.initialize());
+    provider = createProvider({ type: "saml", enabled: true });
+    await provider.setup(app);
   });
 
-  const FULL = {
-    SAML_ENTRY_POINT: "https://idp-one.example.com/sso/saml",
-    SAML_ISSUER: "https://sp.example.com",
-    SAML_CERT: TEST_CERT,
-  };
+  it("dormant provider: no vars → saml_not_configured redirect", async () => {
+    setVars({});
+    const url = await runLogin(provider.getLoginHandler());
+    expect(url).toContain("error=saml_not_configured");
+  });
 
   for (const missing of ["SAML_ENTRY_POINT", "SAML_ISSUER", "SAML_CERT"] as const) {
-    await check(`missing ${missing} alone → saml_not_configured redirect`, async () => {
+    it(`missing ${missing} alone → saml_not_configured redirect`, async () => {
       const partial: Record<string, string> = { ...FULL };
       delete partial[missing];
       setVars(partial);
       const url = await runLogin(provider.getLoginHandler());
-      assert(url.includes("error=saml_not_configured"), `got ${url}`);
+      expect(url).toContain("error=saml_not_configured");
     });
   }
 
-  await check("all vars present (post-boot) → redirects to IdP entry point, no restart", async () => {
+  it("all vars present (post-boot) → redirects to IdP entry point, no restart", async () => {
     setVars(FULL);
     const url = await runLogin(provider.getLoginHandler());
-    assert(url.startsWith("https://idp-one.example.com/sso/saml"), `got ${url}`);
-    assert(url.includes("SAMLRequest="), `no SAMLRequest in ${url}`);
+    expect(url.startsWith("https://idp-one.example.com/sso/saml")).toBe(true);
+    expect(url).toContain("SAMLRequest=");
   });
 
-  await check("changed SAML_ENTRY_POINT → strategy rebuilt, redirects to NEW IdP", async () => {
+  it("changed SAML_ENTRY_POINT → strategy rebuilt, redirects to NEW IdP", async () => {
     setVars({ ...FULL, SAML_ENTRY_POINT: "https://idp-two.example.com/sso/saml" });
     const url = await runLogin(provider.getLoginHandler());
-    assert(url.startsWith("https://idp-two.example.com/sso/saml"), `got ${url}`);
+    expect(url.startsWith("https://idp-two.example.com/sso/saml")).toBe(true);
   });
 
-  await check("released var (__UNSET__) → cleanly unconfigured again", async () => {
+  it("released var (__UNSET__) → cleanly unconfigured again", async () => {
     setVars({ ...FULL, SAML_CERT: "__UNSET__" });
     const url = await runLogin(provider.getLoginHandler());
-    assert(url.includes("error=saml_not_configured"), `got ${url}`);
+    expect(url).toContain("error=saml_not_configured");
   });
 
-  await check("re-adding the released var → works again without restart", async () => {
+  it("re-adding the released var → works again without restart", async () => {
     setVars(FULL);
     const url = await runLogin(provider.getLoginHandler());
-    assert(url.startsWith("https://idp-one.example.com/sso/saml"), `got ${url}`);
+    expect(url.startsWith("https://idp-one.example.com/sso/saml")).toBe(true);
   });
-
-  console.log(failures === 0 ? "All tests passed." : `${failures} test(s) FAILED.`);
-  process.exit(failures === 0 ? 0 : 1);
-}
-
-main().catch((err) => {
-  console.error("Test run crashed:", err);
-  process.exit(1);
 });

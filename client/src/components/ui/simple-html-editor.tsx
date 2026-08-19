@@ -46,10 +46,9 @@ interface SimpleHtmlEditorProps {
   /**
    * Turn on token chips and the `/` menu.
    *
-   * Only the Template Studio may pass this: the studio is the one place
-   * a tokenized string is edited, and an author-time check
-   * (`scripts/dev/check-studio-only-tokens.ts`) refuses the prop
-   * anywhere else. Everywhere else this is a plain rich-text editor.
+   * Only the Template Studio should pass this: the studio is the one place
+   * a tokenized string is edited. Nothing enforces that — it is a
+   * convention. Everywhere else this is a plain rich-text editor.
    */
   enableTokens?: boolean;
   /** The catalog for the slash menu + chips; the host owns it. */

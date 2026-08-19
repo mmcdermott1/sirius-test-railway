@@ -49,10 +49,11 @@ renders something delivery never sends. Extras that only exist at event time
 value for a standing record; the picker shows the wording of the event that
 brought the record into being.
 
-## Parity enforcement
-Preview-loader vs notifier-root-builder parity is enforced by the
-`notifier-preview-parity` validation (check-preview-record-parity.ts): it
-compares both rows per advertised field against a real dev-DB record, so it
-FAILS (deliberately) when a compared kind has zero rows in the dev database —
-seed one rather than weakening the check. Event-time extras are compared on
-the picker's standing-record wording (fore "added", settlement "created").
+## Parity is NOT enforced
+Preview-loader vs notifier-root-builder parity used to be checked against a
+real dev-DB record by a registered validation. That check was deleted with the
+rest of the token/studio test cluster, so parity is now an invariant you have
+to hold by hand: a field the preview loader and the notifier root builder
+disagree about renders one thing in the studio and delivers another, with
+nothing to catch it. Event-time extras compare on the picker's
+standing-record wording (fore "added", settlement "created").
