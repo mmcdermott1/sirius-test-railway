@@ -38,6 +38,12 @@ export interface TokenStudioSeedRecord {
   id: string;
   label: string;
   hint?: string;
+  /**
+   * Which of the container's occurrences this record came out of — see
+   * {@link TokenPreviewRecordRef.occurrenceIds}. Records across roots
+   * that share one were true together, so picking one picks them all.
+   */
+  occurrenceIds?: string[];
 }
 
 /** Why a root has no real records to pick from. */
@@ -50,6 +56,11 @@ export type TokenStudioNoRecordsReason =
   | "none-supplied"
   /** The container supplied records; this caller may read none of them. */
   | "unreadable"
+  /**
+   * The container pointed at records by id and those records are gone
+   * — the events it replayed named rows that have since been deleted.
+   */
+  | "records-gone"
   /** The kind cannot be previewed against at all — it declares no read. */
   | "not-previewable";
 
@@ -150,6 +161,9 @@ export async function buildTokenStudioContext(
               id: r.id,
               label: r.label,
               ...(r.hint ? { hint: r.hint } : {}),
+              ...(r.occurrenceIds?.length
+                ? { occurrenceIds: r.occurrenceIds }
+                : {}),
             }))
           : [];
         return {
@@ -170,11 +184,17 @@ export async function buildTokenStudioContext(
 }
 
 /**
- * Why a root ended up with no records. "The container had none",
- * "it had some and you may not read them" and "this kind cannot be
- * previewed at all" are three different answers, and a studio that
- * showed one message for all three would be guessing on the author's
- * behalf.
+ * Why a root ended up with no records. "The container had none", "it
+ * had some and you may not read them", "what it pointed at is gone" and
+ * "this kind cannot be previewed at all" are four different answers,
+ * and a studio that showed one message for all four would be guessing
+ * on the author's behalf.
+ *
+ * The container's note only fits the first: it is that container
+ * explaining its own empty hands ("this message has no recipients
+ * yet"). When the records it named have since been deleted, the note it
+ * wrote for an empty list would be a false explanation, so the reason
+ * speaks for itself instead.
  */
 function describeNoRecords(
   gated: TokenPreviewFilterResult,
@@ -183,7 +203,7 @@ function describeNoRecords(
   if (!gated.ok) {
     return { reason: "not-previewable", detail: gated.message };
   }
-  return gated.considered === 0
-    ? { reason: "none-supplied", ...(note ? { note } : {}) }
-    : { reason: "unreadable" };
+  if (gated.considered > 0) return { reason: "unreadable" };
+  if (gated.missing > 0) return { reason: "records-gone" };
+  return { reason: "none-supplied", ...(note ? { note } : {}) };
 }

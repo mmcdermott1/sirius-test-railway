@@ -80,6 +80,8 @@ export function registerEventNotifierMetaRoutes(
         const { buildTokenStudioContext } = await import(
           "../plugins/tokens/studio-context"
         );
+        const { buildNotifierStudioRecords, NOTIFIER_STUDIO_SEED_LIMIT } =
+          await import("../plugins/event-notifier/studio-records");
         // The one list this notifier's whole editor is built from: its
         // declared record roots, the event envelope and the recipient
         // contact (see notifierTokenRootNames). It is also the list its
@@ -111,11 +113,19 @@ export function registerEventNotifierMetaRoutes(
           treeRoots: listTokenTreeRoots(rootNames),
           // What the studio may preview each of those roots as. A
           // notifier config holds no particular record — it describes
-          // events that have not happened yet — so it supplies none and
-          // every root is previewed as a sample persona.
+          // events that have not happened yet — so the records it puts
+          // forward are the ones its RECENT events were about: the
+          // notifier's own root builders replayed over the event bus's
+          // in-memory buffer, as ids the kinds load and gate fresh. A
+          // root the replay found nothing for is previewed as a sample
+          // persona, with the reason said where the picker would be.
           studioContext: await buildTokenStudioContext(
             { storage, req },
-            { rootNames },
+            {
+              rootNames,
+              ...(await buildNotifierStudioRecords(plugin, configData)),
+              limit: NOTIFIER_STUDIO_SEED_LIMIT,
+            },
           ),
         });
       } catch (error: any) {

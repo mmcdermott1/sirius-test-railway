@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FieldProps } from "@rjsf/utils";
 import { Pencil, RotateCcw } from "lucide-react";
@@ -63,22 +63,33 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
   const configData = formContext?.configData ?? {};
   const updateConfigData = formContext?.updateConfigData;
 
-  // Defaults can depend on sibling config fields (e.g. recipient kind);
-  // pass those to the catalog endpoint so the shown defaults match what
-  // would actually be delivered.
-  const deps = Array.isArray(schemaAny["x-token-defaults-deps"])
-    ? (schemaAny["x-token-defaults-deps"] as unknown[]).filter(
-        (d): d is string => typeof d === "string",
-      )
-    : [];
-  const depValues: Record<string, unknown> = {};
-  for (const dep of deps) {
-    if (configData[dep] !== undefined) depValues[dep] = configData[dep];
-  }
-  const depQuery =
-    Object.keys(depValues).length > 0
-      ? `?config=${encodeURIComponent(JSON.stringify(depValues))}`
-      : "";
+  // The catalog answers for THIS config as it stands on screen: the
+  // defaults it would fall back to (a link target that varies with the
+  // recipient kind) and the records its recent events would have been
+  // sent about (which statuses trigger it, which roles it writes to).
+  // Both read the notifier's own settings, and which settings they read
+  // is the notifier's business — a list of "the fields that matter"
+  // maintained out here goes stale the moment one of them reads another
+  // field, and a stale list shows an author defaults and recipients
+  // that are not the ones their config would produce. So the whole
+  // config goes, minus the templates being edited: those are the answer
+  // this request is about, never an input to it.
+  const configQuery = useMemo(() => {
+    const { templates: _templates, ...settings } = configData;
+    return Object.keys(settings).length > 0 ? JSON.stringify(settings) : "";
+  }, [configData]);
+  // Settled, not live: a keystroke in any config field would otherwise
+  // re-ask the catalog — replaying this notifier's recent events behind
+  // its seed records — once per character.
+  const [settledConfig, setSettledConfig] = useState(configQuery);
+  useEffect(() => {
+    if (settledConfig === configQuery) return;
+    const timer = setTimeout(() => setSettledConfig(configQuery), 400);
+    return () => clearTimeout(timer);
+  }, [configQuery, settledConfig]);
+  const depQuery = settledConfig
+    ? `?config=${encodeURIComponent(settledConfig)}`
+    : "";
 
   const {
     data: catalog,

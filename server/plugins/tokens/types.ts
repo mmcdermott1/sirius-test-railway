@@ -66,16 +66,46 @@ export type TokenPreviewGate =
 export interface TokenPreviewRecordRef {
   /** Record id — what `load` is later called with. */
   id: string;
-  /** Readable label for the picker row ("Ada Lovelace"). */
-  label: string;
+  /**
+   * Readable label for the picker row ("Ada Lovelace").
+   *
+   * OMIT IT to have the kind name the record itself. A container that
+   * knows only ids — a replay of recent events knows which record each
+   * root would have been seeded with, not how that kind reads or what
+   * it is called — then has nothing else to learn: the same `load` the
+   * render uses returns both the label and the subject the gate is
+   * asked about. A record that no longer loads is dropped rather than
+   * offered, so the picker never lists something the render would
+   * refuse.
+   */
+  label?: string;
   /** Secondary line: whatever tells two same-named records apart. */
   hint?: string;
   /**
+   * The occurrence(s) this record came out of, when a container's
+   * records come in coherent sets — one replayed event yields the
+   * grievance AND the status entry AND the recipient it fired for.
+   * Records sharing an occurrence belong together, and the picker moves
+   * them together, so a preview cannot show one event's grievance
+   * beside another event's status entry. Ids are the container's own
+   * and mean nothing outside its list.
+   *
+   * Omit it when the records are unrelated to each other (a bulk
+   * message's recipients), which leaves each root picked on its own.
+   */
+  occurrenceIds?: string[];
+  /**
    * Id a `record`-scoped gate is evaluated against. Defaults to `id`;
    * set it where the read is authorized through another record (a
-   * dispatch status row is gated as a read of its worker).
+   * dispatch status row is gated as a read of its worker). Left out
+   * alongside the label, the kind's own load supplies it.
    */
   gateEntityId?: string;
+}
+
+/** A record ref that has been named — by its container or by its kind. */
+export interface TokenPreviewNamedRecordRef extends TokenPreviewRecordRef {
+  label: string;
 }
 
 /** One record loaded by id, ready to seed a render. */

@@ -167,14 +167,14 @@ export const sitespecificT631InterviewNotifier: EventNotifierPlugin = {
         "x-widget": "staff-recipients",
       },
       // Per-channel message templates, from the shared framework builder.
-      // The default link target varies with the recipient kind, so the
-      // editor re-fetches the defaults when that field changes.
+      // The default link target varies with the recipient kind; the
+      // editor sends the whole config with its catalog request, so the
+      // defaults it shows follow that field without declaring it here.
       templates: templatesSchemaBlock({
         exampleTokens: [
           `{{${ROOT}.field(name="status")}}`,
           `{{${ROOT}.worker.contact.field(name="display_name")}}`,
         ],
-        defaultsDeps: ["recipientKind"],
       }),
     },
     // Employers only ever see interviews in EMPLOYER_VISIBLE_STATUSES (the

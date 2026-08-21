@@ -187,21 +187,14 @@ function channelGroup(
   channel: string,
   title: string,
   properties: Record<string, unknown>,
-  defaultsDeps?: string[],
 ): Record<string, unknown> {
-  const group: Record<string, unknown> = {
+  return {
     type: "object",
     title,
     "x-widget": "notifier-channel-templates",
     "x-token-channel": channel,
     properties,
   };
-  if (defaultsDeps && defaultsDeps.length > 0) {
-    // The default templates vary with these config fields, so the card
-    // re-fetches the catalog when one of them changes.
-    group["x-token-defaults-deps"] = defaultsDeps;
-  }
-  return group;
 }
 
 /**
@@ -210,9 +203,8 @@ function channelGroup(
  * block's description so authors see a couple of relevant tokens.
  */
 export function templatesSchemaBlock(
-  opts?: { exampleTokens?: string[]; defaultsDeps?: string[] },
+  opts?: { exampleTokens?: string[] },
 ): Record<string, unknown> {
-  const deps = opts?.defaultsDeps;
   const examples = opts?.exampleTokens ?? [];
   const block: Record<string, unknown> = {
     type: "object",
@@ -225,7 +217,6 @@ export function templatesSchemaBlock(
           subject: templateField("Subject", "email.subject"),
           bodyHtml: templateField("Body (HTML)", "email.bodyHtml", "html"),
         },
-        deps,
       ),
       sms: channelGroup(
         "sms",
@@ -233,7 +224,6 @@ export function templatesSchemaBlock(
         {
           message: templateField("Message", "sms.message", "multiline"),
         },
-        deps,
       ),
       inapp: channelGroup(
         "inapp",
@@ -248,7 +238,6 @@ export function templatesSchemaBlock(
             optional: true,
           }),
         },
-        deps,
       ),
     },
   };

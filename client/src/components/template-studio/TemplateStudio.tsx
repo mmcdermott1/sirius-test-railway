@@ -101,6 +101,15 @@ export interface StudioSeedRecord {
   id: string;
   label: string;
   hint?: string;
+  /**
+   * The container's occurrence(s) this record came out of. Records in
+   * different roots that share one were true together — a notifier
+   * replaying an event knows its grievance, its status entry and its
+   * recipient came from that one moment — so choosing one chooses its
+   * siblings. Absent when a container's records are unrelated (a bulk
+   * message's recipients), and each root is then picked on its own.
+   */
+  occurrenceIds?: string[];
 }
 
 
@@ -108,6 +117,7 @@ export interface StudioSeedRecord {
 export type StudioNoRecordsReason =
   | "none-supplied"
   | "unreadable"
+  | "records-gone"
   | "not-previewable";
 
 /** One root and everything it may be previewed as. */
@@ -482,6 +492,8 @@ function noRecordsMessage(root: StudioContextRoot): string {
       return `The editor that opened this studio has no ${label} records for it.`;
     case "unreadable":
       return `You may not read the ${label} records this editor supplied.`;
+    case "records-gone":
+      return `The ${label} records this editor named no longer exist.`;
     case "not-previewable":
       return (
         noRecords.detail ??
@@ -718,14 +730,44 @@ export function TemplateStudio({
     setPanel("preview");
   });
 
-  // Default: the first real record the container supplied for this root,
-  // else its first persona. A container that has records in hand is
-  // saying "this is what the template is about", so previewing against
-  // one of them is what the author wants to see first.
+  /** This root's personas-only choice — the first one it declares. */
+  const sampleChoice = (root: StudioContextRoot): string =>
+    `sample:${root.samples[0]?.id ?? ""}`;
+
+  /**
+   * What each root renders as before the author touches anything: the
+   * first real record the container supplied, else a persona. A
+   * container that has records in hand is saying "this is what the
+   * template is about", so previewing against one of them is what the
+   * author wants to see first.
+   *
+   * When those records come in coherent sets, the whole default is ONE
+   * of them — the first root's first record picks the occurrence, and
+   * the other roots show that occurrence's records. A root the
+   * occurrence never touched opens on a persona rather than on some
+   * other occurrence's record, because "this event had no such record"
+   * is true and "here is an unrelated one" is not.
+   */
+  const defaultSeeds = useMemo(() => {
+    const anchor = contextRoots.find((r) => r.records.length > 0);
+    const occurrences = anchor?.records[0]?.occurrenceIds ?? [];
+    const seeds: Record<string, string> = {};
+    for (const root of contextRoots) {
+      const record =
+        occurrences.length > 0
+          ? root.records.find((r) =>
+              r.occurrenceIds?.some((id) => occurrences.includes(id)),
+            )
+          : root.records[0];
+      seeds[root.name] = record
+        ? `record:${record.id}`
+        : sampleChoice(root);
+    }
+    return seeds;
+  }, [contextRoots]);
+
   const defaultChoice = (root: StudioContextRoot): string =>
-    root.records[0]
-      ? `record:${root.records[0].id}`
-      : `sample:${root.samples[0]?.id ?? ""}`;
+    defaultSeeds[root.name] ?? sampleChoice(root);
 
   const choiceFor = (root: StudioContextRoot): string => {
     const picked = chosen[root.name];
@@ -737,6 +779,53 @@ export function TemplateStudio({
       if (root.samples.some((s) => s.id === id)) return picked;
     }
     return defaultChoice(root);
+  };
+
+  /**
+   * Choose what one root renders as — and, when the container's records
+   * come in coherent sets, what the roots that shared that occurrence
+   * render as too.
+   *
+   * A notifier's records are one event's records: the grievance, the
+   * status entry it moved into and the person it was sent to were all
+   * true at one moment. Left to pick independently, an author could
+   * preview Tuesday's grievance beside this morning's status entry and
+   * be shown a message that was never sent and could not be. So a pick
+   * carries its siblings with it: every other root holding a record
+   * from the same occurrence follows. Roots with nothing from that
+   * occurrence are left exactly as the author had them — a persona for
+   * a root this event never touched is still the honest answer.
+   */
+  const chooseSeed = (root: StudioContextRoot, choice: string) => {
+    const next: Record<string, string> = { [root.name]: choice };
+    const picked = choice.startsWith("record:")
+      ? root.records.find((r) => r.id === choice.slice("record:".length))
+      : undefined;
+    const occurrences = picked?.occurrenceIds ?? [];
+    if (occurrences.length > 0) {
+      for (const other of contextRoots) {
+        if (other.name === root.name) continue;
+        const sibling = other.records.find((r) =>
+          r.occurrenceIds?.some((id) => occurrences.includes(id)),
+        );
+        if (sibling) {
+          next[other.name] = `record:${sibling.id}`;
+          continue;
+        }
+        // No record here from the occurrence just chosen. Anything this
+        // root is showing from a DIFFERENT one has to go — that is the
+        // mixture this whole rule exists to prevent — and a persona
+        // takes its place.
+        const current = choiceFor(other);
+        const showing = current.startsWith("record:")
+          ? other.records.find((r) => r.id === current.slice("record:".length))
+          : undefined;
+        if (showing?.occurrenceIds?.length) {
+          next[other.name] = sampleChoice(other);
+        }
+      }
+    }
+    setChosen((prev) => ({ ...prev, ...next }));
   };
 
   const effectiveContext: PreviewSeedRequest | undefined =
@@ -1235,16 +1324,27 @@ export function TemplateStudio({
                     token renders from sample data.
                   </p>
                 ) : (
-                  contextRoots.map((root) => (
-                    <SeedPicker
-                      key={root.name}
-                      root={root}
-                      value={choiceFor(root)}
-                      onChange={(v) =>
-                        setChosen((prev) => ({ ...prev, [root.name]: v }))
-                      }
-                    />
-                  ))
+                  <>
+                    {contextRoots.some((r) =>
+                      r.records.some((rec) => rec.occurrenceIds?.length),
+                    ) ? (
+                      <p
+                        className="text-xs text-muted-foreground"
+                        data-testid="text-studio-seeds-linked"
+                      >
+                        These records come in sets that were true together —
+                        picking one moves the others with it.
+                      </p>
+                    ) : null}
+                    {contextRoots.map((root) => (
+                      <SeedPicker
+                        key={root.name}
+                        root={root}
+                        value={choiceFor(root)}
+                        onChange={(v) => chooseSeed(root, v)}
+                      />
+                    ))}
+                  </>
                 )}
               </div>
             </StudioPanel>

@@ -6,6 +6,7 @@ import type {
   TokenEntityType,
   TokenPreviewEntitySource,
   TokenPreviewGate,
+  TokenPreviewNamedRecordRef,
   TokenPreviewRecordRef,
 } from "./types";
 
@@ -187,7 +188,7 @@ async function gateAllows(
 export type TokenPreviewFilterResult =
   | {
       ok: true;
-      records: TokenPreviewRecordRef[];
+      records: TokenPreviewNamedRecordRef[];
       /**
        * How many of the container's candidates REACHED the gate. It is
        * the difference between "the container had none" and "it had
@@ -200,17 +201,32 @@ export type TokenPreviewFilterResult =
        * the author as "there was nothing here".
        */
       considered: number;
+      /**
+       * How many candidates named an id whose record is no longer there
+       * — only ever nonzero for the unlabelled refs the kind is asked
+       * to name. It is the third answer: not "none were supplied" and
+       * not "you may not read them", but "what these pointed at is
+       * gone".
+       */
+      missing: number;
     }
   | { ok: false; status: number; message: string };
 
 /**
- * Keep only the records this caller may actually read.
+ * Keep only the records this caller may actually read, naming any the
+ * container left unnamed.
  *
  * The candidates are always a container's own (a bulk message's
  * recipients, say): no seed reaches an author that they could not open
  * elsewhere in the app. Deciding who may see a record stays here, so a
  * container cannot hand-roll its own idea of authorization by supplying
  * its own list.
+ *
+ * A candidate with no label is one the container could only point at:
+ * the kind's own load then supplies both its name and the subject its
+ * gate is asked about, and a candidate whose record has since gone is
+ * dropped. That load is the same one the render performs, so the picker
+ * offers exactly what a render would accept.
  */
 export async function filterTokenPreviewRecords(
   kind: TokenEntityType,
@@ -231,32 +247,89 @@ export async function filterTokenPreviewRecords(
     // of its data is visible, so nothing survives. Nothing was
     // considered either — a switched-off component is not a refusal
     // aimed at this caller.
-    return { ok: true, records: [], considered: 0 };
+    return { ok: true, records: [], considered: 0, missing: 0 };
   }
 
   const check = accessChecker(ctx);
   const gate = entry.source.gate;
+
+  // A route gate carries no subject, so it is answered before anything
+  // is read — including before an unnamed candidate is loaded to be
+  // named. A refusal here is about the kind, not about which records
+  // happen to still exist.
   if (gate.scope === "route") {
     const answer = await check(gate.policy);
     if (!answer.granted) {
-      return { ok: true, records: [], considered: candidates.length };
+      return { ok: true, records: [], considered: candidates.length, missing: 0 };
     }
+  }
+
+  const named = await nameCandidates(entry, candidates, ctx);
+  const missing = candidates.length - named.length;
+
+  if (gate.scope === "route") {
     return {
       ok: true,
-      records: candidates.slice(0, limit),
-      considered: candidates.length,
+      records: named.slice(0, limit),
+      considered: named.length,
+      missing,
     };
   }
 
   const verdicts = await Promise.all(
-    candidates.map((record) =>
+    named.map((record) =>
       gateAllows(gate, check, record.gateEntityId ?? record.id).then(
         (r) => r.granted,
       ),
     ),
   );
-  const records = candidates.filter((_, i) => verdicts[i]).slice(0, limit);
-  return { ok: true, records, considered: candidates.length };
+  const records = named.filter((_, i) => verdicts[i]).slice(0, limit);
+  return { ok: true, records, considered: named.length, missing };
+}
+
+/**
+ * Give every candidate a name, asking the kind about the ones the
+ * container could only point at.
+ *
+ * Dropping a candidate whose record no longer loads is the point: an
+ * id can outlive its row (a replayed event names the record it fired
+ * for, which may since have been deleted), and offering a picker row
+ * that renders nothing would be a worse answer than leaving it out and
+ * saying so. A load that throws is treated the same way — one broken
+ * candidate must not cost the author the whole editor — and is logged,
+ * because a load that throws is a bug in that kind.
+ */
+async function nameCandidates(
+  entry: RegisteredPreviewEntity,
+  candidates: TokenPreviewRecordRef[],
+  ctx: TokenPreviewContext,
+): Promise<TokenPreviewNamedRecordRef[]> {
+  const resolved = await Promise.all(
+    candidates.map(async (record) => {
+      if (record.label !== undefined) {
+        return record as TokenPreviewNamedRecordRef;
+      }
+      try {
+        const loaded = await entry.source.load(ctx.storage, record.id);
+        if (!loaded) return null;
+        return {
+          ...record,
+          label: loaded.label,
+          gateEntityId: record.gateEntityId ?? loaded.gateEntityId,
+        };
+      } catch (error) {
+        const { logger } = await import("../../logger");
+        logger.warn("Token preview candidate failed to load", {
+          service: "token-preview",
+          pluginId: entry.pluginId,
+          recordId: record.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }
+    }),
+  );
+  return resolved.filter((r): r is TokenPreviewNamedRecordRef => r !== null);
 }
 
 export type TokenPreviewEntityResult =
