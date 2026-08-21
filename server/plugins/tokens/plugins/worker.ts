@@ -304,8 +304,18 @@ registerTokenPlugin({
     segmentName: "cardcheck",
     inputTypes: ["worker"],
     outputType: "cardcheck",
-    entityFields: ["type", "status", "signed_date"],
+    // Assembled in code rather than read straight from a table: `type`
+    // is the definition's name, and `worker_id` is the cardcheck column
+    // the location below is built from.
+    entityFields: ["type", "status", "signed_date", "worker_id"],
     sampleSets: CARDCHECK_SAMPLE_SETS,
+    // No page of its own: the worker's cardchecks tab is where the
+    // record is listed, reached through the row's worker id.
+    entityLocation: {
+      tabEntity: "worker",
+      idField: "worker_id",
+      defaultTab: "cardchecks",
+    },
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");
@@ -320,7 +330,12 @@ registerTokenPlugin({
       : null;
     const out: TokenEntity = {
       kind: "cardcheck",
-      row: { type: cc.type, status, signedDate: cc.signedDate },
+      row: {
+        workerId: cc.workerId,
+        type: cc.type,
+        status,
+        signedDate: cc.signedDate,
+      },
     };
     return out;
   },

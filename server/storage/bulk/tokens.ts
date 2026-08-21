@@ -16,6 +16,13 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm";
 type Row = Record<string, unknown>;
 
 export interface BulkTokenCardcheckRow {
+  /**
+   * The worker the card check belongs to. A card check has no page of
+   * its own — the worker's cardchecks tab is where it is shown — so the
+   * row has to carry the id that page is reached by, or a message about
+   * a card check can link nowhere.
+   */
+  workerId: string;
   type: string | null;
   status: string | null;
   signedDate: Date | null;
@@ -220,6 +227,7 @@ export function createBulkTokensStorage(): BulkTokensStorage {
       const client = getClient();
       const rows = await client
         .select({
+          workerId: cardchecks.workerId,
           type: cardcheckDefinitions.name,
           status: cardchecks.status,
           signedDate: cardchecks.signedDate,
@@ -235,6 +243,7 @@ export function createBulkTokensStorage(): BulkTokensStorage {
       const row = rows[0];
       if (!row) return undefined;
       return {
+        workerId: row.workerId,
         type: row.type ?? null,
         status: row.status ?? null,
         signedDate: row.signedDate ?? null,

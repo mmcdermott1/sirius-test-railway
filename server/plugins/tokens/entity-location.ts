@@ -105,6 +105,18 @@ function columnNamesOf(plugin: TokenPlugin): string[] {
 }
 
 /**
+ * Every field name the kind's rows can be asked for: its table's columns
+ * plus the extras it declares. A kind whose rows are assembled in code
+ * rather than read from one table (a card check: a join, reshaped) has
+ * no table at all, and its declared fields ARE the row it hands over —
+ * so they are what an id field has to be one of. The check is the same
+ * question either way: does the row carry the id the link is built from?
+ */
+function fieldNamesOf(plugin: TokenPlugin): string[] {
+  return [...columnNamesOf(plugin), ...(plugin.metadata.entityFields ?? [])];
+}
+
+/**
  * Check one declaration against reality, returning the problems found.
  * Everything checked here is something that would otherwise surface as a
  * wrong or blank link in a delivered message.
@@ -131,26 +143,29 @@ function problemsWith(
     );
   }
   const columns = columnNamesOf(plugin);
-  if (columns.length === 0) {
+  const fields = fieldNamesOf(plugin);
+  if (fields.length === 0) {
     problems.push(
-      `the kind declares no entityTable, so id field "${declaration.idField}" ` +
-        `cannot be checked against a column`,
+      `the kind declares neither an entityTable nor any entityFields, so id ` +
+        `field "${declaration.idField}" cannot be checked against anything ` +
+        `its rows carry`,
     );
   } else {
     const wanted = normalizeFieldName(declaration.idField);
-    if (!columns.some((c) => normalizeFieldName(c) === wanted)) {
+    if (!fields.some((c) => normalizeFieldName(c) === wanted)) {
       problems.push(
-        `id field "${declaration.idField}" is not a column of the kind's table`,
+        `id field "${declaration.idField}" is neither a column of the kind's ` +
+          `table nor one of its declared fields`,
       );
     }
-    // A stored column must always win over a derived one: a silent
-    // shadow would change what an existing template renders.
-    if (columns.some((c) => normalizeFieldName(c) === ENTITY_PATH_FIELD)) {
-      problems.push(
-        `the kind's table already has a real "path" column, which a derived ` +
-          `path field would shadow`,
-      );
-    }
+  }
+  // A stored column must always win over a derived one: a silent shadow
+  // would change what an existing template renders.
+  if (columns.some((c) => normalizeFieldName(c) === ENTITY_PATH_FIELD)) {
+    problems.push(
+      `the kind's table already has a real "path" column, which a derived ` +
+        `path field would shadow`,
+    );
   }
   if (
     (plugin.metadata.entityFields ?? []).some(

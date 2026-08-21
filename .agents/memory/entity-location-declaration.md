@@ -23,9 +23,13 @@ framework treats as a bug.
 - Never assume a detail tab is called `details` — declare the tab id (the
   bargaining-unit tree calls its detail tab `view`).
 - Validate declarations at boot (unknown tab, href template needing more than
-  one id, id field that is not a column, a real `path` column that a derived one
-  would shadow). A lying declaration otherwise surfaces as a 404 in a delivered
-  message.
+  one id, id field the kind's rows cannot carry, a real `path` column that a
+  derived one would shadow). A lying declaration otherwise surfaces as a 404 in
+  a delivered message.
+- A kind whose rows are ASSEMBLED IN CODE (a join, reshaped) has no table, and
+  its declared extra field list IS its row: the id field is checked against
+  table columns *plus* declared fields, and the field must be both declared and
+  actually put on the row, or the coverage check calls it advertised-but-blank.
 - An absolute-URL token is a wrapper over the path token, never a parallel
   implementation, and resolves to nothing whenever the path does — an origin on
   its own is not a link.

@@ -232,7 +232,9 @@ export interface TokenEntityLocation {
   /**
    * Row field carrying that entity's id: the record's own `id` for a
    * top-level kind, a foreign key for a sub-entity borrowing a parent's
-   * page. Must be a column of the kind's declared table.
+   * page. Must be a column of the kind's declared table, or — for a kind
+   * whose rows are assembled in code — one of its declared
+   * {@link TokenPluginMetadata.entityFields}.
    */
   idField: string;
   /**
