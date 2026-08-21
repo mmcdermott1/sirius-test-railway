@@ -97,6 +97,26 @@ const CARDCHECK_SAMPLE_SETS = [
 export const WORKER_ROOT_NAME = "worker";
 
 /**
+ * What `{{worker}}` on its own says: the worker's sirius id, the member
+ * number the union knows them by.
+ *
+ * A bare token has to name the record, and of the worker record's own
+ * fields the sirius id is the only one that always does: it is NOT NULL
+ * and unique, where the employment extras (job title, employer) are
+ * denorm values a worker may have none of. The person's NAME is not a
+ * worker field at all — it lives on their contact, which is why
+ * `{{contact}}` already renders it and why a worker token that also
+ * rendered a name would say the same thing twice under a different
+ * root.
+ *
+ * Declared on EVERY plugin that produces a worker, not just the root:
+ * a surface validates chains against only the roots it named, so a
+ * notifier that reaches a worker through a hop (`{{…worker}}`) would
+ * otherwise reject a short form that delivery renders happily.
+ */
+export const WORKER_DEFAULT_LEAF = "sirius_id";
+
+/**
  * Root: {{worker...}} — the recipient's full worker record, plus
  * employment/status denorm extras (job_title, home_employer_id, ws_id,
  * ms_ids, employer_ids).
@@ -111,6 +131,7 @@ registerTokenPlugin({
     outputType: "worker",
     entityTable: workers,
     entityFields: WORKER_EXTRA_FIELDS,
+    defaultLeaf: WORKER_DEFAULT_LEAF,
     recipientRooted: true,
     sampleSets: WORKER_SAMPLE_SETS,
     // A worker record is read behind `worker.view` on that worker
@@ -162,6 +183,7 @@ registerTokenPlugin({
     outputType: "worker",
     entityTable: workers,
     entityFields: WORKER_EXTRA_FIELDS,
+    defaultLeaf: WORKER_DEFAULT_LEAF,
     hiddenFromCatalog: true,
   },
   async resolve(entity, _args, ctx) {

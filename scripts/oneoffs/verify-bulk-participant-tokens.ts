@@ -112,10 +112,11 @@ async function main() {
     check(`refused in bulk: {{${expr}}}`, !result.ok);
   }
 
-  // A chain ending at a worker is not writable BARE anywhere in the app:
-  // the worker kind declares no default leaf, so {{worker}} is as
-  // meaningless as {{bulk_participant.contact.worker}}. The participant
-  // root inherits that, rather than inventing a default of its own.
+  // A chain ending at a worker means the same thing however it is
+  // reached: the worker kind declares a default leaf, so
+  // {{bulk_participant.contact.worker}} is as writable as {{worker}}.
+  // The participant root inherits that, rather than inventing a default
+  // of its own.
   const bareWorker = validateTokenExpressionForRoots("worker", BULK_TOKEN_ROOT_NAMES);
   const bareHoppedWorker = validateTokenExpressionForRoots(
     "bulk_participant.contact.worker",

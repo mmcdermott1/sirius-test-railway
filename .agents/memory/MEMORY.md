@@ -98,4 +98,5 @@
 - [Studio roots are declared, never derived](studio-root-declaration.md) — each token surface states its complete root list; scoping the SEGMENT GRAPH (not just the picker) is what binds it; delivery + Lob merge keys stay unscoped.
 - [Studio records are supplied, never found](studio-record-supply.md) — no per-kind "first N records" hook; container hands over recordsByRoot, unsupplied roots are personas only; by-id load is the only record read.
 - [Send-scoped token roots](send-scoped-token-roots.md) — a root whose record IS a send must be seeded at delivery, declare its addressee for preview, and be counted per-send in coverage; gate on the recipient.
+- [Token default leaf per producer](token-default-leaf-per-producer.md) — declare a kind's defaultLeaf on EVERY plugin producing it; validation is root-scoped while tree/delivery lookup is not, so root-only = short form rejected on hop-only surfaces.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.

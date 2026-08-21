@@ -1,6 +1,7 @@
 import { workers, dispatchJobs } from "@shared/schema";
 import { sitespecificT631JobInterviews } from "../../../../shared/schema/sitespecific/t631/interviews-schema";
 import { WORKER_EXTRA_FIELDS } from "../../../storage/bulk/tokens";
+import { WORKER_DEFAULT_LEAF } from "./worker";
 import { registerTokenPlugin } from "../registry";
 import { memo, tokenEntityOf, type TokenEntity } from "../types";
 
@@ -91,6 +92,7 @@ registerTokenPlugin({
     outputType: "worker",
     entityTable: workers,
     entityFields: WORKER_EXTRA_FIELDS,
+    defaultLeaf: WORKER_DEFAULT_LEAF,
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
   },
