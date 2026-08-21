@@ -111,12 +111,12 @@ export function TokenStudio({
   catalogUrl,
   treeBaseUrl,
 }: TokenStudioProps) {
-  const roots = rootNames?.length ? rootNames : undefined;
+  const named = rootNames?.length ? rootNames : undefined;
   // No host-supplied endpoint means the generic catalog, which is built
   // for the roots named here — the prop types make sure there are some.
   const url =
     catalogUrl ??
-    `/api/token-studio/catalog?roots=${encodeURIComponent((roots ?? []).join(","))}`;
+    `/api/token-studio/catalog?roots=${encodeURIComponent((named ?? []).join(","))}`;
   // The failure is part of the answer. Dropping it here is how a host
   // whose catalog request 403s ends up looking like a host with no
   // tokens: the studio can only be honest about a request it is told
@@ -130,6 +130,12 @@ export function TokenStudio({
     queryKey: [url],
     enabled: open,
   });
+
+  // A host endpoint states its own roots in its response, so a host
+  // that has one does not have to repeat the list as a prop — and could
+  // not honestly do so where the roots are decided server-side. The
+  // prop still wins: a host that named roots meant them.
+  const roots = named ?? catalog?.rootNames;
 
   return (
     <TemplateStudio

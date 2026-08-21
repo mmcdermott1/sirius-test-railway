@@ -100,6 +100,19 @@ export interface RenderTemplatePreviewRequest {
    * `TokenSampleSet`.
    */
   sampleSetIds?: Record<string, string>;
+  /**
+   * Whether an UNSEEDED root may fall back to a sample persona.
+   * Defaults to true, which is what a preview wants: sample fallback is
+   * per root, so a preview shows the author something for every token
+   * while the roots they seeded still resolve for real.
+   *
+   * A caller producing text that a human will actually SEND sets it
+   * false. Such a render seeds every root it declares, so nothing
+   * should fall back — and if something does, a hole the author can see
+   * is the safe answer, where a persona's name silently reaching a real
+   * recipient is the failure this flag exists to make impossible.
+   */
+  sample?: boolean;
 }
 
 /** The id of the seeded record for one root, for the studio's report. */
@@ -127,6 +140,7 @@ export async function renderTemplatePreview({
   contactId,
   seeds: seedsIn,
   sampleSetIds,
+  sample = true,
 }: RenderTemplatePreviewRequest): Promise<TemplatePreview> {
   // ── Seeds: whatever real records the caller resolved, all optional ────────
   const { listTokenPreviewRoots } = await import("../plugins/tokens/preview-roots");
@@ -193,10 +207,11 @@ export async function renderTemplatePreview({
       continue;
     }
 
-    // Sample fallback is always on in a preview: it applies per root, so
-    // a root with a seeded record still resolves against real data.
+    // Sample fallback applies per root, so a root with a seeded record
+    // resolves against real data either way. A caller rendering text a
+    // human will send turns it off entirely — see `sample`.
     const ctx = createTokenEvalContext(storage, recipientContactId, {
-      sample: true,
+      sample,
       sampleSetIds,
       cache,
       seeds,

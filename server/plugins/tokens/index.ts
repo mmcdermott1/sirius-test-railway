@@ -122,6 +122,8 @@ import "./plugins/field";
 import "./plugins/contact";
 import "./plugins/worker";
 import "./plugins/employer";
+import "./plugins/employer-contact";
+import "./plugins/trust-provider";
 import "./plugins/system";
 import "./plugins/address";
 import "./plugins/bulk-participant";

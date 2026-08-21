@@ -196,6 +196,49 @@ export const NOTIFIER_CHANNEL_FIELDS: Record<string, DeliveryFieldSpec[]> = {
   ],
 };
 
+/**
+ * The tokenized fields of each MANUAL COMPOSE medium — the one-off
+ * message an admin writes to one person from a Communications tab.
+ *
+ * A compose screen is not a template store: the author writes tokenized
+ * text in the studio, the studio renders it against the record the page
+ * is about, and the FINISHED text is what lands in the form and what is
+ * sent. So these declarations describe the compose FORM's fields (the
+ * keys the studio applies into), and they say what shaping the render
+ * performs — the same shaping the send path performs on the way out,
+ * which is why every field here is trimmed and required exactly where
+ * the compose form's own send button requires it.
+ *
+ * Fields the author fills in by hand and the studio never writes — an
+ * in-app link URL, a postal address, a Lob template id — are
+ * deliberately absent: declaring a field here says the studio composes
+ * it, and a field it does not compose has nothing to render.
+ */
+export const COMPOSE_CHANNEL_FIELDS: Record<string, DeliveryFieldSpec[]> = {
+  email: [
+    { key: "subject", syntax: "text", trim: true, requiredForMessage: true },
+    // Plain text: the compose form sends `bodyText` as authored.
+    { key: "bodyText", syntax: "text", trim: true, requiredForMessage: true },
+  ],
+  sms: [{ key: "message", syntax: "text", trim: true, requiredForMessage: true }],
+  postal: [
+    // The letter body, written as HTML and wrapped in a page before it
+    // goes to the print vendor.
+    { key: "composeBody", syntax: "html", trim: true, requiredForMessage: true },
+    // The operator-facing description of the mailing. Sent with the
+    // job, not printed, and optional — a letter with no description is
+    // still mailed.
+    { key: "description", syntax: "text", trim: true },
+  ],
+  inapp: [
+    { key: "title", syntax: "text", trim: true, requiredForMessage: true },
+    // Written in the rich-text editor; flattened to plain text by the
+    // compose form on send, so token values are escaped into markup here
+    // exactly as the editor stores them.
+    { key: "bodyHtml", syntax: "html", trim: true, requiredForMessage: true },
+  ],
+};
+
 /** Same-app relative path: starts with "/", not scheme-relative "//". */
 export function isSafeRelativePath(url: string): boolean {
   return url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\");

@@ -29,6 +29,13 @@ write.
   reachable as `worker.home_employer`, which also says WHOSE employer it is.
 - Save-time validation must use the same list the editor was built from, or the
   editor offers tokens that save then rejects.
+- A surface that serves SEVERAL root lists from one endpoint set must take the
+  scope from the URL PATH (`/tree/:scope/roots`) and derive the list from it.
+  Accepting a client `?roots=` list — even intersected with the union of every
+  scope the surface knows — lets one screen browse another screen's roots, so
+  the picker offers tokens the render then refuses. Scope the "what can follow
+  this type?" endpoint too, by walking the graph from the scope's own roots;
+  expanding a type in isolation answers for a graph the caller cannot reach.
 
 **Two lists that are deliberately NOT the editor's list:**
 
