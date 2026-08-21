@@ -33,6 +33,7 @@ export const NOTE_ENTITY_TYPES: readonly NoteEntityTypeDefinition[] = [
   { id: "worker", label: "Worker" },
   { id: "employer", label: "Employer" },
   { id: "trust_provider", label: "Trust Provider", requiredComponent: "trust.providers" },
+  { id: "grievance", label: "Grievance", requiredComponent: "grievance" },
 ] as const;
 
 export type NoteEntityType = string;

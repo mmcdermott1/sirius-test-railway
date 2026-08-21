@@ -1,5 +1,6 @@
 import { NOTE_ENTITY_TYPES } from "@shared/notes";
 import { storage } from "../../../../storage";
+import { isNoteEntityTypeAvailable } from "../../../../storage/notes-entity-types";
 import { registerCronPlugin } from "../registry";
 import type { CronJobContext, CronJobResult } from "../types";
 
@@ -16,6 +17,12 @@ const BATCH_LIMIT = 500;
  * iterates the registry, a newly note-able record type is swept automatically
  * — nothing to add here. In `test` mode it reports what it would delete
  * without writing.
+ *
+ * A record type owned by a disabled component (grievances, say) has no table
+ * to join against, so it is SKIPPED rather than swept, and named in the run
+ * summary. Its notes survive until the component is switched back on — the
+ * conservative choice, since "the table is missing" is not evidence that the
+ * records are gone.
  */
 registerCronPlugin({
   metadata: {
@@ -30,10 +37,16 @@ registerCronPlugin({
 
   async execute(context: CronJobContext): Promise<CronJobResult> {
     const perEntityType: Array<{ entityType: string; orphans: number; deleted: number }> = [];
+    const skipped: string[] = [];
     let totalDeleted = 0;
     let totalFound = 0;
 
     for (const entityType of NOTE_ENTITY_TYPES) {
+      if (!isNoteEntityTypeAvailable(entityType.id)) {
+        skipped.push(entityType.id);
+        continue;
+      }
+
       const orphanIds = await storage.notes.findOrphanIds(entityType.id, BATCH_LIMIT);
       totalFound += orphanIds.length;
 
@@ -47,9 +60,10 @@ registerCronPlugin({
 
     const verb = context.mode === "live" ? "Deleted" : "Would delete";
     const count = context.mode === "live" ? totalDeleted : totalFound;
+    const skipNote = skipped.length > 0 ? `; skipped ${skipped.join(", ")} (feature not enabled)` : "";
     return {
-      message: `${verb} ${count} orphaned note${count === 1 ? "" : "s"} across ${perEntityType.length} record types`,
-      metadata: { totalFound, totalDeleted, perEntityType },
+      message: `${verb} ${count} orphaned note${count === 1 ? "" : "s"} across ${perEntityType.length} record type${perEntityType.length === 1 ? "" : "s"}${skipNote}`,
+      metadata: { totalFound, totalDeleted, perEntityType, skipped },
     };
   },
 });

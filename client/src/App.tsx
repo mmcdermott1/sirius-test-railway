@@ -109,6 +109,7 @@ const GrievanceView = lazy(() => import("@/pages/grievance-view"));
 const GrievanceEdit = lazy(() => import("@/pages/grievance-edit"));
 const GrievanceStatusHistory = lazy(() => import("@/pages/grievance-status-history"));
 const GrievanceLogs = lazy(() => import("@/pages/grievance-logs"));
+const GrievanceNotes = lazy(() => import("@/pages/grievance-notes"));
 const GrievanceTimeline = lazy(() => import("@/pages/grievance-timeline"));
 const GrievanceSettlements = lazy(() => import("@/pages/grievance-settlements"));
 const GrievanceFiles = lazy(() => import("@/pages/grievance-files"));
@@ -607,6 +608,14 @@ function Router() {
         <ProtectedRoute tabId="logs" entityType="grievance">
           <AuthenticatedLayout>
             <GrievanceLogs />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/grievance/:id/notes">
+        <ProtectedRoute tabId="notes" entityType="grievance">
+          <AuthenticatedLayout>
+            <GrievanceNotes />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

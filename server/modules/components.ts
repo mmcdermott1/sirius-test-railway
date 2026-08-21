@@ -184,6 +184,15 @@ export function registerComponentRoutes(
             });
           }
         } else {
+          // Flip the cache to "off" BEFORE any table is dropped. Callers that
+          // consult component state to decide whether a component-owned table
+          // is safe to query (note availability, the notes orphan sweep) must
+          // never see "on" while the drop is in flight, or they hit a relation
+          // that has just disappeared. A failed drop deliberately leaves the
+          // component disabled: half-dropped tables are not a state to keep
+          // serving from, and "disabled with data retained" is already a
+          // supported resting state.
+          await updateComponentCache(componentId, false);
           const lifecycleResult = await disableComponentSchema(componentId, { retainData: shouldRetainData });
           if (!lifecycleResult.success) {
             return res.status(500).json({

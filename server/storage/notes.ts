@@ -8,7 +8,7 @@ import {
 } from "@shared/schema";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { defineLoggingConfig } from "./middleware/logging";
-import { noteEntityTables } from "./notes-entity-types";
+import { noteEntityTables, isNoteEntityTypeAvailable } from "./notes-entity-types";
 
 /** A note plus the display fields the notes tab renders alongside it. */
 export interface NoteWithDetails extends Note {
@@ -25,15 +25,18 @@ export interface NotesStorage {
   delete(id: string): Promise<boolean>;
   /**
    * Does the parent record exist? `entityType` must be a registered note-able
-   * type (see `notes-entity-types.ts`); anything else returns false so an
-   * unregistered type can never be persisted.
+   * type whose owning component is enabled (see `notes-entity-types.ts`);
+   * anything else returns false so an unregistered — or currently table-less —
+   * type can never be persisted.
    */
   entityExists(entityType: string, entityId: string): Promise<boolean>;
   /** How many notes reference a note type (delete guard). */
   countByTypeId(typeId: string): Promise<number>;
   /**
    * Ids of notes of one entity type whose parent record no longer exists.
-   * Drives the orphan sweep; one anti-join per registered type.
+   * Drives the orphan sweep; one anti-join per registered type. Returns an
+   * empty list for a type whose table is not currently present (component off)
+   * — notes are kept, not swept, while their record type is unavailable.
    */
   findOrphanIds(entityType: string, limit: number): Promise<string[]>;
   /** Hard-delete notes by id (orphan sweep). Returns the number removed. */
@@ -170,7 +173,9 @@ export function createNotesStorage(): NotesStorage {
 
     async entityExists(entityType: string, entityId: string): Promise<boolean> {
       const table = noteEntityTables[entityType];
-      if (!table) return false;
+      // No table binding, or the component that owns the table is off (its
+      // tables do not exist) — the record cannot be confirmed, so refuse.
+      if (!table || !isNoteEntityTypeAvailable(entityType)) return false;
       const client = getClient();
       const idColumn = (table as any).id;
       const rows = await client.select({ id: idColumn }).from(table).where(eq(idColumn, entityId)).limit(1);
@@ -188,7 +193,9 @@ export function createNotesStorage(): NotesStorage {
 
     async findOrphanIds(entityType: string, limit: number): Promise<string[]> {
       const table = noteEntityTables[entityType];
-      if (!table) return [];
+      // Never anti-join against a table that may not exist: a disabled
+      // component's notes are left alone rather than treated as orphans.
+      if (!table || !isNoteEntityTypeAvailable(entityType)) return [];
       const client = getClient();
       const idColumn = (table as any).id;
       const rows = await client

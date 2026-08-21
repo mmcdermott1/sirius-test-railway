@@ -1,5 +1,6 @@
-import { workers, employers, trustProviders } from "@shared/schema";
-import { NOTE_ENTITY_TYPES } from "@shared/notes";
+import { workers, employers, trustProviders, grievances } from "@shared/schema";
+import { NOTE_ENTITY_TYPES, getNoteEntityType } from "@shared/notes";
+import { isComponentEnabledSync } from "../services/component-cache";
 import type { PgTable, TableConfig } from "drizzle-orm/pg-core";
 
 /**
@@ -14,6 +15,7 @@ export const noteEntityTables: Record<string, PgTable<TableConfig>> = {
   worker: workers,
   employer: employers,
   trust_provider: trustProviders,
+  grievance: grievances,
 };
 
 /**
@@ -29,4 +31,22 @@ export function assertNoteEntityTablesComplete(): void {
       `Note entity types missing a table binding in server/storage/notes-entity-types.ts: ${missing.join(", ")}`,
     );
   }
+}
+
+/**
+ * Is this record type queryable right now?
+ *
+ * A record type owned by a component that manages its own schema (grievances,
+ * for one) has NO TABLE AT ALL while that component is disabled — the tables
+ * are created when it is switched on. Querying such a table throws
+ * "relation does not exist", so both the parent-record check and the orphan
+ * sweep must ask this first and skip the type when it answers false. The rule
+ * is registry-driven, not per-type: any future component-owned record type
+ * inherits it by declaring `requiredComponent`.
+ */
+export function isNoteEntityTypeAvailable(entityType: string): boolean {
+  const definition = getNoteEntityType(entityType);
+  if (!definition || !noteEntityTables[entityType]) return false;
+  if (!definition.requiredComponent) return true;
+  return isComponentEnabledSync(definition.requiredComponent);
 }
