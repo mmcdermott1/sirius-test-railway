@@ -26,7 +26,24 @@ import {
   expandTokenType,
   searchTokenTree,
 } from "../../plugins/tokens";
+import type { TokenPreviewRecordRef } from "../../plugins/tokens/types";
+import {
+  BULK_PARTICIPANT_ENTITY_KIND,
+  BULK_PARTICIPANT_ROOT_NAME,
+  composeBulkParticipantEntity,
+} from "../../plugins/tokens/plugins/bulk-participant";
 import { BULK_TOKEN_ROOT_NAMES } from "./token-roots";
+
+/**
+ * How many of a message's sends the studio previews against.
+ *
+ * Enough to check a template against more than one person — a recipient
+ * with a worker record and one without, an email and a letter — and few
+ * enough that the seed panel stays a list an author reads rather than a
+ * directory they search. A message with two thousand recipients is not
+ * previewed two thousand ways.
+ */
+const BULK_STUDIO_SEED_LIMIT = 5;
 type RequireAccess = (policy: string) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
@@ -669,13 +686,35 @@ export function registerBulkMessageRoutes(
         "../../plugins/tokens/studio-context"
       );
 
-      const participants = await storage.bulkParticipants.listForMessageWithRelations(
+      const allParticipants = await storage.bulkParticipants.listForMessageWithRelations(
         req.params.id,
       );
-      // One entry per person: a recipient on three media is still one
-      // recipient to preview as.
-      const contactRecords = new Map<string, { id: string; label: string }>();
-      const workerRecords = new Map<string, { id: string; label: string; hint?: string }>();
+      // A handful, and the SAME handful for every root: the three seed
+      // panels are three views of one short list of sends, not three
+      // independent pickers. Ordered by name so reopening the studio
+      // shows the same sends in the same places.
+      const participants = [...allParticipants]
+        .sort(
+          (a, b) =>
+            (a.contactDisplayName || "").localeCompare(b.contactDisplayName || "") ||
+            a.medium.localeCompare(b.medium) ||
+            a.id.localeCompare(b.id),
+        )
+        .slice(0, BULK_STUDIO_SEED_LIMIT);
+
+      const participantRecords: TokenPreviewRecordRef[] = participants.map((p) => ({
+        id: p.id,
+        label: p.contactDisplayName || "Unnamed contact",
+        hint: p.medium,
+        // Reading a participant is reading its recipient — the gate the
+        // participant kind declares runs against the contact, not the
+        // participant row.
+        gateEntityId: p.contactId,
+      }));
+      // The same people, one entry each: a recipient written to on three
+      // media is three sends but still one person to preview as.
+      const contactRecords = new Map<string, TokenPreviewRecordRef>();
+      const workerRecords = new Map<string, TokenPreviewRecordRef>();
       for (const p of participants) {
         const label = p.contactDisplayName || "Unnamed contact";
         if (p.contactId && !contactRecords.has(p.contactId)) {
@@ -690,30 +729,32 @@ export function registerBulkMessageRoutes(
         }
       }
 
-      // A bulk message is ABOUT its recipients, so it states exactly the
-      // recipient-side roots it has records for (see BULK_TOKEN_ROOT_NAMES)
-      // — the same list its tree, its validation and its coverage check
-      // use. `system` is in that list and seedless, so it is browsable
-      // but never appears in the seed panel.
+      // A bulk message is ABOUT the sends it is going to make, so it
+      // states exactly the roots it has records for (see
+      // BULK_TOKEN_ROOT_NAMES) — the same list its tree, its validation
+      // and its coverage check use. `system` is in that list and
+      // seedless, so it is browsable but never appears in the seed panel.
       const rootNames = BULK_TOKEN_ROOT_NAMES;
-      const recordsByRoot: Record<string, Array<{ id: string; label: string; hint?: string }>> = {};
+      const recordsByRoot: Record<string, TokenPreviewRecordRef[]> = {};
       // Why a supplied list is empty is something only this message
       // knows, and "there is nobody to preview against" is the honest
       // answer an author needs where the picker would be.
       const emptyRecordsNotes: Record<string, string> = {};
-      const noRecipients = participants.length === 0;
+      const noRecipients = allParticipants.length === 0;
+      const noRecipientsNote =
+        "This message has no recipients yet — add some on the Recipients tab to preview against a real one.";
       for (const root of listTokenPreviewRoots(rootNames)) {
-        if (root.kind === "contact") {
+        if (root.kind === BULK_PARTICIPANT_ENTITY_KIND) {
+          recordsByRoot[root.name] = participantRecords;
+          if (noRecipients) emptyRecordsNotes[root.name] = noRecipientsNote;
+        } else if (root.kind === "contact") {
           recordsByRoot[root.name] = [...contactRecords.values()];
-          if (noRecipients) {
-            emptyRecordsNotes[root.name] =
-              "This message has no recipients yet — add some on the Recipients tab to preview against a real one.";
-          }
+          if (noRecipients) emptyRecordsNotes[root.name] = noRecipientsNote;
         } else if (root.kind === "worker") {
           recordsByRoot[root.name] = [...workerRecords.values()];
           emptyRecordsNotes[root.name] = noRecipients
-            ? "This message has no recipients yet — add some on the Recipients tab to preview against a real one."
-            : "None of this message's recipients is linked to a worker record.";
+            ? noRecipientsNote
+            : "None of the recipients shown here is linked to a worker record.";
         }
       }
 
@@ -723,7 +764,14 @@ export function registerBulkMessageRoutes(
         fields: buildFieldCatalog(),
         studioContext: await buildTokenStudioContext(
           { storage, req },
-          { rootNames, recordsByRoot, emptyRecordsNotes },
+          {
+            rootNames,
+            recordsByRoot,
+            emptyRecordsNotes,
+            // The panels show the sends this message will make, not a
+            // page of them: a short list an author reads at a glance.
+            limit: BULK_STUDIO_SEED_LIMIT,
+          },
         ),
       });
     } catch (error: unknown) {
@@ -777,10 +825,15 @@ export function registerBulkMessageRoutes(
           .filter((expr) => validateTokenExpressionForRoots(expr, BULK_TOKEN_ROOT_NAMES).ok)
       ));
 
-      const participants = await storage.bulkParticipants.getByMessageId(req.params.id);
-      const contactIds = Array.from(new Set(
-        participants.map((p) => p.contactId).filter(Boolean) as string[]
-      ));
+      // Coverage is measured per SEND, because that is what delivery
+      // renders: the same person written to by two media is two renders,
+      // and a token about the send itself ({{bulk_participant.medium}})
+      // has a different value in each. Recipients are still counted as
+      // people — a recipient is short of a value if ANY of their sends
+      // comes out blank.
+      const sends = (await storage.bulkParticipants.getByMessageId(req.params.id))
+        .filter((p) => Boolean(p.contactId));
+      const contactIds = Array.from(new Set(sends.map((p) => p.contactId)));
 
       const describe = (expr: string) => describeChain(expr) || { label: expr, defaultValue: "", example: "", scope: "system" };
 
@@ -806,23 +859,36 @@ export function registerBulkMessageRoutes(
         .map((id) => ({ id, parsed: parseTokenChain(id) }))
         .filter((c): c is { id: string; parsed: { ok: true; segments: import("@shared/tokens").TokenSegment[] } } => c.parsed.ok);
 
-      const missing: Record<string, { contactId: string; name: string }[]> = {};
-      for (const id of tokenIds) missing[id] = [];
+      // One recipient per token at most, however many sends they get.
+      const missing: Record<string, Map<string, { contactId: string; name: string }>> = {};
+      for (const id of tokenIds) missing[id] = new Map();
 
-      // Evaluate every used chain per recipient through the plugin
-      // evaluator. A shared memo cache dedupes cross-recipient lookups
-      // (option names, employers) — memo keys are fully qualified.
-      // Bounded parallelism keeps big recipient lists from turning the
-      // authoring endpoint into thousands of serial round-trips.
+      // Evaluate every used chain per send through the plugin
+      // evaluator, seeded with that send exactly as delivery seeds it —
+      // so a participant token is measured against the real thing
+      // rather than counted missing for everybody. A shared memo cache
+      // dedupes cross-recipient lookups (option names, employers) —
+      // memo keys are fully qualified. Bounded parallelism keeps big
+      // recipient lists from turning the authoring endpoint into
+      // thousands of serial round-trips.
       const sharedCache = new Map<string, unknown>();
       const CONCURRENCY = 8;
-      for (let i = 0; i < contactIds.length; i += CONCURRENCY) {
-        await Promise.all(contactIds.slice(i, i + CONCURRENCY).map(async (cid) => {
-          const ctx = createTokenEvalContext(storage, cid, { cache: sharedCache });
+      for (let i = 0; i < sends.length; i += CONCURRENCY) {
+        await Promise.all(sends.slice(i, i + CONCURRENCY).map(async (send) => {
+          const cid = send.contactId;
+          const ctx = createTokenEvalContext(storage, cid, {
+            cache: sharedCache,
+            seeds: [
+              {
+                name: BULK_PARTICIPANT_ROOT_NAME,
+                entity: composeBulkParticipantEntity(send),
+              },
+            ],
+          });
           for (const { id, parsed } of parsedChains) {
             const result = await evaluateChain(parsed.segments, ctx);
             if (result.status !== "ok" || result.value === "") {
-              missing[id].push({ contactId: cid, name: nameById.get(cid) || cid });
+              missing[id].set(cid, { contactId: cid, name: nameById.get(cid) || cid });
             }
           }
         }));
@@ -832,8 +898,8 @@ export function registerBulkMessageRoutes(
         tokenId: tid,
         label: describe(tid).label,
         defaultValue: describe(tid).defaultValue,
-        missingCount: missing[tid].length,
-        missingSample: missing[tid].slice(0, 10),
+        missingCount: missing[tid].size,
+        missingSample: [...missing[tid].values()].slice(0, 10),
       }));
 
       res.json({ totalRecipients: contactIds.length, perToken });

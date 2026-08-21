@@ -2,6 +2,7 @@ import type { IStorage } from "../../storage";
 import { sendEmail, type SendEmailResult } from "../../services/comm/senders/email";
 import type { DeliverContactResult } from "./deliver";
 import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
+import type { TokenRootSeed } from "../../plugins/tokens/types";
 import {
   BULK_CHANNEL_FIELDS,
   shapeRenderedValue,
@@ -73,6 +74,7 @@ export async function deliverEmail(
   storage: IStorage,
   messageId: string,
   contactId: string,
+  seeds: TokenRootSeed[],
   userId?: string,
   tagIds?: string[],
   offline?: boolean,
@@ -85,7 +87,7 @@ export async function deliverEmail(
   if (!resolved) {
     return { success: false, error: "Contact has no email address", errorCode: "NO_ADDRESS" };
   }
-  const ctx = createTokenEvalContext(storage, contactId);
+  const ctx = createTokenEvalContext(storage, contactId, { seeds });
   const renderedSubject = await renderEmailSubjectForDelivery(emailContent.subject || "", ctx);
   const renderedText = emailContent.bodyText
     ? await renderEmailBodyTextForDelivery(emailContent.bodyText, ctx)

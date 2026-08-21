@@ -79,6 +79,21 @@ export function validateTokenPreviewEntities(): number {
   return collectPreviewEntities().size;
 }
 
+/**
+ * Whom a seeded record is addressed to, when its kind says (see
+ * `recipientContactIdOf`). The kind's owner declares it once, beside
+ * the gate, so a preview seeded with a send resolves the recipient
+ * roots from the same person delivery would.
+ */
+export function recipientContactIdForEntity(
+  entity: TokenEntity,
+): string | undefined {
+  const of = collectPreviewEntities().get(entity.kind)?.source
+    .recipientContactIdOf;
+  const id = of?.(entity.row);
+  return typeof id === "string" && id ? id : undefined;
+}
+
 /** Kinds that currently declare how they are gated, for diagnostics. */
 export function listTokenPreviewEntityKinds(): TokenEntityType[] {
   return [...collectPreviewEntities().keys()].sort();

@@ -129,6 +129,21 @@ export interface TokenPreviewEntitySource {
    * bolted onto a template editor.
    */
   load(storage: IStorage, id: string): Promise<TokenPreviewLoadedRecord | null>;
+  /**
+   * This kind's records are ADDRESSED TO a contact: given one of its
+   * rows, whose.
+   *
+   * Declare it when the record IS a send — a row that exists because a
+   * message is going to somebody. Delivery renders such a record with
+   * that person as the recipient, so a preview seeded with it must do
+   * the same, or `{{contact…}}` and `{{worker…}}` would show sample
+   * people beside a real send and the preview would disagree with the
+   * message that arrives.
+   *
+   * A contact the caller named outright still wins: naming a recipient
+   * is more specific than a record implying one.
+   */
+  recipientContactIdOf?(row: Record<string, unknown>): string | undefined;
 }
 
 /**

@@ -2,6 +2,7 @@ import type { IStorage } from "../../storage";
 import { sendInapp, type SendInappResult } from "../../services/comm/senders/inapp";
 import type { DeliverContactResult } from "./deliver";
 import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
+import type { TokenRootSeed } from "../../plugins/tokens/types";
 import {
   BULK_CHANNEL_FIELDS,
   applyFieldEligibility,
@@ -51,6 +52,7 @@ export async function deliverInapp(
   storage: IStorage,
   messageId: string,
   contactId: string,
+  seeds: TokenRootSeed[],
   userId?: string,
   tagIds?: string[],
 ): Promise<DeliverContactResult> {
@@ -62,7 +64,7 @@ export async function deliverInapp(
   if (!targetUserId) {
     return { success: false, error: "Contact does not have a linked user account (required for in-app messages)", errorCode: "NO_USER" };
   }
-  const ctx = createTokenEvalContext(storage, contactId);
+  const ctx = createTokenEvalContext(storage, contactId, { seeds });
   const rendered = await renderInappContentForDelivery(inappContent, ctx);
   const result: SendInappResult = await sendInapp({
     contactId,

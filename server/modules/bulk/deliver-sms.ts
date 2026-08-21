@@ -2,6 +2,7 @@ import type { IStorage } from "../../storage";
 import { sendSms, type SendSmsResult } from "../../services/comm/senders/sms";
 import type { DeliverContactResult } from "./deliver";
 import { renderTokens, createTokenEvalContext } from "../../plugins/tokens";
+import type { TokenRootSeed } from "../../plugins/tokens/types";
 import { BULK_CHANNEL_FIELDS, tokenCleanerFor } from "../../delivery/shape";
 
 const [BODY_SPEC] = BULK_CHANNEL_FIELDS.sms;
@@ -18,6 +19,7 @@ export async function deliverSms(
   storage: IStorage,
   messageId: string,
   contactId: string,
+  seeds: TokenRootSeed[],
   userId?: string,
   tagIds?: string[],
   offline?: boolean,
@@ -30,7 +32,7 @@ export async function deliverSms(
   if (!phone) {
     return { success: false, error: "Contact has no phone number", errorCode: "NO_ADDRESS" };
   }
-  const ctx = createTokenEvalContext(storage, contactId);
+  const ctx = createTokenEvalContext(storage, contactId, { seeds });
   const renderedBody = (
     await renderTokens(smsContent.body || "", ctx, {
       strictUnknown: true,

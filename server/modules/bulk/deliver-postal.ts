@@ -8,6 +8,7 @@ import {
   evaluateChain,
   buildTokenCatalogForRoots,
 } from "../../plugins/tokens";
+import type { TokenRootSeed } from "../../plugins/tokens/types";
 import { BULK_POSTAL_MERGE_ROOT_NAMES } from "./token-roots";
 import { parseTokenChain } from "@shared/tokens";
 import { BULK_CHANNEL_FIELDS, tokenCleanerFor } from "../../delivery/shape";
@@ -35,6 +36,7 @@ export async function deliverPostal(
   storage: IStorage,
   messageId: string,
   contactId: string,
+  seeds: TokenRootSeed[],
   userId?: string,
   tagIds?: string[],
   offline?: boolean,
@@ -57,7 +59,7 @@ export async function deliverPostal(
     zip: postalContent.fromZip || "",
     country: postalContent.fromCountry || "US",
   } : undefined;
-  const ctx = createTokenEvalContext(storage, contactId);
+  const ctx = createTokenEvalContext(storage, contactId, { seeds });
   const renderedDescription = postalContent.description
     ? (
         await renderTokens(postalContent.description, ctx, {

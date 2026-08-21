@@ -107,6 +107,7 @@ import "./plugins/worker";
 import "./plugins/employer";
 import "./plugins/system";
 import "./plugins/address";
+import "./plugins/bulk-participant";
 import "./plugins/event";
 import "./plugins/sitespecific-t631-interview";
 import "./plugins/dispatch";

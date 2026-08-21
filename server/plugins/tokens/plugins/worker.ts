@@ -137,6 +137,41 @@ registerTokenPlugin({
   },
 });
 
+/**
+ * `{{contact.worker…}}` — the worker record behind a contact, the
+ * mirror of `{{worker.contact…}}`.
+ *
+ * It resolves through the SAME loader the `worker` root uses for the
+ * recipient, so a chain that arrives at a contact and asks for their
+ * worker can never disagree with what `{{worker…}}` renders for that
+ * same person.
+ *
+ * Hidden from the flat picker: wherever a contact is offered as a root
+ * the worker is offered beside it, so listing every worker field again
+ * under `contact.worker` would only double the picker. The tree walks
+ * it, and it is a valid chain everywhere — which is what makes
+ * `{{bulk_participant.contact.worker}}` resolve.
+ */
+registerTokenPlugin({
+  metadata: {
+    id: "token.contact.worker",
+    name: "Worker",
+    description: "The worker record behind a contact",
+    segmentName: WORKER_ROOT_NAME,
+    inputTypes: ["contact"],
+    outputType: "worker",
+    entityTable: workers,
+    entityFields: WORKER_EXTRA_FIELDS,
+    hiddenFromCatalog: true,
+  },
+  async resolve(entity, _args, ctx) {
+    const c = tokenEntityOf(entity, "contact");
+    const contactId = c?.row.id;
+    if (typeof contactId !== "string") return null;
+    return loadWorkerEntity(ctx, contactId);
+  },
+});
+
 /** {{worker.bargaining_unit.field(name="name")}} or short form {{worker.bargaining_unit}} */
 registerTokenPlugin({
   metadata: {

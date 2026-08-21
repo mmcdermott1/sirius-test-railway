@@ -140,9 +140,21 @@ export async function renderTemplatePreview({
   const seededContact = seeds.find(
     (seed) => seed.entity.kind === "contact",
   )?.entity;
+  // Failing that, a seeded record may BE a send — a bulk participant,
+  // addressed to somebody — and then that somebody is the recipient,
+  // exactly as they are when delivery renders the same record. Without
+  // this, previewing against a real send would show its own values for
+  // real and the recipient's as samples.
+  const { recipientContactIdForEntity } = await import(
+    "../plugins/tokens/preview-entities"
+  );
+  const addressee = seeds
+    .map((seed) => recipientContactIdForEntity(seed.entity))
+    .find((id): id is string => typeof id === "string");
   const recipientContactId =
     contactId ??
-    (typeof seededContact?.row.id === "string" ? seededContact.row.id : undefined);
+    (typeof seededContact?.row.id === "string" ? seededContact.row.id : undefined) ??
+    addressee;
 
 
   const previewRoots: TemplatePreviewRoot[] = availableRoots.map((root) => ({

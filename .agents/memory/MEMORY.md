@@ -97,4 +97,5 @@
 - [Studio host data honesty](studio-host-source-state.md) — a studio host must pass its catalog request's loading/error state, not just data; roots always report WHOSE records they offer and why there are none.
 - [Studio roots are declared, never derived](studio-root-declaration.md) — each token surface states its complete root list; scoping the SEGMENT GRAPH (not just the picker) is what binds it; delivery + Lob merge keys stay unscoped.
 - [Studio records are supplied, never found](studio-record-supply.md) — no per-kind "first N records" hook; container hands over recordsByRoot, unsupplied roots are personas only; by-id load is the only record read.
+- [Send-scoped token roots](send-scoped-token-roots.md) — a root whose record IS a send must be seeded at delivery, declare its addressee for preview, and be counted per-send in coverage; gate on the recipient.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.
