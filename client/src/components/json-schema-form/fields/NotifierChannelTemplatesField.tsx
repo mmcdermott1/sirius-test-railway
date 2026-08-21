@@ -183,7 +183,6 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
               {effective ? (
                 <TokenText
                   text={effective}
-                  tokens={catalog?.tokens}
                   html={r.mode === "html"}
                   className="min-w-0 flex-1 truncate text-xs leading-6"
                   data-testid={`template-summary-${channel}-${r.key}`}

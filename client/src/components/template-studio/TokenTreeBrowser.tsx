@@ -14,7 +14,7 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { MAX_CHAIN_DEPTH, type TokenArgSpec, collapseFieldSegments } from "@shared/tokens";
+import { MAX_CHAIN_DEPTH, type TokenArgSpec } from "@shared/tokens";
 
 /**
  * Browsable token picker: the author walks the record graph one level at
@@ -145,14 +145,13 @@ function hasChoosableArgs(child: TokenTreeChild): boolean {
   return Object.keys(child.args ?? {}).length > 0;
 }
 
-/** Display code for a child row: field kind shows just the field name. */
+/**
+ * Display code for a child row: the segment this row really appends,
+ * without the leading dot — `field(name="full")`, not a friendlier
+ * rewrite of it. Field rows keep their name as secondary context.
+ */
 function childDisplayCode(child: TokenTreeChild): string {
-  if (child.kind === "field") {
-    // label is the field name; "Field…" sentinel keeps its original label
-    return child.label === "Field…" ? "field(name=…)" : child.label;
-  }
-  // For relations/leaves: show the suffix without the leading dot
-  return collapseFieldSegments(child.suffix.replace(/^\./, ""));
+  return child.suffix.replace(/^\./, "");
 }
 
 // ── Component ──────────────────────────────────────────────────────────
@@ -482,7 +481,14 @@ export function TokenTreeBrowser({
           }
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-xs truncate">{displayCode}</span>
+            <span className="min-w-0 font-mono text-xs truncate">{displayCode}</span>
+            {/* The segment is the truth; a field's name is what makes the
+                list scannable, so it rides alongside instead of replacing it. */}
+            {child.kind === "field" && (
+              <span className="shrink-0 text-[11px] text-muted-foreground truncate max-w-[40%]">
+                {child.label}
+              </span>
+            )}
             {isRelation && (
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             )}
@@ -519,7 +525,7 @@ export function TokenTreeBrowser({
   };
 
   const renderHitRow = (hit: TokenTreeSearchHit) => {
-    const displayCode = collapseFieldSegments(hit.expression);
+    const displayCode = hit.expression;
     return (
       <button
         key={hit.expression}
@@ -541,8 +547,7 @@ export function TokenTreeBrowser({
   /** The display segment for a stack step (the piece added at that step). */
   const stepSegment = (step: TreeStep, prev?: TreeStep): string => {
     const expr = step.expression;
-    const base = prev ? expr.substring(prev.expression.length + 1) : expr;
-    return collapseFieldSegments(base);
+    return prev ? expr.substring(prev.expression.length + 1) : expr;
   };
 
   return (
@@ -749,7 +754,7 @@ export function TokenTreeBrowser({
                     className="w-full text-left px-2 py-1 rounded hover-elevate active-elevate-2 font-mono text-xs truncate block"
                     data-testid={`button-insert-token-${expression}`}
                   >
-                    {collapseFieldSegments(expression)}
+                    {expression}
                   </button>
                 ))}
               </div>

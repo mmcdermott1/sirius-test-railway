@@ -96,6 +96,23 @@ warning at all. A run must never cross a block boundary or `<br>` —
 DOM (never the live one, or you move the author's caret), and repair
 runs back to front so one pass fixes a document with any number of them.
 
+## Read-only surfaces show token text, never a friendlier stand-in
+
+Anywhere a saved tokenized string or a browsable chain is DISPLAYED, the
+author sees the real text: `{{contact.address.field(name="full")}}`,
+braces and the `field(name=…)` call included. Chip styling is allowed
+(tokens should look different from literal text); rewriting is not.
+
+**Why:** a one-word label derived from the catalogue or the last chain
+segment collides — two unrelated tokens read the same — and a collapsed
+`contact.address.full` sends the author looking for a token that does
+not exist in that form. The rendered PREVIEW (real sample values) is a
+different thing and stays as it is.
+
+**How to apply:** no display helper may derive a human label from a chain
+or collapse a segment. A human label may sit ALONGSIDE the true segment
+(a field row's name), never in place of it.
+
 ## A field's medium was three questions, not one
 
 A delivery field declares them separately: the SYNTAX it is written in

@@ -309,18 +309,5 @@ export interface TokenCatalogEntry {
   example: string;
 }
 
-/**
- * Collapse the generic `.field(name="x")` segment into a bare `.x` for
- * display purposes. The canonical token text (what is actually inserted)
- * is unchanged. Handles quote-escaped names; leaves unnamed / empty field
- * calls as-is so they remain distinguishable.
- */
-export function collapseFieldSegments(expression: string): string {
-  return expression.replace(/\.field\(name="((?:[^"\\]|\\.)*)"\)/g, (_, raw: string) => {
-    const name = raw.replace(/\\(.)/g, "$1");
-    return name ? `.${name}` : `.field()`;
-  });
-}
-
 // HTML escaping used to live here. It now belongs to the shared HTML
 // library — import `escapeHtml` from `@shared/utils/html`.
