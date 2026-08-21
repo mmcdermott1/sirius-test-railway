@@ -1,19 +1,25 @@
 /**
- * One-off verification for {{employer.compliance_message(wizard=…, account=…)}}.
+ * One-off verification for
+ * {{employer.compliance_message(wizard=…, account=…, date=…)}}.
  *
- * Covers the happy path plus every way the chain is meant to render
- * nothing: an unknown wizard sirius id, a sirius id belonging to a
- * config of the WRONG kind, an unknown account sirius id, and a missing
- * required argument (rejected at validation time, before any render).
+ * Covers the happy path, the `date` default, and every way the chain is
+ * meant to render nothing: a wizard type id naming no registered wizard
+ * plugin, and an unknown ledger account sirius id.
  *
- * Creates its own throwaway ledger account and plugin configurations and
- * deletes them again — it never renders against, or mutates, real
- * compliance data.
+ * The `wizard` argument names a WIZARD TYPE — the id a wizard plugin
+ * registers itself under, the same identifier the Upload Type select on
+ * /employers/compliance uses. There is deliberately no `plugin_configs`
+ * row involved: the `wizard` plugin kind has no adapter and no UI, so an
+ * id from that table is one no author could obtain.
+ *
+ * Creates its own throwaway ledger account and deletes it again — it
+ * never renders against, or mutates, real compliance data.
  *
  * Run: npx tsx scripts/oneoffs/verify-compliance-message-token.ts
  */
 import { employers } from "../../shared/schema";
 import { initializeTokenPluginSystem } from "../../server/plugins/tokens";
+import { currentYearMonth } from "../../server/plugins/tokens/plugins/compliance";
 import { storage } from "../../server/storage/database";
 import { loadComponentCache } from "../../server/services/component-cache";
 
@@ -24,32 +30,29 @@ function check(label: string, ok: boolean, detail?: string) {
 }
 
 const STAMP = Date.now().toString(36).toUpperCase();
-const WIZARD_SIRIUS = `VERIFY-CMT-WIZ-${STAMP}`;
-const OTHER_KIND_SIRIUS = `VERIFY-CMT-OTHER-${STAMP}`;
 const ACCOUNT_SIRIUS = `VERIFY-CMT-ACCT-${STAMP}`;
-const WIZARD_CONFIG_NAME = "Verification Upload Type";
 const ACCOUNT_NAME = "Verification Compliance Account";
+const SAMPLE_DATE = "2031-04";
 
 async function main() {
   await loadComponentCache();
   initializeTokenPluginSystem();
-  // Importing the barrel is what registers the bundled wizard plugins;
-  // registering the KIND is what lets a `wizard` plugin config be created.
-  const { registerWizardPluginKind, wizardPluginRegistry } = await import(
-    "../../server/plugins/wizards"
-  );
-  registerWizardPluginKind();
+  // Importing the barrel is what registers the bundled wizard plugins.
+  const { wizardPluginRegistry } = await import("../../server/plugins/wizards");
   const {
     renderTokens,
     createTokenEvalContext,
     validateTokenExpressionForRoots,
   } = await import("../../server/plugins/tokens");
 
-  const wizardPluginId = wizardPluginRegistry.list()[0]?.id;
-  if (!wizardPluginId) {
+  const wizardPlugin = wizardPluginRegistry.list()[0];
+  if (!wizardPlugin) {
     check("at least one wizard plugin is registered", false);
     process.exit(1);
   }
+  const WIZARD_ID = wizardPlugin.id;
+  const WIZARD_NAME = wizardPlugin.name;
+  console.log(`Using wizard type "${WIZARD_ID}" (${WIZARD_NAME})`);
 
   const employer = (await storage.employers.getAllEmployers()).find(
     (e) => typeof e.name === "string" && e.name.trim(),
@@ -68,26 +71,6 @@ async function main() {
     });
     created.push(() => storage.ledger.accounts.delete(account.id));
 
-    const wizardConfig = await storage.pluginConfigs.create({
-      pluginKind: "wizard",
-      pluginId: wizardPluginId,
-      name: WIZARD_CONFIG_NAME,
-      siriusId: WIZARD_SIRIUS,
-      enabled: true,
-    });
-    created.push(() => storage.pluginConfigs.delete(wizardConfig.id));
-
-    // Same sirius-id shape, a different plugin kind: the lookup is
-    // kind-blind, so this is what the kind assertion has to reject.
-    const otherKindConfig = await storage.pluginConfigs.create({
-      pluginKind: "dashboard",
-      pluginId: "verify-compliance-message-token",
-      name: "Not A Wizard",
-      siriusId: OTHER_KIND_SIRIUS,
-      enabled: false,
-    });
-    created.push(() => storage.pluginConfigs.delete(otherKindConfig.id));
-
     const seedCtx = () =>
       createTokenEvalContext(storage, undefined, {
         seeds: [
@@ -104,29 +87,40 @@ async function main() {
     const render = async (expr: string) =>
       (await renderTokens(`{{${expr}}}`, seedCtx())).output;
 
+    const sentence = (wizardName: string, date: string, accountName: string) =>
+      `I am the example compliance message for ${employerName} for uploads ` +
+      `of type ${wizardName} (${date}). I am operating against account ` +
+      `${accountName}. Hear me roar.`;
+
     console.log("\n--- validation ---");
     for (const [expr, shouldPass] of [
       [
-        `employer.compliance_message(wizard="${WIZARD_SIRIUS}", account="${ACCOUNT_SIRIUS}")`,
+        `employer.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}")`,
         true,
       ],
-      [`employer.compliance_message(wizard="${WIZARD_SIRIUS}")`, false],
+      // `date` is optional, so both arities are valid.
+      [
+        `employer.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}", date="${SAMPLE_DATE}")`,
+        true,
+      ],
+      [`employer.compliance_message(wizard="${WIZARD_ID}")`, false],
       [`employer.compliance_message(account="${ACCOUNT_SIRIUS}")`, false],
+      [`employer.compliance_message(date="${SAMPLE_DATE}")`, false],
       ["employer.compliance_message", false],
       // Reach is by ENTITY KIND, which is what "only from an employer"
       // means: never a bare root, never a non-employer entity, but any
       // chain that has actually arrived at an employer — the leaf reads
       // that employer's own name, exactly as `employer.name` would.
       [
-        `compliance_message(wizard="${WIZARD_SIRIUS}", account="${ACCOUNT_SIRIUS}")`,
+        `compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}")`,
         false,
       ],
       [
-        `worker.compliance_message(wizard="${WIZARD_SIRIUS}", account="${ACCOUNT_SIRIUS}")`,
+        `worker.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}")`,
         false,
       ],
       [
-        `worker.home_employer.compliance_message(wizard="${WIZARD_SIRIUS}", account="${ACCOUNT_SIRIUS}")`,
+        `worker.home_employer.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}")`,
         true,
       ],
     ] as const) {
@@ -138,50 +132,73 @@ async function main() {
       );
     }
 
-    console.log("\n--- happy path ---");
+    console.log("\n--- happy path (explicit date) ---");
     const happy = await render(
-      `employer.compliance_message(wizard="${WIZARD_SIRIUS}", account="${ACCOUNT_SIRIUS}")`,
+      `employer.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}", date="${SAMPLE_DATE}")`,
     );
     console.log(`  "${happy}"`);
     check(
-      "renders the full sentence with all three names",
-      happy ===
-        `I am the example compliance message for ${employerName} for uploads ` +
-          `of type ${WIZARD_CONFIG_NAME}. I am operating against account ` +
-          `${ACCOUNT_NAME}. Hear me roar.`,
+      "renders the full sentence with the supplied date",
+      happy === sentence(WIZARD_NAME, SAMPLE_DATE, ACCOUNT_NAME),
+    );
+
+    console.log("\n--- date defaults to the current year-month ---");
+    const defaulted = await render(
+      `employer.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}")`,
+    );
+    console.log(`  "${defaulted}"`);
+    check(
+      "omitted date renders the current year-month",
+      defaulted === sentence(WIZARD_NAME, currentYearMonth(), ACCOUNT_NAME),
+      currentYearMonth(),
+    );
+    check(
+      "the default is a real YYYY-MM, not a frozen literal",
+      /^\d{4}-(0[1-9]|1[0-2])$/.test(currentYearMonth()),
+      currentYearMonth(),
+    );
+    // The regression this guards is a default that freezes at boot, which
+    // today's date alone cannot demonstrate. Drive the helper across a
+    // month boundary explicitly: distinct inputs must give distinct,
+    // correctly zero-padded periods.
+    for (const [when, expected] of [
+      [new Date(2031, 0, 5), "2031-01"],
+      [new Date(2031, 8, 30), "2031-09"],
+      [new Date(2031, 11, 31), "2031-12"],
+      [new Date(2032, 0, 1), "2032-01"],
+    ] as const) {
+      const got = currentYearMonth(when);
+      check(
+        `${when.toDateString()} yields ${expected}`,
+        got === expected,
+        got,
+      );
+    }
+    // A blank value is the same as no value: the parenthetical must never
+    // render empty.
+    const blankDate = await render(
+      `employer.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}", date="")`,
+    );
+    check(
+      "blank date falls back to the current year-month too",
+      blankDate === sentence(WIZARD_NAME, currentYearMonth(), ACCOUNT_NAME),
+      `"${blankDate}"`,
     );
 
     console.log("\n--- unresolvable arguments render nothing ---");
     for (const [label, expr] of [
       [
-        "unknown wizard sirius id",
-        `employer.compliance_message(wizard="NO-SUCH-WIZ", account="${ACCOUNT_SIRIUS}")`,
-      ],
-      [
-        "sirius id of a non-wizard config",
-        `employer.compliance_message(wizard="${OTHER_KIND_SIRIUS}", account="${ACCOUNT_SIRIUS}")`,
+        "wizard type id naming no registered plugin",
+        `employer.compliance_message(wizard="no_such_wizard_type", account="${ACCOUNT_SIRIUS}")`,
       ],
       [
         "unknown account sirius id",
-        `employer.compliance_message(wizard="${WIZARD_SIRIUS}", account="NO-SUCH-ACCT")`,
+        `employer.compliance_message(wizard="${WIZARD_ID}", account="NO-SUCH-ACCT")`,
       ],
     ] as const) {
       const out = await render(expr);
       check(`${label} renders blank, not a partial sentence`, out === "", `"${out}"`);
     }
-
-    console.log("\n--- wizard config with no name falls back ---");
-    await storage.pluginConfigs.update(wizardConfig.id, { name: null });
-    const unnamed = await render(
-      `employer.compliance_message(wizard="${WIZARD_SIRIUS}", account="${ACCOUNT_SIRIUS}")`,
-    );
-    console.log(`  "${unnamed}"`);
-    const pluginName = wizardPluginRegistry.get(wizardPluginId)?.name ?? "";
-    check(
-      "names the wizard plugin instead of rendering 'type null'",
-      unnamed.includes(`of type ${pluginName}.`),
-      pluginName,
-    );
 
     console.log("\n--- sample mode (each employer persona) ---");
     for (const persona of ["martian", "historical", "mythological"]) {
@@ -191,7 +208,7 @@ async function main() {
       });
       const out = (
         await renderTokens(
-          `{{employer.compliance_message(wizard="${WIZARD_SIRIUS}", account="${ACCOUNT_SIRIUS}")}}`,
+          `{{employer.compliance_message(wizard="${WIZARD_ID}", account="${ACCOUNT_SIRIUS}")}}`,
           ctx,
         )
       ).output;
@@ -200,7 +217,11 @@ async function main() {
         `${persona} persona previews a coherent sentence`,
         out.startsWith("I am the example compliance message for") &&
           out.endsWith("Hear me roar.") &&
-          !out.includes("Olympus Mons Freight for uploads of type Monthly"),
+          // Each persona supplies its own sentence rather than falling
+          // back to the metadata example.
+          !out.includes("Monthly Hours Upload") &&
+          // The persona sentence carries a period of its own.
+          /\(\d{4}-\d{2}\)/.test(out),
       );
     }
   } finally {

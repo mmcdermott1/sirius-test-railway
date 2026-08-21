@@ -19,6 +19,7 @@ const EMPLOYER_SAMPLE_SETS = [
       compliance_message: complianceSample(
         "Olympus Mons Freight",
         "Regolith Haulage Hours",
+        "2049-07",
         "Tharsis Health & Welfare Trust",
       ),
     },
@@ -32,6 +33,7 @@ const EMPLOYER_SAMPLE_SETS = [
       compliance_message: complianceSample(
         "Difference Engine Works",
         "Analytical Shift Returns",
+        "1843-12",
         "Menabrea Benevolent Fund",
       ),
     },
@@ -45,6 +47,7 @@ const EMPLOYER_SAMPLE_SETS = [
       compliance_message: complianceSample(
         "Ithaka Shipping Company",
         "Voyage Manifest Upload",
+        "1184-04",
         "Penelope Pension Trust",
       ),
     },

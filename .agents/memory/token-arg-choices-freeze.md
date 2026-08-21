@@ -22,6 +22,25 @@ carries an id a user can mint — a sirius id, a config id, an account
 number — leave it free text and resolve it at render time, returning null
 when it does not resolve.
 
+# A wizard type's identifier is its registered plugin id
+
+An argument that names "a kind of upload" must take the wizard type id —
+the id a wizard plugin registers itself under. That is what
+/api/wizard-types returns as `name`, what the Upload Type select on the
+employer compliance page and its `wizardType` query param carry, and what
+the reports catalogue lists.
+
+**Why:** `plugin_kind = 'wizard'` looks like the configurable counterpart
+but is a dead end: it registers no config adapter, so it never appears on
+the plugin-configurations admin page, no UI can create a row, and the
+table is empty. An argument asking for such a sirius id is unsatisfiable,
+and a verification script that inserts the row itself will not notice.
+
+**How to apply:** before designing an argument around a `plugin_configs`
+sirius id, confirm the kind actually registers a config adapter — the
+kinds index endpoint is built by iterating the registered adapters, so a
+kind missing from that page has no way to be configured.
+
 # A "current date" default must be computed at render time
 
 `TokenArgSpec.default` is a fixed string substituted into the args map

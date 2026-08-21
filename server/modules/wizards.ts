@@ -59,7 +59,10 @@ export function registerWizardRoutes(
           displayName: plugin.name,
           description: plugin.description,
           isFeed: false,
-          isMonthly: false,
+          // Must come from the plugin. Hardcoding false left the
+          // employer-compliance dashboard's "Upload Type" select
+          // permanently disabled: it only offers monthly types.
+          isMonthly: plugin.isMonthly ?? false,
           isReport: plugin.isReport ?? false,
           entityType: plugin.entityType,
           category: plugin.category,
