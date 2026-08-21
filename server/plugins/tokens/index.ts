@@ -29,12 +29,9 @@ export {
   renderTokens,
   evaluateChain,
   createTokenEvalContext,
-  buildSegmentSpecs,
   buildSegmentSpecsForRoots,
   buildFieldCatalog,
-  buildTokenCatalog,
   buildTokenCatalogForRoots,
-  validateTokenExpression,
   validateTokenExpressionForRoots,
   describeChain,
 } from "./evaluate";

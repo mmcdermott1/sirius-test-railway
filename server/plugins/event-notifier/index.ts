@@ -142,11 +142,11 @@ function registerEventNotifierKind(): void {
         if (templates && typeof templates === "object") {
           const { extractTokenExpressions } = await import("@shared/tokens");
           const { validateTokenExpressionForRoots } = await import("../tokens");
-          const rootNames = [
-            ...plugin.tokenTemplates.roots.map((r) => r.name),
-            // The envelope is seeded for every token-templated notifier.
-            "event",
-          ];
+          const { notifierTokenRootNames } = await import("./token-roots");
+          // The SAME list the editor is built from, so a token the token
+          // browser offered can never be rejected here — and one it never
+          // offered (an employer picked out of thin air) is refused.
+          const rootNames = notifierTokenRootNames(plugin.tokenTemplates.roots);
           const errors: string[] = [];
           for (const [channel, fields] of Object.entries(
             templates as Record<string, unknown>,

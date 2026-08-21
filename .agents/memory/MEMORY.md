@@ -95,4 +95,5 @@
 - [Plugin id in client schema metadata](plugin-id-in-client-schema-metadata.md) — never hand-write a plugin's id into schema metadata addressing a by-id endpoint; stamp it at registration (drift 404s silently = empty editor).
 - [Generated relation segments](generated-relation-segments.md) — a relation's metadata describes the kind AS SEEN FROM ITS OWNER (wrong label/gate); rank producers, and derived segments must lose to hand-written ones in BOTH registration orders.
 - [Studio host data honesty](studio-host-source-state.md) — a studio host must pass its catalog request's loading/error state, not just data; roots always report WHOSE records they offer and why there are none.
+- [Studio roots are declared, never derived](studio-root-declaration.md) — each token surface states its complete root list; scoping the SEGMENT GRAPH (not just the picker) is what binds it; delivery + Lob merge keys stay unscoped.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.

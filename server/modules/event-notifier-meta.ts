@@ -74,30 +74,18 @@ export function registerEventNotifierMetaRoutes(
           buildTokenCatalogForRoots,
           listTokenTreeRoots,
         } = await import("../plugins/tokens");
-        const { EVENT_ROOT_NAME } = await import(
-          "../plugins/tokens/plugins/event"
-        );
-        const { CONTACT_ROOT_NAME } = await import(
-          "../plugins/tokens/plugins/contact"
+        const { notifierTokenRootNames } = await import(
+          "../plugins/event-notifier/token-roots"
         );
         const { buildTokenStudioContext } = await import(
           "../plugins/tokens/studio-context"
         );
-        // The notifier's own named record roots, plus the event envelope
-        // every notifier seeds. DECLARATION ORDER IS AUTHOR-VISIBLE: this
-        // is the order the token browser and the studio's seed pickers
-        // list them in, so a notifier leads with the record its messages
-        // are about.
-        const rootNames = [
-          ...plugin.tokenTemplates.roots.map((root) => root.name),
-          EVENT_ROOT_NAME,
-        ];
-        // What the studio may preview each root AS. The recipient is the
-        // one further thing an author picks — and it is the ONLY one: on
-        // delivery `worker.`/`employer.` resolve from the recipient
-        // contact, so offering them as seeds of their own would let an
-        // author preview a pairing no message can be sent as.
-        const previewRootNames = [...rootNames, CONTACT_ROOT_NAME];
+        // The one list this notifier's whole editor is built from: its
+        // declared record roots, the event envelope and the recipient
+        // contact (see notifierTokenRootNames). It is also the list its
+        // config validation accepts tokens against, so the editor cannot
+        // offer a token that save then rejects.
+        const rootNames = notifierTokenRootNames(plugin.tokenTemplates.roots);
         // Defaults may depend on the config's other fields (e.g. the T631
         // link target varies with recipientKind); the editor passes the
         // relevant subset as ?config=<json> so placeholders match what
@@ -127,7 +115,7 @@ export function registerEventNotifierMetaRoutes(
           // what its own kind offers.
           studioContext: await buildTokenStudioContext(
             { storage, req },
-            { rootNames: previewRootNames },
+            { rootNames },
           ),
         });
       } catch (error: any) {

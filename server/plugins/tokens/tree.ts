@@ -114,19 +114,27 @@ function argSuffix(args: Record<string, TokenArgSpec> | undefined): {
 }
 
 /**
- * The roots a surface offers. Ordinary roots (contact, worker, system…)
- * are always there; the named record roots are offered only when the
- * surface seeds them.
+ * The roots a surface offers, EXACTLY the ones it named and in the
+ * order it named them.
+ *
+ * Nothing is appended from the registry. A root the surface did not
+ * name does not exist for its authors: a bulk message is a list of
+ * contacts, so offering it the employer root would invite a token whose
+ * record the message has never heard of. The list is the surface's
+ * statement about itself, so it is also the list its catalog, its
+ * validation and its preview panel are built from.
+ *
+ * A name no enabled root answers to is skipped — a root whose component
+ * is off is simply not on offer.
  */
-export function listTokenTreeRoots(rootNames: string[] = []): TokenTreeRoot[] {
-  const named = new Set(rootNames);
+export function listTokenTreeRoots(rootNames: string[]): TokenTreeRoot[] {
   const plugins = tokenPluginRegistry.listEnabledSync();
   const out: TokenTreeRoot[] = [];
-  // Declared order first: the records THIS message is about lead, the
-  // generic roots follow.
   for (const name of rootNames) {
+    if (out.some((r) => r.name === name)) continue;
     const plugin = plugins.find(
-      (p) => p.metadata.contextRoot && p.metadata.segmentName === name,
+      (p) =>
+        p.metadata.segmentName === name && p.metadata.inputTypes.includes("root"),
     );
     if (!plugin) continue;
     out.push({
@@ -134,22 +142,7 @@ export function listTokenTreeRoots(rootNames: string[] = []): TokenTreeRoot[] {
       label: plugin.metadata.name,
       description: plugin.metadata.description,
       type: plugin.metadata.outputType,
-      contextRoot: true,
-      recipientRooted: false,
-      defaultLeaf: defaultLeafOf(plugin.metadata.outputType, plugins),
-    });
-  }
-  for (const plugin of plugins) {
-    if (!plugin.metadata.inputTypes.includes("root")) continue;
-    if (plugin.metadata.hiddenFromCatalog) continue;
-    if (plugin.metadata.contextRoot) continue;
-    if (named.has(plugin.metadata.segmentName)) continue;
-    out.push({
-      name: plugin.metadata.segmentName,
-      label: plugin.metadata.name,
-      description: plugin.metadata.description,
-      type: plugin.metadata.outputType,
-      contextRoot: false,
+      contextRoot: Boolean(plugin.metadata.contextRoot),
       recipientRooted: Boolean(plugin.metadata.recipientRooted),
       defaultLeaf: defaultLeafOf(plugin.metadata.outputType, plugins),
     });
@@ -277,7 +270,7 @@ function matches(query: string, ...candidates: (string | undefined)[]): boolean 
  * come back shallowest-first and a cyclic relation graph terminates.
  */
 export function searchTokenTree(
-  rootNames: string[] = [],
+  rootNames: string[],
   query: string,
   opts: { limit?: number; maxDepth?: number } = {},
 ): TokenTreeSearchHit[] {

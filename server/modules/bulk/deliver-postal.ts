@@ -6,8 +6,9 @@ import {
   renderTokens,
   createTokenEvalContext,
   evaluateChain,
-  buildTokenCatalog,
+  buildTokenCatalogForRoots,
 } from "../../plugins/tokens";
+import { BULK_POSTAL_MERGE_ROOT_NAMES } from "./token-roots";
 import { parseTokenChain } from "@shared/tokens";
 import { BULK_CHANNEL_FIELDS, tokenCleanerFor } from "../../delivery/shape";
 
@@ -66,10 +67,13 @@ export async function deliverPostal(
       ).output
     : undefined;
   const baseMerge = (postalContent.mergeVariables as Record<string, string>) || {};
-  // Expose every catalog token as a Lob merge variable, keyed by its
-  // canonical chain id, so postal templates can reference any of them.
+  // Expose the catalog tokens as Lob merge variables, keyed by their
+  // canonical chain ids, so a postal template can reference any of them.
+  // The roots here are BULK_POSTAL_MERGE_ROOT_NAMES, not the editor's
+  // list: a Lob template is authored outside this app, so a key that
+  // stops being supplied is a hole in a letter nobody can see coming.
   const tokenMerge: Record<string, string> = {};
-  for (const entry of buildTokenCatalog()) {
+  for (const entry of buildTokenCatalogForRoots(BULK_POSTAL_MERGE_ROOT_NAMES)) {
     const parsed = parseTokenChain(entry.id);
     if (!parsed.ok) continue;
     const result = await evaluateChain(parsed.segments, ctx);

@@ -26,19 +26,6 @@ import type {
   TokenRootSeed,
 } from "./types";
 
-/**
- * Build the serializable segment graph for static validation / pickers.
- * Context roots (a notifier's seeded records, the `event` envelope) are
- * excluded: nothing seeds them here, so bulk templates treat
- * `{{dispatch.…}}` / `{{event.…}}` as unknown tokens.
- */
-export function buildSegmentSpecs(): TokenSegmentSpec[] {
-  return tokenPluginRegistry
-    .listEnabledSync()
-    .filter((p) => !p.metadata.contextRoot)
-    .map(specOf);
-}
-
 function specOf(p: TokenPlugin): TokenSegmentSpec {
   return {
     name: p.metadata.segmentName,
@@ -64,17 +51,29 @@ function getDefaultLeafForKind(kind: TokenEntityType): string | undefined {
 }
 
 /**
- * Segment graph for a surface that seeds named record roots (a
- * token-templated event notifier): the ordinary graph PLUS the context
- * roots this surface actually seeds. A root the surface does not seed
- * stays unknown, so an author can't write a token about a record this
- * message never has.
+ * The serializable segment graph a surface validates and picks against:
+ * every relation and leaf in the registry, but ONLY the roots the
+ * surface named.
+ *
+ * A chain can start nowhere else, so this is what makes the declared
+ * list binding rather than decorative: a bulk message is a list of
+ * contacts, and once it declares its roots, a hand-typed
+ * `{{employer.name}}` is an unknown token there — while the same
+ * employer record stays reachable the way delivery reaches it, through
+ * a relation from a root the surface does have.
+ *
+ * Relations and leaves are never scoped: what may follow a record is a
+ * property of the record, not of the surface.
  */
 export function buildSegmentSpecsForRoots(rootNames: string[]): TokenSegmentSpec[] {
   const named = new Set(rootNames);
   return tokenPluginRegistry
     .listEnabledSync()
-    .filter((p) => !p.metadata.contextRoot || named.has(p.metadata.segmentName))
+    .filter(
+      (p) =>
+        !p.metadata.inputTypes.includes("root") ||
+        named.has(p.metadata.segmentName),
+    )
     .map(specOf);
 }
 
@@ -486,21 +485,10 @@ function leafPluginFor(segments: TokenSegment[]): TokenPlugin | undefined {
   return leaf;
 }
 
-/** Validate one expression against the live registry and schema. */
-export function validateTokenExpression(
-  expr: string,
-): { ok: true } | { ok: false; error: string } {
-  const parsed = parseTokenChain(expr);
-  if (!parsed.ok) return { ok: false, error: parsed.error };
-  const v = validateChain(parsed.segments, buildSegmentSpecs(), buildFieldCatalog());
-  if (!v.ok) return { ok: false, error: v.error };
-  return { ok: true };
-}
-
 /**
- * Validate one expression for a surface that seeds named record roots
- * (token-templated event notifiers): the ordinary graph plus exactly
- * the roots this surface seeds.
+ * Validate one expression for a surface, against exactly the roots that
+ * surface declares. There is no unscoped variant: whether a token is
+ * valid is a question about a surface, not about the registry.
  */
 export function validateTokenExpressionForRoots(
   expr: string,
@@ -550,11 +538,13 @@ export function describeChain(
 }
 
 /**
- * Build the FLAT picker catalog by walking root → (relation)* chains
- * over the enabled registry. Entity segments contribute ONE entry each
- * — a `field(name="")` template the author completes — so the catalog
- * never needs updating when the schema changes. Plain value leaves
- * (system.year etc.) contribute a direct entry.
+ * Build the FLAT picker catalog for a surface by walking
+ * root → (relation)* chains over the enabled registry, starting at
+ * EXACTLY the roots the surface named and in that order. Entity
+ * segments contribute ONE entry each — a `field(name="")` template the
+ * author completes — so the catalog never needs updating when the
+ * schema changes. Plain value leaves (system.year etc.) contribute a
+ * direct entry.
  *
  * The walk is depth-capped because it is EAGER: it enumerates every
  * reachable chain up front, and the relation graph has cycles
@@ -562,29 +552,14 @@ export function describeChain(
  * tree API's job (`./tree`), which expands one type at a time on
  * demand and therefore has no depth limit at all.
  */
-export function buildTokenCatalog(): TokenCatalogEntry[] {
-  return buildCatalogEntries();
-}
-
-/**
- * Flat catalog for a surface that seeds named record roots (an event
- * notifier): the normal catalog PLUS entries under each root it seeds.
- * Those roots' relation plugins are `hiddenFromCatalog` (they'd be
- * noise in bulk messaging, where no such record exists), so the walk
- * under a context root uses the full registry rather than the visible
- * subset.
- */
 export function buildTokenCatalogForRoots(rootNames: string[]): TokenCatalogEntry[] {
   return buildCatalogEntries(rootNames);
 }
 
-function buildCatalogEntries(rootNames: string[] = []): TokenCatalogEntry[] {
+function buildCatalogEntries(rootNames: string[]): TokenCatalogEntry[] {
   const all = tokenPluginRegistry.listEnabledSync();
   const enabled = all.filter((p) => !p.metadata.hiddenFromCatalog);
   const fieldCatalog = buildFieldCatalog();
-  const roots = enabled.filter(
-    (p) => p.metadata.inputTypes.includes("root") && !p.metadata.contextRoot,
-  );
   const entries: TokenCatalogEntry[] = [];
 
   const emitEntityEntry = (prefix: string, scope: string, label: string, type: TokenEntityType) => {
@@ -663,27 +638,30 @@ function buildCatalogEntries(rootNames: string[] = []): TokenCatalogEntry[] {
     }
   };
 
-  for (const root of roots) {
+  // Exactly the roots this surface named, in its order. A context root
+  // (a notifier's records, the event envelope) is walked with the FULL
+  // registry so the hidden per-kind relation plugins (e.g. interview →
+  // worker) are reachable; entity descriptor plugins (`inputTypes: []`)
+  // never match a segment, so including them there is harmless.
+  const seen = new Set<string>();
+  for (const name of rootNames) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const root = all.find(
+      (p) =>
+        p.metadata.segmentName === name && p.metadata.inputTypes.includes("root"),
+    );
+    if (!root) continue;
+    const contextRoot = Boolean(root.metadata.contextRoot);
+    if (!contextRoot && root.metadata.hiddenFromCatalog) continue;
     walk(
-      root.metadata.segmentName,
-      root.metadata.segmentName,
+      name,
+      name,
       root.metadata.name,
       root.metadata.outputType,
       0,
+      contextRoot ? all : enabled,
     );
-  }
-
-  // Context roots this surface seeds (a notifier's records, the event
-  // envelope). Walked with the FULL registry so the hidden per-kind
-  // relation plugins (e.g. interview → worker) are reachable. Entity
-  // descriptor plugins (`inputTypes: []`) never match a segment, so
-  // including them here is harmless.
-  for (const name of rootNames) {
-    const root = all.find(
-      (p) => p.metadata.contextRoot && p.metadata.segmentName === name,
-    );
-    if (!root) continue;
-    walk(name, name, root.metadata.name, root.metadata.outputType, 0, all);
   }
   return entries;
 }

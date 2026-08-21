@@ -106,8 +106,8 @@ export interface BuildTokenStudioContextOptions {
    * by root NAME. It is the panel the author sees, top to bottom, so
    * lead with the record the templates are really about. Nothing is
    * added implicitly — a container whose templates are about the
-   * recipient asks for the ordinary roots by name
-   * (`ordinaryPreviewRootNames`).
+   * recipient asks for the recipient-side roots by name, the same way
+   * one with records of its own asks for those.
    */
   rootNames?: string[];
   /**
@@ -144,7 +144,7 @@ export async function buildTokenStudioContext(
   // shipping an empty "Preview With" to the author.
   if (!options.rootNames?.length) {
     throw new Error(
-      "buildTokenStudioContext needs the complete list of roots this container offers (see ordinaryPreviewRootNames for recipient-side surfaces)",
+      "buildTokenStudioContext needs the complete list of roots this container offers, by root name",
     );
   }
 

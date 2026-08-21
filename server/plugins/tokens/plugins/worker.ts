@@ -90,6 +90,13 @@ const CARDCHECK_SAMPLE_SETS = [
 ];
 
 /**
+ * Root NAME of the recipient's worker record. A surface that offers the
+ * worker as a seed of its own names this root; one that does not still
+ * reaches the same record through a relation from another root.
+ */
+export const WORKER_ROOT_NAME = "worker";
+
+/**
  * Root: {{worker...}} — the recipient's full worker record, plus
  * employment/status denorm extras (job_title, home_employer_id, ws_id,
  * ms_ids, employer_ids).
@@ -99,7 +106,7 @@ registerTokenPlugin({
     id: "token.worker",
     name: "Worker",
     description: "The recipient's worker record",
-    segmentName: "worker",
+    segmentName: WORKER_ROOT_NAME,
     inputTypes: ["root"],
     outputType: "worker",
     entityTable: workers,

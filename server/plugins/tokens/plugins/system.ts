@@ -17,13 +17,21 @@ function nowOf(entity: unknown, fallback: Date): Date {
  */
 const SAMPLE_DATE = new Date(new Date().getFullYear(), 3, 17, 9, 30);
 
+/**
+ * Root NAME of the system values. It is SEEDLESS — there is no record to
+ * pick — but it is still a root a surface must name if its authors may
+ * write `{{system.…}}`, so it belongs in the declared list like any
+ * other.
+ */
+export const SYSTEM_ROOT_NAME = "system";
+
 /** Root: {{system...}} — server-side values independent of the recipient. */
 registerTokenPlugin({
   metadata: {
     id: "token.system",
     name: "System",
     description: "System values (dates, year) independent of the recipient",
-    segmentName: "system",
+    segmentName: SYSTEM_ROOT_NAME,
     inputTypes: ["root"],
     outputType: "system",
     // Nothing to pick for this root, and nothing personal behind it (see

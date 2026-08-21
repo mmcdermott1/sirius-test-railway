@@ -28,7 +28,7 @@ interface TokenStudioCatalog {
   studioContext?: StudioContext;
 }
 
-export interface TokenStudioProps {
+interface TokenStudioBaseProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -48,19 +48,41 @@ export interface TokenStudioProps {
   /** Finished template strings, when they differ from the editor values. */
   templateValues?: Record<string, string>;
   /**
-   * Named record roots this host seeds (`dispatch`, `event`, …). Roots
-   * not named here don't exist for these tokens.
-   */
-  rootNames?: string[];
-  /** Token catalog endpoint (defaults to the generic studio catalog). */
-  catalogUrl?: string;
-  /**
    * Browsable-tree endpoints for this host (defaults to the studio's
    * own). Hosts gated differently — bulk messaging — serve the same
    * tree behind their own gate and pass it here.
    */
   treeBaseUrl?: string;
 }
+
+/**
+ * WHERE THE TOKENS COME FROM — and either way, somebody has to have
+ * said what these templates are about.
+ *
+ * A host either names its roots, and the generic catalog is built for
+ * exactly those, or it points at a catalog endpoint of its own, which
+ * names them server-side. There is no third option where the roots go
+ * unstated: the studio would then have to guess, and the only guess
+ * available is "every root in the registry" — which is how an editor
+ * ends up offering an author records their message has never heard of.
+ */
+type TokenStudioSourceProps =
+  | {
+      /**
+       * The COMPLETE ordered list of roots these tokens may start from
+       * (`contact`, `dispatch`, `event`, …). Roots not named here do
+       * not exist for these tokens.
+       */
+      rootNames: string[];
+      catalogUrl?: undefined;
+    }
+  | {
+      rootNames?: string[];
+      /** Token catalog endpoint of this host's own, roots and all. */
+      catalogUrl: string;
+    };
+
+export type TokenStudioProps = TokenStudioBaseProps & TokenStudioSourceProps;
 
 /**
  * THE generic token-editing popup: any tokenized string field anywhere
@@ -90,11 +112,11 @@ export function TokenStudio({
   treeBaseUrl,
 }: TokenStudioProps) {
   const roots = rootNames?.length ? rootNames : undefined;
+  // No host-supplied endpoint means the generic catalog, which is built
+  // for the roots named here — the prop types make sure there are some.
   const url =
     catalogUrl ??
-    (roots
-      ? `/api/token-studio/catalog?roots=${encodeURIComponent(roots.join(","))}`
-      : "/api/token-studio/catalog");
+    `/api/token-studio/catalog?roots=${encodeURIComponent((roots ?? []).join(","))}`;
   // The failure is part of the answer. Dropping it here is how a host
   // whose catalog request 403s ends up looking like a host with no
   // tokens: the studio can only be honest about a request it is told
@@ -147,10 +169,11 @@ export function TokenStudioButton({
   label = "Open Template Studio",
   testId = "button-open-token-studio",
   ...studioProps
-}: Omit<TokenStudioProps, "open" | "onOpenChange"> & {
-  label?: string;
-  testId?: string;
-}) {
+}: Omit<TokenStudioBaseProps, "open" | "onOpenChange"> &
+  TokenStudioSourceProps & {
+    label?: string;
+    testId?: string;
+  }) {
   const [open, setOpen] = useState(false);
   return (
     <>

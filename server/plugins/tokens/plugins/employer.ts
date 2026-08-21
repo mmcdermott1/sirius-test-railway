@@ -26,6 +26,9 @@ const EMPLOYER_SAMPLE_SETS = [
   },
 ];
 
+/** Root NAME of the recipient's employer record. */
+export const EMPLOYER_ROOT_NAME = "employer";
+
 /**
  * Root: {{employer...}} — the recipient's employer, resolved via the
  * worker's home employer (falling back to first employment, then to
@@ -36,7 +39,7 @@ registerTokenPlugin({
     id: "token.employer",
     name: "Employer",
     description: "The recipient's employer (home employer or first linked employer)",
-    segmentName: "employer",
+    segmentName: EMPLOYER_ROOT_NAME,
     inputTypes: ["root"],
     outputType: "employer",
     entityTable: employers,

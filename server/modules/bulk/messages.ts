@@ -17,15 +17,16 @@ import { extractTokenExpressions, parseTokenChain } from "@shared/tokens";
 import {
   createTokenEvalContext,
   evaluateChain,
-  buildSegmentSpecs,
+  buildSegmentSpecsForRoots,
   buildFieldCatalog,
-  buildTokenCatalog,
-  validateTokenExpression,
+  buildTokenCatalogForRoots,
+  validateTokenExpressionForRoots,
   describeChain,
   listTokenTreeRoots,
   expandTokenType,
   searchTokenTree,
 } from "../../plugins/tokens";
+import { BULK_TOKEN_ROOT_NAMES } from "./token-roots";
 type RequireAccess = (policy: string) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
 
@@ -661,7 +662,7 @@ export function registerBulkMessageRoutes(
         return res.status(404).json({ message: "Bulk message not found" });
       }
 
-      const { listTokenPreviewRoots, ordinaryPreviewRootNames } = await import(
+      const { listTokenPreviewRoots } = await import(
         "../../plugins/tokens/preview-roots"
       );
       const { buildTokenStudioContext } = await import(
@@ -689,12 +690,12 @@ export function registerBulkMessageRoutes(
         }
       }
 
-      // A bulk message is ABOUT its recipients, so the roots it offers
-      // are the ordinary ones; the recipient-side kinds are the ones
-      // this message has records for. The rest (employer) it does NOT
-      // supply, so they fall back to the kind's own records and the
-      // studio labels them as not being this message's.
-      const rootNames = ordinaryPreviewRootNames();
+      // A bulk message is ABOUT its recipients, so it offers exactly the
+      // recipient-side roots it has records for (see BULK_TOKEN_ROOT_NAMES)
+      // — the same list its tree, its validation and its coverage check
+      // use. `system` is in that list and seedless, so it is browsable
+      // but never appears in the seed panel.
+      const rootNames = BULK_TOKEN_ROOT_NAMES;
       const recordsByRoot: Record<string, Array<{ id: string; label: string; hint?: string }>> = {};
       // Why a supplied list is empty is something only this message
       // knows, and "there is nobody to preview against" is the honest
@@ -717,8 +718,8 @@ export function registerBulkMessageRoutes(
       }
 
       res.json({
-        tokens: buildTokenCatalog(),
-        segments: buildSegmentSpecs(),
+        tokens: buildTokenCatalogForRoots(rootNames),
+        segments: buildSegmentSpecsForRoots(rootNames),
         fields: buildFieldCatalog(),
         studioContext: await buildTokenStudioContext(
           { storage, req },
@@ -733,11 +734,10 @@ export function registerBulkMessageRoutes(
 
   // Browsable token tree for bulk messaging — the same lazy tree the
   // Template Studio walks, gated for bulk authors instead of admins.
-  // Bulk messages seed no named record roots (there is no event here),
-  // so the roots are always the ordinary contact-side ones; the caller
-  // cannot ask for a context root it does not seed.
+  // The roots are bulk's own declared list, fixed server-side: the
+  // caller cannot ask for a root bulk does not offer.
   app.get("/api/bulk-tokens/tree/roots", requireAuth, requireAccess('bulk.edit'), (_req, res) => {
-    res.json({ roots: listTokenTreeRoots([]) });
+    res.json({ roots: listTokenTreeRoots(BULK_TOKEN_ROOT_NAMES) });
   });
 
   app.get("/api/bulk-tokens/tree/type/:type", requireAuth, requireAccess('bulk.edit'), (req, res) => {
@@ -746,7 +746,7 @@ export function registerBulkMessageRoutes(
 
   app.get("/api/bulk-tokens/tree/search", requireAuth, requireAccess('bulk.edit'), (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q : "";
-    res.json({ hits: searchTokenTree([], q) });
+    res.json({ hits: searchTokenTree(BULK_TOKEN_ROOT_NAMES, q) });
   });
 
   // Returns per-token coverage across this message's participants:
@@ -770,11 +770,11 @@ export function registerBulkMessageRoutes(
       const postal = await storage.bulkMessagesPostal.getByBulkId(bulk.id);
       if (postal) templates.push(postal.description || "");
 
-      // Only cover expressions that parse + validate against the live
-      // registry; invalid ones are surfaced by the editor's warnings.
+      // Only cover expressions that parse + validate against the roots
+      // bulk offers; invalid ones are surfaced by the editor's warnings.
       const tokenIds = Array.from(new Set(
         templates.flatMap((t) => extractTokenExpressions(t))
-          .filter((expr) => validateTokenExpression(expr).ok)
+          .filter((expr) => validateTokenExpressionForRoots(expr, BULK_TOKEN_ROOT_NAMES).ok)
       ));
 
       const participants = await storage.bulkParticipants.getByMessageId(req.params.id);

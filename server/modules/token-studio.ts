@@ -260,9 +260,13 @@ export function registerTokenStudioRoutes(
   storage: IStorage,
 ) {
   /**
-   * Token catalog for the generic studio. Optional `?roots=a,b` names
-   * the context roots the caller's templates address (`dispatch`,
-   * `event`, …); without them only the ordinary roots are offered.
+   * Token catalog for the generic studio. `?roots=a,b` is REQUIRED and
+   * names the complete list of roots the caller's templates may address
+   * (`contact`, `dispatch`, `event`, …), in the order its author sees
+   * them. Nothing is added implicitly: a caller that names no roots has
+   * not said what its templates are about, and answering with "every
+   * root there is" is how a surface ends up offering records it has
+   * never heard of.
    *
    * Carries the studio's own context — what each root may be previewed
    * as — so the studio opens ready to preview, with no second request
@@ -283,21 +287,24 @@ export function registerTokenStudioRoutes(
         const { buildTokenStudioContext } = await import(
           "../plugins/tokens/studio-context"
         );
-        const { ordinaryPreviewRootNames } = await import(
-          "../plugins/tokens/preview-roots"
-        );
         const rootNames = parseRootNames(req.query.roots);
+        if (rootNames.length === 0) {
+          return res.status(400).json({
+            message:
+              "roots is required: name the roots these templates address, e.g. ?roots=contact,system",
+          });
+        }
         res.json({
           rootNames,
           segments: buildSegmentSpecsForRoots(rootNames),
           fields: buildFieldCatalog(),
           tokens: buildTokenCatalogForRoots(rootNames),
-          // A generic caller has no subject of its own, so it offers the
-          // roots it named plus the ordinary recipient-side ones — the
-          // only roots there are to offer here.
+          // The roots the caller named, and only those: the seed panel
+          // is the same list as the browser, so an author cannot preview
+          // against a record their tokens can't address.
           studioContext: await buildTokenStudioContext(
             { storage, req },
-            { rootNames: [...rootNames, ...ordinaryPreviewRootNames()] },
+            { rootNames },
           ),
         });
       } catch (error: any) {
@@ -310,7 +317,8 @@ export function registerTokenStudioRoutes(
 
   /**
    * The token tree's ROOTS — one node per root the author may start a
-   * chain at. The picker expands a node lazily through
+   * chain at, exactly the ones `?roots=` names (required, same as the
+   * catalog). The picker expands a node lazily through
    * `/api/token-studio/tree/type/:type`, so a deep relation graph costs
    * one small request per level instead of one giant catalog.
    */
@@ -321,7 +329,14 @@ export function registerTokenStudioRoutes(
     async (req, res) => {
       try {
         const { listTokenTreeRoots } = await import("../plugins/tokens");
-        res.json({ roots: listTokenTreeRoots(parseRootNames(req.query.roots)) });
+        const rootNames = parseRootNames(req.query.roots);
+        if (rootNames.length === 0) {
+          return res.status(400).json({
+            message:
+              "roots is required: name the roots these templates address, e.g. ?roots=contact,system",
+          });
+        }
+        res.json({ roots: listTokenTreeRoots(rootNames) });
       } catch (error: any) {
         res
           .status(500)
@@ -361,7 +376,14 @@ export function registerTokenStudioRoutes(
       try {
         const { searchTokenTree } = await import("../plugins/tokens");
         const q = typeof req.query.q === "string" ? req.query.q : "";
-        res.json({ hits: searchTokenTree(parseRootNames(req.query.roots), q) });
+        const rootNames = parseRootNames(req.query.roots);
+        if (rootNames.length === 0) {
+          return res.status(400).json({
+            message:
+              "roots is required: name the roots these templates address, e.g. ?roots=contact,system",
+          });
+        }
+        res.json({ hits: searchTokenTree(rootNames, q) });
       } catch (error: any) {
         res
           .status(500)
