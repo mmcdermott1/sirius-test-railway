@@ -14,11 +14,11 @@ import type { IStorage } from "../../storage";
 import {
   tokenPluginRegistry,
   findSegmentPlugin,
+  findRegisteredSegmentPlugin,
   tokenRegistryVersion,
 } from "./registry";
 import { sampleSetValue } from "./sample-sets";
 import { ENTITY_PATH_FIELD } from "./entity-location";
-import { getComponentCacheRevision } from "../../services/component-cache";
 import type {
   TokenEntity,
   TokenEvalContext,
@@ -43,10 +43,15 @@ function specOf(p: TokenPlugin): TokenSegmentSpec {
  * Return the default-leaf field name declared for the given entity kind,
  * or undefined if the kind has no default leaf. Looks up the first
  * registered plugin whose outputType matches and declares a defaultLeaf.
+ *
+ * Component-blind, like the segment specs and the field catalog below:
+ * what `{{…worker}}` on its own MEANS is a property of the kind, and a
+ * switched-off component must not turn a stored short form into an
+ * unknown token.
  */
 function getDefaultLeafForKind(kind: TokenEntityType): string | undefined {
   return tokenPluginRegistry
-    .listEnabledSync()
+    .list()
     .find((p) => p.metadata.outputType === kind && p.metadata.defaultLeaf !== undefined)
     ?.metadata.defaultLeaf;
 }
@@ -65,11 +70,21 @@ function getDefaultLeafForKind(kind: TokenEntityType): string | undefined {
  *
  * Relations and leaves are never scoped: what may follow a record is a
  * property of the record, not of the surface.
+ *
+ * COMPONENT STATE IS NOT PART OF THIS. Only the OFFER narrows when a
+ * component is switched off (the catalog, the tree, the picker); what a
+ * written token MEANS does not, exactly as an argument's declared
+ * choices keep validating while the picker stops offering the ones
+ * whose component is off. Otherwise flipping a component off would
+ * condemn every stored template that already names one of its
+ * segments — the author could not save an unrelated edit without first
+ * hunting the token down. Such a token renders blank at delivery (see
+ * `evaluateChain`), never `[unknown token: …]`.
  */
 export function buildSegmentSpecsForRoots(rootNames: string[]): TokenSegmentSpec[] {
   const named = new Set(rootNames);
   return tokenPluginRegistry
-    .listEnabledSync()
+    .list()
     .filter(
       (p) =>
         !p.metadata.inputTypes.includes("root") ||
@@ -89,14 +104,17 @@ let fieldCatalogVersion = "";
 /**
  * Cached field catalog. The Drizzle schema is static, but what the
  * catalog is built FROM is not: plugins can register after the first
- * render (a notifier module declaring its named record roots), a shared
- * root can gain merged fields, and enabling a component changes which
- * plugins the catalog walks. The key covers all three, so validation
- * (which builds fresh) and delivery (which reads this) can never
- * disagree about whether a field name exists.
+ * render (a notifier module declaring its named record roots), and a
+ * shared root can gain merged fields. Both bump the registry version,
+ * so validation (which builds fresh) and delivery (which reads this)
+ * can never disagree about whether a field name exists.
+ *
+ * Component state is deliberately NOT in the key: the catalog no longer
+ * walks only the switched-on plugins, so toggling a component cannot
+ * change what it holds.
  */
 export function getFieldCatalog(): TokenFieldCatalog {
-  const version = `${tokenRegistryVersion()}:${getComponentCacheRevision()}`;
+  const version = `${tokenRegistryVersion()}`;
   if (!fieldCatalogCache || fieldCatalogVersion !== version) {
     fieldCatalogCache = buildFieldCatalog();
     fieldCatalogVersion = version;
@@ -104,9 +122,16 @@ export function getFieldCatalog(): TokenFieldCatalog {
   return fieldCatalogCache;
 }
 
+/**
+ * Component-blind, for the same reason the segment specs are: which
+ * fields a kind's rows carry is a property of the kind, not of what
+ * this deployment has switched on, and a stored
+ * `{{worker.cardcheck.field(name="status")}}` must not become an
+ * unknown field the day card checks are switched off.
+ */
 export function buildFieldCatalog(): TokenFieldCatalog {
   const catalog: TokenFieldCatalog = {};
-  for (const p of tokenPluginRegistry.listEnabledSync()) {
+  for (const p of tokenPluginRegistry.list()) {
     const type = p.metadata.outputType;
     if (type === "value") continue;
     const entry = (catalog[type] ??= { names: [] });
@@ -265,6 +290,16 @@ export async function evaluateChain(
   for (const seg of segments) {
     const plugin = findSegmentPlugin(seg.name, currentType);
     if (!plugin) {
+      // A segment the registry HAS, whose component is switched off, is
+      // not an unknown token: this deployment simply has no such data
+      // (its tables need not even exist). It renders as a missing value
+      // — the same nothing an absent record renders — rather than
+      // shouting "[unknown token: …]" into a delivered message, which
+      // keeps delivery in step with validation, where the switched-off
+      // segment still counts.
+      if (findRegisteredSegmentPlugin(seg.name, currentType)) {
+        return { status: "missing", defaultValue: leafDefault(segments) };
+      }
       return {
         status: "invalid",
         error: `unknown segment '${seg.name}' for type '${currentType}'`,
@@ -360,10 +395,12 @@ export async function evaluateChain(
 
 function leafDefault(segments: TokenSegment[]): string {
   // Find the leaf plugin's default by walking the types statically.
+  // Component-blind: a chain stopped by a switched-off segment still has
+  // a leaf, and its declared default is what the reader should see.
   let currentType: TokenEntityType = "root";
   let def = "";
   for (const seg of segments) {
-    const plugin = findSegmentPlugin(seg.name, currentType);
+    const plugin = findRegisteredSegmentPlugin(seg.name, currentType);
     if (!plugin) break;
     def = plugin.metadata.defaultValue ?? "";
     currentType = plugin.metadata.outputType;

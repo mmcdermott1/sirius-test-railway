@@ -295,6 +295,15 @@ registerTokenPlugin({
 /**
  * {{worker.cardcheck.field(name="type"|"status"|"signed_date")}} — the
  * worker's most recent cardcheck.
+ *
+ * Card checks are an optional component: where it is switched off there
+ * are no card checks to speak of (its tables need not even exist), and
+ * the worker's Cardchecks tab — the page the derived link leaves point
+ * at — is not reachable. So the segment is gated the way the dispatch
+ * segments are gated on dispatch, and the `path`/`url` leaves inherit
+ * the gate through the location declaration below. Gating narrows what
+ * is OFFERED; a template that already names the segment keeps
+ * validating and renders blank.
  */
 registerTokenPlugin({
   metadata: {
@@ -304,6 +313,7 @@ registerTokenPlugin({
     segmentName: "cardcheck",
     inputTypes: ["worker"],
     outputType: "cardcheck",
+    requiredComponent: "cardcheck",
     // Assembled in code rather than read straight from a table: `type`
     // is the definition's name, and `worker_id` is the cardcheck column
     // the location below is built from.

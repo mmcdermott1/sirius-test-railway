@@ -49,6 +49,28 @@ export function bumpTokenRegistryVersion(): void {
   registrations++;
 }
 
+function segmentMatches(
+  plugin: TokenPlugin,
+  name: string,
+  inputType: TokenEntityType,
+): boolean {
+  return (
+    plugin.metadata.segmentName === name &&
+    (plugin.metadata.inputTypes.includes(inputType) ||
+      (plugin.metadata.inputTypes.includes("*") &&
+        inputType !== "root" &&
+        inputType !== "value"))
+  );
+}
+
+// A hand-written segment always beats a derived one of the same name,
+// whichever registered first: the sweep that derived it skips names
+// already declared, but a plugin registered after the sweep ran cannot
+// be skipped, only deferred to.
+function preferHandWritten(matches: TokenPlugin[]): TokenPlugin | undefined {
+  return matches.find((p) => !p.metadata.generated) ?? matches[0];
+}
+
 /**
  * Resolve which plugin handles a segment name given the current entity
  * type. Segment names are only unique per input type, so lookup is by
@@ -59,19 +81,27 @@ export function findSegmentPlugin(
   name: string,
   inputType: TokenEntityType,
 ): TokenPlugin | undefined {
-  const matches = tokenPluginRegistry
-    .listEnabledSync()
-    .filter(
-      (p) =>
-        p.metadata.segmentName === name &&
-        (p.metadata.inputTypes.includes(inputType) ||
-          (p.metadata.inputTypes.includes("*") &&
-            inputType !== "root" &&
-            inputType !== "value")),
-    );
-  // A hand-written segment always beats a derived one of the same name,
-  // whichever registered first: the sweep that derived it skips names
-  // already declared, but a plugin registered after the sweep ran cannot
-  // be skipped, only deferred to.
-  return matches.find((p) => !p.metadata.generated) ?? matches[0];
+  return preferHandWritten(
+    tokenPluginRegistry
+      .listEnabledSync()
+      .filter((p) => segmentMatches(p, name, inputType)),
+  );
+}
+
+/**
+ * The same lookup over EVERY registered plugin, switched-on or not.
+ *
+ * A segment whose component is switched off is not an unknown segment:
+ * it is a real part of the graph this deployment currently has no data
+ * for. Telling the two apart is what lets a stored template naming it
+ * keep validating (and render blank) instead of being condemned as a
+ * typo the moment an admin flips a component off.
+ */
+export function findRegisteredSegmentPlugin(
+  name: string,
+  inputType: TokenEntityType,
+): TokenPlugin | undefined {
+  return preferHandWritten(
+    tokenPluginRegistry.list().filter((p) => segmentMatches(p, name, inputType)),
+  );
 }
