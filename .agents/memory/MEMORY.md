@@ -94,4 +94,5 @@
 - [Derived token segments](derived-token-segments.md) — generated segments (options relations from FK+options metadata) must regenerate on LATE plugin registration, name themselves after the target table, skip ambiguous pairs.
 - [Plugin id in client schema metadata](plugin-id-in-client-schema-metadata.md) — never hand-write a plugin's id into schema metadata addressing a by-id endpoint; stamp it at registration (drift 404s silently = empty editor).
 - [Generated relation segments](generated-relation-segments.md) — a relation's metadata describes the kind AS SEEN FROM ITS OWNER (wrong label/gate); rank producers, and derived segments must lose to hand-written ones in BOTH registration orders.
+- [Studio host data honesty](studio-host-source-state.md) — a studio host must pass its catalog request's loading/error state, not just data; roots always report WHOSE records they offer and why there are none.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.

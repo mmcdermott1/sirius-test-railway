@@ -80,7 +80,12 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
       ? `?config=${encodeURIComponent(JSON.stringify(depValues))}`
       : "";
 
-  const { data: catalog } = useQuery<NotifierTokenCatalog>({
+  const {
+    data: catalog,
+    isLoading: catalogLoading,
+    error: catalogError,
+    refetch: refetchCatalog,
+  } = useQuery<NotifierTokenCatalog>({
     queryKey: [catalogUrl + depQuery],
     enabled: !!catalogUrl && !hidden,
   });
@@ -203,6 +208,17 @@ export function NotifierChannelTemplatesField(props: FieldProps) {
           channel={channel}
           schemaRows={rows}
           catalog={catalog}
+          // This field owns the catalog request, so it is the only one
+          // that can tell the studio a missing catalog FAILED rather
+          // than being empty.
+          catalogState={{
+            url: catalogUrl + depQuery,
+            loading: catalogLoading,
+            error: catalogError,
+            retry: () => {
+              void refetchCatalog();
+            },
+          }}
           configData={configData}
           updateConfigData={updateConfigData!}
         />

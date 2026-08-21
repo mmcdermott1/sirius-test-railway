@@ -15,9 +15,15 @@ import {
   SimpleHtmlEditor,
   type SimpleHtmlEditorApi,
 } from "@/components/ui/simple-html-editor";
-import { TokenTreeBrowser } from "./TokenTreeBrowser";
+import {
+  TokenRequestError,
+  TokenTreeBrowser,
+  useTokenTreeRoots,
+  type TokenTreeRootsState,
+} from "./TokenTreeBrowser";
 import { SlashTokenField } from "./SlashTokenField";
 import { cn } from "@/lib/utils";
+import { getApiErrorMessage } from "@/lib/queryClient";
 import { AlertTriangle, Bell, ChevronDown, Loader2 } from "lucide-react";
 import {
   analyzeTemplateTokens,
@@ -97,6 +103,21 @@ export interface StudioSeedRecord {
   hint?: string;
 }
 
+/**
+ * Whose records a root offers (mirrors the server's
+ * `TokenStudioRecordSource`): the container's own, or the kind's first
+ * records because the container supplied none.
+ */
+export type StudioRecordSource = "container" | "kind";
+
+/** Why a root has no real records (mirrors `TokenStudioNoRecordsReason`). */
+export type StudioNoRecordsReason =
+  | "container-empty"
+  | "container-unreadable"
+  | "kind-offers-none"
+  | "kind-unreadable"
+  | "not-previewable";
+
 /** One root and everything it may be previewed as. */
 export interface StudioContextRoot {
   /** Root NAME — the segment a chain starts with (`dispatch`, `worker`). */
@@ -105,6 +126,16 @@ export interface StudioContextRoot {
   label: string;
   samples: StudioSampleSet[];
   records: StudioSeedRecord[];
+  /** Whose records those are. Absent from an older response: unknown. */
+  recordSource?: StudioRecordSource;
+  /** Why there are none, when there are none. */
+  noRecords?: {
+    reason: StudioNoRecordsReason;
+    /** The container's own words ("this message has no recipients yet"). */
+    note?: string;
+    /** The kind's refusal, when it cannot be previewed at all. */
+    detail?: string;
+  };
 }
 
 /**
@@ -119,6 +150,22 @@ export interface StudioContextRoot {
  */
 export interface StudioContext {
   roots: StudioContextRoot[];
+}
+
+/**
+ * How one of the studio's data sources is doing. The studio is opened
+ * from many hosts, each with its own endpoints and its own gate, so
+ * "why is this one empty?" is a question the studio has to be able to
+ * answer about a request it did not make itself.
+ */
+export interface StudioSourceState {
+  /** The endpoint being used, verbatim — the diagnostics line shows it. */
+  url?: string;
+  loading?: boolean;
+  /** The failure, when the request failed. */
+  error?: unknown;
+  /** Ask for it again. */
+  retry?: () => void;
 }
 
 /** The preview render route's response shape. */
@@ -199,6 +246,15 @@ export interface TemplateStudioProps {
   studioContext?: StudioContext;
   /** Tree endpoints for this host (defaults to the studio's own). */
   treeBaseUrl?: string;
+  /**
+   * How the host's catalog request went. Every host loads its own
+   * catalog from its own endpoint, so only the host can say whether
+   * that request is still running or failed — and without being told,
+   * the studio cannot tell a failure apart from an empty answer, which
+   * is exactly how a broken launch point ends up looking like a
+   * tokenless one. Omit only where there is no request to report.
+   */
+  catalogState?: StudioSourceState;
 }
 
 /** Plain text, unless the editor is a rich-text one. */
@@ -350,6 +406,189 @@ function StudioPanel({
   );
 }
 
+/**
+ * Which endpoints THIS launch point used and what came back.
+ *
+ * The studio is opened from many hosts, each passing its own catalog
+ * and tree endpoints; working out why one of them looks empty used to
+ * need a developer with database access. It is the studio's own
+ * question, so the studio answers it, in the browser, the same way at
+ * every launch point.
+ */
+function StudioDiagnostics({
+  catalogState,
+  tokenCount,
+  segmentCount,
+  contextRootCount,
+  rootNames,
+  treeRoots,
+  treeNotAsked,
+  previewError,
+}: {
+  catalogState?: StudioSourceState;
+  tokenCount: number;
+  segmentCount: number;
+  contextRootCount: number;
+  rootNames?: string[];
+  treeRoots: TokenTreeRootsState;
+  /** Why the tree was never requested, when it was not. */
+  treeNotAsked?: string;
+  previewError: unknown;
+}) {
+  const catalogStatus = catalogState?.error
+    ? `FAILED — ${getApiErrorMessage(catalogState.error, "request failed")}`
+    : catalogState?.loading
+      ? "loading…"
+      : `${tokenCount} tokens, ${segmentCount} segments, ${contextRootCount} preview roots`;
+  const treeStatus = treeNotAsked
+    ? `not requested — ${treeNotAsked}`
+    : treeRoots.error
+      ? `FAILED — ${getApiErrorMessage(treeRoots.error, "request failed")}`
+      : treeRoots.loading
+        ? "loading…"
+        : `${treeRoots.roots.length} tree roots`;
+  const previewStatus = previewError
+    ? `last error — ${getApiErrorMessage(previewError, "request failed")}`
+    : "no error";
+  const line = "break-all";
+  return (
+    <details className="min-w-0 flex-1 text-xs" data-testid="studio-diagnostics">
+      <summary
+        className="cursor-pointer select-none text-muted-foreground"
+        data-testid="button-studio-diagnostics"
+      >
+        Where this studio's data came from
+      </summary>
+      <div className="mt-2 max-h-32 overflow-y-auto space-y-1 font-mono text-[11px] text-muted-foreground">
+        <div className={line} data-testid="text-diagnostic-catalog">
+          catalog: {catalogState?.url ?? "(supplied by the host, not fetched here)"} — {catalogStatus}
+        </div>
+        <div className={line} data-testid="text-diagnostic-tree">
+          tree: {treeRoots.url} — {treeStatus}
+        </div>
+        <div className={line} data-testid="text-diagnostic-preview">
+          preview: POST /api/template-studio/preview — {previewStatus}
+        </div>
+        <div className={line} data-testid="text-diagnostic-roots">
+          roots asked for:{" "}
+          {rootNames?.length ? rootNames.join(", ") : "(none named — this host's default set)"}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Why a root has nothing real to preview against, said in the author's
+ * words. The container's own note wins when it left one — only it knows
+ * that the reason is "this message has no recipients yet".
+ */
+function noRecordsMessage(root: StudioContextRoot): string {
+  const noRecords = root.noRecords;
+  const label = root.label.toLowerCase();
+  if (noRecords?.note) return noRecords.note;
+  switch (noRecords?.reason) {
+    case "container-empty":
+      return `The editor that opened this studio has no ${label} records for it.`;
+    case "container-unreadable":
+      return `You may not read the ${label} records this editor offered.`;
+    case "kind-unreadable":
+      return `You may not read any of the ${label} records on this site.`;
+    case "kind-offers-none":
+      return `This site has no ${label} records to preview against.`;
+    case "not-previewable":
+      return (
+        noRecords.detail ??
+        `${root.label} records cannot be previewed against.`
+      );
+    default:
+      return `No real ${label} records are on offer here.`;
+  }
+}
+
+/** One root's seed picker, plus the truth about what is in it. */
+function SeedPicker({
+  root,
+  value,
+  onChange,
+}: {
+  root: StudioContextRoot;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  // A root the container supplied records for is offering ITS OWN; one
+  // it merely named falls back to the kind's first records, which are
+  // not the ones this template is about. Two rules in one panel is what
+  // let 11 unrelated employers look like a bulk message's employers.
+  const fromKind = root.recordSource === "kind";
+  return (
+    <div className="space-y-1" data-testid={`studio-seed-root-${root.name}`}>
+      <Label className="text-xs text-muted-foreground">{root.label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className="h-8 text-sm"
+          data-testid={`select-studio-seed-${root.name}`}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {root.records.length > 0 && (
+            <SelectGroup>
+              <SelectLabel>
+                {fromKind
+                  ? `Any ${root.label.toLowerCase()} — not this editor's`
+                  : "Real records"}
+              </SelectLabel>
+              {root.records.map((r) => (
+                <SelectItem
+                  key={r.id}
+                  value={`record:${r.id}`}
+                  data-testid={`studio-seed-record-${r.id}`}
+                >
+                  {r.label}
+                  {r.hint ? (
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      {r.hint}
+                    </span>
+                  ) : null}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          )}
+          <SelectGroup>
+            <SelectLabel>Sample data</SelectLabel>
+            {root.samples.map((s) => (
+              <SelectItem
+                key={s.id}
+                value={`sample:${s.id}`}
+                data-testid={`studio-seed-sample-${root.name}-${s.id}`}
+              >
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      {root.records.length === 0 ? (
+        <p
+          className="text-xs text-muted-foreground"
+          data-testid={`text-studio-no-records-${root.name}`}
+        >
+          {noRecordsMessage(root)} Sample personas only.
+        </p>
+      ) : fromKind ? (
+        <p
+          className="text-xs text-muted-foreground"
+          data-testid={`text-studio-kind-records-${root.name}`}
+        >
+          These are the first {root.label.toLowerCase()} records on this site,
+          not the ones this template is about.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function FieldIssues({ field }: { field: StudioPreviewField | undefined }) {
   if (!field) return null;
   return (
@@ -410,6 +649,7 @@ export function TemplateStudio({
   rootNames,
   studioContext,
   treeBaseUrl,
+  catalogState,
 }: TemplateStudioProps) {
   const activeEditorRef = useRef<ActiveEditorRef | null>(null);
   const htmlApiRefs = useRef<Record<string, React.MutableRefObject<SimpleHtmlEditorApi | null>>>({});
@@ -445,6 +685,33 @@ export function TemplateStudio({
   // search: the author picks one thing per root from a list that was
   // gated for them before it arrived.
   const contextRoots = studioContext?.roots ?? [];
+  // A context that never arrived is not a context that is empty. Kept
+  // apart everywhere below, because conflating them is the whole defect.
+  const catalogFailed = Boolean(catalogState?.error);
+  const catalogLoading = Boolean(catalogState?.loading) && !studioContext;
+
+  /**
+   * Is the token browser browsing THIS host's tokens?
+   *
+   * It is when something scopes it: roots the host named itself, or a
+   * tree endpoint of its own (which scopes server-side). With neither,
+   * the scope was supposed to come from the catalog — and until that
+   * arrives, the default tree is the whole site's token list, not this
+   * host's. Offering it would be the same lie in a different panel:
+   * a failed request reading as a usable, but foreign, token source.
+   */
+  const treeScopeKnown = (rootNames?.length ?? 0) > 0 || Boolean(treeBaseUrl);
+  const tokenSourceUnknown =
+    !treeScopeKnown && (catalogLoading || catalogFailed);
+
+  // The tree endpoints this host is using, read from the SAME query the
+  // token browser reads, so the diagnostics report what the picker
+  // actually got rather than a second opinion.
+  const treeRoots = useTokenTreeRoots({
+    treeBaseUrl,
+    rootNames,
+    enabled: open && !tokenSourceUnknown,
+  });
 
   /**
    * The roots the render reports on: exactly the ones on offer here, in
@@ -952,68 +1219,57 @@ export function TemplateStudio({
               title="Preview with"
               open={panel === "context"}
               onOpen={() => setPanel("context")}
+              status={
+                catalogFailed ? (
+                  <span
+                    className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium bg-destructive/10 text-destructive"
+                    data-testid="badge-studio-context-failed"
+                  >
+                    Failed to load
+                  </span>
+                ) : undefined
+              }
             >
               <div
                 className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 space-y-1.5"
                 data-testid="studio-subject-panel"
               >
-                {contextRoots.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Sample data.
+                {/* Loading, failed, and "nothing on offer" are three
+                    different answers. The old panel gave one line for all
+                    three and left the author to guess which. */}
+                {catalogLoading ? (
+                  <p
+                    className="text-xs text-muted-foreground flex items-center gap-1.5"
+                    data-testid="text-studio-context-loading"
+                  >
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading what
+                    this editor can preview against…
+                  </p>
+                ) : catalogFailed ? (
+                  <TokenRequestError
+                    what="What this editor can preview against"
+                    error={catalogState?.error}
+                    onRetry={catalogState?.retry}
+                    testId="text-studio-context-error"
+                  />
+                ) : contextRoots.length === 0 ? (
+                  <p
+                    className="text-xs text-muted-foreground"
+                    data-testid="text-studio-context-empty"
+                  >
+                    This editor names no records to preview against — every
+                    token renders from sample data.
                   </p>
                 ) : (
                   contextRoots.map((root) => (
-                    <div key={root.name} className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        {root.label}
-                      </Label>
-                      <Select
-                        value={choiceFor(root)}
-                        onValueChange={(v) =>
-                          setChosen((prev) => ({ ...prev, [root.name]: v }))
-                        }
-                      >
-                        <SelectTrigger
-                          className="h-8 text-sm"
-                          data-testid={`select-studio-seed-${root.name}`}
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {root.records.length > 0 && (
-                            <SelectGroup>
-                              <SelectLabel>Real records</SelectLabel>
-                              {root.records.map((r) => (
-                                <SelectItem
-                                  key={r.id}
-                                  value={`record:${r.id}`}
-                                  data-testid={`studio-seed-record-${r.id}`}
-                                >
-                                  {r.label}
-                                  {r.hint ? (
-                                    <span className="ml-1.5 text-xs text-muted-foreground">
-                                      {r.hint}
-                                    </span>
-                                  ) : null}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          )}
-                          <SelectGroup>
-                            <SelectLabel>Sample data</SelectLabel>
-                            {root.samples.map((s) => (
-                              <SelectItem
-                                key={s.id}
-                                value={`sample:${s.id}`}
-                                data-testid={`studio-seed-sample-${root.name}-${s.id}`}
-                              >
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <SeedPicker
+                      key={root.name}
+                      root={root}
+                      value={choiceFor(root)}
+                      onChange={(v) =>
+                        setChosen((prev) => ({ ...prev, [root.name]: v }))
+                      }
+                    />
                   ))
                 )}
               </div>
@@ -1024,21 +1280,76 @@ export function TemplateStudio({
               title="Tokens"
               open={panel === "tokens"}
               onOpen={() => setPanel("tokens")}
+              status={
+                treeRoots.error || (tokenSourceUnknown && catalogFailed) ? (
+                  <span
+                    className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium bg-destructive/10 text-destructive"
+                    data-testid="badge-studio-tokens-failed"
+                  >
+                    Failed to load
+                  </span>
+                ) : undefined
+              }
             >
-              <TokenTreeBrowser
-                onInsert={insertSnippet}
-                rootNames={rootNames}
-                treeBaseUrl={treeBaseUrl}
-                // The section header already says what this is.
-                hideHeading
-                className="min-h-0 flex-1 min-w-0 flex flex-col overflow-hidden"
-              />
+              {/* Nothing to browse yet is not the same as nothing to
+                  browse: with the catalog missing the studio does not
+                  know which tokens exist here, and the site-wide tree is
+                  not an answer to that question. */}
+              {tokenSourceUnknown ? (
+                <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+                  {catalogFailed ? (
+                    <TokenRequestError
+                      what="This editor's tokens"
+                      error={catalogState?.error}
+                      onRetry={catalogState?.retry}
+                      testId="text-studio-tokens-error"
+                    />
+                  ) : (
+                    <p
+                      className="p-2 text-sm text-muted-foreground flex items-center gap-1.5"
+                      data-testid="text-studio-tokens-loading"
+                    >
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading
+                      this editor's tokens…
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <TokenTreeBrowser
+                  onInsert={insertSnippet}
+                  rootNames={rootNames}
+                  treeBaseUrl={treeBaseUrl}
+                  // The section header already says what this is.
+                  hideHeading
+                  className="min-h-0 flex-1 min-w-0 flex flex-col overflow-hidden"
+                />
+              )}
             </StudioPanel>
           </div>
         </div>
 
-        <div className="px-6 py-3 border-t shrink-0 flex justify-end">
-          <Button onClick={() => onOpenChange(false)} data-testid="button-studio-done">
+        <div className="px-6 py-3 border-t shrink-0 flex items-start gap-4">
+          <StudioDiagnostics
+            catalogState={catalogState}
+            tokenCount={tokens.length}
+            segmentCount={segments?.length ?? 0}
+            contextRootCount={contextRoots.length}
+            rootNames={rootNames}
+            treeRoots={treeRoots}
+            treeNotAsked={
+              tokenSourceUnknown
+                ? catalogFailed
+                  ? "this host's roots come from the catalog, and the catalog failed"
+                  : "waiting for the catalog to say which roots this host has"
+                : undefined
+            }
+            previewError={previewError}
+          />
+          <Button
+            onClick={() => onOpenChange(false)}
+            data-testid="button-studio-done"
+            className="shrink-0"
+          >
             Done
           </Button>
         </div>

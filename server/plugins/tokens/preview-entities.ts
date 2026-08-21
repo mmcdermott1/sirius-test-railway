@@ -168,7 +168,17 @@ async function gateAllows(
 }
 
 export type TokenPreviewOfferResult =
-  | { ok: true; records: TokenPreviewRecordRef[] }
+  | {
+      ok: true;
+      records: TokenPreviewRecordRef[];
+      /**
+       * How many candidates were put forward BEFORE the gate ran. It is
+       * the difference between "there was nothing to offer" and "there
+       * was something and you may not read it" — two answers a studio
+       * has to tell apart to say why a root has no records.
+       */
+      considered: number;
+    }
   | { ok: false; status: number; message: string };
 
 /**
@@ -197,16 +207,23 @@ export async function filterTokenPreviewRecords(
   }
   if (!(await componentAllows(entry))) {
     // Same answer a switched-off component gives everywhere else: the
-    // kind simply offers nothing.
-    return { ok: true, records: [] };
+    // kind simply offers nothing. Nothing was considered either — a
+    // switched-off component is not a refusal aimed at this caller.
+    return { ok: true, records: [], considered: 0 };
   }
 
   const check = accessChecker(ctx);
   const gate = entry.source.gate;
   if (gate.scope === "route") {
     const answer = await check(gate.policy);
-    if (!answer.granted) return { ok: true, records: [] };
-    return { ok: true, records: candidates.slice(0, limit) };
+    if (!answer.granted) {
+      return { ok: true, records: [], considered: candidates.length };
+    }
+    return {
+      ok: true,
+      records: candidates.slice(0, limit),
+      considered: candidates.length,
+    };
   }
 
   const verdicts = await Promise.all(
@@ -217,7 +234,7 @@ export async function filterTokenPreviewRecords(
     ),
   );
   const records = candidates.filter((_, i) => verdicts[i]).slice(0, limit);
-  return { ok: true, records };
+  return { ok: true, records, considered: candidates.length };
 }
 
 /**
@@ -242,7 +259,9 @@ export async function offerTokenPreviewRecords(
       message: `Records of kind "${kind}" cannot be used as a preview context`,
     };
   }
-  if (!(await componentAllows(entry))) return { ok: true, records: [] };
+  if (!(await componentAllows(entry))) {
+    return { ok: true, records: [], considered: 0 };
+  }
 
   // A record gate drops some of what the kind offers, so ask for more
   // than we need; a route gate keeps all or nothing.

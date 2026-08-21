@@ -95,7 +95,16 @@ export function TokenStudio({
     (roots
       ? `/api/token-studio/catalog?roots=${encodeURIComponent(roots.join(","))}`
       : "/api/token-studio/catalog");
-  const { data: catalog } = useQuery<TokenStudioCatalog>({
+  // The failure is part of the answer. Dropping it here is how a host
+  // whose catalog request 403s ends up looking like a host with no
+  // tokens: the studio can only be honest about a request it is told
+  // about.
+  const {
+    data: catalog,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<TokenStudioCatalog>({
     queryKey: [url],
     enabled: open,
   });
@@ -118,6 +127,14 @@ export function TokenStudio({
       rootNames={roots}
       studioContext={catalog?.studioContext}
       treeBaseUrl={treeBaseUrl}
+      catalogState={{
+        url,
+        loading: isLoading,
+        error,
+        retry: () => {
+          void refetch();
+        },
+      }}
     />
   );
 }

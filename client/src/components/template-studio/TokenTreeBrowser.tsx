@@ -3,7 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Clock, Loader2, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/queryClient";
+import {
+  AlertTriangle,
+  ChevronRight,
+  Clock,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
 import { MAX_CHAIN_DEPTH, type TokenArgSpec, collapseFieldSegments } from "@shared/tokens";
 
 /**
@@ -24,7 +34,7 @@ import { MAX_CHAIN_DEPTH, type TokenArgSpec, collapseFieldSegments } from "@shar
 
 type TokenTreeChildKind = "relation" | "leaf" | "field";
 
-interface TokenTreeRoot {
+export interface TokenTreeRoot {
   name: string;
   label: string;
   description?: string;
@@ -171,6 +181,96 @@ interface ArgDraft {
   baseDepth: number;
 }
 
+/** The studio's own tree endpoints, for a host that names none. */
+export const DEFAULT_TREE_BASE_URL = "/api/token-studio/tree";
+
+/** The tree's roots and HOW THEY GOT HERE — loading, failed, or loaded. */
+export interface TokenTreeRootsState {
+  /** The endpoint this host is asking, verbatim, for diagnostics. */
+  url: string;
+  roots: TokenTreeRoot[];
+  loading: boolean;
+  error: unknown;
+  /** Ask again after a failure. */
+  retry: () => void;
+}
+
+/**
+ * The tree's root list, shared by the picker and the studio's
+ * diagnostics. Both read the SAME query key, so asking twice costs one
+ * request and the two can never disagree about what this host's tree
+ * endpoint returned.
+ */
+export function useTokenTreeRoots({
+  treeBaseUrl = DEFAULT_TREE_BASE_URL,
+  rootNames,
+  enabled = true,
+}: {
+  treeBaseUrl?: string;
+  rootNames?: string[];
+  enabled?: boolean;
+}): TokenTreeRootsState {
+  const rootsParam = rootNames?.length ? rootNames.join(",") : "";
+  const url = rootsParam
+    ? `${treeBaseUrl}/roots?roots=${encodeURIComponent(rootsParam)}`
+    : `${treeBaseUrl}/roots`;
+  const { data, isLoading, error, refetch } = useQuery<{ roots: TokenTreeRoot[] }>({
+    queryKey: [url],
+    enabled,
+  });
+  return {
+    url,
+    roots: data?.roots ?? [],
+    loading: isLoading,
+    error: error ?? null,
+    retry: () => {
+      void refetch();
+    },
+  };
+}
+
+/** A failed request, said out loud, with the one thing to do about it. */
+export function TokenRequestError({
+  what,
+  error,
+  onRetry,
+  testId,
+}: {
+  /** What could not be loaded, as a noun phrase. */
+  what: string;
+  error: unknown;
+  onRetry?: () => void;
+  testId: string;
+}) {
+  return (
+    <div
+      className="p-2 space-y-1.5 text-sm text-destructive"
+      data-testid={testId}
+    >
+      <div className="flex items-start gap-1.5">
+        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <span>
+          <span className="font-medium">{what} could not be loaded.</span>{" "}
+          {getApiErrorMessage(error, "The request failed.")}
+        </span>
+      </div>
+      {onRetry && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7"
+          onClick={onRetry}
+          data-testid={`${testId}-retry`}
+        >
+          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+          Try again
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export interface TokenTreeBrowserProps {
   onInsert: (snippet: string) => void;
   /**
@@ -191,7 +291,7 @@ export interface TokenTreeBrowserProps {
 
 export function TokenTreeBrowser({
   onInsert,
-  treeBaseUrl = "/api/token-studio/tree",
+  treeBaseUrl = DEFAULT_TREE_BASE_URL,
   rootNames,
   hideHeading,
   className,
@@ -221,15 +321,19 @@ export function TokenTreeBrowser({
   // children rather than building a token the studio marks invalid.
   const atMaxDepth = stack.length >= MAX_CHAIN_DEPTH;
 
-  const rootsUrl = rootsParam
-    ? `${treeBaseUrl}/roots?roots=${encodeURIComponent(rootsParam)}`
-    : `${treeBaseUrl}/roots`;
-  const { data: rootData, isLoading: rootsLoading } = useQuery<{ roots: TokenTreeRoot[] }>({
-    queryKey: [rootsUrl],
-  });
-  const roots = rootData?.roots ?? [];
+  const {
+    roots,
+    loading: rootsLoading,
+    error: rootsError,
+    retry: retryRoots,
+  } = useTokenTreeRoots({ treeBaseUrl, rootNames });
 
-  const { data: expansion, isLoading: levelLoading } = useQuery<TokenTypeExpansion>({
+  const {
+    data: expansion,
+    isLoading: levelLoading,
+    error: levelError,
+    refetch: refetchLevel,
+  } = useQuery<TokenTypeExpansion>({
     queryKey: [`${treeBaseUrl}/type/${encodeURIComponent(current?.type ?? "")}`],
     enabled: Boolean(current),
   });
@@ -240,7 +344,12 @@ export function TokenTreeBrowser({
     params.set("q", query);
     return `${treeBaseUrl}/search?${params.toString()}`;
   }, [treeBaseUrl, rootsParam, query]);
-  const { data: searchData, isFetching: searchFetching } = useQuery<{
+  const {
+    data: searchData,
+    isFetching: searchFetching,
+    error: searchError,
+    refetch: refetchSearch,
+  } = useQuery<{
     hits: TokenTreeSearchHit[];
   }>({
     queryKey: [searchUrl],
@@ -546,6 +655,15 @@ export function TokenTreeBrowser({
               <div className="p-2 text-sm text-muted-foreground flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
               </div>
+            ) : searchError ? (
+              <TokenRequestError
+                what="Token search"
+                error={searchError}
+                onRetry={() => {
+                  void refetchSearch();
+                }}
+                testId="text-token-search-error"
+              />
             ) : hits.length === 0 ? (
               <div className="p-2 text-sm text-muted-foreground" data-testid="text-no-tokens-found">
                 No tokens match "{query}".
@@ -564,11 +682,24 @@ export function TokenTreeBrowser({
             {!atMaxDepth && relations.map((c, i) => renderChildRow(c, i))}
             {!atMaxDepth && leaves.map((c, i) => renderChildRow(c, relations.length + i))}
             {!atMaxDepth && fields.map((c, i) => renderChildRow(c, relations.length + leaves.length + i))}
-            {!levelLoading && !atMaxDepth && (expansion?.children.length ?? 0) === 0 && (
-              <div className="p-2 text-sm text-muted-foreground">
-                This record offers nothing to insert.
-              </div>
+            {levelError && !levelLoading && (
+              <TokenRequestError
+                what={`What ${current.label} offers`}
+                error={levelError}
+                onRetry={() => {
+                  void refetchLevel();
+                }}
+                testId="text-token-level-error"
+              />
             )}
+            {!levelLoading &&
+              !levelError &&
+              !atMaxDepth &&
+              (expansion?.children.length ?? 0) === 0 && (
+                <div className="p-2 text-sm text-muted-foreground">
+                  This record offers nothing to insert.
+                </div>
+              )}
             {atMaxDepth && (
               <div className="p-2 text-sm text-muted-foreground" data-testid="text-token-max-depth">
                 This chain is as long as a token can be ({MAX_CHAIN_DEPTH} steps). Insert this
@@ -579,14 +710,28 @@ export function TokenTreeBrowser({
         ) : (
           <div className="p-2 space-y-0.5">
             {roots.map(renderRootRow)}
+            {/* Three states, three sentences: a failed request must never
+                be able to read as "there are no tokens here". */}
             {rootsLoading && (
-              <div className="p-2 text-sm text-muted-foreground flex items-center gap-1.5">
+              <div
+                className="p-2 text-sm text-muted-foreground flex items-center gap-1.5"
+                data-testid="text-tokens-loading"
+              >
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tokens…
               </div>
             )}
-            {!rootsLoading && roots.length === 0 && (
+            {!rootsLoading && Boolean(rootsError) && (
+              <TokenRequestError
+                what="The token list"
+                error={rootsError}
+                onRetry={retryRoots}
+                testId="text-token-roots-error"
+              />
+            )}
+            {!rootsLoading && !rootsError && roots.length === 0 && (
               <div className="p-2 text-sm text-muted-foreground" data-testid="text-no-tokens-found">
-                No token records are available here.
+                This editor offers no token records — nothing here has tokens to
+                insert.
               </div>
             )}
             {recent.length > 0 && (

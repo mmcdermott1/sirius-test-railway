@@ -691,12 +691,29 @@ export function registerBulkMessageRoutes(
 
       // A bulk message is ABOUT its recipients, so the roots it offers
       // are the ordinary ones; the recipient-side kinds are the ones
-      // this message has records for.
+      // this message has records for. The rest (employer) it does NOT
+      // supply, so they fall back to the kind's own records and the
+      // studio labels them as not being this message's.
       const rootNames = ordinaryPreviewRootNames();
       const recordsByRoot: Record<string, Array<{ id: string; label: string; hint?: string }>> = {};
+      // Why a supplied list is empty is something only this message
+      // knows, and "there is nobody to preview against" is the honest
+      // answer an author needs where the picker would be.
+      const emptyRecordsNotes: Record<string, string> = {};
+      const noRecipients = participants.length === 0;
       for (const root of listTokenPreviewRoots(rootNames)) {
-        if (root.kind === "contact") recordsByRoot[root.name] = [...contactRecords.values()];
-        else if (root.kind === "worker") recordsByRoot[root.name] = [...workerRecords.values()];
+        if (root.kind === "contact") {
+          recordsByRoot[root.name] = [...contactRecords.values()];
+          if (noRecipients) {
+            emptyRecordsNotes[root.name] =
+              "This message has no recipients yet — add some on the Recipients tab to preview against a real one.";
+          }
+        } else if (root.kind === "worker") {
+          recordsByRoot[root.name] = [...workerRecords.values()];
+          emptyRecordsNotes[root.name] = noRecipients
+            ? "This message has no recipients yet — add some on the Recipients tab to preview against a real one."
+            : "None of this message's recipients is linked to a worker record.";
+        }
       }
 
       res.json({
@@ -705,7 +722,7 @@ export function registerBulkMessageRoutes(
         fields: buildFieldCatalog(),
         studioContext: await buildTokenStudioContext(
           { storage, req },
-          { rootNames, recordsByRoot },
+          { rootNames, recordsByRoot, emptyRecordsNotes },
         ),
       });
     } catch (error: unknown) {

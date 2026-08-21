@@ -9,6 +9,7 @@ import {
   filterTokenPreviewRecords,
   offerTokenPreviewRecords,
   type TokenPreviewContext,
+  type TokenPreviewOfferResult,
 } from "./preview-entities";
 
 /**
@@ -40,6 +41,32 @@ export interface TokenStudioSeedRecord {
   hint?: string;
 }
 
+/**
+ * WHOSE records a root is offering.
+ *
+ * ONE RULE, everywhere: a root the container supplied a list for offers
+ * that list and nothing else (`container`), and a root it named but
+ * supplied nothing for falls back to the kind's own first records
+ * (`kind`). The fallback is kept because a studio with nothing to
+ * preview against helps nobody — but it is never passed off as the
+ * container's own, so an author can see that the employers on offer are
+ * not this message's employers.
+ */
+export type TokenStudioRecordSource = "container" | "kind";
+
+/** Why a root has no real records to pick from. */
+export type TokenStudioNoRecordsReason =
+  /** The container supplied a list and it was empty. */
+  | "container-empty"
+  /** The container supplied records; this caller may read none of them. */
+  | "container-unreadable"
+  /** The kind put nothing forward (nothing there, or its component is off). */
+  | "kind-offers-none"
+  /** The kind put records forward; this caller may read none of them. */
+  | "kind-unreadable"
+  /** The kind cannot be previewed against at all — it declares no read. */
+  | "not-previewable";
+
 /** One root, with everything the author may render it as. */
 export interface TokenStudioContextRoot {
   /** Root NAME — the segment a chain starts with (`dispatch`, `worker`). */
@@ -50,10 +77,20 @@ export interface TokenStudioContextRoot {
   samples: TokenSampleSetChoice[];
   /**
    * Real records that may seed this root, already gated for this
-   * caller. Empty means personas only — the kind declares no preview
-   * read, its component is off, or nothing is on offer.
+   * caller. Empty means personas only — and {@link noRecords} says
+   * which of the several reasons for that this one is.
    */
   records: TokenStudioSeedRecord[];
+  /** Whose records these are — see {@link TokenStudioRecordSource}. */
+  recordSource: TokenStudioRecordSource;
+  /** Why `records` is empty; absent whenever there are records. */
+  noRecords?: {
+    reason: TokenStudioNoRecordsReason;
+    /** The container's own words for an empty list it supplied. */
+    note?: string;
+    /** The kind's refusal, when it cannot be previewed at all. */
+    detail?: string;
+  };
 }
 
 export interface TokenStudioContext {
@@ -78,8 +115,20 @@ export interface BuildTokenStudioContextOptions {
    * here is offered these records and nothing else — the container's
    * own records are the point, not a fallback. They are gated like any
    * other offer.
+   *
+   * A root left OUT of this map falls back to the kind's own first
+   * records and is reported as `recordSource: "kind"`, so the studio
+   * can say out loud that they are not this container's records.
    */
   recordsByRoot?: Record<string, TokenPreviewRecordRef[]>;
+  /**
+   * The container's own words for why the list it supplied for a root
+   * is EMPTY, keyed by root name ("this message has no recipients
+   * yet"). Only the container knows that reason, and it is the honest
+   * thing to show where the picker would be — but it is narration, not
+   * behaviour: the rule above is the same with or without it.
+   */
+  emptyRecordsNotes?: Record<string, string>;
   limit?: number;
 }
 
@@ -99,31 +148,74 @@ export async function buildTokenStudioContext(
     );
   }
 
+  const notes = options.emptyRecordsNotes ?? {};
+
   const roots = await Promise.all(
-    listTokenPreviewRoots(options.rootNames ?? []).map(async (root) => {
-      const own = Object.prototype.hasOwnProperty.call(supplied, root.name)
-        ? supplied[root.name]
-        : undefined;
-      const offered = own
-        ? await filterTokenPreviewRecords(root.kind, own, limit, ctx)
-        : await offerTokenPreviewRecords(root.kind, limit, ctx);
-      return {
-        name: root.name,
-        kind: root.kind,
-        label: root.label,
-        samples: listSampleSetChoicesForKind(root.kind),
+    listTokenPreviewRoots(options.rootNames ?? []).map(
+      async (root): Promise<TokenStudioContextRoot> => {
+        const own = Object.prototype.hasOwnProperty.call(supplied, root.name)
+          ? supplied[root.name]
+          : undefined;
+        const recordSource: TokenStudioRecordSource = own
+          ? "container"
+          : "kind";
+        const offered = own
+          ? await filterTokenPreviewRecords(root.kind, own, limit, ctx)
+          : await offerTokenPreviewRecords(root.kind, limit, ctx);
         // Only what the author picks from: `gateEntityId` is how the
         // gate found its subject, not something a client needs.
-        records: offered.ok
+        const records = offered.ok
           ? offered.records.map((r) => ({
               id: r.id,
               label: r.label,
               ...(r.hint ? { hint: r.hint } : {}),
             }))
-          : [],
-      };
-    }),
+          : [];
+        return {
+          name: root.name,
+          kind: root.kind,
+          label: root.label,
+          samples: listSampleSetChoicesForKind(root.kind),
+          records,
+          recordSource,
+          ...(records.length === 0
+            ? {
+                noRecords: describeEmptyOffer(
+                  offered,
+                  recordSource,
+                  notes[root.name],
+                ),
+              }
+            : {}),
+        };
+      },
+    ),
   );
 
   return { roots };
+}
+
+/**
+ * Why a root ended up with no records. "There is nothing here", "there
+ * is something and you may not read it" and "this kind cannot be
+ * previewed at all" are three different answers, and a studio that
+ * showed one message for all three would be guessing on the author's
+ * behalf.
+ */
+function describeEmptyOffer(
+  offered: TokenPreviewOfferResult,
+  source: TokenStudioRecordSource,
+  note: string | undefined,
+): NonNullable<TokenStudioContextRoot["noRecords"]> {
+  if (!offered.ok) {
+    return { reason: "not-previewable", detail: offered.message };
+  }
+  if (source === "container") {
+    return offered.considered === 0
+      ? { reason: "container-empty", ...(note ? { note } : {}) }
+      : { reason: "container-unreadable" };
+  }
+  return offered.considered === 0
+    ? { reason: "kind-offers-none" }
+    : { reason: "kind-unreadable" };
 }

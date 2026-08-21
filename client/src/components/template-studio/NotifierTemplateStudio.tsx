@@ -4,6 +4,7 @@ import {
   type StudioContext,
   type StudioField,
   type StudioFieldMode,
+  type StudioSourceState,
 } from "./TemplateStudio";
 import { NOTIFIER_CHANNEL_FIELDS } from "@shared/delivery-fields";
 import type {
@@ -53,6 +54,12 @@ export interface NotifierTemplateStudioProps {
    *  the config form's channel-templates RJSF field. */
   schemaRows: ChannelFieldSpec[];
   catalog: NotifierTokenCatalog | undefined;
+  /**
+   * How the catalog request above went. The parent field owns that
+   * query, so it is the only one that can tell the studio whether an
+   * absent catalog is still loading or failed.
+   */
+  catalogState?: StudioSourceState;
   /** The full live config data (for preview + reading current templates). */
   configData: Record<string, unknown>;
   /** Writes one template field back into the host form's config data. */
@@ -75,6 +82,7 @@ export function NotifierTemplateStudio({
   channel,
   schemaRows,
   catalog,
+  catalogState,
   configData,
   updateConfigData,
   disabled,
@@ -173,6 +181,7 @@ export function NotifierTemplateStudio({
       // ordinary roots (contact, system…) after them.
       rootNames={catalog?.rootNames ?? []}
       studioContext={catalog?.studioContext}
+      catalogState={catalogState}
     />
   );
 }
