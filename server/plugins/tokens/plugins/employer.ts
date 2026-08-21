@@ -2,6 +2,7 @@ import { employers } from "@shared/schema";
 import { registerTokenPlugin } from "../registry";
 import { memo, tokenEntityOf, type TokenEntity } from "../types";
 import { loadWorkerEntity } from "./worker";
+import { composeComplianceMessage as complianceSample } from "./compliance";
 
 /**
  * Named sample employers, one per shared persona id (see the contact
@@ -12,17 +13,41 @@ const EMPLOYER_SAMPLE_SETS = [
   {
     id: "martian",
     label: "Martian",
-    values: { name: "Olympus Mons Freight", sirius_id: "SAMPLE-E01" },
+    values: {
+      name: "Olympus Mons Freight",
+      sirius_id: "SAMPLE-E01",
+      compliance_message: complianceSample(
+        "Olympus Mons Freight",
+        "Regolith Haulage Hours",
+        "Tharsis Health & Welfare Trust",
+      ),
+    },
   },
   {
     id: "historical",
     label: "Historical",
-    values: { name: "Difference Engine Works", sirius_id: "SAMPLE-E02" },
+    values: {
+      name: "Difference Engine Works",
+      sirius_id: "SAMPLE-E02",
+      compliance_message: complianceSample(
+        "Difference Engine Works",
+        "Analytical Shift Returns",
+        "Menabrea Benevolent Fund",
+      ),
+    },
   },
   {
     id: "mythological",
     label: "Mythological",
-    values: { name: "Ithaka Shipping Company", sirius_id: "SAMPLE-E03" },
+    values: {
+      name: "Ithaka Shipping Company",
+      sirius_id: "SAMPLE-E03",
+      compliance_message: complianceSample(
+        "Ithaka Shipping Company",
+        "Voyage Manifest Upload",
+        "Penelope Pension Trust",
+      ),
+    },
   },
 ];
 
