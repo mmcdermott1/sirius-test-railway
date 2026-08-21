@@ -81,16 +81,6 @@ async function emitGrievanceSettlementSaved(
 }
 
 /**
- * A settlement plus the two parts its grievance's display title is
- * composed from, so a caller listing settlements across grievances can
- * name the grievance each one is on without an N+1 per row.
- */
-export interface GrievanceSettlementPreviewItem extends GrievanceSettlement {
-  grievanceName: string | null;
-  grievanceCategoryName: string | null;
-}
-
-/**
  * Storage for settlements recorded against a grievance. Owned by the
  * `grievance.settlement` component. Every method takes `grievanceId` as its
  * first argument so writes are attributed to the grievance as the host entity
@@ -103,15 +93,6 @@ export interface GrievanceSettlementPreviewItem extends GrievanceSettlement {
  */
 export interface GrievanceSettlementStorage {
   list(grievanceId: string): Promise<GrievanceSettlement[]>;
-  /**
-   * Settlements across ALL grievances matching `query` (grievance name
-   * or settlement description; empty matches every settlement), with the
-   * parts their grievance's display title is composed from. Feeds the
-   * Template Studio's preview seeds. The table carries no created-at
-   * column, so the order is stable rather than recent (by grievance,
-   * then id).
-   */
-  listForPreview(limit: number): Promise<GrievanceSettlementPreviewItem[]>;
   get(
     grievanceId: string,
     settlementId: string,
@@ -153,34 +134,6 @@ export function createGrievanceSettlementStorage(): GrievanceSettlementStorage {
         .orderBy(asc(grievanceSettlements.id));
     },
 
-    async listForPreview(
-      limit: number,
-    ): Promise<GrievanceSettlementPreviewItem[]> {
-      const client = getClient();
-      const rows = await client
-        .select({
-          settlement: grievanceSettlements,
-          grievanceName: grievanceNameDenorm.name,
-          grievanceCategoryName: optionsGrievanceCategory.name,
-        })
-        .from(grievanceSettlements)
-        .leftJoin(
-          grievanceNameDenorm,
-          eq(grievanceSettlements.grievanceId, grievanceNameDenorm.grievanceId),
-        )
-        .leftJoin(grievances, eq(grievanceSettlements.grievanceId, grievances.id))
-        .leftJoin(
-          optionsGrievanceCategory,
-          eq(grievances.categoryId, optionsGrievanceCategory.id),
-        )
-        .orderBy(asc(grievanceSettlements.grievanceId), asc(grievanceSettlements.id))
-        .limit(limit);
-      return rows.map((r) => ({
-        ...r.settlement,
-        grievanceName: r.grievanceName,
-        grievanceCategoryName: r.grievanceCategoryName,
-      }));
-    },
 
     async getById(settlementId: string): Promise<GrievanceSettlement | undefined> {
       const client = getClient();

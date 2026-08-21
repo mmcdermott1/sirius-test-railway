@@ -79,17 +79,6 @@ registerTokenPlugin({
     // sheet page reads it behind; preview runs it per sheet.
     previewEntity: {
       gate: { scope: "record", policy: "edls.sheet.view" },
-      async offer(storage, limit) {
-        const { edlsStatusLabel, edlsSheetDisplayTitle } = await import(
-          "../../event-notifier/plugins/edls-sheet-status-notifier"
-        );
-        const rows = await storage.edlsSheets.listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: edlsSheetDisplayTitle(row.id, row.title),
-          hint: [edlsStatusLabel(row.status), row.ymd].filter(Boolean).join(" — "),
-        }));
-      },
       async load(storage, id) {
         // The notifier owns the derived wording; a preview that composed
         // it separately would drift from what delivery actually sends.

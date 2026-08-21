@@ -160,14 +160,6 @@ registerTokenPlugin({
     // per-job rule here would make preview disagree with the job pages.
     previewEntity: {
       gate: { scope: "route", policy: "admin" },
-      async offer(storage, limit) {
-        const jobs = await storage.dispatchJobs.listForPreview(limit);
-        return jobs.map((job) => ({
-          id: job.id,
-          label: `${job.title} — ${job.startYmd}`,
-          hint: job.employerName ?? undefined,
-        }));
-      },
       async load(storage, id) {
         const row = await storage.dispatchJobs.get(id);
         if (!row) return null;
@@ -256,23 +248,6 @@ registerTokenPlugin({
     // policy of its own, so the gate subject is the worker, not the row.
     previewEntity: {
       gate: { scope: "record", policy: "worker.view" },
-      async offer(_storage, limit) {
-        // Availability rows are their own storage module, not part of
-        // IStorage — the same one the notifier reads them through.
-        const [{ dispatchStatusLabel }, { createWorkerDispatchStatusStorage }] =
-          await Promise.all([
-            import("../../event-notifier/plugins/dispatch-status-notifier"),
-            import("../../../storage/dispatch/worker-status"),
-          ]);
-        const rows =
-          await createWorkerDispatchStatusStorage().listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          gateEntityId: row.workerId,
-          label: row.workerName || "Unnamed worker",
-          hint: dispatchStatusLabel(row.status),
-        }));
-      },
       async load(storage, id) {
         // The notifier owns the derived wording; composing it separately
         // here would drift from what delivery actually sends.
@@ -394,17 +369,6 @@ registerTokenPlugin({
     // component).
     previewEntity: {
       gate: { scope: "record", policy: "worker.view" },
-      async offer(storage, limit) {
-        const rows = await storage.dispatchJobFore.listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          gateEntityId: row.workerId,
-          label: row.workerName || "Unnamed worker",
-          hint: [row.jobTitle || "Untitled job", row.employerName]
-            .filter(Boolean)
-            .join(" — "),
-        }));
-      },
       async load(storage, id) {
         const row = await storage.dispatchJobFore.get(id);
         if (!row) return null;

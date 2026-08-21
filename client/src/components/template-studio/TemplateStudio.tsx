@@ -103,19 +103,11 @@ export interface StudioSeedRecord {
   hint?: string;
 }
 
-/**
- * Whose records a root offers (mirrors the server's
- * `TokenStudioRecordSource`): the container's own, or the kind's first
- * records because the container supplied none.
- */
-export type StudioRecordSource = "container" | "kind";
 
 /** Why a root has no real records (mirrors `TokenStudioNoRecordsReason`). */
 export type StudioNoRecordsReason =
-  | "container-empty"
-  | "container-unreadable"
-  | "kind-offers-none"
-  | "kind-unreadable"
+  | "none-supplied"
+  | "unreadable"
   | "not-previewable";
 
 /** One root and everything it may be previewed as. */
@@ -126,8 +118,6 @@ export interface StudioContextRoot {
   label: string;
   samples: StudioSampleSet[];
   records: StudioSeedRecord[];
-  /** Whose records those are. Absent from an older response: unknown. */
-  recordSource?: StudioRecordSource;
   /** Why there are none, when there are none. */
   noRecords?: {
     reason: StudioNoRecordsReason;
@@ -488,14 +478,10 @@ function noRecordsMessage(root: StudioContextRoot): string {
   const label = root.label.toLowerCase();
   if (noRecords?.note) return noRecords.note;
   switch (noRecords?.reason) {
-    case "container-empty":
+    case "none-supplied":
       return `The editor that opened this studio has no ${label} records for it.`;
-    case "container-unreadable":
+    case "unreadable":
       return `You may not read the ${label} records this editor offered.`;
-    case "kind-unreadable":
-      return `You may not read any of the ${label} records on this site.`;
-    case "kind-offers-none":
-      return `This site has no ${label} records to preview against.`;
     case "not-previewable":
       return (
         noRecords.detail ??
@@ -516,11 +502,11 @@ function SeedPicker({
   value: string;
   onChange: (value: string) => void;
 }) {
-  // A root the container supplied records for is offering ITS OWN; one
-  // it merely named falls back to the kind's first records, which are
-  // not the ones this template is about. Two rules in one panel is what
-  // let 11 unrelated employers look like a bulk message's employers.
-  const fromKind = root.recordSource === "kind";
+  // Every real record here is one the container that opened this studio
+  // put forward. There is no other source: a root it supplied nothing
+  // for shows its sample personas, rather than the first records of
+  // that kind, which is what once made 11 unrelated employers look like
+  // a bulk message's employers.
   return (
     <div className="space-y-1" data-testid={`studio-seed-root-${root.name}`}>
       <Label className="text-xs text-muted-foreground">{root.label}</Label>
@@ -534,11 +520,7 @@ function SeedPicker({
         <SelectContent>
           {root.records.length > 0 && (
             <SelectGroup>
-              <SelectLabel>
-                {fromKind
-                  ? `Any ${root.label.toLowerCase()} — not this editor's`
-                  : "Real records"}
-              </SelectLabel>
+              <SelectLabel>Real records</SelectLabel>
               {root.records.map((r) => (
                 <SelectItem
                   key={r.id}
@@ -575,14 +557,6 @@ function SeedPicker({
           data-testid={`text-studio-no-records-${root.name}`}
         >
           {noRecordsMessage(root)} Sample personas only.
-        </p>
-      ) : fromKind ? (
-        <p
-          className="text-xs text-muted-foreground"
-          data-testid={`text-studio-kind-records-${root.name}`}
-        >
-          These are the first {root.label.toLowerCase()} records on this site,
-          not the ones this template is about.
         </p>
       ) : null}
     </div>

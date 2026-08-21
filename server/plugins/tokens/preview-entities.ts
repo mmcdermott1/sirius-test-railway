@@ -10,16 +10,19 @@ import type {
 } from "./types";
 
 /**
- * Which token entity kinds may stand behind a preview context, how
- * reading one of their records is gated, and which records the kind
- * offers as seeds.
+ * Which token entity kinds may stand behind a preview context, and how
+ * reading one of their records is gated.
  *
  * Previewing a template against a real record is a READ of that record.
  * It is therefore gated exactly like any other read of it: the kind's
  * owning token plugin declares how a read is authorized, and BOTH the
- * records offered as seeds and the load-by-id run that same gate on the
- * same subject id the record yields — so the check can never end up
- * guarding a different record than the one seeded.
+ * records a container puts forward as seeds and the load-by-id run that
+ * same gate on the same subject id the record yields — so the check can
+ * never end up guarding a different record than the one seeded.
+ *
+ * No kind can produce records of its own. Records reach a preview from
+ * the container that opened the studio and from nowhere else; a kind
+ * only says how one is authorized and how to load one by id.
  *
  * FAIL CLOSED: a kind with no declaration cannot be used as a preview
  * context at all. Adding a token entity kind therefore does not quietly
@@ -87,7 +90,6 @@ export function describeTokenPreviewEntities(): Array<{
   pluginId: string;
   gate: TokenPreviewGate;
   requiredComponent?: string;
-  hasOffer: boolean;
   hasLoad: boolean;
 }> {
   return [...collectPreviewEntities().entries()]
@@ -96,7 +98,6 @@ export function describeTokenPreviewEntities(): Array<{
       pluginId: entry.pluginId,
       gate: entry.source.gate,
       requiredComponent: entry.requiredComponent,
-      hasOffer: typeof entry.source.offer === "function",
       hasLoad: typeof entry.source.load === "function",
     }))
     .sort((a, b) => a.kind.localeCompare(b.kind));
@@ -184,12 +185,11 @@ export type TokenPreviewOfferResult =
 /**
  * Keep only the records this caller may actually read.
  *
- * Used for BOTH the records a kind offers itself and the records a
- * surface supplies from what it has in hand (a bulk message's own
- * recipients): whoever produced the candidates, no seed is ever offered
- * that its owner could not open elsewhere in the app. Deciding who may
- * see a record stays here, so a surface cannot hand-roll its own idea
- * of authorization by supplying its own list.
+ * The candidates are always a container's own (a bulk message's
+ * recipients, say): no seed is ever offered that its owner could not
+ * open elsewhere in the app. Deciding who may see a record stays here,
+ * so a container cannot hand-roll its own idea of authorization by
+ * supplying its own list.
  */
 export async function filterTokenPreviewRecords(
   kind: TokenEntityType,
@@ -235,40 +235,6 @@ export async function filterTokenPreviewRecords(
   );
   const records = candidates.filter((_, i) => verdicts[i]).slice(0, limit);
   return { ok: true, records, considered: candidates.length };
-}
-
-/**
- * The seeds one kind offers on its own: the records it would show
- * first, filtered by the gate.
- *
- * Over-fetching then filtering is deliberate: the kind knows which
- * records to show, and the gate knows who may see them; keeping those
- * two jobs apart is what stops a kind from inventing its own
- * authorization.
- */
-export async function offerTokenPreviewRecords(
-  kind: TokenEntityType,
-  limit: number,
-  ctx: TokenPreviewContext,
-): Promise<TokenPreviewOfferResult> {
-  const entry = collectPreviewEntities().get(kind);
-  if (!entry) {
-    return {
-      ok: false,
-      status: 400,
-      message: `Records of kind "${kind}" cannot be used as a preview context`,
-    };
-  }
-  if (!(await componentAllows(entry))) {
-    return { ok: true, records: [], considered: 0 };
-  }
-
-  // A record gate drops some of what the kind offers, so ask for more
-  // than we need; a route gate keeps all or nothing.
-  const wanted =
-    entry.source.gate.scope === "record" ? Math.min(limit * 4, 200) : limit;
-  const candidates = await entry.source.offer(ctx.storage, wanted);
-  return filterTokenPreviewRecords(kind, candidates, limit, ctx);
 }
 
 export type TokenPreviewEntityResult =

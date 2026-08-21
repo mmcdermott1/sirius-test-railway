@@ -60,13 +60,6 @@ export interface DispatchJobForeWithNames extends DispatchJobFore {
 
 export interface DispatchJobForeStorage {
   getByJob(jobId: string): Promise<DispatchJobForeWithWorker[]>;
-  /**
-   * Foreperson rows across all jobs matching `query` (worker name, job
-   * title or employer name; empty matches every row), for the Template
-   * Studio's record picker. The table carries no created-at column, so
-   * ordering is by the most recently starting jobs.
-   */
-  listForPreview(limit: number): Promise<DispatchJobForeWithNames[]>;
   /** Foreperson rows for a worker joined with job and employer info. Read-only. */
   getByWorker(workerId: string): Promise<DispatchJobForeWithJob[]>;
   get(id: string): Promise<DispatchJobFore | undefined>;
@@ -202,26 +195,6 @@ export function createDispatchJobForeStorage(): DispatchJobForeStorage {
       }));
     },
 
-    async listForPreview(limit: number): Promise<DispatchJobForeWithNames[]> {
-      const client = getClient();
-      return client
-        .select({
-          id: dispatchJobFore.id,
-          jobId: dispatchJobFore.jobId,
-          workerId: dispatchJobFore.workerId,
-          data: dispatchJobFore.data,
-          jobTitle: dispatchJobs.title,
-          employerName: employers.name,
-          workerName: contacts.displayName,
-        })
-        .from(dispatchJobFore)
-        .leftJoin(dispatchJobs, eq(dispatchJobFore.jobId, dispatchJobs.id))
-        .leftJoin(employers, eq(dispatchJobs.employerId, employers.id))
-        .leftJoin(workers, eq(dispatchJobFore.workerId, workers.id))
-        .leftJoin(contacts, eq(workers.contactId, contacts.id))
-        .orderBy(desc(dispatchJobs.startYmd))
-        .limit(limit);
-    },
 
     async getByWorker(workerId: string): Promise<DispatchJobForeWithJob[]> {
       const client = getClient();

@@ -148,23 +148,8 @@ export interface GrievanceSearchFilters {
   employerId?: string;
 }
 
-/** A grievance with the two parts its display title is composed from. */
-export interface GrievancePreviewItem {
-  id: string;
-  siriusId: string | null;
-  name: string | null;
-  categoryName: string | null;
-  statusName: string | null;
-}
-
 export interface GrievanceStorage {
   search(filters?: GrievanceSearchFilters): Promise<GrievanceListItem[]>;
-  /**
-   * Grievances matching `query` (denormalised name or Sirius id; empty
-   * matches every grievance), newest Sirius id first, for the Template
-   * Studio's record picker.
-   */
-  listForPreview(limit: number): Promise<GrievancePreviewItem[]>;
   get(id: string): Promise<(Grievance & { name: string | null }) | undefined>;
   getWithDetails(id: string): Promise<GrievanceWithDetails | undefined>;
   create(data: InsertGrievance): Promise<Grievance>;
@@ -827,39 +812,6 @@ export function createGrievanceStorage(): GrievanceStorage {
       return !!row;
     },
 
-    async listForPreview(limit: number): Promise<GrievancePreviewItem[]> {
-      const client = getClient();
-      return client
-        .select({
-          id: grievances.id,
-          siriusId: grievances.siriusId,
-          name: grievanceNameDenorm.name,
-          categoryName: optionsGrievanceCategory.name,
-          statusName: optionsGrievanceStatus.name,
-        })
-        .from(grievances)
-        .leftJoin(
-          grievanceNameDenorm,
-          eq(grievanceNameDenorm.grievanceId, grievances.id),
-        )
-        .leftJoin(
-          optionsGrievanceCategory,
-          eq(grievances.categoryId, optionsGrievanceCategory.id),
-        )
-        .leftJoin(
-          grievanceStatusHistory,
-          and(
-            eq(grievanceStatusHistory.grievanceId, grievances.id),
-            eq(grievanceStatusHistory.isCurrent, true),
-          ),
-        )
-        .leftJoin(
-          optionsGrievanceStatus,
-          eq(grievanceStatusHistory.statusId, optionsGrievanceStatus.id),
-        )
-        .orderBy(sql`${grievances.siriusId} DESC NULLS LAST`)
-        .limit(limit);
-    },
 
     async getAssignmentTitleInfo(
       grievanceId: string,

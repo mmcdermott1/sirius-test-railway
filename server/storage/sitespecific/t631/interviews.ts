@@ -23,15 +23,6 @@ export interface T631InterviewsStorage {
    */
   getForUpdate(id: string): Promise<SitespecificT631JobInterview | undefined>;
   getByWorker(workerId: string): Promise<SitespecificT631JobInterview[]>;
-  /**
-   * Template-Studio picker search: interviews whose worker name or job
-   * title matches the query (empty query = most recent), with the
-   * labels needed to render a human-readable picker row.
-   */
-  searchForPicker(
-    query: string,
-    limit?: number,
-  ): Promise<Array<{ id: string; status: string; workerName: string | null; jobTitle: string }>>;
   getByJob(jobId: string): Promise<SitespecificT631JobInterview[]>;
   create(record: InsertSitespecificT631JobInterview): Promise<SitespecificT631JobInterview>;
   update(
@@ -119,32 +110,6 @@ export function createT631InterviewsStorage(): T631InterviewsStorage {
         .where(eq(sitespecificT631JobInterviews.jobId, jobId));
     },
 
-    async searchForPicker(
-      query: string,
-      limit = 20,
-    ): Promise<Array<{ id: string; status: string; workerName: string | null; jobTitle: string }>> {
-      if (!(await this.tableExists())) throw new Error("COMPONENT_TABLE_NOT_FOUND");
-      const client = getClient();
-      const q = query.trim();
-      let stmt = client
-        .select({
-          id: sitespecificT631JobInterviews.id,
-          status: sitespecificT631JobInterviews.status,
-          workerName: contacts.displayName,
-          jobTitle: dispatchJobs.title,
-        })
-        .from(sitespecificT631JobInterviews)
-        .innerJoin(workers, eq(sitespecificT631JobInterviews.workerId, workers.id))
-        .leftJoin(contacts, eq(workers.contactId, contacts.id))
-        .innerJoin(dispatchJobs, eq(sitespecificT631JobInterviews.jobId, dispatchJobs.id))
-        .$dynamic();
-      if (q !== "") {
-        stmt = stmt.where(
-          or(ilike(contacts.displayName, `%${q}%`), ilike(dispatchJobs.title, `%${q}%`)),
-        );
-      }
-      return stmt.orderBy(desc(sitespecificT631JobInterviews.id)).limit(limit);
-    },
 
     async create(record: InsertSitespecificT631JobInterview): Promise<SitespecificT631JobInterview> {
       if (!(await this.tableExists())) throw new Error("COMPONENT_TABLE_NOT_FOUND");

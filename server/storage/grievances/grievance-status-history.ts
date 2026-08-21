@@ -96,17 +96,6 @@ export interface GrievanceStatusHistoryItem extends GrievanceStatusHistory {
 }
 
 /**
- * A status entry plus the two parts its grievance's display title is
- * composed from, so a caller listing entries across grievances can name
- * the grievance each one is on without an N+1 per row.
- */
-export interface GrievanceStatusHistoryPreviewItem
-  extends GrievanceStatusHistoryItem {
-  grievanceName: string | null;
-  grievanceCategoryName: string | null;
-}
-
-/**
  * Storage for a grievance's status history. Owned by the `grievance`
  * component. The grievance's current status is derived, not stored on the
  * grievance row: the history entry with the latest `date` is current.
@@ -119,13 +108,6 @@ export interface GrievanceStatusHistoryPreviewItem
  */
 export interface GrievanceStatusHistoryStorage {
   list(grievanceId: string): Promise<GrievanceStatusHistoryItem[]>;
-  /**
-   * Status entries across ALL grievances matching `query` (grievance
-   * name or status name; empty matches every entry), newest first by
-   * entry date, with the parts their grievance's display title is
-   * composed from. Read-only; feeds the Template Studio record picker.
-   */
-  listForPreview(limit: number): Promise<GrievanceStatusHistoryPreviewItem[]>;
   get(
     grievanceId: string,
     entryId: string,
@@ -233,43 +215,6 @@ export function createGrievanceStatusHistoryStorage(): GrievanceStatusHistorySto
       return rows;
     },
 
-    async listForPreview(
-      limit: number,
-    ): Promise<GrievanceStatusHistoryPreviewItem[]> {
-      const client = getClient();
-      return client
-        .select({
-          id: grievanceStatusHistory.id,
-          grievanceId: grievanceStatusHistory.grievanceId,
-          statusId: grievanceStatusHistory.statusId,
-          date: grievanceStatusHistory.date,
-          isCurrent: grievanceStatusHistory.isCurrent,
-          data: grievanceStatusHistory.data,
-          statusName: optionsGrievanceStatus.name,
-          statusOpen: optionsGrievanceStatus.open,
-          grievanceName: grievanceNameDenorm.name,
-          grievanceCategoryName: optionsGrievanceCategory.name,
-        })
-        .from(grievanceStatusHistory)
-        .leftJoin(
-          optionsGrievanceStatus,
-          eq(grievanceStatusHistory.statusId, optionsGrievanceStatus.id),
-        )
-        .leftJoin(
-          grievanceNameDenorm,
-          eq(grievanceStatusHistory.grievanceId, grievanceNameDenorm.grievanceId),
-        )
-        .leftJoin(
-          grievances,
-          eq(grievanceStatusHistory.grievanceId, grievances.id),
-        )
-        .leftJoin(
-          optionsGrievanceCategory,
-          eq(grievances.categoryId, optionsGrievanceCategory.id),
-        )
-        .orderBy(desc(grievanceStatusHistory.date))
-        .limit(limit);
-    },
 
     async getById(entryId: string): Promise<GrievanceStatusHistory | undefined> {
       const client = getClient();

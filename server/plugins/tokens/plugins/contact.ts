@@ -70,14 +70,6 @@ const CONTACT_SAMPLE_SETS = [
   },
 ];
 
-/** Name parts, for a contact whose display name was never composed. */
-function contactFallbackName(row: {
-  given: string | null;
-  family: string | null;
-}): string {
-  return [row.given, row.family].filter(Boolean).join(" ").trim();
-}
-
 /**
  * Root NAME of the recipient's contact. A surface that offers "who is
  * this going to" as a preview seed names this root, and the roots that
@@ -104,17 +96,6 @@ registerTokenPlugin({
     // per record, exactly as opening the contact elsewhere does.
     previewEntity: {
       gate: { scope: "record", policy: "contact.view" },
-      async offer(storage, limit) {
-        const rows = await storage.contacts.searchWithPrimaryContactInfo(
-          "",
-          limit,
-        );
-        return rows.map((row) => ({
-          id: row.id,
-          label: row.displayName || contactFallbackName(row) || `Contact ${row.id.slice(0, 8)}`,
-          hint: row.email ?? undefined,
-        }));
-      },
       async load(storage, id) {
         const row = await storage.bulkTokens.getContactRow(id);
         if (!row) return null;

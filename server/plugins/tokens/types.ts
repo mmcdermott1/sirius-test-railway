@@ -116,16 +116,16 @@ export interface TokenPreviewEntitySource {
    */
   requiredComponent?: string;
   /**
-   * The records this kind OFFERS as preview seeds: the ones it would
-   * show first, at most `limit` of them. There is no query — a template
-   * editor is not a record finder, and a surface that has particular
-   * records in hand supplies them itself instead of asking here.
+   * Load the record somebody NAMED, or null when there is no such
+   * record.
    *
-   * The caller filters these by the gate afterwards, so returning
-   * records the caller may not read is expected, not a leak.
+   * This is the only way token land reaches for a record, and it always
+   * has an id in hand. A kind never lists or searches its table: which
+   * record a template is previewed against is a question the container
+   * opening the studio already answered, and a hook that answered
+   * "what records of this kind exist here?" would be a record finder
+   * bolted onto a template editor.
    */
-  offer(storage: IStorage, limit: number): Promise<TokenPreviewRecordRef[]>;
-  /** Load the record, or null when there is no such record. */
   load(storage: IStorage, id: string): Promise<TokenPreviewLoadedRecord | null>;
 }
 

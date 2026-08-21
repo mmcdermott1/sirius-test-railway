@@ -51,14 +51,6 @@ registerTokenPlugin({
     // employer rather than inventing a stricter or looser one.
     previewEntity: {
       gate: { scope: "record", policy: "employer.steward.view" },
-      async offer(storage, limit) {
-        const rows = await storage.employers.searchByName("", limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: row.name || `Employer ${row.id.slice(0, 8)}`,
-          hint: row.siriusId ?? undefined,
-        }));
-      },
       async load(storage, id) {
         const row = await storage.bulkTokens.getEmployerRow(id);
         if (!row) return null;

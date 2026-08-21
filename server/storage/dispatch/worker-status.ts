@@ -87,15 +87,6 @@ export interface WorkerDispatchStatusWithWorkerName extends WorkerDispatchStatus
 
 export interface WorkerDispatchStatusStorage {
   getAll(): Promise<WorkerDispatchStatus[]>;
-  /**
-   * Dispatch-status rows whose worker's display name matches `query`
-   * (empty matches every row), with that name, for the Template Studio's
-   * record picker. Display-name ordered: there is one row per worker,
-   * updated in place with no changed-at column, so genuine recency is
-   * not derivable here and name order at least stays stable between
-   * opens.
-   */
-  listForPreview(limit: number): Promise<WorkerDispatchStatusWithWorkerName[]>;
   get(id: string): Promise<WorkerDispatchStatus | undefined>;
   getByWorker(workerId: string): Promise<WorkerDispatchStatus | undefined>;
   create(status: InsertWorkerDispatchStatus): Promise<WorkerDispatchStatus>;
@@ -191,24 +182,6 @@ export function createWorkerDispatchStatusStorage(): WorkerDispatchStatusStorage
       return client.select().from(workerDispatchStatus);
     },
 
-    async listForPreview(
-      limit: number,
-    ): Promise<WorkerDispatchStatusWithWorkerName[]> {
-      const client = getClient();
-      return client
-        .select({
-          id: workerDispatchStatus.id,
-          workerId: workerDispatchStatus.workerId,
-          status: workerDispatchStatus.status,
-          seniorityDate: workerDispatchStatus.seniorityDate,
-          workerName: contacts.displayName,
-        })
-        .from(workerDispatchStatus)
-        .leftJoin(workers, eq(workerDispatchStatus.workerId, workers.id))
-        .leftJoin(contacts, eq(workers.contactId, contacts.id))
-        .orderBy(asc(contacts.displayName))
-        .limit(limit);
-    },
 
     async get(id: string): Promise<WorkerDispatchStatus | undefined> {
       const client = getClient();

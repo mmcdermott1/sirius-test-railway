@@ -271,7 +271,9 @@ export function registerTokenStudioRoutes(
    * Carries the studio's own context — what each root may be previewed
    * as — so the studio opens ready to preview, with no second request
    * and no search box. A generic caller has no particular records in
-   * hand, so each root offers what its kind offers.
+   * hand and this route supplies none on its behalf, so each root is
+   * previewed as a sample persona. A container that does hold records
+   * builds the context itself and passes them in.
    */
   app.get(
     "/api/token-studio/catalog",
@@ -301,7 +303,8 @@ export function registerTokenStudioRoutes(
           tokens: buildTokenCatalogForRoots(rootNames),
           // The roots the caller named, and only those: the seed panel
           // is the same list as the browser, so an author cannot preview
-          // against a record their tokens can't address.
+          // against a record their tokens can't address. No records are
+          // supplied here — see above.
           studioContext: await buildTokenStudioContext(
             { storage, req },
             { rootNames },

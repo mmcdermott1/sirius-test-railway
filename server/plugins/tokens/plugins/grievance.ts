@@ -250,17 +250,6 @@ registerTokenPlugin({
     // enforces exactly that gate.
     previewEntity: {
       gate: { scope: "route", policy: "staff" },
-      async offer(storage, limit) {
-        const rows = await storage.grievances.listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: composeGrievanceDisplayTitle(row.id, {
-            name: row.name,
-            categoryName: row.categoryName,
-          }),
-          hint: [row.siriusId, row.statusName].filter(Boolean).join(" — ") || undefined,
-        }));
-      },
       async load(storage, id) {
         // The SAME builder the notifiers seed their `grievance` root
         // with, so the preview row carries exactly the denorm `name` and
@@ -310,22 +299,6 @@ registerTokenPlugin({
     // grievance component, no per-record policy.
     previewEntity: {
       gate: { scope: "route", policy: "staff" },
-      async offer(storage, limit) {
-        const rows = await storage.grievanceStatusHistory.listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: composeGrievanceDisplayTitle(row.grievanceId, {
-            name: row.grievanceName,
-            categoryName: row.grievanceCategoryName,
-          }),
-          hint: [
-            row.statusName,
-            row.date ? new Date(row.date as unknown as string).toISOString().slice(0, 10) : null,
-          ]
-            .filter(Boolean)
-            .join(" — ") || undefined,
-        }));
-      },
       async load(storage, id) {
         // The row exactly as the status notifier's root builder loads it —
         // no derived extras: the kind advertises none.
@@ -381,17 +354,6 @@ registerTokenPlugin({
     // the settlement component, no per-record policy.
     previewEntity: {
       gate: { scope: "route", policy: "staff" },
-      async offer(storage, limit) {
-        const rows = await storage.grievanceSettlements.listForPreview(limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: composeGrievanceDisplayTitle(row.grievanceId, {
-            name: row.grievanceName,
-            categoryName: row.grievanceCategoryName,
-          }),
-          hint: row.description ?? undefined,
-        }));
-      },
       async load(storage, id) {
         // The notifier owns the derived wording (`summary`); the settlement
         // exists, so the event it stands for is the one that created it —

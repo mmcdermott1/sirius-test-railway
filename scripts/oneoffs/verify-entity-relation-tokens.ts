@@ -86,8 +86,8 @@ async function main() {
   check("catalog offers the job's employer", employerEntries.length > 0);
 
   console.log("\n--- render against a real job ---");
-  const jobs = await storage.dispatchJobs.listForPreview(5);
-  const job = jobs.find((j) => j.employerName);
+  const { data: jobs } = await storage.dispatchJobs.getPaginated(1, 25);
+  const job = jobs.find((j) => j.employerId);
   if (!job) {
     check("a dispatch job with an employer exists to render against", false);
   } else {

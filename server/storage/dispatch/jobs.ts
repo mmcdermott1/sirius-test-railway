@@ -69,12 +69,6 @@ export interface DispatchJobStorage {
   getWithRelations(id: string): Promise<DispatchJobWithRelations | undefined>;
   getByEmployer(employerId: string): Promise<DispatchJob[]>;
   /**
-   * Jobs matching `query` (title, or the employer's name; empty matches
-   * every job), newest start date first, for the Template Studio's
-   * record picker.
-   */
-  listForPreview(limit: number): Promise<Array<DispatchJob & { employerName: string | null }>>;
-  /**
    * `facilityId` (dispatch.facility component) is a first-class optional
    * field delegated to the dispatchJobFacility child storage AFTER the job
    * write: a string sets/replaces the link, `null` clears it, `undefined`
@@ -346,18 +340,6 @@ export function createDispatchJobStorage(): DispatchJobStorage {
         .orderBy(desc(dispatchJobs.startYmd));
     },
 
-    async listForPreview(
-      limit: number,
-    ): Promise<Array<DispatchJob & { employerName: string | null }>> {
-      const client = getClient();
-      const rows = await client
-        .select({ job: dispatchJobs, employerName: employers.name })
-        .from(dispatchJobs)
-        .leftJoin(employers, eq(dispatchJobs.employerId, employers.id))
-        .orderBy(desc(dispatchJobs.startYmd))
-        .limit(limit);
-      return rows.map((r) => ({ ...r.job, employerName: r.employerName }));
-    },
 
     async create(insertJob: InsertDispatchJob, facilityId?: string | null): Promise<DispatchJob> {
       validate.validateOrThrow(insertJob);

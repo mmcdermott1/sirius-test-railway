@@ -117,14 +117,6 @@ registerTokenPlugin({
     // everywhere else in the app; preview is no different.
     previewEntity: {
       gate: { scope: "record", policy: "worker.view" },
-      async offer(storage, limit) {
-        const { workers: rows } = await storage.workers.searchWorkers("", limit);
-        return rows.map((row) => ({
-          id: row.id,
-          label: row.displayName,
-          hint: row.siriusId != null ? `#${row.siriusId}` : undefined,
-        }));
-      },
       async load(storage, id) {
         const row = await storage.bulkTokens.getWorkerRowById(id);
         if (!row) return null;

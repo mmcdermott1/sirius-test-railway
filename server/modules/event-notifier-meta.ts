@@ -111,8 +111,8 @@ export function registerEventNotifierMetaRoutes(
           treeRoots: listTokenTreeRoots(rootNames),
           // What the studio may preview each of those roots as. A
           // notifier config holds no particular record — it describes
-          // events that have not happened yet — so every root offers
-          // what its own kind offers.
+          // events that have not happened yet — so it supplies none and
+          // every root is previewed as a sample persona.
           studioContext: await buildTokenStudioContext(
             { storage, req },
             { rootNames },
