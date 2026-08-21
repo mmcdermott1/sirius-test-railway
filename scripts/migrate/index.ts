@@ -60,6 +60,7 @@ import "./core/1055_files_file_system_id";
 import "./core/1056_create_options_worker_ban_type";
 import "./core/1057_create_options_note_type";
 import "./core/1058_create_notes";
+import "./core/1059_ledger_accounts_sirius_id";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

@@ -48,6 +48,7 @@ export default function LedgerAccountsPage() {
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formCurrencyCode, setFormCurrencyCode] = useState("USD");
+  const [formSiriusId, setFormSiriusId] = useState("");
   const [formIsActive, setFormIsActive] = useState(true);
   
   const { data: accounts = [], isLoading } = useQuery<LedgerAccount[]>({
@@ -59,7 +60,13 @@ export default function LedgerAccountsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string; currencyCode: string; isActive: boolean }) => {
+    mutationFn: async (data: {
+      name: string;
+      description?: string;
+      currencyCode: string;
+      siriusId: string | null;
+      isActive: boolean;
+    }) => {
       return apiRequest("POST", "/api/ledger/accounts", data);
     },
     onSuccess: () => {
@@ -84,6 +91,7 @@ export default function LedgerAccountsPage() {
     setFormName("");
     setFormDescription("");
     setFormCurrencyCode("USD");
+    setFormSiriusId("");
     setFormIsActive(true);
   };
 
@@ -100,6 +108,7 @@ export default function LedgerAccountsPage() {
       name: formName.trim(),
       description: formDescription.trim() || undefined,
       currencyCode: formCurrencyCode,
+      siriusId: formSiriusId.trim() || null,
       isActive: formIsActive,
     });
   };
@@ -265,6 +274,16 @@ export default function LedgerAccountsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="siriusId">Sirius ID</Label>
+              <Input
+                id="siriusId"
+                value={formSiriusId}
+                onChange={(e) => setFormSiriusId(e.target.value)}
+                placeholder="Optional external identifier"
+                data-testid="input-sirius-id"
+              />
             </div>
             <div>
               <Label htmlFor="description">Description</Label>

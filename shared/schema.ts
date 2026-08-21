@@ -831,6 +831,9 @@ export const ledgerAccounts = pgTable("ledger_accounts", {
   currencyCode: text("currency_code").default('USD').notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   data: jsonb("data"),
+  // Optional external identifier, unique when present. NULLs don't collide
+  // under Postgres UNIQUE semantics, so any number of accounts may have none.
+  siriusId: varchar("sirius_id").unique(),
   // Optional link to the payment-gateway plugin config this account uses. The
   // FK targets the payment-gateway subsidiary (a type-safe FK target) rather
   // than the polymorphic plugin_configs base, and is ON DELETE SET NULL so
@@ -1540,6 +1543,10 @@ export const insertLedgerAccountSchema = createInsertSchema(ledgerAccounts).omit
   id: true,
 }).extend({
   data: ledgerAccountDataSchema.optional().nullable(),
+  // Blank means absent. An empty string is a real value to Postgres, so
+  // without this the SECOND account saved with an empty Sirius ID box would
+  // collide with the first under the unique constraint.
+  siriusId: z.string().trim().nullish().transform((v) => (v ? v : null)).optional(),
 });
 
 export const insertLedgerPaymentSchema = createInsertSchema(ledgerPayments).omit({

@@ -105,3 +105,4 @@
 - [Token component gating is offer-only](token-component-gating-offer-only.md) — requiredComponent hides a segment from picker/tree/catalog; specs+field catalog stay component-blind so stored templates keep validating and render blank.
 - [Manual compose render step](manual-compose-render-step.md) — studio renders INTO the form (sample off, unknown tokens block apply); a screen offering the studio must refuse to send text still carrying `{{…}}`.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.
+- [Optional unique blank→NULL](optional-unique-blank-to-null.md) — trim-to-null in the shared insert schema with an OUTER .optional() (else .partial() clears it); named UNIQUE constraint + constraint-name-checked 23505→409.
