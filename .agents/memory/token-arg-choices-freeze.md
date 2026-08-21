@@ -22,6 +22,23 @@ carries an id a user can mint — a sirius id, a config id, an account
 number — leave it free text and resolve it at render time, returning null
 when it does not resolve.
 
+# A "current date" default must be computed at render time
+
+`TokenArgSpec.default` is a fixed string substituted into the args map
+during evaluation. It is read from metadata built once at registration,
+so it can only ever carry a constant.
+
+**Why:** the same freeze that spoils `choices` spoils `default`. Declaring
+a default of "this year-month" bakes in whatever month the server booted
+in; every render after the month rolls over is silently wrong, and
+nothing restarts to correct it until a deploy happens to occur.
+
+**How to apply:** for any default that depends on when the token is
+RENDERED, leave `default` undeclared, mark the argument optional, and
+compute the fallback inside `resolve` when the supplied value is blank.
+Say so in the argument's `description`, since the picker has no declared
+default to show the author.
+
 # A leaf's reach is by ENTITY KIND, not by root
 
 `inputTypes: ["employer"]` means "any chain that has arrived at an
