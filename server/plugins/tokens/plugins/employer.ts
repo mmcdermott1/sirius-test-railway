@@ -46,6 +46,12 @@ registerTokenPlugin({
     defaultLeaf: "name",
     recipientRooted: true,
     sampleSets: EMPLOYER_SAMPLE_SETS,
+    // An employer has its own page.
+    entityLocation: {
+      tabEntity: "employer",
+      idField: "id",
+      defaultTab: "details",
+    },
     // The employer detail page reads an employer behind
     // `employer.steward.view`; preview enforces that same policy per
     // employer rather than inventing a stricter or looser one.

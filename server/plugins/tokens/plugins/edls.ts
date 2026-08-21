@@ -75,6 +75,12 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: "edls",
     sampleSets: EDLS_SHEET_SAMPLE_SETS,
+    // A sheet has its own page.
+    entityLocation: {
+      tabEntity: "edls_sheet",
+      idField: "id",
+      defaultTab: "details",
+    },
     // A sheet has its own entity-scoped view policy, which is what the
     // sheet page reads it behind; preview runs it per sheet.
     previewEntity: {

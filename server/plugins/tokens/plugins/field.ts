@@ -3,27 +3,17 @@ import { getTableConfig, type AnyPgTable, type PgColumn } from "drizzle-orm/pg-c
 import { normalizeFieldName } from "@shared/tokens";
 import { registerTokenPlugin } from "../registry";
 import { memo, type TokenEntity, type TokenEvalContext } from "../types";
+import {
+  ENTITY_PATH_FIELD,
+  entityDeclaresLocation,
+  resolveEntityPath,
+} from "../entity-location";
+import { resolveRowKey } from "../row-key";
 import { formatPhpDate, fmtDateShort } from "../php-date";
 
-/**
- * Find the row key matching a requested field name. Accepts either the
- * TS property name (camelCase) or the DB column name (snake_case);
- * comparison is case/underscore-insensitive.
- */
-export function resolveRowKey(entity: TokenEntity, name: string): string | null {
-  const wanted = normalizeFieldName(name);
-  // Direct row keys (covers derived/denorm extras and shaped entities).
-  for (const key of Object.keys(entity.row)) {
-    if (normalizeFieldName(key) === wanted) return key;
-  }
-  // DB column names → TS property names via the declared table.
-  if (entity.table) {
-    for (const [prop, col] of Object.entries(getTableColumns(entity.table))) {
-      if (normalizeFieldName((col as PgColumn).name) === wanted) return prop;
-    }
-  }
-  return null;
-}
+// Re-exported from its own module (the entity-location builder needs it
+// too, and this file imports that builder).
+export { resolveRowKey };
 
 function columnFor(entity: TokenEntity, rowKey: string): PgColumn | undefined {
   if (!entity.table) return undefined;
@@ -124,6 +114,18 @@ registerTokenPlugin({
     const e = entity as TokenEntity | null;
     if (!e || typeof e !== "object" || !e.row) return null;
     const fallback = args.default || null;
+    // `path` is advertised as a field of every kind that declared where
+    // its records live, and resolved through the SAME builder the
+    // `path` leaf uses, so the two can never drift apart. A field takes
+    // no arguments, so it is always the kind's default tab. The boot
+    // check refuses a declaration on a table that has a real `path`
+    // column, so this can never shadow a stored value.
+    if (
+      normalizeFieldName(args.name) === ENTITY_PATH_FIELD &&
+      entityDeclaresLocation(e.kind)
+    ) {
+      return resolveEntityPath(e) ?? fallback;
+    }
     const key = resolveRowKey(e, args.name);
     if (!key) return fallback;
     const value = e.row[key];

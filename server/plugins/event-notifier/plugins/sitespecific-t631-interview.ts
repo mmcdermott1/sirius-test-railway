@@ -62,21 +62,28 @@ function configOf(configData: unknown): InterviewNotifierConfig {
 /**
  * The page a recipient is linked to, as a token template. Workers land
  * on their own interviews tab; employer contacts and staff land on the
- * job's interviews page. `{{system.base_url}}` makes email/SMS links
- * absolute and leaves in-app links relative.
+ * job's interviews page — which is the interview's OWN declared
+ * location, since an interview is listed on the job that holds it.
+ *
+ * Neither route is spelled here: each record says where it lives, `url`
+ * is the absolute form for email/SMS and `path` the relative one the
+ * in-app link wants.
  */
 function linkPathTemplate(recipientKind: InterviewNotifierConfig["recipientKind"]): {
+  url: string;
   path: string;
   label: string;
 } {
   if (recipientKind === "worker") {
     return {
-      path: `/workers/{{${ROOT}.worker.field(name="id")}}/dispatch/sitespecific_t631_interviews`,
+      url: `{{${ROOT}.worker.url(tab="dispatch-t631-interviews")}}`,
+      path: `{{${ROOT}.worker.path(tab="dispatch-t631-interviews")}}`,
       label: "View Interview",
     };
   }
   return {
-    path: `/dispatch/job/{{${ROOT}.dispatch_job.field(name="id")}}/sitespecific_t631_interviews`,
+    url: `{{${ROOT}.url}}`,
+    path: `{{${ROOT}.path}}`,
     label: "View Interviews",
   };
 }
@@ -97,16 +104,16 @@ const TITLE = `Interview - status change - {{${ROOT}.dispatch_job}}`;
 
 /** Default per-channel templates; the link target varies with the recipient kind. */
 function defaultTemplates(configData?: unknown): NotifierChannelTemplates {
-  const { path, label } = linkPathTemplate(configOf(configData).recipientKind);
+  const { url, path, label } = linkPathTemplate(
+    configOf(configData).recipientKind,
+  );
   return {
     email: {
       subject: TITLE,
-      bodyHtml:
-        `<p>${SENTENCE}</p>` +
-        `<p><a href="{{system.base_url}}${path}">${label}</a></p>`,
+      bodyHtml: `<p>${SENTENCE}</p>` + `<p><a href="${url}">${label}</a></p>`,
     },
     sms: {
-      message: `${SENTENCE} View: {{system.base_url}}${path}`,
+      message: `${SENTENCE} View: ${url}`,
     },
     inapp: {
       title: TITLE,

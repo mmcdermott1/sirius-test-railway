@@ -50,7 +50,11 @@ const TITLE = "Grievance - status change - {{grievance}}";
 const SENTENCE =
   'The grievance "{{grievance}}" ' +
   'has reached the status "{{grievance_status_history}}".';
-const LINK_PATH = '/grievance/{{grievance.field(name="id")}}';
+// The grievance says where its own page is (see the kind's declared
+// entity location), so nothing here re-spells the route: `url` for the
+// channels that leave the app, `path` for the in-app link.
+const LINK_URL = "{{grievance.url}}";
+const LINK_PATH = "{{grievance.path}}";
 const LINK_LABEL = "View Grievance";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -60,11 +64,11 @@ function defaultTemplates(): NotifierChannelTemplates {
       bodyHtml:
         `<p>${SENTENCE}<br><br>` +
         `View the grievance: ` +
-        `<a href="{{system.base_url}}${LINK_PATH}">` +
-        `{{system.base_url}}${LINK_PATH}</a></p>`,
+        `<a href="${LINK_URL}">` +
+        `${LINK_URL}</a></p>`,
     },
     sms: {
-      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+      message: `${SENTENCE} View: ${LINK_URL}`,
     },
     inapp: {
       title: TITLE,

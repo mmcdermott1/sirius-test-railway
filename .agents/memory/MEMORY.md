@@ -101,4 +101,5 @@
 - [Token default leaf per producer](token-default-leaf-per-producer.md) — declare a kind's defaultLeaf on EVERY plugin producing it; validation is root-scoped while tree/delivery lookup is not, so root-only = short form rejected on hop-only surfaces.
 - [Studio seeds from event replay](studio-seeds-from-event-replay.md) — a records-less container seeds previews by replaying the bus's recent-emit buffer through its OWN builders, handing over ids; a ref may omit its label and let the kind name + gate it.
 - [Editor catalog config contract](editor-catalog-config-contract.md) — an editor sends its WHOLE unsaved config (minus what it is editing) to catalog/preview endpoints, debounced; declared "dependent fields" lists go stale silently.
+- [Entity location declaration](entity-location-declaration.md) — a kind names its tab-registry page + id field + default tab, never a route; sub-entity = id from a FK; arg choices validated always, offered per component.
 - [Dead capability removal](dead-capability-removal.md) — no caller ⇒ delete it, never invent a user story to justify existing code; refuse a retired request shape by key PRESENCE, don't no-op it.

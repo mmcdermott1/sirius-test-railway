@@ -80,7 +80,10 @@ export function settlementSummary(
       return `${settlement} on the grievance ${grievanceTitle} was updated.`;
   }
 }
-const LINK_PATH = '/grievance/{{grievance.field(name="id")}}/settlements';
+// The grievance says where its own page is, and the `tab` argument
+// reaches the settlements sub-page: nothing here re-spells the route.
+const LINK_URL = '{{grievance.url(tab="settlements")}}';
+const LINK_PATH = '{{grievance.path(tab="settlements")}}';
 const LINK_LABEL = "View Settlements";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -90,11 +93,11 @@ function defaultTemplates(): NotifierChannelTemplates {
       bodyHtml:
         `<p>${SENTENCE}<br><br>` +
         `View the settlement: ` +
-        `<a href="{{system.base_url}}${LINK_PATH}">` +
-        `{{system.base_url}}${LINK_PATH}</a></p>`,
+        `<a href="${LINK_URL}">` +
+        `${LINK_URL}</a></p>`,
     },
     sms: {
-      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+      message: `${SENTENCE} View: ${LINK_URL}`,
     },
     inapp: {
       title: TITLE,

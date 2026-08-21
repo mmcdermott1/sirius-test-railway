@@ -18,8 +18,9 @@ import { SYSTEM_ROOT_NAME } from "../tokens/plugins/system";
  * - the event envelope, which the framework seeds for every
  *   token-templated notifier;
  * - the recipient contact, which delivery resolves for every message; and
- * - the seedless system values, which every notifier's default templates
- *   already use to build their links (`{{system.base_url}}`).
+ * - the seedless system values (`{{system.base_url}}`, today's date).
+ *   Links no longer come from there: a record that has a page offers
+ *   its own `{{x.url}}` / `{{x.path}}`.
  *
  * The recipient-side roots that hang off a contact (worker, employer)
  * are NOT here: delivery resolves them from the recipient, so as roots

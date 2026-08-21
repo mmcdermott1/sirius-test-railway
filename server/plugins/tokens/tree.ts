@@ -1,6 +1,7 @@
 import { MAX_CHAIN_DEPTH, type TokenArgSpec } from "@shared/tokens";
 import { tokenPluginRegistry } from "./registry";
 import { buildFieldCatalog } from "./evaluate";
+import { isComponentEnabledSync } from "../../services/component-cache";
 import type { TokenEntityType, TokenPlugin } from "./types";
 
 /**
@@ -94,6 +95,39 @@ function defaultLeafOf(type: TokenEntityType, plugins: TokenPlugin[]): string | 
   )?.metadata.defaultLeaf;
 }
 
+/** A tab registry component gate, which may be a pipe-separated OR. */
+function componentAllowsChoice(component: string | undefined): boolean {
+  if (!component) return true;
+  return component.split("|").some((c) => isComponentEnabledSync(c.trim()));
+}
+
+/**
+ * The argument specs as the PICKER should see them: a choice whose
+ * component is switched off is not offered.
+ *
+ * Only the offer narrows. Validation keeps every declared choice, so
+ * toggling a component never invalidates a template that already names
+ * one of its tabs — and the argument's own default is always offered,
+ * or the picker would show a value that is not in its own list.
+ */
+function offeredArgs(
+  args: Record<string, TokenArgSpec> | undefined,
+): Record<string, TokenArgSpec> | undefined {
+  if (!args) return undefined;
+  const out: Record<string, TokenArgSpec> = {};
+  for (const [name, spec] of Object.entries(args)) {
+    out[name] = spec.choices
+      ? {
+          ...spec,
+          choices: spec.choices.filter(
+            (c) => c.value === spec.default || componentAllowsChoice(c.component),
+          ),
+        }
+      : spec;
+  }
+  return out;
+}
+
 /** `(a="x", b="")` for the arguments a segment must carry, or "". */
 function argSuffix(args: Record<string, TokenArgSpec> | undefined): {
   text: string;
@@ -180,7 +214,7 @@ export function expandTokenType(type: TokenEntityType): TokenTypeExpansion {
         label: meta.name,
         description: meta.description,
         suffix: `.${meta.segmentName}${text}`,
-        args: meta.args,
+        args: offeredArgs(meta.args),
         needsArgument,
         defaultValue: meta.defaultValue,
         example: meta.example,
@@ -193,7 +227,7 @@ export function expandTokenType(type: TokenEntityType): TokenTypeExpansion {
         description: meta.description,
         suffix: `.${meta.segmentName}${text}`,
         outputType: meta.outputType,
-        args: meta.args,
+        args: offeredArgs(meta.args),
         needsArgument,
         defaultLeaf: defaultLeafOf(meta.outputType, plugins),
       });

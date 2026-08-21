@@ -245,6 +245,15 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: GRIEVANCE_SAMPLE_SETS,
+    // A grievance has its own page, so `{{grievance.path}}` and
+    // `{{grievance.url}}` link to it — and the `tab` argument reaches
+    // its sub-pages without an author having to remember that the
+    // detail route is /grievance/:id and not /grievances/:id.
+    entityLocation: {
+      tabEntity: "grievance",
+      idField: "id",
+      defaultTab: "details",
+    },
     // Grievance pages have no per-grievance policy: every read is gated
     // `staff` plus the grievance component, with no id passed. Preview
     // enforces exactly that gate.
@@ -295,6 +304,15 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: GRIEVANCE_STATUS_HISTORY_SAMPLE_SETS,
+    // An entry has no page of its own; the grievance's timeline is where
+    // it is listed, and the row can reach that grievance's id. Same
+    // declaration as a top-level kind — a sub-entity is just a location
+    // whose id comes from a foreign key.
+    entityLocation: {
+      tabEntity: "grievance",
+      idField: "grievanceId",
+      defaultTab: "timeline",
+    },
     // An entry is read wherever its grievance is read: `staff` plus the
     // grievance component, no per-record policy.
     previewEntity: {
@@ -350,6 +368,13 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: "grievance.settlement",
     sampleSets: GRIEVANCE_SETTLEMENT_SAMPLE_SETS,
+    // No page of its own: the grievance's settlements tab is where a
+    // settlement is listed, reached through the row's grievance FK.
+    entityLocation: {
+      tabEntity: "grievance",
+      idField: "grievanceId",
+      defaultTab: "settlements",
+    },
     // A settlement is read wherever its grievance is read: `staff` plus
     // the settlement component, no per-record policy.
     previewEntity: {

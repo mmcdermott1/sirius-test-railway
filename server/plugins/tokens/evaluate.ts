@@ -17,6 +17,7 @@ import {
   tokenRegistryVersion,
 } from "./registry";
 import { sampleSetValue } from "./sample-sets";
+import { ENTITY_PATH_FIELD } from "./entity-location";
 import { getComponentCacheRevision } from "../../services/component-cache";
 import type {
   TokenEntity,
@@ -116,6 +117,13 @@ export function buildFieldCatalog(): TokenFieldCatalog {
     }
     for (const name of p.metadata.entityFields ?? []) {
       if (!entry.names.includes(name)) entry.names.push(name);
+    }
+    // `path` is advertised for declaring kinds ONLY. A kind with no page
+    // offers no path at all — an advertised field that validates,
+    // previews and delivers blank is the bug this framework exists to
+    // prevent, so `{{contact.field(name="path")}}` stays unknown.
+    if (p.metadata.entityLocation && !entry.names.includes(ENTITY_PATH_FIELD)) {
+      entry.names.push(ENTITY_PATH_FIELD);
     }
     if (p.metadata.entityFieldsOpen || (!p.metadata.entityTable && !p.metadata.entityFields)) {
       entry.open = true;

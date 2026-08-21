@@ -39,9 +39,11 @@ export function dispatchStatusLabel(status: string): string {
  */
 const TITLE = `Dispatch - status change - {{${ROOT}}}`;
 const SENTENCE = `Your dispatch status is now {{${ROOT}}}.`;
-// worker_id is a column of the row itself — no relation to come up empty.
-const LINK_PATH =
-  `/workers/{{${ROOT}.field(name="worker_id")}}/dispatch/status`;
+// The availability row has no page of its own, but it declares WHERE it
+// is shown — the worker's dispatch status tab, reached through the row's
+// own worker_id column, so there is still no relation to come up empty.
+const LINK_URL = `{{${ROOT}.url}}`;
+const LINK_PATH = `{{${ROOT}.path}}`;
 const LINK_LABEL = "View Dispatch";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -51,11 +53,11 @@ function defaultTemplates(): NotifierChannelTemplates {
       bodyHtml:
         `<p>${SENTENCE}<br><br>` +
         `View your dispatch page: ` +
-        `<a href="{{system.base_url}}${LINK_PATH}">` +
-        `{{system.base_url}}${LINK_PATH}</a></p>`,
+        `<a href="${LINK_URL}">` +
+        `${LINK_URL}</a></p>`,
     },
     sms: {
-      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+      message: `${SENTENCE} View: ${LINK_URL}`,
     },
     inapp: {
       title: TITLE,

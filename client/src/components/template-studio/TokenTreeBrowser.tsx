@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getApiErrorMessage } from "@/lib/queryClient";
 import {
@@ -614,17 +621,48 @@ export function TokenTreeBrowser({
                 {name}
                 {spec.required ? " *" : ""}
               </label>
-              <Input
-                value={argDraft.values[name] ?? ""}
-                onChange={(e) =>
-                  setArgDraft({
-                    ...argDraft,
-                    values: { ...argDraft.values, [name]: e.target.value },
-                  })
-                }
-                className="h-8 text-sm"
-                data-testid={`input-token-arg-${name}`}
-              />
+              {/*
+                An argument whose valid values are known (the tabs of the
+                page a record lives on) is picked from, never typed: a
+                blank box invites a typo that only surfaces at delivery.
+              */}
+              {spec.choices ? (
+                <Select
+                  value={argDraft.values[name] ?? ""}
+                  onValueChange={(value) =>
+                    setArgDraft({
+                      ...argDraft,
+                      values: { ...argDraft.values, [name]: value },
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    className="h-8 text-sm"
+                    data-testid={`select-token-arg-${name}`}
+                  >
+                    <SelectValue placeholder={`Choose a ${name}…`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {spec.choices.map((choice) => (
+                      <SelectItem key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={argDraft.values[name] ?? ""}
+                  onChange={(e) =>
+                    setArgDraft({
+                      ...argDraft,
+                      values: { ...argDraft.values, [name]: e.target.value },
+                    })
+                  }
+                  className="h-8 text-sm"
+                  data-testid={`input-token-arg-${name}`}
+                />
+              )}
               {spec.description && (
                 <p className="text-[11px] text-muted-foreground">{spec.description}</p>
               )}

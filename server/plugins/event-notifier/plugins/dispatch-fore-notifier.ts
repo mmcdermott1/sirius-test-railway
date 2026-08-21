@@ -36,7 +36,9 @@ const SENTENCE =
   'You have been {{dispatch_fore.field(name="action")}} as a Foreperson ' +
   'on "{{dispatch_job}}" ' +
   "at {{dispatch_job.employer}}.";
-const LINK_PATH = '/dispatch/job/{{dispatch_job.field(name="id")}}';
+// The job says where its own page is; nothing here re-spells the route.
+const LINK_URL = "{{dispatch_job.url}}";
+const LINK_PATH = "{{dispatch_job.path}}";
 const LINK_LABEL = "View Job";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -46,11 +48,11 @@ function defaultTemplates(): NotifierChannelTemplates {
       bodyHtml:
         `<p>${SENTENCE}<br><br>` +
         `View the job: ` +
-        `<a href="{{system.base_url}}${LINK_PATH}">` +
-        `{{system.base_url}}${LINK_PATH}</a></p>`,
+        `<a href="${LINK_URL}">` +
+        `${LINK_URL}</a></p>`,
     },
     sms: {
-      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+      message: `${SENTENCE} View: ${LINK_URL}`,
     },
     inapp: {
       title: TITLE,

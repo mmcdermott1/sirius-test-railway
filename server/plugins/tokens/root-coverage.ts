@@ -1,5 +1,11 @@
 import { getFieldCatalog } from "./evaluate";
-import { resolveRowKey } from "./plugins/field";
+import {
+  ENTITY_PATH_FIELD,
+  entityDeclaresLocation,
+  resolveEntityPath,
+} from "./entity-location";
+import { resolveRowKey } from "./row-key";
+import { normalizeFieldName } from "@shared/tokens";
 import type { TokenEntity } from "./types";
 
 /**
@@ -23,6 +29,16 @@ export function missingCatalogFields(entity: TokenEntity): string[] {
   const entry = getFieldCatalog()[entity.kind];
   if (!entry || entry.open) return [];
   return entry.names.filter((name) => {
+    // A DERIVED field has no key on the row at all, so the row is the
+    // wrong thing to ask: `path` is built from the record's id and the
+    // route registry. Ask the builder whether it can produce one, which
+    // is exactly the question delivery will ask.
+    if (
+      normalizeFieldName(name) === ENTITY_PATH_FIELD &&
+      entityDeclaresLocation(entity.kind)
+    ) {
+      return resolveEntityPath(entity) === null;
+    }
     const key = resolveRowKey(entity, name);
     // `resolveRowKey` also maps a DB column name to its TS property via the
     // declared table, so a name it resolves is NOT necessarily a key the row

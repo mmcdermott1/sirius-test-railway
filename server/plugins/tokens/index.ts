@@ -5,6 +5,8 @@ import { validateTokenPreviewEntities } from "./preview-entities";
 import { validateTokenSampleSets } from "./sample-sets";
 import { registerOptionsTokens } from "./plugins/options";
 import { registerEntityRelationTokens } from "./plugins/entity-relations";
+import { registerEntityPathTokens } from "./plugins/entity-paths";
+import { validateTokenEntityLocations } from "./entity-location";
 
 export * from "./types";
 export {
@@ -42,6 +44,12 @@ export {
   type TokenContextRootDeclaration,
 } from "./context-roots";
 export { missingCatalogFields } from "./root-coverage";
+export {
+  resolveEntityPath,
+  entityDeclaresLocation,
+  listEntityLocationKinds,
+  tabChoicesForKind,
+} from "./entity-location";
 export {
   listTokenTreeRoots,
   expandTokenType,
@@ -85,6 +93,13 @@ export function initializeTokenPluginSystem(): void {
   // neither owner nor target here, and running second keeps the two
   // sweeps' skip rules reading in the order they are documented.
   const entityRelationTokens = registerEntityRelationTokens();
+  // Where each kind's records LIVE, checked against the live tab
+  // registry before anything is derived from it: a declaration naming a
+  // tab that does not exist would otherwise surface as a 404 in a
+  // delivered message.
+  const entityLocationKinds = validateTokenEntityLocations();
+  // The `path`/`url` leaves those declarations earn.
+  const entityPathTokens = registerEntityPathTokens();
   // Project the plugins' `previewEntity` and `sampleSets` declarations
   // into their per-kind registries once at boot, so two declarations for
   // one entity kind fail loudly here instead of at the first preview.
@@ -97,6 +112,8 @@ export function initializeTokenPluginSystem(): void {
     sampleSetKinds,
     optionsTokens,
     entityRelationTokens,
+    entityLocationKinds,
+    entityPathTokens,
   });
 }
 

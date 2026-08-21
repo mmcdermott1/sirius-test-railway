@@ -1,6 +1,7 @@
 import type { IStorage } from "../../storage";
 import type { BasePluginMetadata } from "../_core/types";
 import type { TokenArgSpec } from "@shared/tokens";
+import type { TabEntityType } from "@shared/tabRegistry";
 import type { AnyPgTable } from "drizzle-orm/pg-core";
 
 /**
@@ -202,6 +203,45 @@ export interface TokenSampleSet {
   values: Record<string, string>;
 }
 
+/**
+ * WHERE a record of one token entity kind lives in the app.
+ *
+ * A kind names its PAGE, it never spells a URL: the shared tab registry
+ * already holds every entity's tabs and their href templates, it is what
+ * the app's own tabs navigate to, and it is readable from here. So a
+ * kind says which tab-registry entity it corresponds to, which row field
+ * carries that entity's id, and which tab a bare `{{kind.path}}` lands
+ * on — and the paths are derived from that. Hardcoding a route into a
+ * token plugin would be a second copy of the route table, free to rot
+ * the first time someone restructures a page.
+ *
+ * A SUB-ENTITY borrows its parent's page: a grievance status-history row
+ * has no page of its own, but the grievance's timeline tab lists it, so
+ * it declares `tabEntity: "grievance"`, `idField: "grievanceId"`,
+ * `defaultTab: "timeline"`. One mechanism, no special case — a
+ * sub-entity is just a location whose id comes from a foreign key, which
+ * is exactly what `idField !== "id"` says.
+ *
+ * Declared ONCE per kind, on the plugin that owns the kind. A kind that
+ * declares nothing offers no `path`/`url` token at all: an advertised
+ * token that renders blank is the failure this framework treats as a bug.
+ */
+export interface TokenEntityLocation {
+  /** Tab-registry entity whose page shows (or lists) the record. */
+  tabEntity: TabEntityType;
+  /**
+   * Row field carrying that entity's id: the record's own `id` for a
+   * top-level kind, a foreign key for a sub-entity borrowing a parent's
+   * page. Must be a column of the kind's declared table.
+   */
+  idField: string;
+  /**
+   * Tab a bare `{{kind.path}}` lands on. Named explicitly rather than
+   * assumed to be the first tab or one called "details" — the
+   * bargaining-unit tree calls its detail tab `view`.
+   */
+  defaultTab: string;
+}
 export interface TokenPluginMetadata extends BasePluginMetadata {
   /**
    * Segment name as written in templates (e.g. "field"). Not
@@ -320,6 +360,14 @@ export interface TokenPluginMetadata extends BasePluginMetadata {
    * each token's own `example` / `sampleValue`.
    */
   sampleSets?: TokenSampleSet[];
+  /**
+   * Where a record of the kind this plugin produces lives in the app
+   * (see {@link TokenEntityLocation}). Declare on exactly ONE plugin per
+   * entity kind — the one that owns the kind. Declaring it is what gives
+   * the kind its `path` / `url` tokens and its `path` field; absent
+   * means the kind has no page and offers neither.
+   */
+  entityLocation?: TokenEntityLocation;
 }
 
 /**

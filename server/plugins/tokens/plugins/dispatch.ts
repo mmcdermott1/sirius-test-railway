@@ -155,6 +155,12 @@ registerTokenPlugin({
     requiredComponent: COMPONENT,
     defaultLeaf: "title",
     sampleSets: DISPATCH_JOB_SAMPLE_SETS,
+    // A job has its own page.
+    entityLocation: {
+      tabEntity: "dispatch_job",
+      idField: "id",
+      defaultTab: "details",
+    },
     // A dispatch job has no entity-scoped view policy: every page that
     // reads one is gated `admin` plus the dispatch component, with no
     // job id passed. Preview enforces exactly that gate — inventing a
@@ -244,6 +250,13 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: DISPATCH_WORKER_STATUS_SAMPLE_SETS,
+    // No page of its own: the worker's dispatch status tab is where the
+    // row is shown, reached through the row's worker FK.
+    entityLocation: {
+      tabEntity: "worker",
+      idField: "workerId",
+      defaultTab: "dispatch-status",
+    },
     // An availability row is read as a read of its WORKER (`worker.view`
     // on the worker id, plus the dispatch component) — the row has no
     // policy of its own, so the gate subject is the worker, not the row.
@@ -367,6 +380,13 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: "dispatch.fore",
     sampleSets: DISPATCH_FORE_SAMPLE_SETS,
+    // No page of its own: the job's foreperson tab lists the membership,
+    // reached through the row's job FK.
+    entityLocation: {
+      tabEntity: "dispatch_job",
+      idField: "jobId",
+      defaultTab: "foreperson",
+    },
     // A membership row is read as a read of the WORKER named as
     // foreperson (`worker.view` on the worker id, plus the fore
     // component).

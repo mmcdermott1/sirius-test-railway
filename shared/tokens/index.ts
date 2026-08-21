@@ -118,11 +118,35 @@ export function extractTokenExpressions(template: string | null | undefined): st
 // Static chain validation against a segment-spec graph
 // ─────────────────────────────────────────────────────────────────
 
+/**
+ * One value an argument is allowed to take, when the argument's set of
+ * valid values is known (the tabs of the page a record lives on).
+ */
+export interface TokenArgChoice {
+  /** Written verbatim into the token: `tab="notes"`. */
+  value: string;
+  /** Human label for the picker ("Notes"). */
+  label: string;
+  /**
+   * Component that must be enabled for a picker to OFFER this choice.
+   * Never consulted by validation: switching a component off must not
+   * invalidate a template that already names one of its tabs.
+   */
+  component?: string;
+}
+
 export interface TokenArgSpec {
   required?: boolean;
   /** Applied when the author omits the argument. */
   default?: string;
   description?: string;
+  /**
+   * The argument's complete set of valid values, when it has one. A
+   * value outside the list is rejected the moment the template is
+   * saved, and the picker offers the list instead of a blank box.
+   * Absent means free text (a date format string), which is unchanged.
+   */
+  choices?: TokenArgChoice[];
 }
 
 /**
@@ -208,6 +232,22 @@ export function validateChain(
     for (const [key, as] of Object.entries(argSpecs)) {
       if (as.required && seg.args[key] === undefined && as.default === undefined) {
         return { ok: false, error: `missing required argument '${key}' on '${seg.name}'` };
+      }
+      // An argument with a known set of values is checked against it
+      // here, where the author still has the editor open — the whole
+      // point of declaring the set. Choices are NOT filtered by
+      // component state, so a stored template naming a switched-off
+      // tab still validates.
+      const supplied = seg.args[key];
+      if (supplied !== undefined && as.choices) {
+        if (!as.choices.some((c) => c.value === supplied)) {
+          return {
+            ok: false,
+            error:
+              `'${supplied}' is not a valid ${key} on '${seg.name}' ` +
+              `(expected one of: ${as.choices.map((c) => c.value).join(", ")})`,
+          };
+        }
       }
     }
     if (seg.name === "field" && seg.args.name !== undefined && fields) {

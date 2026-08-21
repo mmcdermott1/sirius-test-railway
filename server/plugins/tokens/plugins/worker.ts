@@ -134,6 +134,12 @@ registerTokenPlugin({
     defaultLeaf: WORKER_DEFAULT_LEAF,
     recipientRooted: true,
     sampleSets: WORKER_SAMPLE_SETS,
+    // A worker has their own page.
+    entityLocation: {
+      tabEntity: "worker",
+      idField: "id",
+      defaultTab: "details",
+    },
     // A worker record is read behind `worker.view` on that worker
     // everywhere else in the app; preview is no different.
     previewEntity: {
@@ -205,6 +211,14 @@ registerTokenPlugin({
     outputType: "bargaining_unit",
     entityTable: bargainingUnits,
     defaultLeaf: "name",
+    // A bargaining unit has its own page, whose detail tab is called
+    // `view` — which is exactly why the default tab is named here
+    // rather than assumed to be "details".
+    entityLocation: {
+      tabEntity: "bargaining_unit",
+      idField: "id",
+      defaultTab: "view",
+    },
   },
   async resolve(entity, _args, ctx) {
     const w = tokenEntityOf(entity, "worker");

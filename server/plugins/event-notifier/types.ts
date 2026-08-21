@@ -73,6 +73,10 @@ export interface EventNotifierEventContext {
  * `event.` is the event envelope — which event, when it fired;
  * `{{system.base_url}}` is the absolute origin on email/SMS and empty
  * in-app).
+ *
+ * Links are not spelled out here: a record that has a page offers
+ * `{{x.url}}` (absolute, for email/SMS) and `{{x.path}}` (relative, for
+ * the in-app link), with an optional `tab` for a sub-page.
  */
 export interface NotifierChannelTemplates {
   email?: {

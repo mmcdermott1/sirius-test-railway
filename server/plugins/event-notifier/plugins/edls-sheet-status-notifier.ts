@@ -74,7 +74,9 @@ const SENTENCE =
   'The EDLS sheet "{{edls_sheet}}" ' +
   '({{edls_sheet.field(name="ymd_display")}}) has reached the status ' +
   '"{{edls_sheet.field(name="status_label")}}".';
-const LINK_PATH = '/edls/sheet/{{edls_sheet.field(name="id")}}';
+// The sheet says where its own page is; nothing here re-spells the route.
+const LINK_URL = "{{edls_sheet.url}}";
+const LINK_PATH = "{{edls_sheet.path}}";
 const LINK_LABEL = "View Sheet";
 
 function defaultTemplates(): NotifierChannelTemplates {
@@ -84,11 +86,11 @@ function defaultTemplates(): NotifierChannelTemplates {
       bodyHtml:
         `<p>${SENTENCE}<br><br>` +
         `View the sheet: ` +
-        `<a href="{{system.base_url}}${LINK_PATH}">` +
-        `{{system.base_url}}${LINK_PATH}</a></p>`,
+        `<a href="${LINK_URL}">` +
+        `${LINK_URL}</a></p>`,
     },
     sms: {
-      message: `${SENTENCE} View: {{system.base_url}}${LINK_PATH}`,
+      message: `${SENTENCE} View: ${LINK_URL}`,
     },
     inapp: {
       title: TITLE,

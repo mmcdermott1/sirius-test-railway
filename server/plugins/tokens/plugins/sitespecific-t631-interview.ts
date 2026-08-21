@@ -53,6 +53,13 @@ registerTokenPlugin({
     hiddenFromCatalog: true,
     requiredComponent: COMPONENT,
     sampleSets: T631_INTERVIEW_SAMPLE_SETS,
+    // No page of its own: the job's interviews tab lists it, reached
+    // through the row's job FK.
+    entityLocation: {
+      tabEntity: "dispatch_job",
+      idField: "jobId",
+      defaultTab: "sitespecific-t631-interviews",
+    },
     // Interviews have no entity-scoped view policy: the interviews page
     // is gated `admin` plus the interviews component, with no interview
     // id passed. Preview enforces that same gate.
