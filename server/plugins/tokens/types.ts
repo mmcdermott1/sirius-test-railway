@@ -62,7 +62,7 @@ export type TokenPreviewGate =
   | { scope: "record"; policy: string }
   | { scope: "route"; policy: string };
 
-/** One record offered by the picker. */
+/** One record a container supplied, as the picker shows it. */
 export interface TokenPreviewRecordRef {
   /** Record id — what `load` is later called with. */
   id: string;
@@ -81,7 +81,7 @@ export interface TokenPreviewRecordRef {
 /** One record loaded by id, ready to seed a render. */
 export interface TokenPreviewLoadedRecord {
   entity: TokenEntity;
-  /** Same label the picker showed, so the studio can name what it rendered. */
+  /** The label the picker showed, so the studio can name what it rendered. */
   label: string;
   /** Gate subject id — see {@link TokenPreviewRecordRef.gateEntityId}. */
   gateEntityId?: string;
@@ -92,11 +92,13 @@ export interface TokenPreviewLoadedRecord {
  * a template is previewed against.
  *
  * A preview that renders against a real record is a read of that
- * record, so it has to be gated like one: the declaration says how a
- * read of this kind is authorized, offers records to pick from, and
- * loads one by id. Both paths run the SAME gate on the SAME subject id
- * the record itself yields, so what the picker offers and what the
- * preview loads can never drift apart.
+ * record, so it has to be gated like one. The declaration has exactly
+ * two responsibilities: it says how a read of this kind is authorized,
+ * and it loads one record by id. It never produces records — which
+ * records exist here is the container's answer, not the kind's — and
+ * the gate it declares is run on the SAME subject id whether a
+ * container's record is being screened for the picker or a named one is
+ * being loaded, so the two can never drift apart.
  *
  * FAIL CLOSED: a kind with no declaration cannot be used as a preview
  * context at all. Declaring one is a deliberate statement that "may

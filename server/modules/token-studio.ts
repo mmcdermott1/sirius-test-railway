@@ -265,7 +265,7 @@ export function registerTokenStudioRoutes(
    * (`contact`, `dispatch`, `event`, …), in the order its author sees
    * them. Nothing is added implicitly: a caller that names no roots has
    * not said what its templates are about, and answering with "every
-   * root there is" is how a surface ends up offering records it has
+   * root there is" is how a surface ends up showing records it has
    * never heard of.
    *
    * Carries the studio's own context — what each root may be previewed

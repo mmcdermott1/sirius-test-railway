@@ -8,7 +8,7 @@ import {
 import {
   filterTokenPreviewRecords,
   type TokenPreviewContext,
-  type TokenPreviewOfferResult,
+  type TokenPreviewFilterResult,
 } from "./preview-entities";
 
 /**
@@ -17,7 +17,7 @@ import {
  * sample personas plus the real records that may seed it.
  *
  * THE CONTAINER STATES BOTH LISTS. The roots it names, and the records
- * it has in hand for them, are the whole of what the studio offers.
+ * it has in hand for them, are the whole of what the studio shows.
  * Token land never goes looking: a root the container supplied nothing
  * for has no real records, and the author previews it as a sample
  * persona, which is exactly what personas are for. A studio that
@@ -25,7 +25,7 @@ import {
  * that kind would be previewing a template against records the message
  * it belongs to has never heard of.
  *
- * The offer is UX, not the authorization boundary. Every record here
+ * The list is UX, not the authorization boundary. Every record here
  * has passed its kind's own read gate for this caller, and the render
  * route runs that same gate again on whatever is finally named — so a
  * generous container can never create a read the caller was not
@@ -33,7 +33,7 @@ import {
  * time that the studio failed to predict.
  */
 
-/** One real record offered as a seed for a root. */
+/** One real record the author may seed a root with. */
 export interface TokenStudioSeedRecord {
   id: string;
   label: string;
@@ -42,7 +42,11 @@ export interface TokenStudioSeedRecord {
 
 /** Why a root has no real records to pick from. */
 export type TokenStudioNoRecordsReason =
-  /** The container supplied no records for this root, or an empty list. */
+  /**
+   * Nothing reached the gate: the container supplied no records for
+   * this root, or the kind's component is switched off so its records
+   * are not visible anywhere.
+   */
   | "none-supplied"
   /** The container supplied records; this caller may read none of them. */
   | "unreadable"
@@ -77,13 +81,13 @@ export interface TokenStudioContext {
   roots: TokenStudioContextRoot[];
 }
 
-/** How many real records one root offers. */
+/** How many of a container's records one root shows. */
 export const STUDIO_CONTEXT_RECORD_LIMIT = 20;
 
 export interface BuildTokenStudioContextOptions {
   /**
-   * The COMPLETE ordered list of roots this container offers as seeds,
-   * by root NAME. It is the panel the author sees, top to bottom, so
+   * The COMPLETE ordered list of roots this container states, by root
+   * NAME. It is the panel the author sees, top to bottom, so
    * lead with the record the templates are really about. Nothing is
    * added implicitly — a container whose templates are about the
    * recipient asks for the recipient-side roots by name, the same way
@@ -92,12 +96,12 @@ export interface BuildTokenStudioContextOptions {
   rootNames?: string[];
   /**
    * Records the container has in hand, keyed by ROOT NAME — the ONLY
-   * real records the studio will offer. They are gated per record
+   * real records the studio will show. They are gated per record
    * before the author sees them.
    *
    * A root left out of this map (a notifier config is about events that
-   * have not happened, so it holds no record) offers its sample
-   * personas alone.
+   * have not happened, so it holds no record) is previewed as a sample
+   * persona and nothing else.
    */
   recordsByRoot?: Record<string, TokenPreviewRecordRef[]>;
   /**
@@ -117,13 +121,13 @@ export async function buildTokenStudioContext(
 ): Promise<TokenStudioContext> {
   const limit = options.limit ?? STUDIO_CONTEXT_RECORD_LIMIT;
   const supplied = options.recordsByRoot ?? {};
-  // A container that names no roots is offering nothing to preview
+  // A container that names no roots has said nothing to preview
   // against, which is never what it meant: the list is the panel. Since
   // nothing is added implicitly any more, say so loudly here rather than
   // shipping an empty "Preview With" to the author.
   if (!options.rootNames?.length) {
     throw new Error(
-      "buildTokenStudioContext needs the complete list of roots this container offers, by root name",
+      "buildTokenStudioContext needs the complete list of roots this container states, by root name",
     );
   }
 
@@ -133,7 +137,7 @@ export async function buildTokenStudioContext(
     listTokenPreviewRoots(options.rootNames ?? []).map(
       async (root): Promise<TokenStudioContextRoot> => {
         const own = supplied[root.name] ?? [];
-        const offered = await filterTokenPreviewRecords(
+        const gated = await filterTokenPreviewRecords(
           root.kind,
           own,
           limit,
@@ -141,8 +145,8 @@ export async function buildTokenStudioContext(
         );
         // Only what the author picks from: `gateEntityId` is how the
         // gate found its subject, not something a client needs.
-        const records = offered.ok
-          ? offered.records.map((r) => ({
+        const records = gated.ok
+          ? gated.records.map((r) => ({
               id: r.id,
               label: r.label,
               ...(r.hint ? { hint: r.hint } : {}),
@@ -155,7 +159,7 @@ export async function buildTokenStudioContext(
           samples: listSampleSetChoicesForKind(root.kind),
           records,
           ...(records.length === 0
-            ? { noRecords: describeEmptyOffer(offered, notes[root.name]) }
+            ? { noRecords: describeNoRecords(gated, notes[root.name]) }
             : {}),
         };
       },
@@ -172,14 +176,14 @@ export async function buildTokenStudioContext(
  * showed one message for all three would be guessing on the author's
  * behalf.
  */
-function describeEmptyOffer(
-  offered: TokenPreviewOfferResult,
+function describeNoRecords(
+  gated: TokenPreviewFilterResult,
   note: string | undefined,
 ): NonNullable<TokenStudioContextRoot["noRecords"]> {
-  if (!offered.ok) {
-    return { reason: "not-previewable", detail: offered.message };
+  if (!gated.ok) {
+    return { reason: "not-previewable", detail: gated.message };
   }
-  return offered.considered === 0
+  return gated.considered === 0
     ? { reason: "none-supplied", ...(note ? { note } : {}) }
     : { reason: "unreadable" };
 }

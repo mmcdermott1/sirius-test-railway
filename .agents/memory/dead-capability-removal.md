@@ -21,6 +21,20 @@ shape, or branch, first prove nothing calls it (grep every caller, not
 just the obvious one), then delete it along with the machinery that
 existed only to make it safe. Do not reason from "someone might".
 
+Removing the implementations is not removing the capability. Its
+vocabulary survives in type names, helper names and doc comments, and
+those comments keep asserting the capability exists — which is how it
+gets rebuilt by the next reader who trusts them. Finish a removal by
+renaming what was named after it and by rewriting every doc sentence
+that still claims it. Leave ordinary English alone: a picker can "offer"
+choices; what must go is any claim that the subsystem can produce data
+it is only ever handed.
+
+While rewriting those docs, check the sentence against the code rather
+than against the old sentence. A contract line describing a count or a
+reason usually has an edge case (a switched-off component, an empty
+input) that the original phrasing quietly got wrong.
+
 Deleting a request shape an API once accepted is not the same as making
 it a no-op. Refuse it explicitly, by PRESENCE of the key rather than by
 truthiness (`{"entity": null}` is a caller describing a shape you no

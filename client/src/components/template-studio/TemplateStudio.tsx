@@ -96,7 +96,7 @@ export interface StudioSampleSet {
   label: string;
 }
 
-/** A real record a root can render as, offered by the host's context. */
+/** A real record a root can render as, supplied by the host's context. */
 export interface StudioSeedRecord {
   id: string;
   label: string;
@@ -130,7 +130,7 @@ export interface StudioContextRoot {
 
 /**
  * What this studio can preview against, built by whatever OPENED it:
- * the roots, and per root the real records that container has to offer
+ * the roots, and per root the real records that container supplied
  * plus the sample personas.
  *
  * There is no search box, because a template editor is not a record
@@ -181,8 +181,8 @@ export interface StudioPreviewResult {
 /**
  * What the preview renders against: one entry per root, each naming
  * either a real record or a sample persona. The server gates every
- * named record as a read of it before seeding — the offer the studio
- * was opened with is UX, not the authorization boundary.
+ * named record as a read of it before seeding — the list the studio was
+ * opened with is UX, not the authorization boundary.
  */
 interface PreviewSeedRequest {
   seeds: Array<
@@ -481,14 +481,14 @@ function noRecordsMessage(root: StudioContextRoot): string {
     case "none-supplied":
       return `The editor that opened this studio has no ${label} records for it.`;
     case "unreadable":
-      return `You may not read the ${label} records this editor offered.`;
+      return `You may not read the ${label} records this editor supplied.`;
     case "not-previewable":
       return (
         noRecords.detail ??
         `${root.label} records cannot be previewed against.`
       );
     default:
-      return `No real ${label} records are on offer here.`;
+      return `No real ${label} records were supplied here.`;
   }
 }
 
@@ -654,10 +654,10 @@ export function TemplateStudio({
   );
 
   // ── What each root renders as ──────────────────────────────────────────────
-  // The container that opened this studio already said what is on offer
-  // (`studioContext`), so there is nothing to look up and nothing to
-  // search: the author picks one thing per root from a list that was
-  // gated for them before it arrived.
+  // The container that opened this studio already said what each root
+  // may render as (`studioContext`), so there is nothing to look up and
+  // nothing to search: the author picks one thing per root from a list
+  // that was gated for them before it arrived.
   const contextRoots = studioContext?.roots ?? [];
   // A context that never arrived is not a context that is empty. Kept
   // apart everywhere below, because conflating them is the whole defect.
@@ -671,7 +671,7 @@ export function TemplateStudio({
    * tree endpoint of its own (which scopes server-side). With neither,
    * the scope was supposed to come from the catalog — and until that
    * arrives, the default tree is the whole site's token list, not this
-   * host's. Offering it would be the same lie in a different panel:
+   * host's. Showing it would be the same lie in a different panel:
    * a failed request reading as a usable, but foreign, token source.
    */
   const treeScopeKnown = (rootNames?.length ?? 0) > 0 || Boolean(treeBaseUrl);
@@ -688,7 +688,7 @@ export function TemplateStudio({
   });
 
   /**
-   * The roots the render reports on: exactly the ones on offer here, in
+   * The roots the render reports on: exactly the ones shown here, in
    * the order the container put them in. The panel and the preview's
    * real-vs-sample report can therefore never disagree, and a root the
    * author cannot see is never claimed to have been rendered. Before the
@@ -701,8 +701,8 @@ export function TemplateStudio({
   /**
    * The author's pick per root NAME, as `record:<id>` / `sample:<id>`.
    * Only what they actually changed is kept; every root falls back to
-   * the default below, so a pick can never outlive the offer it was
-   * made from — an option that is gone is simply not chosen any more.
+   * the default below, so a pick can never outlive the list it was made
+   * from — an option that is gone is simply not chosen any more.
    * Picks are deliberate and do not survive the studio closing.
    */
   const [chosen, setChosen] = useState<Record<string, string>>({});
@@ -718,7 +718,7 @@ export function TemplateStudio({
     setPanel("preview");
   });
 
-  // Default: the first real record the container offered for this root,
+  // Default: the first real record the container supplied for this root,
   // else its first persona. A container that has records in hand is
   // saying "this is what the template is about", so previewing against
   // one of them is what the author wants to see first.
@@ -1208,7 +1208,7 @@ export function TemplateStudio({
                 className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 space-y-1.5"
                 data-testid="studio-subject-panel"
               >
-                {/* Loading, failed, and "nothing on offer" are three
+                {/* Loading, failed, and "nothing supplied" are three
                     different answers. The old panel gave one line for all
                     three and left the author to guess which. */}
                 {catalogLoading ? (

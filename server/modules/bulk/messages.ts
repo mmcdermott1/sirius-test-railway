@@ -651,7 +651,7 @@ export function registerBulkMessageRoutes(
   //
   // The catalog belongs to ONE message, because the studio it feeds
   // previews against that message's OWN recipients: a bulk author is
-  // writing to a list they have already chosen, so the seeds on offer
+  // writing to a list they have already chosen, so the seeds it supplies
   // are people who will actually receive this message rather than
   // whoever the author could look up. The recipients are still filtered
   // by the contact/worker read gates, like every other preview seed.
@@ -690,7 +690,7 @@ export function registerBulkMessageRoutes(
         }
       }
 
-      // A bulk message is ABOUT its recipients, so it offers exactly the
+      // A bulk message is ABOUT its recipients, so it states exactly the
       // recipient-side roots it has records for (see BULK_TOKEN_ROOT_NAMES)
       // — the same list its tree, its validation and its coverage check
       // use. `system` is in that list and seedless, so it is browsable
@@ -735,7 +735,7 @@ export function registerBulkMessageRoutes(
   // Browsable token tree for bulk messaging — the same lazy tree the
   // Template Studio walks, gated for bulk authors instead of admins.
   // The roots are bulk's own declared list, fixed server-side: the
-  // caller cannot ask for a root bulk does not offer.
+  // caller cannot ask for a root bulk has not declared.
   app.get("/api/bulk-tokens/tree/roots", requireAuth, requireAccess('bulk.edit'), (_req, res) => {
     res.json({ roots: listTokenTreeRoots(BULK_TOKEN_ROOT_NAMES) });
   });
@@ -771,7 +771,7 @@ export function registerBulkMessageRoutes(
       if (postal) templates.push(postal.description || "");
 
       // Only cover expressions that parse + validate against the roots
-      // bulk offers; invalid ones are surfaced by the editor's warnings.
+      // bulk declares; invalid ones are surfaced by the editor's warnings.
       const tokenIds = Array.from(new Set(
         templates.flatMap((t) => extractTokenExpressions(t))
           .filter((expr) => validateTokenExpressionForRoots(expr, BULK_TOKEN_ROOT_NAMES).ok)

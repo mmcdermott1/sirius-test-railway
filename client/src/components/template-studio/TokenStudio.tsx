@@ -64,7 +64,7 @@ interface TokenStudioBaseProps {
  * names them server-side. There is no third option where the roots go
  * unstated: the studio would then have to guess, and the only guess
  * available is "every root in the registry" — which is how an editor
- * ends up offering an author records their message has never heard of.
+ * ends up showing an author records their message has never heard of.
  */
 type TokenStudioSourceProps =
   | {

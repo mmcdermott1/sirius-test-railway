@@ -168,15 +168,21 @@ async function gateAllows(
   return check(gate.policy, subjectId);
 }
 
-export type TokenPreviewOfferResult =
+/** What the gate left of the records a container supplied. */
+export type TokenPreviewFilterResult =
   | {
       ok: true;
       records: TokenPreviewRecordRef[];
       /**
-       * How many candidates were put forward BEFORE the gate ran. It is
-       * the difference between "there was nothing to offer" and "there
-       * was something and you may not read it" — two answers a studio
-       * has to tell apart to say why a root has no records.
+       * How many of the container's candidates REACHED the gate. It is
+       * the difference between "the container had none" and "it had
+       * some and you may not read them" — two answers a studio has to
+       * tell apart to say why a root has no records.
+       *
+       * Zero when the container supplied nothing, and equally zero when
+       * a switched-off component means its records are not visible at
+       * all: neither is a refusal aimed at this caller, so both read to
+       * the author as "there was nothing here".
        */
       considered: number;
     }
@@ -186,17 +192,17 @@ export type TokenPreviewOfferResult =
  * Keep only the records this caller may actually read.
  *
  * The candidates are always a container's own (a bulk message's
- * recipients, say): no seed is ever offered that its owner could not
- * open elsewhere in the app. Deciding who may see a record stays here,
- * so a container cannot hand-roll its own idea of authorization by
- * supplying its own list.
+ * recipients, say): no seed reaches an author that they could not open
+ * elsewhere in the app. Deciding who may see a record stays here, so a
+ * container cannot hand-roll its own idea of authorization by supplying
+ * its own list.
  */
 export async function filterTokenPreviewRecords(
   kind: TokenEntityType,
   candidates: TokenPreviewRecordRef[],
   limit: number,
   ctx: TokenPreviewContext,
-): Promise<TokenPreviewOfferResult> {
+): Promise<TokenPreviewFilterResult> {
   const entry = collectPreviewEntities().get(kind);
   if (!entry) {
     return {
@@ -206,9 +212,10 @@ export async function filterTokenPreviewRecords(
     };
   }
   if (!(await componentAllows(entry))) {
-    // Same answer a switched-off component gives everywhere else: the
-    // kind simply offers nothing. Nothing was considered either — a
-    // switched-off component is not a refusal aimed at this caller.
+    // Same answer a switched-off component gives everywhere else: none
+    // of its data is visible, so nothing survives. Nothing was
+    // considered either — a switched-off component is not a refusal
+    // aimed at this caller.
     return { ok: true, records: [], considered: 0 };
   }
 
