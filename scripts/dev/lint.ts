@@ -66,6 +66,11 @@ const RULES: Rule[] = [
     script: "scripts/dev/check-component-table-order.ts",
     summary: "component manifest tables sort into a valid FK creation order",
   },
+  {
+    id: "lockfile-registry",
+    script: "scripts/dev/check-lockfile-registry.ts",
+    summary: "lockfile tarball URLs point at the public npm registry",
+  },
 ];
 
 function usage(): void {

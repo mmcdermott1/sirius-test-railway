@@ -24,10 +24,11 @@ Sirius is a full-stack web application designed for comprehensive worker managem
 
 -   **`npm run lint` is the architecture-lint suite** — one entry point for
     every repo-wide architecture rule (`scripts/dev/lint.ts`). It runs all
-    six rules and reports **every** violation in one pass rather than
+    seven rules and reports **every** violation in one pass rather than
     stopping at the first, each with its own fix instructions:
     `env-registry`, `storage-encapsulation`, `denorm-declarations`,
-    `html-utils`, `constraint-names`, `component-table-order`. Run one rule
+    `html-utils`, `constraint-names`, `component-table-order`,
+    `lockfile-registry`. Run one rule
     with `npx tsx scripts/dev/lint.ts <rule-id>`, list them with `--list`.
     A new repo-wide rule is added to the `RULES` table in that file — never
     as its own workflow.
@@ -248,7 +249,7 @@ reserved for the durable tooling that the app and its checks depend on
 The rest of `scripts/` is split by who runs it and when:
 
 -   `scripts/dev/` — checks. The lint entry point (`lint.ts`) and the
-    six architecture-lint rules it registers — every file here is
+    seven architecture-lint rules it registers — every file here is
     reachable from `npm run lint`. Nothing here is a behavioral test;
     those go in `tests/`. A new check is a rule in the `RULES` table of
     `lint.ts` or a case under `tests/` — never a new script here with
@@ -332,6 +333,30 @@ substantial. Adding a rule means adding a row to the `RULES` table.
 `scripts/dev/` with its own workflow / registered validation.** The
 automated gates are exactly the three listed in Run & Operate, and that
 list does not grow one check at a time.
+
+## Lockfile URLs MUST point at the public npm registry
+
+Every `resolved` tarball URL in `package-lock.json` must point at
+`https://registry.npmjs.org/`. Any `npm install` run **inside this Replit
+workspace** goes through Replit's internal npm proxy and rewrites the
+`resolved` URLs of the packages it touched to
+`http://package-firewall.replit.local/npm/…`. That host only resolves inside
+Replit, so GitHub Actions and the Docker build then die at `npm ci` with
+`EAI_AGAIN package-firewall.replit.local`. Versions and integrity hashes are
+untouched — only the URL host is wrong.
+
+So after any install here, check the lockfile before committing:
+
+    npx tsx scripts/dev/lint.ts lockfile-registry
+
+and if it fails, rewrite the host (nothing else changes):
+
+    sed -i 's#https\?://package-firewall\.replit\.local/npm/#https://registry.npmjs.org/#g' package-lock.json
+
+The `lockfile-registry` architecture-lint rule enforces this as part of the
+`lint` gate, naming every offending package. CI and the Dockerfile
+deliberately do **not** rewrite URLs at build time — the lockfile in the repo
+is expected to be correct.
 
 ## Environment variables (registry required)
 
