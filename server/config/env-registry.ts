@@ -463,7 +463,7 @@ registerEnvironmentVariables([
   { name: "SAML_ENTRY_POINT", description: "SAML IdP entry point URL.", secret: false, category: "core" },
   { name: "SAML_ISSUER", description: "SAML issuer (SP entity id).", secret: false, category: "core" },
   { name: "SAML_CERT", description: "SAML IdP signing certificate (PEM).", secret: true, category: "core" },
-  { name: "SAML_CALLBACK_PATH", description: "Override for the SAML callback path.", secret: false, category: "core" },
+  { name: "SAML_CALLBACK_PATH", description: "Override for the SAML callback path. Must be a local path starting with a slash, such as /api/auth/saml/callback, and never a fully-qualified URL with a domain name. The default is almost always correct; leave this unset unless you have a specific reason.", secret: false, category: "core" },
   { name: "OAUTH_AUTHORIZATION_URL", description: "Generic OAuth2 authorization endpoint.", secret: false, category: "core" },
   { name: "OAUTH_TOKEN_URL", description: "Generic OAuth2 token endpoint.", secret: false, category: "core" },
   { name: "OAUTH_USERINFO_URL", description: "Generic OAuth2 userinfo endpoint.", secret: false, category: "core" },
