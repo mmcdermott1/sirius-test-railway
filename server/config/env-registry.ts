@@ -89,12 +89,18 @@ function canonicalHttpsOrigin(raw: string, sourceLabel: string): string {
  *  - "restart":   the running app captured the value at startup (module-level
  *    constant, boot-time initialization, or a memoized config), so the change
  *    only applies after the app is restarted.
+ *  - "reload":    the running app captured the value at startup, but a
+ *    reloadable subsystem can re-read it in place, so an operator can apply
+ *    the change from the Restart & Reload page without downtime (Task #1258).
+ *    A variable may only carry this when a reloadable subsystem actually
+ *    names it — `server/services/reload-registry.ts` asserts that at boot, so
+ *    the two surfaces cannot drift apart.
  *
  * Leaving it undeclared is a valid third state, meaning "not stated". Callers
  * must NOT treat undeclared as "immediate": the page shows nothing rather
  * than making a claim nobody made deliberately.
  */
-export type EnvironmentVariableChangeEffect = "immediate" | "restart";
+export type EnvironmentVariableChangeEffect = "immediate" | "restart" | "reload";
 
 export interface EnvironmentVariableDeclaration {
   /** Exact environment variable name, e.g. "DATABASE_URL". */
@@ -330,6 +336,42 @@ export function getEnvironmentVariable(name: string): string | undefined {
 }
 
 /**
+ * Read a variable that is a claim the PLATFORM makes about the running
+ * process — an orchestrator marker such as a task-metadata endpoint address.
+ * Identical to {@link getEnvironmentVariable} except that the database
+ * override map is never consulted.
+ *
+ * WHY A SECOND READ PATH. Every registered variable is overridable in-app by
+ * design, and that stays true: this is not a denylist and it does not block
+ * anyone from setting a value. It is about what the value MEANS. An ordinary
+ * variable is configuration — the operator is entitled to choose it. A
+ * platform marker is evidence: code reads it to conclude "an orchestrator put
+ * this here, therefore I am running under that orchestrator", and then acts
+ * on the conclusion — deciding where to send a request, or telling an
+ * operator their app is supervised. A value an application user can write is
+ * not evidence about the environment, so honouring an override here would let
+ * an in-app setting forge a fact about the host and steer server-side
+ * behaviour (a request address being the sharp end of it).
+ *
+ * Use this ONLY for variables injected by the platform itself. Anything the
+ * deployer is meant to choose belongs on {@link getEnvironmentVariable}.
+ */
+export function getPlatformEnvironmentVariable(name: string): string | undefined {
+  const decl = registry.get(name);
+  if (!decl) {
+    throw new Error(
+      `Environment variable "${name}" is not registered. Declare it with ` +
+        `registerEnvironmentVariable() (see server/config/env-registry.ts) before reading it.`,
+    );
+  }
+  let value: string | undefined = readProcessEnv(name);
+  if (decl.transform) value = decl.transform(value);
+  const override = overrides.get(name);
+  if (override) value = override(value);
+  return value;
+}
+
+/**
  * Install (fn) or remove (null) a runtime override applied after the
  * declaration transform on every read of `name`. For in-application
  * filtering/overriding without touching the process environment.
@@ -450,6 +492,9 @@ export function getRawProcessEnv(): NodeJS.ProcessEnv {
 //                 memoized config (e.g. the auth config snapshot).
 //   - "immediate" every consumer re-reads it through getEnvironmentVariable
 //                 at the point of use.
+//   - "reload"    captured at startup, but a registered reloadable subsystem
+//                 (server/services/reload-registry.ts) can re-read it in
+//                 place from the admin Restart & Reload page.
 //   - omitted     genuinely ambiguous, or the running app never reads it
 //                 (a separate CLI process, or a cache that is filled once and
 //                 not refreshed). Omitted means "not stated", NOT "immediate".
@@ -477,7 +522,10 @@ registerEnvironmentVariables([
   { name: "SKIP_SCHEMA_DRIFT_CHECK", description: "Set to 1 to skip the startup schema-drift boot gate (dev escape hatch).", secret: false, category: "core", changeTakesEffect: "restart", },
   { name: "SKIP_DIST_FRESHNESS_CHECK", description: "Set to 1 to skip the stale-dist build freshness guard in production entry.", secret: false, category: "core", changeTakesEffect: "restart", },
   { name: "EXPOSE_BOOT_ERRORS", description: "Set to 1 to render init-failure details (message + stack) on the boot failure page.", secret: false, category: "core", changeTakesEffect: "restart", },
-  { name: "FILESYSTEMS", description: "JSON map of filesystem configs (see server/services/files/config.ts). *_secret settings name further env vars.", secret: false, category: "core", changeTakesEffect: "restart", },
+  // "reload": the filesystem registry re-parses this and drops its cached
+  // providers when the "Filesystem registry" subsystem is reloaded from the
+  // admin Restart & Reload page (Task #1258) — no restart needed.
+  { name: "FILESYSTEMS", description: "JSON map of filesystem configs (see server/services/files/config.ts). *_secret settings name further env vars.", secret: false, category: "core", changeTakesEffect: "reload", },
   {
     name: "PUBLIC_URL",
     description:
@@ -530,6 +578,15 @@ registerEnvironmentVariables([
   { name: "WEB_REPL_RENEWAL", description: "Replit deployment identity token (connector auth).", secret: true, category: "platform" },
   { name: "REPLIT_CONNECTORS_HOSTNAME", description: "Hostname of the Replit connectors API.", secret: false, category: "platform" },
   { name: "REPLIT_DEPLOYMENT", description: "Set to 1 inside a Replit deployment container.", secret: false, category: "platform", changeTakesEffect: "restart", },
+  // Container-platform markers injected by the orchestrator, read by the
+  // container facts service (server/services/container-facts.ts) on every
+  // scan — hence "immediate". They are set by the platform, not by a
+  // deployer, and are listed here so the facts service can read them
+  // through the registry getter like every other variable (Task #1258).
+  { name: "ECS_CONTAINER_METADATA_URI_V4", description: "Amazon ECS task metadata endpoint (v4), injected into every ECS task.", secret: false, category: "platform", changeTakesEffect: "immediate", },
+  { name: "ECS_CONTAINER_METADATA_URI", description: "Amazon ECS task metadata endpoint (v3), the older spelling of the above.", secret: false, category: "platform", changeTakesEffect: "immediate", },
+  { name: "AWS_EXECUTION_ENV", description: "Name of the AWS runtime executing this process, e.g. AWS_ECS_FARGATE.", secret: false, category: "platform", changeTakesEffect: "immediate", },
+  { name: "KUBERNETES_SERVICE_HOST", description: "Kubernetes API service address, injected into every pod by the kubelet.", secret: false, category: "platform", changeTakesEffect: "immediate", },
   { name: "DEFAULT_OBJECT_STORAGE_BUCKET_ID", description: "Replit object storage default bucket id.", secret: false, category: "platform", changeTakesEffect: "restart", },
   { name: "PUBLIC_OBJECT_SEARCH_PATHS", description: "Comma-separated public search paths in object storage.", secret: false, category: "platform", changeTakesEffect: "restart", },
   { name: "PRIVATE_OBJECT_DIR", description: "Private directory prefix in object storage.", secret: false, category: "platform", changeTakesEffect: "restart", },

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Pencil, Trash2, Info, Search, RotateCw, Zap } from "lucide-react";
+import { Lock, Pencil, Trash2, Info, Search, RotateCw, RefreshCw, Zap } from "lucide-react";
 
 interface EnvVarInfo {
   name: string;
@@ -32,9 +32,10 @@ interface EnvVarInfo {
   /**
    * When a change is picked up by the running app. null when the variable's
    * declaration does not state it — show nothing rather than implying
-   * "immediate".
+   * "immediate". "reload" means a subsystem on the Restart & Reload page can
+   * re-read it in place, so no restart is needed.
    */
-  changeTakesEffect: "immediate" | "restart" | null;
+  changeTakesEffect: "immediate" | "restart" | "reload" | null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -202,6 +203,15 @@ export default function EnvPage() {
                               <Zap className="h-3 w-3" /> applies immediately
                             </Badge>
                           )}
+                          {v.changeTakesEffect === "reload" && (
+                            <Badge
+                              variant="outline"
+                              className="gap-1"
+                              data-testid={`env-effect-reload-${v.name}`}
+                            >
+                              <RefreshCw className="h-3 w-3" /> reload to apply
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">{v.description}</p>
                         {!v.secret && v.isSet && v.value !== null && (
@@ -223,6 +233,14 @@ export default function EnvPage() {
                             <RotateCw className="h-3 w-3 mt-0.5 shrink-0" />
                             Read once while the app starts — saving a new value here does not
                             change the running app until it is restarted.
+                          </p>
+                        )}
+                        {v.changeTakesEffect === "reload" && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                            <RefreshCw className="h-3 w-3 mt-0.5 shrink-0" />
+                            Read once while the app starts, but a subsystem can re-read it in
+                            place — apply a new value from Restart &amp; Reload, no restart
+                            needed.
                           </p>
                         )}
                         {envLocked && v.overridable && (
