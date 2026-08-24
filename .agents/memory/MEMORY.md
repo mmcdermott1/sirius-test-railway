@@ -1,4 +1,3 @@
-// hint: Logic changed on both sides. Requires understanding intent of each change.
 - [In-app env overrides](env-overrides-framework.md) — env wins unless "released" (empty/`__UNSET__`); NO denylist, ALL registered vars overridable (owner decision, don't re-block); one ENV_{NAME} row per override.
 - [PUBLIC_URL single base-URL source](public-url-registry.md) — Replit domain vars are UNREGISTERED; all public-origin reads go through PUBLIC_URL (transform holds the fallback chain); external callbacks use getPublicBaseUrl.
 - [Env-var registry](env-var-registry.md) — all env reads go through getEnvironmentVariable (server/config/env-registry.ts, pure leaf); check-env-registry flags process-env even in comments.
@@ -118,4 +117,7 @@
 - [Notification receipt column](notification-receipt-column.md) — a comm-link column that gates resending must be voided in the entity's UPDATE (null-stripped value compare) and its write-back guarded by the sender's snapshot.
 - [Platform history re-parenting](platform-history-reparenting.md) — main gets rewritten into content-identical commits with new parents; long-lived config branches re-conflict forever — rebuild them, don't merge.
 - [pdfmake lazy load order](pdfmake-lazy-load-order.md) — pdfmake + vfs_fonts dynamic imports must be sequential (fonts register via a global set at pdfmake's evaluation); Promise.all silently loses them.
+- [Credential redaction in logs](audit-log-credential-redaction.md) — bearer-like values leak via TWO paths (storage before/after payload AND the API responsePreview key allowlist); log identifiers + hasX booleans, prove with a canary scan.
+- [Storage logging hook name conventions](storage-logging-hook-name-conventions.md) — before/after state is synthesized ONLY for create*/update*/delete* names; setX/clearX/upsert get undefined beforeState, so create-vs-update descriptions silently lie.
+- [Component migration/push parity](component-migration-push-parity.md) — the enable-path push leaves FKs UNNAMED (`<t>_<c>_fkey`) while keeping declared unique names; a creation migration must match, proven by snapshot-drop-migrate-compare.
 - [Typecheck heap ceiling](typecheck-heap-ceiling.md) — tsc runs as two pinned processes; heap grows ~linearly with file count, and cutting drizzle out of the client half was measured at only −7%.

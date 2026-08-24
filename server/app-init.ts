@@ -49,11 +49,16 @@ import "@shared/access-policies/loader";
 import { registerEntityAccessModule } from "./modules/entity-access";
 import { isComponentEnabled } from "./modules/components";
 
-// Helper function to redact sensitive data from responses before logging
-function redactSensitiveData(data: any): any {
+// Helper function to redact sensitive data from responses before logging.
+// Exported so the redaction list can be asserted directly — the fields it
+// covers are a security boundary, not an implementation detail.
+export function redactSensitiveData(data: any): any {
   if (!data || typeof data !== 'object') return data;
 
-  const sensitiveFields = ['ssn', 'password', 'token', 'secret'];
+  // `accesscode` / `accessuuid` are the worker.aat access-token pair: they are
+  // bearer-like credentials (a future link is authorized by the UUID alone),
+  // so they must never reach a response preview in the admin log viewer.
+  const sensitiveFields = ['ssn', 'password', 'token', 'secret', 'accesscode', 'accessuuid'];
   const redacted = Array.isArray(data) ? [...data] : { ...data };
 
   for (const key in redacted) {
