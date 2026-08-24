@@ -1,3 +1,4 @@
+import type { Comm } from "@shared/schema";
 import {
   EventType,
   type EdlsSheetSavedPayload,
@@ -183,6 +184,38 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
     return {
       message: `${SENTENCE} ${assignmentScheduleUrl(assignmentId)}`,
     };
+  },
+
+  /**
+   * Record the text on the assignment it was about, so a sheet can show who
+   * was contacted and what they were sent.
+   *
+   * Reuses the same per-event contact → assignment map the message was built
+   * from, which is what makes the recorded link and the link inside the text
+   * necessarily the same assignment.
+   *
+   * Deliberately records failures too: the framework calls this whenever a
+   * comm record exists, and a worker whose text bounced is a more useful thing
+   * to see on a sheet than one indistinguishable from a worker nobody tried to
+   * reach. Workers with no active primary number and workers who never opted
+   * in are filtered out before sending, so they are never recorded — they were
+   * genuinely not contacted.
+   */
+  async onCommCreated(
+    medium: NotificationMedium,
+    recipient: NotifierRecipient,
+    comm: Comm,
+    ctx: EventNotifierEventContext,
+  ): Promise<void> {
+    if (medium !== "sms") return;
+    const assignmentId = assignmentByContact.get(ctx)?.get(recipient.contactId);
+    if (!assignmentId) return;
+    const { storage } = await import("../../../storage");
+    // A false return means there was nothing to record onto: the assignment
+    // was deleted between the text going out and this write, or a later text
+    // already claimed the slot. The worker was still texted either way, and
+    // neither case is repairable here.
+    await storage.edlsAssignments.setCommId(assignmentId, comm.id);
   },
 };
 

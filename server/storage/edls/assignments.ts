@@ -224,6 +224,23 @@ export interface EdlsAssignmentsStorage {
   delete(id: string): Promise<boolean>;
   deleteByCrewId(crewId: string): Promise<number>;
   updateData(id: string, data: Record<string, unknown>): Promise<EdlsAssignment | undefined>;
+  /**
+   * Record the communication a worker was sent about this assignment.
+   *
+   * Deliberately narrow: the link is provenance owned by whatever sent the
+   * message (which is why the insert schema omits the field), so it is set
+   * here rather than through a general-purpose update a caller could reach
+   * with a request body. The column holds ONE value — a later message to the
+   * same worker replaces an earlier one, making this the most recent message
+   * about the assignment rather than a history of every message. "Later"
+   * means later SENT, not later written: a message that overtook an earlier
+   * one in flight does not get demoted by it.
+   *
+   * Returns false when nothing was recorded — either no such assignment (it
+   * can be deleted between the message going out and this write landing), or
+   * a more recent message is already on record. Both are benign.
+   */
+  setCommId(id: string, commId: string): Promise<boolean>;
   getAvailableWorkersForSheet(sheetYmd: string, industryId: string | null, ratingId?: string): Promise<AvailableWorkerForSheet[]>;
   /**
    * Report query: every assignment on a future (ymd >= fromYmd), non-trash
@@ -477,6 +494,35 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         .where(eq(edlsAssignments.id, id))
         .returning();
       return assignment || undefined;
+    },
+
+    async setCommId(id: string, commId: string): Promise<boolean> {
+      const client = getClient();
+      // Order by WHEN THE MESSAGES WERE SENT, not by which bookkeeping write
+      // arrives first. Two sends racing (a sheet saved twice in quick
+      // succession) finish their post-send writes in provider-latency order,
+      // so an unconditional update can leave the older text recorded. The
+      // guard makes "most recent message" true regardless of that ordering.
+      const result = await client
+        .update(edlsAssignments)
+        .set({ commId })
+        .where(
+          and(
+            eq(edlsAssignments.id, id),
+            sql`(
+              ${edlsAssignments.commId} IS NULL
+              OR EXISTS (
+                SELECT 1 FROM comm c_new, comm c_old
+                WHERE c_new.id = ${commId}
+                  AND c_old.id = ${edlsAssignments.commId}
+                  AND COALESCE(c_new.sent, 'epoch'::timestamp)
+                      >= COALESCE(c_old.sent, 'epoch'::timestamp)
+              )
+            )`,
+          ),
+        )
+        .returning({ id: edlsAssignments.id });
+      return result.length > 0;
     },
 
     async getAvailableWorkersForSheet(sheetYmd: string, industryId: string | null, ratingId?: string): Promise<AvailableWorkerForSheet[]> {

@@ -112,4 +112,5 @@
 - [Branch-scoped CI/deploy dirs](branch-scoped-ci-files.md) — .github/deploy are per-branch, never on main; task agents silently delete them; gitignore can't untrack, `git add` no-ops; use `git checkout <branch> -- paths` / `git rm --cached`.
 - [Deploy env var sources](deploy-env-var-sources.md) — ECS container env comes ONLY from GitHub `APP_*` vars/secrets; the repo `deploy/env.<env>.json` source is referenced as if it works but is unbuilt (silent no-op).
 - [Per-recipient notifier messages](notifier-per-recipient-message.md) — token roots build once per event, so a per-recipient link means composing in getMessage (carry it on a ctx-keyed WeakMap); pre-filter SMS opt-in or every opted-out person gets a failed comm row.
+- [Notifier comm writeback](notifier-comm-writeback.md) — senders own comm creation; onCommCreated is the only way a plugin learns its message id; fires on failures too; order single-link writes by sent-time, not write order.
 - [Platform history re-parenting](platform-history-reparenting.md) — main gets rewritten into content-identical commits with new parents; long-lived config branches re-conflict forever — rebuild them, don't merge.
