@@ -81,6 +81,11 @@ export const validate = createAsyncStorageValidator<InsertEdlsAssignment, EdlsAs
 );
 
 export interface EdlsAssignmentWithWorker extends EdlsAssignment {
+  /**
+   * Status of the communication `commId` points at, or null when the
+   * assignment has no linked communication (or the reader does not join it).
+   */
+  commStatus?: string | null;
   worker: {
     id: string;
     siriusId: number | null;
@@ -369,6 +374,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         workerId: string;
         crewId: string;
         commId: string | null;
+        commStatus: string | null;
         data: unknown;
         workerRowId: string;
         siriusId: number | null;
@@ -387,6 +393,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           ea.worker_id as "workerId",
           ea.crew_id as "crewId",
           ea.comm_id as "commId",
+          cm.status as "commStatus",
           ea.data,
           w.id as "workerRowId",
           w.sirius_id as "siriusId",
@@ -398,6 +405,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         INNER JOIN edls_crews ec ON ea.crew_id = ec.id
         INNER JOIN workers w ON ea.worker_id = w.id
         INNER JOIN contacts c ON w.contact_id = c.id
+        LEFT JOIN comm cm ON cm.id = ea.comm_id
         ${memberStatusJoin}
         WHERE ec.sheet_id = ${sheetId}
       `);
@@ -409,6 +417,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         workerId: row.workerId,
         crewId: row.crewId,
         commId: row.commId,
+        commStatus: row.commStatus,
         data: row.data,
         worker: {
           id: row.workerRowId,
