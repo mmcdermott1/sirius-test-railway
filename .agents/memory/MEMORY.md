@@ -117,4 +117,5 @@
 - [Plugin config public addressing](plugin-config-public-addressing.md) — config ids are per-database, so a public URL needs a manifest-declared alias; resolve id-then-alias, refuse ambiguity at call time in the ONE shared refusal.
 - [Notification receipt column](notification-receipt-column.md) — a comm-link column that gates resending must be voided in the entity's UPDATE (null-stripped value compare) and its write-back guarded by the sender's snapshot.
 - [Platform history re-parenting](platform-history-reparenting.md) — main gets rewritten into content-identical commits with new parents; long-lived config branches re-conflict forever — rebuild them, don't merge.
+- [pdfmake lazy load order](pdfmake-lazy-load-order.md) — pdfmake + vfs_fonts dynamic imports must be sequential (fonts register via a global set at pdfmake's evaluation); Promise.all silently loses them.
 - [Typecheck heap ceiling](typecheck-heap-ceiling.md) — tsc runs as two pinned processes; heap grows ~linearly with file count, and cutting drizzle out of the client half was measured at only −7%.
