@@ -195,9 +195,30 @@ export interface OutOfPopulationAssignmentRow {
   supervisorName: string | null;
 }
 
+/**
+ * One assignment on a sheet, resolved down to the single phone number an SMS
+ * to that worker would actually go to: their contact's ACTIVE PRIMARY number.
+ * Assignments whose worker has no such number are left out entirely — a
+ * caller pre-filtering recipients must not have to guess which of several
+ * numbers the send layer would pick.
+ */
+export interface SheetAssignmentSmsTarget {
+  assignmentId: string;
+  workerId: string;
+  contactId: string;
+  phoneNumber: string;
+}
 export interface EdlsAssignmentsStorage {
   getByCrewId(crewId: string): Promise<EdlsAssignmentWithWorker[]>;
   getBySheetId(sheetId: string, industryId?: string | null): Promise<EdlsAssignmentWithWorker[]>;
+  /**
+   * Every assignment on a sheet whose worker has an active primary phone
+   * number, as one query (notifiers fan out per sheet, so a per-assignment
+   * worker → contact → phone walk would be N round-trips). Ordered by
+   * assignment id so a worker appearing twice on a sheet resolves to the same
+   * assignment every time.
+   */
+  getSmsTargetsBySheetId(sheetId: string): Promise<SheetAssignmentSmsTarget[]>;
   get(id: string): Promise<EdlsAssignment | undefined>;
   create(assignment: InsertEdlsAssignment): Promise<EdlsAssignment>;
   delete(id: string): Promise<boolean>;
@@ -382,6 +403,40 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
       }));
 
       return sortAssignmentsByClassification(unsortedAssignments);
+    },
+
+    async getSmsTargetsBySheetId(sheetId: string): Promise<SheetAssignmentSmsTarget[]> {
+      const client = getClient();
+
+      // The phone is resolved here, in the same pass, and only the ACTIVE
+      // PRIMARY one: that is the number the SMS send layer picks for a
+      // contact, so a caller filtering on it filters on the number the
+      // message would really go to. A worker with no active primary number
+      // drops out of the result rather than coming back phone-less.
+      const result = await client.execute(sql`
+        SELECT
+          ea.id as "assignmentId",
+          ea.worker_id as "workerId",
+          c.id as "contactId",
+          ph.phone_number as "phoneNumber"
+        FROM edls_assignments ea
+        INNER JOIN edls_crews ec ON ea.crew_id = ec.id
+        INNER JOIN workers w ON ea.worker_id = w.id
+        INNER JOIN contacts c ON w.contact_id = c.id
+        INNER JOIN LATERAL (
+          SELECT p.phone_number
+          FROM contact_phone p
+          WHERE p.contact_id = c.id
+            AND p.is_active = true
+            AND p.is_primary = true
+          ORDER BY p.created_at ASC, p.id ASC
+          LIMIT 1
+        ) ph ON true
+        WHERE ec.sheet_id = ${sheetId}
+        ORDER BY ea.id ASC
+      `);
+
+      return result.rows as unknown as SheetAssignmentSmsTarget[];
     },
 
     async get(id: string): Promise<EdlsAssignment | undefined> {
