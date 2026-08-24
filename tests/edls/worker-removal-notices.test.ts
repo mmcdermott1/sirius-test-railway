@@ -39,6 +39,10 @@ function contactOf(workerId: string): string {
 function phoneOf(workerId: string): string {
   return `+1555000${workerId.length}${workerId.slice(-1)}`;
 }
+/** The worker's access token — the credential the texted link carries. */
+function tokenOf(workerId: string): string {
+  return `token-for-${workerId}`;
+}
 
 /**
  * A stored `edls_sheet` bundle: the sheet's own columns — `changed` among them,
@@ -92,6 +96,8 @@ interface Scenario {
   smsTargets: string[];
   /** Workers reachable by SMS today. Anyone absent has no usable number. */
   reachable?: string[];
+  /** Workers whose access token cannot be issued. */
+  tokenless?: string[];
   captureActive?: boolean;
   statuses?: string[];
   /** The save being processed, when it is not the default one. */
@@ -135,6 +141,19 @@ vi.mock("../../server/storage", () => ({
           phoneNumber: phoneOf(workerId),
           data: null,
         }));
+      },
+    },
+    workerAat: {
+      // Get-or-create in the real thing; here it simply answers with the
+      // worker's stable token, unless the scenario says it cannot be issued.
+      async ensureAccessUuid(workerId: string) {
+        if (scenario.tokenless?.includes(workerId)) {
+          throw new Error(`no token for ${workerId}`);
+        }
+        return {
+          record: { id: `aat-${workerId}`, workerId, accessUuid: tokenOf(workerId), accessCode: null },
+          issued: false,
+        };
       },
     },
     workers: {
@@ -226,10 +245,28 @@ describe("EDLS worker SMS notifier — workers taken off the sheet", () => {
     expect(messages.get(contactOf(REMOVED)), "names the date").toContain("June 1, 2099");
     expect(
       messages.get(contactOf(REMOVED)),
-      "link addresses the worker, who has no assignment left",
-    ).toContain(`/edls-sched/${REMOVED}`);
+      "link carries the worker's access token, not a row that is gone",
+    ).toContain(`/edls-sched/${tokenOf(REMOVED)}`);
     expect(messages.get(contactOf(ASSIGNED))).toContain("posted or updated");
-    expect(messages.get(contactOf(ASSIGNED))).toContain(`/edls-sched/${ASSIGNED}`);
+    expect(messages.get(contactOf(ASSIGNED))).toContain(`/edls-sched/${tokenOf(ASSIGNED)}`);
+    // The worker's own id is unrotatable and appears in staff URLs and
+    // exports, so a link carrying it would hand out perpetual read access.
+    for (const message of messages.values()) {
+      expect(message).not.toContain(`/edls-sched/${ASSIGNED}`);
+      expect(message).not.toContain(`/edls-sched/${REMOVED}`);
+    }
+  });
+
+  it("does not text a worker whose access token cannot be issued", async () => {
+    // No token means no link that resolves, and the message is nothing but a
+    // link: a text with a dead one is worse than no text at all.
+    const { contactIds } = await recipientsFor({
+      snapshots: [BASELINE, THIS_SAVE],
+      roster: [ASSIGNED, RECEIPTED],
+      smsTargets: [ASSIGNED],
+      tokenless: [ASSIGNED],
+    });
+    expect(contactIds).toEqual([contactOf(REMOVED)]);
   });
 
   it("never uses this save's own snapshot as the baseline", async () => {

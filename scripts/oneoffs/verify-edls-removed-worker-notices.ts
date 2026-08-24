@@ -13,7 +13,8 @@
  * Checks:
  *   1. a worker on the baseline roster who is no longer assigned is a
  *      recipient, with removal wording naming the sheet's date,
- *   2. every link — removed or assigned — addresses the WORKER id,
+ *   2. every link — removed or assigned — addresses the worker by their
+ *      `worker.aat` ACCESS TOKEN (so this script needs that component on),
  *   3. no worker still on the sheet is told they are off it, including the
  *      ones already holding a receipt,
  *   4. the snapshot of the save being processed is not its own baseline,
@@ -35,6 +36,16 @@ import { storage, createCommSmsOptinStorage } from "../../server/storage";
 import { runInTransaction } from "../../server/storage/transaction-context";
 import { edlsSheetWorkerSmsNotifier } from "../../server/plugins/event-notifier/plugins/edls-sheet-worker-sms-notifier";
 import type { EventNotifierEventContext } from "../../server/plugins/event-notifier/types";
+
+/**
+ * The worker's `worker.aat` access token — what the texted link is keyed by.
+ * The notifier issues one while resolving recipients, so by the time a
+ * message has been composed the worker has one.
+ */
+async function accessTokenOf(workerId: string): Promise<string> {
+  const row = await storage.workerAat.getByWorker(workerId);
+  return row?.accessUuid ?? "<no access token issued>";
+}
 
 let failures = 0;
 function check(label: string, ok: boolean, detail?: string) {
@@ -161,7 +172,7 @@ async function main() {
   );
   check(
     "its link addresses the worker, not an assignment",
-    body.includes(`/edls-sched/${removed.workerId}`),
+    body.includes(`/edls-sched/${await accessTokenOf(removed.workerId)}`),
     body,
   );
 
@@ -175,7 +186,8 @@ async function main() {
     const workerId = workerByContact.get(recipient.contactId);
     if (!workerId) continue;
     const text = await messageFor(ctx, config, recipient.contactId);
-    if (!/posted or updated/i.test(text) || !text.includes(`/edls-sched/${workerId}`)) {
+    const token = await accessTokenOf(workerId);
+    if (!/posted or updated/i.test(text) || !text.includes(`/edls-sched/${token}`)) {
       assignedBad = text;
       break;
     }

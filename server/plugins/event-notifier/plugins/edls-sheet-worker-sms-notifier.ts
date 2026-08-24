@@ -73,20 +73,58 @@ function removedSentence(ymd: string): string {
 }
 
 /**
- * The worker's own EDLS schedule page, keyed by THEIR worker id.
+ * The worker's own EDLS schedule page, keyed by THEIR access token.
  *
- * `/edls-sched/:worker_uuid` is the public worker schedule page: knowing the
- * worker UUID is the credential, the page is logged-out readable, and it
- * decides for itself which sheets it will show. The worker id is used rather
- * than an assignment id because it is the one address for a person that never
- * changes: it survives the assignment being edited, moved to another crew, or
- * deleted — and a worker taken off the sheet has no assignment id to be named
- * by at all. The route is not re-spelled anywhere else in this plugin.
+ * `/edls-sched/:access_uuid` is the public worker schedule page: holding the
+ * access token is the credential, the page is logged-out readable, and it
+ * decides for itself which sheets it will show. The token is the worker's
+ * (`worker.aat`), not the assignment's and not the worker's own id: it
+ * survives the assignment being edited, moved between crews or deleted — a
+ * worker taken off the sheet has no assignment id to be named by at all — and
+ * unlike the worker id, which appears in staff URLs and exports, it can be
+ * regenerated to revoke every link already sent. The route is not re-spelled
+ * anywhere else in this plugin.
  *
  * Absolute, because an SMS is read outside the app.
  */
-function workerScheduleUrl(workerId: string): string {
-  return absoluteUrl(`/edls-sched/${workerId}`);
+function workerScheduleUrl(accessUuid: string): string {
+  return absoluteUrl(`/edls-sched/${accessUuid}`);
+}
+
+/**
+ * The component that owns the access token the link is keyed by. This
+ * notifier needs it as much as it needs `edls`, and the registry gates a
+ * plugin on ONE component — so this notifier enforces the second itself,
+ * loudly, rather than the framework growing a list for one plugin.
+ */
+const ACCESS_TOKEN_COMPONENT = "worker.aat";
+
+/**
+ * The worker's access token, minted if they have never had one.
+ *
+ * Get-or-create, never set: a worker who already holds a token keeps it, so
+ * links from earlier texts go on working even when several sends land at
+ * once. Null when no token could be issued — the caller drops that recipient
+ * rather than texting them a link that cannot resolve.
+ */
+async function resolveAccessToken(workerId: string): Promise<string | null> {
+  const { storage } = await import("../../../storage");
+  try {
+    const { record } = await storage.workerAat.ensureAccessUuid(workerId);
+    if (record.accessUuid) return record.accessUuid;
+    logger.error("EDLS worker SMS notifier got no access token for a worker", {
+      service: "edls-sheet-worker-sms-notifier",
+      workerId,
+    });
+    return null;
+  } catch (error) {
+    logger.error("EDLS worker SMS notifier could not issue a worker access token", {
+      service: "edls-sheet-worker-sms-notifier",
+      workerId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 /**
@@ -120,8 +158,13 @@ interface ResolvedAssignment {
  * what the message wording branches on.
  */
 type ResolvedRecipient =
-  | { kind: "assigned"; workerId: string; covered: ResolvedAssignment[] }
-  | { kind: "removed"; workerId: string };
+  | {
+      kind: "assigned";
+      workerId: string;
+      accessUuid: string;
+      covered: ResolvedAssignment[];
+    }
+  | { kind: "removed"; workerId: string; accessUuid: string };
 
 const recipientByContact = new WeakMap<
   EventNotifierEventContext,
@@ -391,7 +434,7 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
   id: "edls-sheet-worker-sms-notifier",
   name: "EDLS Sheet Worker SMS Notifier",
   description:
-    "Texts the workers assigned to an EDLS sheet, each with a link to their own schedule, when the sheet arrives at one of the selected statuses.",
+    "Texts the workers assigned to an EDLS sheet, each with a link to their own schedule, when the sheet arrives at one of the selected statuses. Requires the Worker Access Tokens (worker.aat) component as well as EDLS: the link is keyed by the worker's access token, and with that component disabled this notifier texts nobody and fails with an error in the server log.",
   order: 110,
   requiredComponent: "edls",
   subscribedEvents: [EventType.EDLS_SHEET_SAVED],
@@ -416,7 +459,7 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
     },
   },
 
-  shouldDispatch(ctx, configData): boolean {
+  async shouldDispatch(ctx, configData): Promise<boolean> {
     const { previousStatus, newStatus, sheet } = payloadOf(ctx);
     // Arrival semantics, same as the staff notifier: creates carry
     // previousStatus: null (never equal to a real status), so a sheet created
@@ -429,7 +472,27 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
     if (!triggers.has(newStatus)) return false;
     // Nothing left to accept on a day that has already happened, so a
     // past-dated sheet is never worth a text. See the plugin doc comment.
-    return isNotifiableSheetYmd(sheet?.ymd);
+    if (!isNotifiableSheetYmd(sheet?.ymd)) return false;
+
+    // This config WOULD fire — so a missing `worker.aat` is refused here,
+    // loudly, and only here. Every message this notifier sends is a link
+    // keyed by the worker's access token, and that component owns it: without
+    // it there is no token to mint, no page to reach, and nothing honest to
+    // text anybody. Throwing rather than returning false is the point: the
+    // dispatcher records the whole send as a failed config (server log and
+    // the admin log viewer), where returning false would be indistinguishable
+    // from a sheet that legitimately notified nobody and the first anyone
+    // would hear of it is workers not getting texts. It happens before
+    // recipients are resolved, so nothing is sent and no receipt is written —
+    // every assignment stays owed a text and gets one once the component is
+    // enabled.
+    const { isComponentEnabled } = await import("../../../modules/components");
+    if (!(await isComponentEnabled(ACCESS_TOKEN_COMPONENT))) {
+      throw new Error(
+        `EDLS worker SMS notifier cannot send: the '${ACCESS_TOKEN_COMPONENT}' component is not enabled, and the schedule link it texts is keyed by that component's worker access token. Enable Worker Access Tokens, or disable this notifier's configs.`,
+      );
+    }
+    return true;
   },
 
   async getRecipients(ctx, configData): Promise<NotifierRecipient[]> {
@@ -468,13 +531,20 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
       ...removed.map((worker) => worker.phoneNumber),
     ]);
 
+    // The access token every message is keyed by is resolved HERE, with the
+    // recipients and before any message is composed: a worker whose token
+    // cannot be issued has no working link to be sent, so they are not a
+    // recipient at all rather than one who gets a text that goes nowhere.
     const resolved = new Map<string, ResolvedRecipient>();
     const recipients: NotifierRecipient[] = [];
     for (const [contactId, group] of byContact) {
       if (!optins.get(group[0].phoneNumber)?.optin) continue;
+      const accessUuid = await resolveAccessToken(group[0].workerId);
+      if (!accessUuid) continue;
       resolved.set(contactId, {
         kind: "assigned",
         workerId: group[0].workerId,
+        accessUuid,
         covered: group.map((t) => ({ assignmentId: t.assignmentId, data: t.data })),
       });
       recipients.push({ contactId });
@@ -485,7 +555,15 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
       // they must not be told they are off it.
       if (resolved.has(worker.contactId)) continue;
       if (!optins.get(worker.phoneNumber)?.optin) continue;
-      resolved.set(worker.contactId, { kind: "removed", workerId: worker.workerId });
+      // A removed worker holds no assignment row, but the link they are sent
+      // is the same one an assigned worker gets, so it is keyed the same way.
+      const accessUuid = await resolveAccessToken(worker.workerId);
+      if (!accessUuid) continue;
+      resolved.set(worker.contactId, {
+        kind: "removed",
+        workerId: worker.workerId,
+        accessUuid,
+      });
       recipients.push({ contactId: worker.contactId });
     }
 
@@ -503,7 +581,7 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
     // Nothing resolved means this recipient did not come from the reads above;
     // there is no honest thing to tell them.
     if (!resolved) return null;
-    const link = workerScheduleUrl(resolved.workerId);
+    const link = workerScheduleUrl(resolved.accessUuid);
     if (resolved.kind === "removed") {
       const { sheet } = payloadOf(ctx);
       return { message: `${removedSentence(sheet.ymd)} ${link}` };

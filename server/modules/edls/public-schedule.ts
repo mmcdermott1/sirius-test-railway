@@ -35,22 +35,24 @@ function formatWorkerName(
 /**
  * Resolve the `:id` in the URL to the worker whose schedule it addresses.
  *
- * The id is a WORKER id. That is the whole address: it names the person the
- * page is about, it never changes, and it keeps working when the worker is
- * moved between crews or taken off a sheet altogether — none of which is true
- * of an assignment row.
+ * The id is the worker's ACCESS TOKEN (`worker.aat`): a value minted purely
+ * to be followed from a link, shown on no other screen, and regenerable — so
+ * a link that has escaped can be revoked, and revoking costs the worker
+ * nothing but their next text. It is deliberately NOT the worker id, which
+ * appears in staff URLs and exports and can never be rotated: anyone who had
+ * ever seen one would hold perpetual read access to that person's schedule.
  *
  * LEGACY: links texted before that change carry an `edls_assignments` id
- * instead, and a text cannot be recalled, so an id that is not a worker is
- * tried as an assignment and resolved to ITS worker. The two are separate id
- * spaces, so trying one then the other is unambiguous. Every such link points
- * at a sheet in the week it was sent for, so this fallback stops being able to
- * help anyone a week after the last pre-change text went out; delete it — and
- * this comment — at the next cleanup after that.
+ * instead, and a text cannot be recalled, so an id that is not an access
+ * token is tried as an assignment and resolved to ITS worker. The two are
+ * separate id spaces, so trying one then the other is unambiguous. Every such
+ * link points at a sheet in the week it was sent for, so this fallback stops
+ * being able to help anyone a week after the last pre-change text went out;
+ * delete it — and this comment — at the next cleanup after that.
  */
 async function resolveScheduleWorkerId(id: string): Promise<string | null> {
-  const worker = await storage.workers.getWorker(id);
-  if (worker) return worker.id;
+  const token = await storage.workerAat.getByAccessUuid(id);
+  if (token) return token.workerId;
   const assignment = await storage.edlsAssignments.get(id);
   return assignment?.workerId ?? null;
 }
@@ -58,24 +60,30 @@ async function resolveScheduleWorkerId(id: string): Promise<string | null> {
 /**
  * Public (unauthenticated) EDLS worker schedule.
  *
- * Knowing the worker's id IS the credential: anyone holding the link sees
- * that worker's next seven days. Every rejection — malformed id, unknown id,
- * worker with no EDLS presence, contact gone — answers with the same generic
- * access-denied body so the endpoint never confirms whether a given id
- * exists.
+ * Holding the worker's ACCESS TOKEN is the credential: anyone with the link
+ * sees that worker's next seven days. Every rejection — malformed id, unknown
+ * id, an id that is not a token, worker with no EDLS presence, contact gone —
+ * answers with the same generic access-denied body so the endpoint never
+ * confirms whether a given id exists.
  *
- * A worker id is not a secret — it appears in staff URLs and exports — so
- * having one is not on its own enough: the worker must have EDLS presence.
- * That refuses an id lifted from an unrelated screen (which would otherwise
- * answer with that person's name), while leaving a worker who has merely been
- * taken off a sheet able to read their own week.
+ * Holding a token is not on its own enough: the worker must have EDLS
+ * presence. That refuses a token minted for some other purpose (which would
+ * otherwise answer with that person's name), while leaving a worker who has
+ * merely been taken off a sheet able to read their own week.
+ *
+ * Gated on `worker.aat` as well as `edls`: the credential this page is
+ * addressed by belongs to that component, so with it switched off there is no
+ * such thing as a valid link here and the page is unreachable rather than
+ * silently falling back to some other id.
  */
 export function registerEdlsPublicScheduleRoutes(app: Express) {
   const edlsComponent = requireComponent("edls");
+  const aatComponent = requireComponent("worker.aat");
 
   app.get(
     "/api/public/edls/schedule/:id",
     edlsComponent,
+    aatComponent,
     async (req: Request, res: Response) => {
       const denied = () => res.status(403).json({ message: "Access denied" });
 
