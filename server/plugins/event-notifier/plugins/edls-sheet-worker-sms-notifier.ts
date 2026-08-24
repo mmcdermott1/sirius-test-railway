@@ -1,4 +1,5 @@
 import type { Comm } from "@shared/schema";
+import { getTodayYmd, isValidYmd, isYmdBefore } from "@shared/utils/date";
 import {
   EventType,
   type EdlsSheetSavedPayload,
@@ -30,6 +31,24 @@ function configuredStatuses(configData: unknown): string[] {
   const values = data.statuses;
   if (!Array.isArray(values)) return [];
   return values.filter((v): v is string => typeof v === "string");
+}
+
+/**
+ * Whether the sheet's date is one workers can still act on: today or later.
+ *
+ * `ymd` is a date-only column, so it is compared as a plain `YYYY-MM-DD`
+ * string against the same local "today" the rest of the server uses (the TOS
+ * view, the public schedule, dispatch polling). No `Date` is constructed —
+ * that would reintroduce the timezone drift these helpers exist to avoid.
+ *
+ * A missing or malformed date fails CLOSED: it is not notifiable. The
+ * alternative is guessing at what day the sheet is for and texting workers
+ * about it, which is exactly the wrong answer to be confident about — same
+ * stance the status gate takes on a config with no trigger statuses.
+ */
+function isNotifiableSheetYmd(ymd: unknown): boolean {
+  if (!isValidYmd(ymd)) return false;
+  return !isYmdBefore(ymd, getTodayYmd());
 }
 
 /**
@@ -78,10 +97,21 @@ const assignmentByContact = new WeakMap<
  * sheet created directly in that status. Saves that leave the status unchanged
  * never fire.
  *
+ * DELIBERATELY BLIND TO PAST SHEETS. A sheet dated before today never texts
+ * anyone, whatever its status change: the message tells a worker to go accept
+ * a crew assignment, and there is nothing left to accept on a day that has
+ * already happened. Re-locking or correcting an old sheet is a routine
+ * back-office act and used to blast every assigned worker with a text that was
+ * always wrong. This is unconditional — there is no admin setting for it, and
+ * it is not a bug to "fix" back. A sheet dated today or later is unaffected.
+ *
  * This is deliberately separate from `edls-sheet-status-notifier`, which
  * notifies the sheet's STAFF (supervisor, assignee, crew supervisors) across
  * every medium. Here the recipients are the assigned workers, the only medium
  * is SMS, and each worker's message carries a link to their OWN assignment.
+ * That sibling notifier intentionally does NOT share the past-date rule: staff
+ * still want to hear about corrections to a finished day, because a correction
+ * is the whole point of the message they get.
  *
  * Recipients are pre-filtered to workers who can actually receive a text — an
  * active primary number that has recorded an SMS opt-in — because the SMS
@@ -119,7 +149,7 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
   },
 
   shouldDispatch(ctx, configData): boolean {
-    const { previousStatus, newStatus } = payloadOf(ctx);
+    const { previousStatus, newStatus, sheet } = payloadOf(ctx);
     // Arrival semantics, same as the staff notifier: creates carry
     // previousStatus: null (never equal to a real status), so a sheet created
     // directly in a configured status fires; an edit that leaves the status
@@ -128,7 +158,10 @@ export const edlsSheetWorkerSmsNotifier: EventNotifierPlugin = {
     if (newStatus === previousStatus) return false;
     const triggers = new Set(configuredStatuses(configData));
     if (triggers.size === 0) return false;
-    return triggers.has(newStatus);
+    if (!triggers.has(newStatus)) return false;
+    // Nothing left to accept on a day that has already happened, so a
+    // past-dated sheet is never worth a text. See the plugin doc comment.
+    return isNotifiableSheetYmd(sheet?.ymd);
   },
 
   async getRecipients(ctx): Promise<NotifierRecipient[]> {
