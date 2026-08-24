@@ -351,6 +351,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         ymd: string;
         workerId: string;
         crewId: string;
+        commId: string | null;
         data: unknown;
         workerRowId: string;
         siriusId: number | null;
@@ -368,6 +369,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           ea.ymd,
           ea.worker_id as "workerId",
           ea.crew_id as "crewId",
+          ea.comm_id as "commId",
           ea.data,
           w.id as "workerRowId",
           w.sirius_id as "siriusId",
@@ -389,6 +391,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         ymd: row.ymd,
         workerId: row.workerId,
         crewId: row.crewId,
+        commId: row.commId,
         data: row.data,
         worker: {
           id: row.workerRowId,
