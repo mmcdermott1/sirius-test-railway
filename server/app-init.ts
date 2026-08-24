@@ -43,7 +43,6 @@ import { initializeTrustProviderEdiSystem } from "./plugins/trust/provider-edi";
 import { initializeMenuPluginSystem } from "./plugins/menu";
 import { initializeTokenPluginSystem } from "./plugins/tokens";
 import { initWorkerBanNotifications } from "./services/worker-ban-notifications";
-import { initSnapshotCapture } from "./services/snapshots/capture";
 import { initDispatchNotifications } from "./services/dispatch/notifications";
 import "@shared/access-policies/loader";
 import { registerEntityAccessModule } from "./modules/entity-access";
@@ -395,7 +394,6 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
 
   // Initialize worker ban notifications
   initWorkerBanNotifications();
-  initSnapshotCapture();
   logger.info("Worker ban notifications initialized", { source: "startup" });
 
   // Initialize dispatch notifications
