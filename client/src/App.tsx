@@ -266,7 +266,7 @@ const EdlsTasksPage = lazy(() => import("@/pages/config/edls/tasks"));
 const T631FetchPage = lazy(() => import("@/pages/config/edls/t631-fetch"));
 const T631MemberStatusSyncPage = lazy(() => import("@/pages/config/edls/t631-ms"));
 const BaoMemberStatusThresholdsPage = lazy(() => import("@/pages/config/trust/sitespecific/bao/thresholds"));
-const WsBundlesPage = lazy(() => import("@/pages/config/ws/bundles"));
+const WsServicesPage = lazy(() => import("@/pages/config/ws/services"));
 const WsClientsPage = lazy(() => import("@/pages/config/ws/clients"));
 const WsClientSettingsPage = lazy(() => import("@/pages/config/ws/client-settings"));
 const WsClientCredentialsPage = lazy(() => import("@/pages/config/ws/client-credentials"));
@@ -2791,11 +2791,11 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/config/ws/bundles">
+      <Route path="/config/ws/services">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
-              <WsBundlesPage />
+              <WsServicesPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

@@ -61,6 +61,7 @@ import "./core/1056_create_options_worker_ban_type";
 import "./core/1057_create_options_note_type";
 import "./core/1058_create_notes";
 import "./core/1059_ledger_accounts_sirius_id";
+import "./core/1060_ws_bundles_to_grants";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the
