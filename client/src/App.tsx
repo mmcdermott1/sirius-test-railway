@@ -27,6 +27,7 @@ import RegisterPage from "@/pages/register";
 // Lazy-loaded pages
 const Bootstrap = lazy(() => import("@/pages/bootstrap"));
 const SmsOptinPage = lazy(() => import("@/pages/sms-optin"));
+const EdlsSchedulePage = lazy(() => import("@/pages/edls-schedule"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Bookmarks = lazy(() => import("@/pages/bookmarks"));
 const AccountPassword = lazy(() => import("@/pages/account-password"));
@@ -447,6 +448,32 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The public EDLS worker schedule is the one route both audiences share: an
+ * anonymous visitor holding the link gets bare content (no header, menu or
+ * footer), while a signed-in staff member sees the same page inside the normal
+ * site chrome. The choice waits for the auth check to settle so the layout
+ * never flips on load. Deliberately local to this route — every other public
+ * route is unwrapped unconditionally.
+ */
+function EdlsScheduleRoute() {
+  const { isAuthenticated, authReady } = useAuth();
+
+  if (!authReady) {
+    return <PageLoader />;
+  }
+
+  if (isAuthenticated) {
+    return (
+      <AuthenticatedLayout>
+        <EdlsSchedulePage />
+      </AuthenticatedLayout>
+    );
+  }
+
+  return <EdlsSchedulePage />;
+}
+
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location, setLocation] = useLocation();
@@ -499,6 +526,7 @@ function Router() {
         <Route path="/unauthorized" component={UnauthorizedPage} />
         <Route path="/auth-error" component={AuthErrorPage} />
         <Route path="/sms/optin/:token" component={SmsOptinPage} />
+        <Route path="/edls-sched/:id" component={EdlsScheduleRoute} />
 
       {/* Protected routes */}
       <Route path="/workers/add">

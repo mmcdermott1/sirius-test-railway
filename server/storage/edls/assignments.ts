@@ -10,8 +10,11 @@ import {
   contacts,
   users,
   facilities,
+  employers,
   dispatchJobGroups,
   optionsDepartment,
+  optionsEdlsShowStatus,
+  optionsEdlsTasks,
   type EdlsAssignment, 
   type InsertEdlsAssignment
 } from "@shared/schema";
@@ -137,6 +140,14 @@ export interface AssignmentForWorkerFilters {
   supervisorId?: string;
   facilityId?: string;
   jobGroupId?: string;
+  /**
+   * Restrict to sheets in one of these statuses. When omitted the only
+   * exclusion is `trash` (the historic default every caller relies on).
+   * Callers that publish assignments outside the staff screens — e.g. the
+   * public worker schedule page — name the statuses they accept explicitly
+   * rather than post-filtering the rows.
+   */
+  sheetStatuses?: string[];
 }
 
 export interface AssignmentForWorker {
@@ -149,10 +160,15 @@ export interface AssignmentForWorker {
   crewTitle: string;
   startTime: string | null;
   endTime: string | null;
+  /** Crew check-in location, as entered on the crew row. */
+  location: string | null;
   supervisor: { id: string; firstName: string | null; lastName: string | null; email: string } | null;
   facility: { id: string; name: string } | null;
   jobGroup: { id: string; name: string } | null;
   department: { id: string; name: string } | null;
+  employer: { id: string; name: string } | null;
+  showStatus: { id: string; name: string } | null;
+  task: { id: string; name: string } | null;
   data: Record<string, unknown> | null;
 }
 
@@ -538,7 +554,9 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
       const client = getClient();
       const conditions = [
         eq(edlsAssignments.workerId, workerId),
-        ne(edlsSheets.status, 'trash'),
+        filters?.sheetStatuses
+          ? inArray(edlsSheets.status, filters.sheetStatuses)
+          : ne(edlsSheets.status, 'trash'),
       ];
       if (filters?.afterYmd) conditions.push(gt(edlsSheets.ymd, filters.afterYmd));
       if (filters?.startYmd) conditions.push(gte(edlsSheets.ymd, filters.startYmd));
@@ -560,6 +578,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           crewTitle: edlsCrews.title,
           startTime: edlsCrews.startTime,
           endTime: edlsCrews.endTime,
+          location: edlsCrews.location,
           supervisorId: users.id,
           supervisorFirstName: users.firstName,
           supervisorLastName: users.lastName,
@@ -568,6 +587,12 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           facilityName: facilities.name,
           departmentId: optionsDepartment.id,
           departmentName: optionsDepartment.name,
+          employerId: employers.id,
+          employerName: employers.name,
+          showStatusId: optionsEdlsShowStatus.id,
+          showStatusName: optionsEdlsShowStatus.name,
+          taskId: optionsEdlsTasks.id,
+          taskName: optionsEdlsTasks.name,
           jobGroupId: withJobGroups ? dispatchJobGroups.id : sql<string | null>`NULL::varchar`,
           jobGroupName: withJobGroups ? dispatchJobGroups.name : sql<string | null>`NULL::text`,
         })
@@ -577,6 +602,9 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         .leftJoin(users, eq(edlsSheets.supervisor, users.id))
         .leftJoin(facilities, eq(edlsSheets.facilityId, facilities.id))
         .leftJoin(optionsDepartment, eq(edlsSheets.departmentId, optionsDepartment.id))
+        .leftJoin(employers, eq(edlsSheets.employerId, employers.id))
+        .leftJoin(optionsEdlsShowStatus, eq(edlsSheets.showStatusId, optionsEdlsShowStatus.id))
+        .leftJoin(optionsEdlsTasks, eq(edlsCrews.taskId, optionsEdlsTasks.id))
         .$dynamic();
 
       const rows = await (withJobGroups
@@ -595,6 +623,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         crewTitle: r.crewTitle,
         startTime: r.startTime,
         endTime: r.endTime,
+        location: r.location,
         supervisor: r.supervisorId
           ? {
               id: r.supervisorId,
@@ -606,6 +635,9 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         facility: r.facilityId ? { id: r.facilityId, name: r.facilityName! } : null,
         jobGroup: r.jobGroupId ? { id: r.jobGroupId, name: r.jobGroupName! } : null,
         department: r.departmentId ? { id: r.departmentId, name: r.departmentName! } : null,
+        employer: r.employerId ? { id: r.employerId, name: r.employerName! } : null,
+        showStatus: r.showStatusId ? { id: r.showStatusId, name: r.showStatusName! } : null,
+        task: r.taskId ? { id: r.taskId, name: r.taskName! } : null,
         data: (r.assignmentData as Record<string, unknown> | null) ?? null,
       }));
     },
@@ -621,7 +653,9 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
       const client = getClient();
       const conditions = [
         inArray(edlsAssignments.workerId, workerIds),
-        ne(edlsSheets.status, 'trash'),
+        filters?.sheetStatuses
+          ? inArray(edlsSheets.status, filters.sheetStatuses)
+          : ne(edlsSheets.status, 'trash'),
       ];
       if (filters?.afterYmd) conditions.push(gt(edlsSheets.ymd, filters.afterYmd));
       if (filters?.startYmd) conditions.push(gte(edlsSheets.ymd, filters.startYmd));
@@ -644,6 +678,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           crewTitle: edlsCrews.title,
           startTime: edlsCrews.startTime,
           endTime: edlsCrews.endTime,
+          location: edlsCrews.location,
           supervisorId: users.id,
           supervisorFirstName: users.firstName,
           supervisorLastName: users.lastName,
@@ -652,6 +687,12 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           facilityName: facilities.name,
           departmentId: optionsDepartment.id,
           departmentName: optionsDepartment.name,
+          employerId: employers.id,
+          employerName: employers.name,
+          showStatusId: optionsEdlsShowStatus.id,
+          showStatusName: optionsEdlsShowStatus.name,
+          taskId: optionsEdlsTasks.id,
+          taskName: optionsEdlsTasks.name,
           jobGroupId: withJobGroups ? dispatchJobGroups.id : sql<string | null>`NULL::varchar`,
           jobGroupName: withJobGroups ? dispatchJobGroups.name : sql<string | null>`NULL::text`,
         })
@@ -661,6 +702,9 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
         .leftJoin(users, eq(edlsSheets.supervisor, users.id))
         .leftJoin(facilities, eq(edlsSheets.facilityId, facilities.id))
         .leftJoin(optionsDepartment, eq(edlsSheets.departmentId, optionsDepartment.id))
+        .leftJoin(employers, eq(edlsSheets.employerId, employers.id))
+        .leftJoin(optionsEdlsShowStatus, eq(edlsSheets.showStatusId, optionsEdlsShowStatus.id))
+        .leftJoin(optionsEdlsTasks, eq(edlsCrews.taskId, optionsEdlsTasks.id))
         .$dynamic();
 
       const rows = await (withJobGroups
@@ -680,6 +724,7 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           crewTitle: r.crewTitle,
           startTime: r.startTime,
           endTime: r.endTime,
+          location: r.location,
           supervisor: r.supervisorId
             ? {
                 id: r.supervisorId,
@@ -691,6 +736,9 @@ export function createEdlsAssignmentsStorage(): EdlsAssignmentsStorage {
           facility: r.facilityId ? { id: r.facilityId, name: r.facilityName! } : null,
           jobGroup: r.jobGroupId ? { id: r.jobGroupId, name: r.jobGroupName! } : null,
           department: r.departmentId ? { id: r.departmentId, name: r.departmentName! } : null,
+          employer: r.employerId ? { id: r.employerId, name: r.employerName! } : null,
+          showStatus: r.showStatusId ? { id: r.showStatusId, name: r.showStatusName! } : null,
+          task: r.taskId ? { id: r.taskId, name: r.taskName! } : null,
           data: (r.assignmentData as Record<string, unknown> | null) ?? null,
         };
         const list = result.get(r.workerId);

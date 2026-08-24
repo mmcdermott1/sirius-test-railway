@@ -126,6 +126,7 @@ import { registerSnapshotsRoutes } from "./modules/snapshots";
 import { registerEdlsTosRoutes } from "./modules/edls/tos";
 import { registerEdlsTasksRoutes } from "./modules/edls/tasks";
 import { registerWorkerEdlsRoutes } from "./modules/edls/workers";
+import { registerEdlsPublicScheduleRoutes } from "./modules/edls/public-schedule";
 import { registerWebServiceBundle } from "./modules/webservices";
 import { setupEdlsRoutes, EDLS_BUNDLE_CODE } from "./modules/webservices/edls";
 import { registerWebServiceAdminRoutes } from "./modules/webservices/admin";
@@ -1798,6 +1799,9 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   registerEdlsTosRoutes(app, requireAuth);
   registerEdlsTasksRoutes(app, requireAuth, requirePermission);
   registerWorkerEdlsRoutes(app, requireAuth);
+  // Public (unauthenticated) worker schedule page — still gated on the `edls`
+  // component like every other EDLS route.
+  registerEdlsPublicScheduleRoutes(app);
 
   // Register Web Service bundles (API access via client credentials)
   registerWebServiceBundle(app, {
