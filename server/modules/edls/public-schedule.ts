@@ -41,20 +41,10 @@ function formatWorkerName(
  * nothing but their next text. It is deliberately NOT the worker id, which
  * appears in staff URLs and exports and can never be rotated: anyone who had
  * ever seen one would hold perpetual read access to that person's schedule.
- *
- * LEGACY: links texted before that change carry an `edls_assignments` id
- * instead, and a text cannot be recalled, so an id that is not an access
- * token is tried as an assignment and resolved to ITS worker. The two are
- * separate id spaces, so trying one then the other is unambiguous. Every such
- * link points at a sheet in the week it was sent for, so this fallback stops
- * being able to help anyone a week after the last pre-change text went out;
- * delete it — and this comment — at the next cleanup after that.
  */
 async function resolveScheduleWorkerId(id: string): Promise<string | null> {
   const token = await storage.workerAat.getByAccessUuid(id);
-  if (token) return token.workerId;
-  const assignment = await storage.edlsAssignments.get(id);
-  return assignment?.workerId ?? null;
+  return token?.workerId ?? null;
 }
 
 /**
