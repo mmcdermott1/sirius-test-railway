@@ -56,6 +56,37 @@ registerWebServicePlugin({
       description:
         "Echoes the request. Send any query parameters, and on POST any JSON or form body; " +
         "the response reports what the server parsed.",
+      // No request schema: the point of ping is that ANY body is accepted, so
+      // any shape declared here would be a lie about what it refuses.
+      responseSchema: {
+        type: "object",
+        title: "Ping echo",
+        required: ["ok", "method", "receivedAt", "contentType", "query", "body"],
+        properties: {
+          ok: { type: "boolean", const: true },
+          method: { type: "string", enum: ["GET", "POST"] },
+          receivedAt: {
+            type: "string",
+            format: "date-time",
+            description: "When this server handled the request.",
+          },
+          contentType: {
+            type: ["string", "null"],
+            description:
+              "The Content-Type header as received; null when none was sent. This is what decided how the body below was parsed.",
+          },
+          query: {
+            type: "object",
+            description:
+              "The parsed query string. A parameter repeated in the URL appears as an array.",
+          },
+          body: {
+            type: ["object", "array", "string", "number", "boolean", "null"],
+            description:
+              "The parsed request body, or null when no body was sent or the content type was one this server does not parse.",
+          },
+        },
+      },
       handler: runPing,
     },
   ],

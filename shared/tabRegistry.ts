@@ -640,6 +640,7 @@ export const wsClientTabTree: HierarchicalTab[] = [
   { id: 'credentials', label: 'Credentials', hrefTemplate: '/config/ws/clients/{id}/credentials', permission: 'admin' },
   { id: 'ip-rules', label: 'IP Rules', hrefTemplate: '/config/ws/clients/{id}/ip-rules', permission: 'admin' },
   { id: 'test', label: 'Test', hrefTemplate: '/config/ws/clients/{id}/test', permission: 'admin' },
+  { id: 'swagger', label: 'Swagger', hrefTemplate: '/config/ws/clients/{id}/swagger', permission: 'admin' },
   { id: 'logs', label: 'Logs', hrefTemplate: '/config/ws/clients/{id}/logs', permission: 'admin' },
 ];
 

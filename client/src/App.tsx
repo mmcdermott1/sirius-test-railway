@@ -275,6 +275,7 @@ const WsClientCredentialsPage = lazy(() => import("@/pages/config/ws/client-cred
 const WsClientIpRulesPage = lazy(() => import("@/pages/config/ws/client-ip-rules"));
 const WsClientTestPage = lazy(() => import("@/pages/config/ws/client-test"));
 const WsClientLogsPage = lazy(() => import("@/pages/config/ws/client-logs"));
+const WsClientSwaggerPage = lazy(() => import("@/pages/config/ws/client-swagger"));
 const SftpClientsPage = lazy(() => import("@/pages/config/sftp/clients"));
 const HelpsConfigPage = lazy(() => import("@/pages/config/helps"));
 const BusinessCalendarsPage = lazy(() => import("@/pages/config/business-calendars/index"));
@@ -2831,6 +2832,14 @@ function Router() {
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <WsClientTestPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/ws/clients/:id/swagger">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <WsClientSwaggerPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
