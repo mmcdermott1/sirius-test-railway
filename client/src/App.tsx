@@ -249,6 +249,8 @@ const FloodEventsConfigPage = lazy(() => import("@/pages/flood-events-config"));
 const PostalAddressesConfigPage = lazy(() => import("@/pages/config/addresses"));
 const PhoneNumbersConfigPage = lazy(() => import("@/pages/config/phone-numbers"));
 const DynamicOptionsPage = lazy(() => import("@/pages/config/options"));
+
+const OptionsExportPage = lazy(() => import("@/pages/config/options-export"));
 const StewardSettingsPage = lazy(() => import("@/pages/config/steward-settings"));
 const EventTypesPage = lazy(() => import("@/pages/config/event-types"));
 const DispatchJobTypesPage = lazy(() => import("@/pages/config/dispatch-job-types"));
@@ -2620,7 +2622,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/config/options/:type">
+      <Route path="/config/options/:type/list">
         <ProtectedRoute permission="admin">
           <AuthenticatedLayout>
             <ConfigurationLayout>
@@ -2628,6 +2630,31 @@ function Router() {
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/options/:type/export">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <OptionsExportPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/options/:type/import">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <OptionsImportPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Existing links and bookmarks to the plain options URL land on the list */}
+      <Route path="/config/options/:type">
+        {(params) => <Redirect to={`/config/options/${params.type}/list`} />}
       </Route>
 
       <Route path="/config/steward-settings">
@@ -4027,3 +4054,5 @@ function App() {
 }
 
 export default App;
+
+const OptionsImportPage = lazy(() => import("@/pages/config/options-import"));

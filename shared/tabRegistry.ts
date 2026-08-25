@@ -83,7 +83,9 @@ export type TabEntityType =
   | 'grievance'
   | 'grievanceTimelineTemplate'
   | 'contract'
-  | 'business_calendar';
+  | 'business_calendar'
+  /** A unified-options type; the entity id is the type slug (e.g. `department`). */
+  | 'options';
 
 /**
  * Tab check request for batch access evaluation
@@ -691,6 +693,18 @@ export const businessCalendarTabTree: HierarchicalTab[] = [
 ];
 
 /**
+ * Options-type tab tree
+ *
+ * The "entity" here is an options type slug, not a row: `/config/options/
+ * department/list`. All three tabs are admin-only, matching the page's
+ * existing gate.
+ */
+export const optionsTabTree: HierarchicalTab[] = [
+  { id: 'list', label: 'List', hrefTemplate: '/config/options/{id}/list', permission: 'admin' },
+  { id: 'export', label: 'Export', hrefTemplate: '/config/options/{id}/export', permission: 'admin' },
+  { id: 'import', label: 'Import', hrefTemplate: '/config/options/{id}/import', permission: 'admin' },
+];
+/**
  * Entity tab trees by type
  */
 export const tabTreeRegistry: Record<TabEntityType, HierarchicalTab[]> = {
@@ -726,6 +740,7 @@ export const tabTreeRegistry: Record<TabEntityType, HierarchicalTab[]> = {
   grievanceTimelineTemplate: grievanceTimelineTemplateTabTree,
   contract: contractTabTree,
   business_calendar: businessCalendarTabTree,
+  options: optionsTabTree,
 };
 
 /**
