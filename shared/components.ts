@@ -884,7 +884,14 @@ export const componentRegistry: ComponentDefinition[] = [
     description: "Migration of EDLS data from Freeman's legacy system",
     enabledByDefault: false,
     category: "site-specific",
-    // Owns no schema yet: this stage only connects to the legacy system.
+    managesSchema: true,
+    schemaManifest: {
+      version: 1,
+      schemaPath: "./shared/schema/sitespecific/freeman/edls-migrate-schema.ts",
+      // A staging table only: it holds legacy rows as fetched and has no
+      // foreign keys into EDLS, so it is not a schema dependency.
+      tables: ["sitespecific_freeman_edls_migrate"]
+    },
     dependsOnComponents: ["edls"]
   },
   {

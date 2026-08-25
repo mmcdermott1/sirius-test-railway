@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import EdlsMigrateSweep from "@/components/sitespecific/freeman/EdlsMigrateSweep";
 
 interface SettingsStatus {
   configured: boolean;
@@ -137,8 +138,9 @@ export default function FreemanEdlsMigratePage() {
             Freeman EDLS Migration
           </CardTitle>
           <CardDescription>
-            Connection to Freeman's legacy EDLS system. Nothing is migrated yet — this
-            page only checks whether this installation can talk to that system.
+            Connection to Freeman's legacy EDLS system. Nothing has been imported yet:
+            this page tests the connection and copies legacy sheets into a staging table
+            for inspection.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -220,6 +222,8 @@ export default function FreemanEdlsMigratePage() {
           </Button>
         </CardContent>
       </Card>
+
+      <EdlsMigrateSweep configured={settings?.configured ?? false} />
 
       {result && (
         <>

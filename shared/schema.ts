@@ -1163,6 +1163,13 @@ export {
 } from "./schema/sitespecific/freeman/schema";
 
 export {
+  sitespecificFreemanEdlsMigrate,
+  insertFreemanEdlsMigrateSchema,
+  type FreemanEdlsMigrateRow,
+  type InsertFreemanEdlsMigrateRow,
+} from "./schema/sitespecific/freeman/edls-migrate-schema";
+
+export {
   optionsGrievanceStatus,
   insertOptionsGrievanceStatusSchema,
   type OptionsGrievanceStatus,

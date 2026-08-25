@@ -131,4 +131,5 @@
 - [Generated API doc addressing](generated-api-doc-addressing.md) — the address a document publishes must be the exact inverse of the request-time resolver (ids beat aliases, aliases aren't unique); keep the pair in one leaf.
 - [Storage logging wrapper semantics](storage-logging-wrapper-semantics.md) — a dormant logging config logs nothing; wrapping the impl at its factory is safe (internal this.* calls bypass the wrapper) and gives bulk paths per-record audit entries for free.
 - [Relaying a remote system's answer](relayed-remote-answer.md) — redact the credential out of RELAYED content (bodies/headers/errors), not just our own request; envelope flag decides success, never HTTP 200.
+- [Legacy raw-table reads](legacy-rawdata-table-reads.md) — a service that can't count/filter makes a refusal look like end-of-table; parse fail-closed, buffer the whole read before writing, and get field-table names from the field config, never by guessing.
 - [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.

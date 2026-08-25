@@ -8,12 +8,20 @@
  */
 import type { Express, Request, Response, NextFunction } from "express";
 import { requireComponent } from "../../../components";
+import { storage } from "../../../../storage";
 import {
   FREEMAN_EDLS_MIGRATE_COMPONENT_ID,
   freemanEdlsMigratePing,
   getFreemanEdlsMigrateSettingsStatus,
   redactFreemanEdlsMigrateSecrets,
 } from "./client";
+import {
+  FREEMAN_EDLS_FIELD_TABLES,
+  FREEMAN_EDLS_NODE_TABLE,
+  FREEMAN_EDLS_SHEET_NODE_TYPE,
+  runFreemanEdlsFieldSweep,
+  runFreemanEdlsNodeSweep,
+} from "./sweep";
 
 /**
  * An unexpected error's text is written by code we do not control end to end,
@@ -61,6 +69,82 @@ export function registerFreemanEdlsMigrateRoutes(
         res.json(await freemanEdlsMigratePing());
       } catch (error) {
         res.status(500).json({ message: failureMessage(error, "Failed to run the ping") });
+      }
+    },
+  );
+
+  /**
+   * What the sweeps will read, so the page can say what is about to happen
+   * before anything is fetched.
+   */
+  app.get(
+    "/api/sitespecific/freeman/edls-migrate/sources",
+    ...gate,
+    async (_req: Request, res: Response) => {
+      res.json({
+        nodeTable: FREEMAN_EDLS_NODE_TABLE,
+        sheetNodeType: FREEMAN_EDLS_SHEET_NODE_TYPE,
+        fieldTables: FREEMAN_EDLS_FIELD_TABLES,
+      });
+    },
+  );
+
+  // Like the ping, a sweep that could not finish is still a report: the reason
+  // is in the body and the page shows it, so these answer 200.
+  app.post(
+    "/api/sitespecific/freeman/edls-migrate/sweep/nodes",
+    ...gate,
+    async (_req: Request, res: Response) => {
+      try {
+        res.json(await runFreemanEdlsNodeSweep());
+      } catch (error) {
+        res.status(500).json({
+          message: failureMessage(error, "Failed to sweep the legacy node table"),
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/api/sitespecific/freeman/edls-migrate/sweep/fields",
+    ...gate,
+    async (_req: Request, res: Response) => {
+      try {
+        res.json(await runFreemanEdlsFieldSweep());
+      } catch (error) {
+        res.status(500).json({
+          message: failureMessage(error, "Failed to sweep the legacy field tables"),
+        });
+      }
+    },
+  );
+
+  app.get(
+    "/api/sitespecific/freeman/edls-migrate/staged",
+    ...gate,
+    async (_req: Request, res: Response) => {
+      try {
+        const rows = await storage.freemanEdlsMigrateStaging.listAll();
+        res.json({ count: rows.length, rows });
+      } catch (error) {
+        res.status(500).json({
+          message: failureMessage(error, "Failed to read the staged rows"),
+        });
+      }
+    },
+  );
+
+  app.delete(
+    "/api/sitespecific/freeman/edls-migrate/staged",
+    ...gate,
+    async (_req: Request, res: Response) => {
+      try {
+        const deleted = await storage.freemanEdlsMigrateStaging.deleteAll();
+        res.json({ deleted });
+      } catch (error) {
+        res.status(500).json({
+          message: failureMessage(error, "Failed to clear the staged rows"),
+        });
       }
     },
   );
