@@ -879,6 +879,15 @@ export const componentRegistry: ComponentDefinition[] = [
     }
   },
   {
+    id: "sitespecific.freeman.edls_migrate",
+    name: "Freeman EDLS Migration",
+    description: "Migration of EDLS data from Freeman's legacy system",
+    enabledByDefault: false,
+    category: "site-specific",
+    // Owns no schema yet: this stage only connects to the legacy system.
+    dependsOnComponents: ["edls"]
+  },
+  {
     id: "sitespecific.t631.client",
     name: "Teamsters 631 Client",
     description: "Client connection to the Teamsters 631 site",
