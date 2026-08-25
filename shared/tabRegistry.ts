@@ -196,7 +196,15 @@ export const workerTabTree: HierarchicalTab[] = [
     ]
   },
   { id: 'political', label: 'Political', hrefTemplate: '/workers/{id}/political', permission: 'staff', component: 'sitespecific.btu.political' },
-  { id: 'edls', label: 'EDLS', hrefTemplate: '/workers/{id}/edls', policyId: 'edls.coordinator', component: 'edls' },
+  {
+    id: 'edls', label: 'EDLS', hrefTemplate: '/workers/{id}/edls', policyId: 'edls.coordinator', component: 'edls',
+    children: [
+      // Keeps the pre-split URL, so existing links and bookmarks still land on
+      // the switch rather than on the new list.
+      { id: 'edls-status', label: 'Status', hrefTemplate: '/workers/{id}/edls', policyId: 'edls.coordinator', component: 'edls' },
+      { id: 'edls-assignments', label: 'Assignments', hrefTemplate: '/workers/{id}/edls/assignments', policyId: 'edls.coordinator', component: 'edls' },
+    ]
+  },
   { id: 'sitespecific-freeman-2shift', label: 'Second Shift', hrefTemplate: '/workers/{id}/sitespecific-freeman-2shift', policyId: 'edls.any', component: 'sitespecific.freeman' },
   { id: 'sitespecific-bao-beneficiaries', label: 'Beneficiaries', hrefTemplate: '/workers/{id}/sitespecific/bao/beneficiaries', policyId: 'worker.view', component: 'sitespecific.bao' },
   {

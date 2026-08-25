@@ -128,3 +128,4 @@
 - [EDLS schedule answer authority](edls-schedule-answer-authority.md) — an AAT bearer link intentionally authorizes its worker’s final EDLS accept/decline response; legacy schedule links remain read-only.
 - [Permission registry vs role tables](permission-registry-vs-role-tables.md) — getRolePermissions drops keys an uninitialized registry doesn't know (empty pre-app-init); ask getRolesWithPermission for authority questions.
 - [Break-glass admin from env](break-glass-admin-from-env.md) — LOCAL_AUTH_* is a per-boot reconciler (exists/active/admin/password); refusals must be decided BEFORE the first write, and env overrides mean in-app admins can set it too.
+- [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.
