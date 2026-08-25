@@ -162,4 +162,5 @@ export function initializeWebServiceSystem(): void {
 }
 
 // --- Plugin registration list (one side-effect import per plugin) ---------
+import "./plugins/ping";
 import "./plugins/edls-sheet-export";
