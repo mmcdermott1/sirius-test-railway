@@ -132,4 +132,5 @@
 - [Storage logging wrapper semantics](storage-logging-wrapper-semantics.md) — a dormant logging config logs nothing; wrapping the impl at its factory is safe (internal this.* calls bypass the wrapper) and gives bulk paths per-record audit entries for free.
 - [Relaying a remote system's answer](relayed-remote-answer.md) — redact the credential out of RELAYED content (bodies/headers/errors), not just our own request; envelope flag decides success, never HTTP 200.
 - [Legacy raw-table reads](legacy-rawdata-table-reads.md) — a service that can't count/filter makes a refusal look like end-of-table; parse fail-closed, buffer the whole read before writing, and get field-table names from the field config, never by guessing.
+- [Quicksearch role-as-access](quicksearch-role-as-access.md) — a config's role list IS the decision (no per-record checks); sensitive clauses gated by the framework; pure clause planners; cmdk needs shouldFilter={false}.
 - [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.

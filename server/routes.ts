@@ -371,6 +371,11 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   const { registerSystemStatusRoutes } = await import("./modules/system/status");
   registerSystemStatusRoutes(app, requireAuth);
 
+  // Quicksearch — the search-from-anywhere endpoint. Which searchers run is
+  // decided server-side from the caller's roles, never from the request.
+  const { registerQuicksearchRoutes } = await import("./modules/system/quicksearch");
+  registerQuicksearchRoutes(app, requireAuth);
+
   // Register bookmark routes
   registerBookmarkRoutes(app, requireAuth, requirePermission);
 
