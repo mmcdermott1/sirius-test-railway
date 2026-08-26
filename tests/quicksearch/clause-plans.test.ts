@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import { planWorkerSearch } from "../../server/plugins/quicksearch/plugins/worker";
 import { planGrievanceSearch } from "../../server/plugins/quicksearch/plugins/grievance";
+import { planEdlsSheetSearch } from "../../server/plugins/quicksearch/plugins/edls-sheet";
 
 const ID_TYPES = { idTypeIds: ["type-a", "type-b"] };
 
@@ -118,5 +119,30 @@ describe("grievance search clauses", () => {
 
   it("trims before deciding", () => {
     expect(planGrievanceSearch("  20260426-1 ").siriusId).toBe("20260426-1");
+  });
+});
+
+describe("EDLS sheet search clauses", () => {
+  it("always matches on sheet title and worker name", () => {
+    const plan = planEdlsSheetSearch("  loadout  ", {});
+    expect(plan.title).toBe("loadout");
+    expect(plan.workerName).toBe("loadout");
+  });
+
+  it("drops the identifier clause when no id type is configured", () => {
+    const plan = planEdlsSheetSearch("A-100", {});
+    expect(plan.workerIdValue).toBeNull();
+    expect(plan.workerIdTypeIds).toEqual([]);
+  });
+
+  it("matches an identifier exactly, never as a prefix", () => {
+    const plan = planEdlsSheetSearch("A-100", ID_TYPES);
+    expect(plan.workerIdValue).toBe("A-100");
+    expect(plan.workerIdTypeIds).toEqual(["type-a", "type-b"]);
+  });
+
+  it("ignores an id type list that is not a list of ids", () => {
+    expect(planEdlsSheetSearch("A-100", { idTypeIds: "type-a" }).workerIdValue).toBeNull();
+    expect(planEdlsSheetSearch("A-100", { idTypeIds: [1, null] as any }).workerIdValue).toBeNull();
   });
 });

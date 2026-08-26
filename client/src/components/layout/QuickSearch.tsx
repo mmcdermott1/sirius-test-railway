@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Gavel, Search, Users } from "lucide-react";
+import { AlertTriangle, CalendarDays, Gavel, Search, Users } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -25,6 +25,7 @@ import {
 const ICONS: Record<string, typeof Search> = {
   users: Users,
   gavel: Gavel,
+  "calendar-days": CalendarDays,
   search: Search,
 };
 
