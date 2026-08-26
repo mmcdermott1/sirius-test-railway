@@ -3,6 +3,7 @@ import { contacts, optionsWorkerIdType, phoneNumbers, workerIds, workers } from 
 import type { JsonSchema } from "@shared/json-schema-form";
 import { createUnifiedOptionsStorage } from "../../../storage/unified-options";
 import { registerQuicksearchPlugin } from "../registry";
+import { correlated, type QuicksearchDb } from "../sql";
 import type { QuicksearchContext, QuicksearchPlugin, QuicksearchResult } from "../types";
 
 /** Digits only. Every identifier clause reasons about digits, not formatting. */
@@ -156,6 +157,81 @@ function describeMatch(flags: MatchFlags, idTypeName: string | null): string | u
   return undefined;
 }
 
+/**
+ * The worker search statement, separated from the plugin so its generated SQL
+ * can be asserted on without a database. Correlated references to the worker
+ * being selected go through {@link correlated} — see that helper for why
+ * interpolating the column directly is not safe in a select list. This select
+ * joins `contacts`, which happens to make Drizzle qualify columns anyway; the
+ * explicit form is what keeps that true if the join ever goes away.
+ */
+export function buildWorkerSearchQuery(
+  client: QuicksearchDb,
+  plan: WorkerSearchPlan,
+  limit: number,
+) {
+  const workerId = correlated(workers.id);
+  const workerContactId = correlated(workers.contactId);
+
+  const nameMatch = sql<boolean>`${contacts.displayName} ILIKE ${`%${plan.name}%`}`;
+
+  const siriusIdMatch =
+    plan.siriusId !== null
+      ? sql<boolean>`${workers.siriusId} = ${plan.siriusId}`
+      : sql<boolean>`false`;
+
+  const workerIdMatch =
+    plan.workerIdValue !== null
+      ? sql<boolean>`EXISTS (
+          SELECT 1 FROM ${workerIds} wi
+          WHERE wi.worker_id = ${workerId}
+            AND wi.type_id IN (${sql.join(
+              plan.workerIdTypeIds.map((id) => sql`${id}`),
+              sql`, `,
+            )})
+            AND wi.value = ${plan.workerIdValue}
+        )`
+      : sql<boolean>`false`;
+
+  // Suffix comparison so a local number finds a stored number that carries
+  // an area or country code.
+  const phoneMatch =
+    plan.phoneDigits !== null
+      ? sql<boolean>`EXISTS (
+          SELECT 1 FROM ${phoneNumbers} pn
+          WHERE pn.contact_id = ${workerContactId}
+            AND regexp_replace(pn.phone_number, '[^0-9]', '', 'g') LIKE ${`%${plan.phoneDigits}`}
+        )`
+      : sql<boolean>`false`;
+
+  const ssnMatch =
+    plan.ssn === null
+      ? sql<boolean>`false`
+      : plan.ssn.mode === "full"
+        ? sql<boolean>`regexp_replace(${workers.ssn}, '[^0-9]', '', 'g') = ${plan.ssn.digits}`
+        : sql<boolean>`right(regexp_replace(${workers.ssn}, '[^0-9]', '', 'g'), 4) = ${plan.ssn.digits}`;
+
+  const clauses: SQL[] = [nameMatch, siriusIdMatch, workerIdMatch, phoneMatch, ssnMatch];
+
+  return client
+    .select({
+      id: workers.id,
+      siriusId: workers.siriusId,
+      displayName: contacts.displayName,
+      matchedName: nameMatch,
+      matchedSiriusId: siriusIdMatch,
+      matchedWorkerId: workerIdMatch,
+      matchedPhone: phoneMatch,
+      matchedSsn: ssnMatch,
+    })
+    .from(workers)
+    .innerJoin(contacts, eq(workers.contactId, contacts.id))
+    .where(or(...clauses))
+    .orderBy(contacts.displayName)
+    // One more than the cap so the runner can report truncation.
+    .limit(limit + 1);
+}
+
 export const workerQuicksearchPlugin: QuicksearchPlugin = {
   id: "worker",
   name: "Workers",
@@ -175,64 +251,8 @@ export const workerQuicksearchPlugin: QuicksearchPlugin = {
   async search(ctx: QuicksearchContext): Promise<QuicksearchResult[]> {
     const plan = planWorkerSearch(ctx.query, ctx.settings as WorkerSearchSettings);
 
-    const nameMatch = sql<boolean>`${contacts.displayName} ILIKE ${`%${plan.name}%`}`;
-
-    const siriusIdMatch =
-      plan.siriusId !== null
-        ? sql<boolean>`${workers.siriusId} = ${plan.siriusId}`
-        : sql<boolean>`false`;
-
-    const workerIdMatch =
-      plan.workerIdValue !== null
-        ? sql<boolean>`EXISTS (
-            SELECT 1 FROM ${workerIds} wi
-            WHERE wi.worker_id = ${workers.id}
-              AND wi.type_id IN (${sql.join(
-                plan.workerIdTypeIds.map((id) => sql`${id}`),
-                sql`, `,
-              )})
-              AND wi.value = ${plan.workerIdValue}
-          )`
-        : sql<boolean>`false`;
-
-    // Suffix comparison so a local number finds a stored number that carries
-    // an area or country code.
-    const phoneMatch =
-      plan.phoneDigits !== null
-        ? sql<boolean>`EXISTS (
-            SELECT 1 FROM ${phoneNumbers} pn
-            WHERE pn.contact_id = ${workers.contactId}
-              AND regexp_replace(pn.phone_number, '[^0-9]', '', 'g') LIKE ${`%${plan.phoneDigits}`}
-          )`
-        : sql<boolean>`false`;
-
-    const ssnMatch =
-      plan.ssn === null
-        ? sql<boolean>`false`
-        : plan.ssn.mode === "full"
-          ? sql<boolean>`regexp_replace(${workers.ssn}, '[^0-9]', '', 'g') = ${plan.ssn.digits}`
-          : sql<boolean>`right(regexp_replace(${workers.ssn}, '[^0-9]', '', 'g'), 4) = ${plan.ssn.digits}`;
-
-    const clauses: SQL[] = [nameMatch, siriusIdMatch, workerIdMatch, phoneMatch, ssnMatch];
-
     const rows = await ctx.storage.readOnly.query(async (client) =>
-      client
-        .select({
-          id: workers.id,
-          siriusId: workers.siriusId,
-          displayName: contacts.displayName,
-          matchedName: nameMatch,
-          matchedSiriusId: siriusIdMatch,
-          matchedWorkerId: workerIdMatch,
-          matchedPhone: phoneMatch,
-          matchedSsn: ssnMatch,
-        })
-        .from(workers)
-        .innerJoin(contacts, eq(workers.contactId, contacts.id))
-        .where(or(...clauses))
-        .orderBy(contacts.displayName)
-        // One more than the cap so the runner can report truncation.
-        .limit(ctx.limit + 1),
+      buildWorkerSearchQuery(client, plan, ctx.limit),
     );
 
     if (rows.length === 0) return [];
