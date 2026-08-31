@@ -532,7 +532,7 @@ registerEnvironmentVariables([
   { name: "ALLOW_DB_PUSH", description: "Set to 1 to permit scripts/db-push.ts to run (guarded: push is hazardous).", secret: false, category: "core" },
   { name: "SKIP_SCHEMA_DRIFT_CHECK", description: "Set to 1 to skip the startup schema-drift boot gate (dev escape hatch).", secret: false, category: "core", changeTakesEffect: "restart", },
   { name: "SKIP_DIST_FRESHNESS_CHECK", description: "Set to 1 to skip the stale-dist build freshness guard in production entry.", secret: false, category: "core", changeTakesEffect: "restart", },
-  { name: "EXPOSE_BOOT_ERRORS", description: "Set to 1 to render init-failure details (message + stack) and the bring-up report on the boot failure page and /health.", secret: false, category: "core", changeTakesEffect: "restart", },
+  { name: "EXPOSE_BOOT_ERRORS", description: "Set to 1 to render init-failure details (message + stack) and the bring-up report on the boot-status addresses (/health, /boot-status, /api/health, /api/boot-status) and every not-ready response. Without it those still name the boot state and blocker.", secret: false, category: "core", changeTakesEffect: "restart", },
   // Remote diagnosis and repair for a target the operator has no shell on
   // (Task #1301): the only levers they have are environment variables and a
   // redeploy. BRINGUP_REPORT_ONLY is a read-only dry run;
