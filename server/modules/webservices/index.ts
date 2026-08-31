@@ -14,6 +14,7 @@ import { WEB_SERVICE_BASE_PATH } from './base-path';
 // Resolution lives beside its inverse (the address the API document
 // publishes), so the two can never drift apart.
 import { resolveConfiguration } from './addressing';
+import { assertMaintenanceGateInstalled } from './maintenance';
 
 /**
  * The single refusal returned for every reason a caller may not reach a
@@ -78,6 +79,12 @@ function createWsLoggingMiddleware(): RequestHandler {
  * record for the grant check, the enabled checks and the handler call.
  */
 export function registerWebServiceDispatcher(app: Express): void {
+  // Maintenance refusal is not mounted here: it has to beat the base
+  // middleware, which is registered long before this runs. This insists the
+  // entry point installed it — see `./maintenance` for why the ordering is
+  // load-bearing rather than tidy.
+  assertMaintenanceGateInstalled(app);
+
   const router = Router();
   router.use(requireWebServiceAuth());
   router.use(createWsLoggingMiddleware());
