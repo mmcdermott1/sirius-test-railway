@@ -44,7 +44,7 @@ export function WcUsage(_props: DashboardPluginProps) {
           Web Client Usage
         </CardTitle>
         <Link
-          href="/admin/wc-stats"
+          href="/admin/wc/stats"
           className="text-xs text-primary flex items-center hover:underline"
           data-testid="link-wc-stats-page"
         >

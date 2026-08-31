@@ -1,7 +1,7 @@
 import { sql, and, eq, gte, lte, asc, type SQL } from 'drizzle-orm';
 import { wsStats } from '@shared/schema';
 import type { Ymd } from '@shared/utils/date';
-import { getClient } from './transaction-context';
+import { getClient, isInTransaction, runInTransaction } from './transaction-context';
 
 /**
  * How many incoming web service calls we served, per day — the inbound mirror
@@ -69,6 +69,37 @@ export interface WsStatsRangeParams extends WsStatsFilters {
   end: Ymd;
 }
 
+/**
+ * Every figure one usage screen shows, counted over one range.
+ *
+ * They are returned together because they have to agree. A per-service total
+ * shown beside its operation rows, and a chart above both, are read as one
+ * account of the same traffic; if they were gathered separately they could
+ * disagree by whatever arrived in between, and nothing on the screen would say
+ * which of them was right.
+ */
+export interface WsStatsReport {
+  /** Calls per day inside the range, oldest first. Days with none are absent. */
+  days: WsStatsDay[];
+  /** Every counted call in the range. Equal to the sum of each breakdown. */
+  total: number;
+  /**
+   * Calls per plugin: "which of our services carries the traffic".
+   *
+   * Plugins with no calls in the range are absent — including one that is
+   * registered but was never called, and including, conversely, one that has
+   * counts but is no longer registered: this counts calls, not registrations,
+   * so a retired service's traffic is still accounted for.
+   */
+  byPlugin: WsStatsPlugin[];
+  /** Calls per (plugin, operation): the drill-down from a service into what was called on it. */
+  byPluginOperation: WsStatsPluginOperation[];
+  /** Calls per calling client: "who is using us". */
+  byClient: WsStatsClient[];
+  /** Calls per (plugin, client, operation): the finest grouping, which the rest roll up from. */
+  byDimension: WsStatsDimensionCalls[];
+}
+
 export interface WsStatsStorage {
   /**
    * Count one served call against (plugin, client, operation, day).
@@ -77,31 +108,16 @@ export interface WsStatsStorage {
    * at once cannot read-modify-write over each other and lose a count.
    */
   recordCall(pluginId: string, clientId: string, operation: string, ymd: Ymd): Promise<void>;
-  /** Calls per day inside the range, oldest first. Days with none are absent. */
-  countsByDay(params: WsStatsRangeParams): Promise<WsStatsDay[]>;
   /**
-   * Calls per (plugin, client, operation) inside the range. The finest
-   * grouping the counter can answer for a range, and the one every coarser
-   * read below is rolled up from.
-   */
-  countsByDimension(params: WsStatsRangeParams): Promise<WsStatsDimensionCalls[]>;
-  /**
-   * Calls per (plugin, operation) inside the range — the drill-down from a
-   * service into what was called on it.
-   */
-  countsByPluginOperation(params: WsStatsRangeParams): Promise<WsStatsPluginOperation[]>;
-  /**
-   * Calls per plugin inside the range: "which of our services carries the
-   * traffic".
+   * Every figure for one range, read as one account of the traffic.
    *
-   * Plugins with no calls in the range are absent — including one that is
-   * registered but was never called, and including, conversely, one that has
-   * counts but is no longer registered: this reads the counts, not the plugin
-   * registry, so a retired service's calls are still accounted for.
+   * Two grouped queries answer this — by dimension and by day — and they are
+   * read inside a single read-only repeatable-read transaction, so a call
+   * arriving mid-read lands in both of them or in neither. Everything coarser
+   * is rolled up in memory from the dimension rows rather than asked for
+   * separately, which is what makes the breakdowns add up to `total`.
    */
-  countsByPlugin(params: WsStatsRangeParams): Promise<WsStatsPlugin[]>;
-  /** Calls per calling client inside the range: "who is using us". */
-  countsByClient(params: WsStatsRangeParams): Promise<WsStatsClient[]>;
+  report(params: WsStatsRangeParams): Promise<WsStatsReport>;
   /**
    * Every (plugin, client, operation) the table has ever counted.
    *
@@ -126,10 +142,10 @@ function rangeCondition(params: WsStatsRangeParams): SQL {
 }
 
 /**
- * The one range-grouped read. Every breakdown except the per-day one is
- * answered from this single query, so no two of them can disagree about which
- * calls fall inside the window — which is the whole reason a later screen can
- * show a service total beside its operation rows and have them add up.
+ * The one range-grouped read. Every breakdown except the per-day one is rolled
+ * up from this single query, so no two of them can disagree about which calls
+ * fall inside the window — which is the whole reason a screen can show a
+ * service total beside its operation rows and have them add up.
  */
 async function readCountsByDimension(
   params: WsStatsRangeParams,
@@ -173,6 +189,51 @@ function rollUp<T>(
 /** Separator for composite roll-up keys; not a value any dimension can hold. */
 const KEY_SEPARATOR = '\u0000';
 
+/** Calls per day inside the range, oldest first. */
+async function readCountsByDay(params: WsStatsRangeParams): Promise<WsStatsDay[]> {
+  // The one read that does not come off the dimension query: the day is not
+  // one of its grouping columns.
+  const conn = getClient();
+  const rows = await conn
+    .select({
+      ymd: wsStats.ymd,
+      calls: sql<number>`sum(${wsStats.calls})::int`,
+    })
+    .from(wsStats)
+    .where(rangeCondition(params))
+    .groupBy(wsStats.ymd)
+    .orderBy(asc(wsStats.ymd));
+  return rows.map((row) => ({ ymd: row.ymd, calls: Number(row.calls ?? 0) }));
+}
+
+/** Roll the two grouped reads up into the figures a usage screen shows. */
+function buildReport(byDimension: WsStatsDimensionCalls[], days: WsStatsDay[]): WsStatsReport {
+  return {
+    days,
+    // From the dimension rows, not from a count of its own: the total and the
+    // breakdowns beneath it are then the same arithmetic over the same rows,
+    // and cannot be made to disagree by anything at all.
+    total: byDimension.reduce((sum, row) => sum + row.calls, 0),
+    byPlugin: rollUp(byDimension, (row) => row.pluginId, (pluginId, calls) => ({
+      pluginId,
+      calls,
+    })),
+    byPluginOperation: rollUp(
+      byDimension,
+      (row) => `${row.pluginId}${KEY_SEPARATOR}${row.operation}`,
+      (name, calls) => {
+        const [pluginId, operation] = name.split(KEY_SEPARATOR);
+        return { pluginId, operation, calls };
+      },
+    ),
+    byClient: rollUp(byDimension, (row) => row.clientId, (clientId, calls) => ({
+      clientId,
+      calls,
+    })),
+    byDimension,
+  };
+}
+
 export function createWsStatsStorage(): WsStatsStorage {
   return {
     async recordCall(
@@ -191,48 +252,26 @@ export function createWsStatsStorage(): WsStatsStorage {
         });
     },
 
-    async countsByDay(params: WsStatsRangeParams): Promise<WsStatsDay[]> {
-      // The only read that does not come off the dimension query: the day is
-      // not one of its grouping columns.
-      const conn = getClient();
-      const rows = await conn
-        .select({
-          ymd: wsStats.ymd,
-          calls: sql<number>`sum(${wsStats.calls})::int`,
-        })
-        .from(wsStats)
-        .where(rangeCondition(params))
-        .groupBy(wsStats.ymd)
-        .orderBy(asc(wsStats.ymd));
-      return rows.map((row) => ({ ymd: row.ymd, calls: Number(row.calls ?? 0) }));
-    },
+    async report(params: WsStatsRangeParams): Promise<WsStatsReport> {
+      const readBoth = async () =>
+        buildReport(await readCountsByDimension(params), await readCountsByDay(params));
 
-    async countsByDimension(params: WsStatsRangeParams): Promise<WsStatsDimensionCalls[]> {
-      return readCountsByDimension(params);
-    },
+      if (isInTransaction()) {
+        // Somebody else opened the transaction and therefore owns its
+        // isolation level; changing it here would fail anyway, since Postgres
+        // only accepts that before the transaction's first query.
+        return readBoth();
+      }
 
-    async countsByPluginOperation(
-      params: WsStatsRangeParams,
-    ): Promise<WsStatsPluginOperation[]> {
-      const rows = await readCountsByDimension(params);
-      return rollUp(
-        rows,
-        (row) => `${row.pluginId}${KEY_SEPARATOR}${row.operation}`,
-        (name, calls) => {
-          const [pluginId, operation] = name.split(KEY_SEPARATOR);
-          return { pluginId, operation, calls };
-        },
-      );
-    },
-
-    async countsByPlugin(params: WsStatsRangeParams): Promise<WsStatsPlugin[]> {
-      const rows = await readCountsByDimension(params);
-      return rollUp(rows, (row) => row.pluginId, (pluginId, calls) => ({ pluginId, calls }));
-    },
-
-    async countsByClient(params: WsStatsRangeParams): Promise<WsStatsClient[]> {
-      const rows = await readCountsByDimension(params);
-      return rollUp(rows, (row) => row.clientId, (clientId, calls) => ({ clientId, calls }));
+      return runInTransaction(async () => {
+        // Repeatable read, so both grouped queries see one snapshot: a call
+        // counted between them lands in both or in neither, and the chart
+        // cannot end up describing a different set of calls than the
+        // breakdowns beside it. Read only, because a reporting read that can
+        // write is a reporting read that eventually does.
+        await getClient().execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`);
+        return readBoth();
+      });
     },
 
     async listDimensions(): Promise<WsStatsDimension[]> {
