@@ -134,4 +134,5 @@
 - [Legacy raw-table reads](legacy-rawdata-table-reads.md) — a service that can't count/filter makes a refusal look like end-of-table; parse fail-closed, buffer the whole read before writing, and get field-table names from the field config, never by guessing.
 - [Drizzle select-list unqualified columns](drizzle-select-list-unqualified-columns.md) — a column renders bare in a single-table select list but qualified in WHERE; reusing one fragment in both breaks correlated subqueries.
 - [Quicksearch role-as-access](quicksearch-role-as-access.md) — a config's role list IS the decision (no per-record checks); sensitive clauses gated by the framework; pure clause planners; cmdk needs shouldFilter={false}.
+- [Bespoke feed wizard subclass](feed-wizard-bespoke-subclass.md) — base feed processing is SSN/worker-create only; override validate+process over ONE resolution routine; mapping orientation flips client↔server; audit user comes from the request ALS.
 - [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.
