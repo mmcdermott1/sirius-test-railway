@@ -66,6 +66,7 @@ import "./core/1061_create_plugin_configs_quicksearch";
 import "./core/1062_create_wc_cache";
 import "./core/1063_backfill_wc_cache_phone_lookup";
 import "./core/1064_backfill_wc_cache_address_verification";
+import "./core/1065_create_wc_stats";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

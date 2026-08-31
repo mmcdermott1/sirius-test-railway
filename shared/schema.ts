@@ -162,9 +162,13 @@ export {
   wcCache,
   wcCacheOutcomeEnum,
   insertWcCacheSchema,
+  wcStats,
+  insertWcStatsSchema,
   type WcCacheOutcome,
   type InsertWcCache,
   type WcCache,
+  type InsertWcStats,
+  type WcStats,
 } from "./schema/webclient/schema";
 
 // Session storage table for Replit Auth

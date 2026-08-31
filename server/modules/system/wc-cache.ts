@@ -3,6 +3,7 @@ import { z } from "zod";
 import { storage } from "../../storage";
 import { requireAccess } from "../../services/access-policy-evaluator";
 import { listWcRequests, resolveWcDuration } from "../../services/webclient";
+import { addDaysYmd, getTodayYmd, isValidYmd, isYmdAfter } from "@shared/utils/date";
 import type { WcCacheRow } from "../../storage/wc-cache";
 
 /**
@@ -86,7 +87,65 @@ function decorate(
   };
 }
 
+/**
+ * The stats read's range and filters.
+ *
+ * Days are Ymd strings all the way through — the counter stores a day, not a
+ * timestamp, so nothing here has to decide what a day means.
+ */
+const statsQuerySchema = z.object({
+  start: z.string().refine(isValidYmd, { message: "Expected a YYYY-MM-DD day" }).optional(),
+  end: z.string().refine(isValidYmd, { message: "Expected a YYYY-MM-DD day" }).optional(),
+  service: z.string().trim().min(1).optional(),
+  requestType: z.string().trim().min(1).optional(),
+});
+
+/** How far back the stats read looks when the caller names no range. */
+const DEFAULT_STATS_DAYS = 30;
+
 export function registerWcCacheAdminRoutes(app: Express) {
+  // Outbound calls per day, with the filter dimensions that actually have
+  // counts. The counts come from `wc_stats`, not from the cache: the cache
+  // holds one row per request key with only the last attempt on it, and an
+  // uncached request type never writes to it at all, so no honest call count
+  // can be derived from it.
+  //
+  // Its own path rather than `/api/admin/wc-cache/stats`, so it can never be
+  // read as a cache entry id.
+  app.get("/api/admin/wc-stats", requireAccess("admin"), async (req, res) => {
+    const parsed = statsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ message: "Invalid query parameters", errors: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const end = parsed.data.end ?? getTodayYmd();
+      const start = parsed.data.start ?? addDaysYmd(end, -(DEFAULT_STATS_DAYS - 1));
+      if (isYmdAfter(start, end)) {
+        res.status(400).json({ message: "The range starts after it ends" });
+        return;
+      }
+      const { service, requestType } = parsed.data;
+      const [days, dimensions] = await Promise.all([
+        storage.wcStats.countsByDay({ start, end, service, requestType }),
+        storage.wcStats.listDimensions(),
+      ]);
+      res.json({
+        start,
+        end,
+        // Only the days that have calls. The range is stated above so the
+        // caller can fill the silent days itself rather than being handed a
+        // gap it has to guess the meaning of.
+        days,
+        total: days.reduce((sum, day) => sum + day.calls, 0),
+        dimensions,
+      });
+    } catch (error) {
+      console.error("Failed to read web client call stats:", error);
+      res.status(500).json({ message: "Failed to read call stats" });
+    }
+  });
+
   // Every (service, request type) worth offering as a filter: the pairs
   // present in the table, plus the registered ones that have no rows yet.
   // A pair present but unregistered is included and marked, because it is the

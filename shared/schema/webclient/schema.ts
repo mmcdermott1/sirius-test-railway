@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
-import { pgTable, pgEnum, text, varchar, jsonb, timestamp, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, varchar, jsonb, timestamp, integer, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { isValidYmd } from "../../utils/date";
 
 /**
  * "wc" — web client. The outbound half of the third-party plumbing, sitting
@@ -61,6 +62,48 @@ export const wcCache = pgTable("wc_cache", {
   sweepIdx: index("wc_cache_sweep_idx").on(table.service, table.requestType, table.fetchedAt),
 }));
 
+/**
+ * How many outbound calls we actually made, per (service, request type, day).
+ *
+ * Deliberately NOT derivable from `wc_cache`: that table holds one row per
+ * request key carrying only the LAST attempt, and a request type registered as
+ * uncached never writes to it at all. This counter is bumped once at the point
+ * the wrapper decides to contact the vendor, so its number means exactly "we
+ * contacted them" — a cache hit, a refusal (maintenance, a failure hold, the
+ * unstorable hold, the writable-database gate) and a `local` pass-through all
+ * count nothing, and a failed attempt counts, because it is a call we made.
+ *
+ * `day` is a Ymd string (`YYYY-MM-DD`) rather than a timestamp: a day must
+ * read back as the same day however it is read, and the server's local day is
+ * what the rest of the app means by "today".
+ */
+export const wcStats = pgTable("wc_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  service: varchar("service", { length: 64 }).notNull(),
+  requestType: varchar("request_type", { length: 64 }).notNull(),
+  day: varchar("day", { length: 10 }).notNull(),
+  calls: integer("calls").notNull().default(0),
+}, (table) => ({
+  // Named UNIQUE CONSTRAINT (not a unique index) so the startup drift gate
+  // sees the same object the migration creates. It is also the conflict target
+  // of the insert-or-increment, which is what stops concurrent calls losing
+  // counts.
+  dayUnique: unique("wc_stats_service_type_day_uniq").on(
+    table.service,
+    table.requestType,
+    table.day,
+  ),
+}));
+
+export const insertWcStatsSchema = createInsertSchema(wcStats, {
+  service: z.string().min(1).max(64),
+  requestType: z.string().min(1).max(64),
+  day: z.string().refine(isValidYmd, { message: "Expected a YYYY-MM-DD day" }),
+  calls: z.number().int().min(0),
+}).omit({
+  id: true,
+});
+
 export const insertWcCacheSchema = createInsertSchema(wcCache, {
   service: z.string().min(1).max(64),
   requestType: z.string().min(1).max(64),
@@ -74,3 +117,5 @@ export const insertWcCacheSchema = createInsertSchema(wcCache, {
 export type WcCacheOutcome = (typeof wcCacheOutcomeEnum.enumValues)[number];
 export type InsertWcCache = z.infer<typeof insertWcCacheSchema>;
 export type WcCache = typeof wcCache.$inferSelect;
+export type InsertWcStats = z.infer<typeof insertWcStatsSchema>;
+export type WcStats = typeof wcStats.$inferSelect;

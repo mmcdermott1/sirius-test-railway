@@ -31,9 +31,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WcLayout } from "@/components/layouts/WcLayout";
 import {
   Loader2,
-  Cloud,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -309,23 +309,14 @@ export default function WcCachePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1
-          className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2"
-          data-testid="text-page-title"
-        >
-          <Cloud className="h-6 w-6" />
-          Web Client Cache
-        </h1>
-        <p className="text-muted-foreground mt-2" data-testid="text-page-description">
-          Every outbound request to a third party is answered from here while the
-          answer is still fresh. Freshness is worked out from the window each
-          request type declares, not from anything stored on the row. Expiring an
-          entry forgets the stored answer, so the next request goes back to the
-          vendor.
-        </p>
-      </div>
+    <WcLayout activeTab="wc-cache">
+      <p className="text-muted-foreground" data-testid="text-page-description">
+        Every outbound request to a third party is answered from here while the
+        answer is still fresh. Freshness is worked out from the window each
+        request type declares, not from anything stored on the row. Expiring an
+        entry forgets the stored answer, so the next request goes back to the
+        vendor.
+      </p>
 
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -502,6 +493,6 @@ export default function WcCachePage() {
       </Card>
 
       <DetailDialog id={detailId} onClose={() => setDetailId(null)} />
-    </div>
+    </WcLayout>
   );
 }

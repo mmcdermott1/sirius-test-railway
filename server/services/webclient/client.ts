@@ -1,6 +1,9 @@
 import { assertExternalServiceAllowed, isMaintenanceModeError } from "../maintenance-flag";
 import { logger } from "../../logger";
+import { getTodayYmd } from "@shared/utils/date";
 import { wcCacheStorage, wcRequestKeyHash, type WcCacheEntry } from "../../storage/wc-cache";
+import { wcStatsStorage } from "../../storage/wc-stats";
+import { runOutsideTransaction } from "../../storage/transaction-context";
 import { getWcRequest, resolveWcDuration } from "./registry";
 import type { WcAnswer, WcRequestBehavior, WcRequestMode, WcResult, WcService } from "./types";
 
@@ -45,6 +48,31 @@ function inUnstorableHold(behavior: WcRequestBehavior, requestKey: string): bool
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Count one call we actually made.
+ *
+ * Off the caller's transaction, deliberately, and for two independent reasons:
+ * on the caller's client a failed upsert would abort the caller's transaction
+ * and turn a best-effort statistic into a fatal error, and a caller that later
+ * rolled back would discard the record of a call that really happened and was
+ * really paid for. Failures are logged and swallowed — the request the caller
+ * asked for succeeds or fails on its own merits, never on this.
+ */
+async function countCall(behavior: WcRequestBehavior): Promise<void> {
+  try {
+    await runOutsideTransaction(() =>
+      wcStatsStorage.recordCall(behavior.service, behavior.requestType, getTodayYmd()),
+    );
+  } catch (error) {
+    logger.error("Failed to count a web client call", {
+      service: "webclient",
+      vendor: behavior.service,
+      requestType: behavior.requestType,
+      error: errorMessage(error),
+    });
+  }
 }
 
 function storedError(response: unknown): string | undefined {
@@ -146,6 +174,11 @@ export async function wcRequest<TValue>(
     if (isMaintenanceModeError(error)) throw error;
     answer = { answered: false, error: errorMessage(error) };
   }
+
+  // The vendor was contacted. Counted here and nowhere else: everything above
+  // this line either answered from the cache or refused before the call, and a
+  // failed attempt below it is still a call we made.
+  await countCall(behavior);
 
   if (answer.answered) {
     const fetchedAt = new Date();
