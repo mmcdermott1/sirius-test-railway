@@ -68,6 +68,20 @@ function, and its settings read has to be memoized somewhere both the validator
 and the registry share — two different answers to "is this stale" means a
 caller asks for a call the wrapper then refuses to make.
 
+## Force-expiring an entry means forgetting it
+
+**Rule:** an operator expiring one cached entry deletes the row. There is no
+stored expiry to back-date, and back-dating `fetched_at` would make the row
+claim the vendor was asked at a time it was not.
+
+**Why:** the person expiring an entry believes the stored answer is *wrong*,
+not merely old. Leaving the row behind would let "a failure must not destroy a
+still-fresh success" serve that same answer back as the outage fallback.
+
+**How to apply:** the same holds for any future bulk expiry, and it works
+unchanged on a row whose (service, request type) is no longer registered —
+removing a row needs no window.
+
 ## The request key is the uniqueness contract
 
 Every option that changes the SHAPE of the answer belongs in the canonical key.
