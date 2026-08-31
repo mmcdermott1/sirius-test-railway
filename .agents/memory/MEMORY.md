@@ -145,3 +145,4 @@
 - [Theme colour vars hold whole colours](theme-color-var-convention.md) — `var(--chart-1)`, never `hsl(var(--chart-1))`; nested colour is dropped at computed-value time with zero warnings (invisible chart line).
 - [Counting served work](counting-served-work.md) — usage counters: flag at the handler boundary (never infer from status), count on `close` / log on `finish`, write outside the caller's tx.
 - [Cross-process boot serialization](cross-process-boot-serialization.md) — two services boot one image against one DB: bring-up is exclusive (session advisory lock), every other boot write must be atomic/23505-retry/xact-lock, every wait bounded.
+- [Dashboard widget registry glob depth](dashboard-widget-registry-glob-depth.md) — client registry globs ./*/*.tsx as `<dir>:<File>`; a SHARED card must sit above the widget dirs or it registers as a phantom widget.

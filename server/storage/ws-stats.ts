@@ -1,6 +1,6 @@
 import { sql, and, eq, gte, lte, asc, type SQL } from 'drizzle-orm';
 import { wsStats } from '@shared/schema';
-import type { Ymd } from '@shared/utils/date';
+import { addDaysYmd, type Ymd } from '@shared/utils/date';
 import { getClient, isInTransaction, runInTransaction } from './transaction-context';
 
 /**
@@ -100,6 +100,48 @@ export interface WsStatsReport {
   byDimension: WsStatsDimensionCalls[];
 }
 
+/**
+ * One name's calls over a usage window and on that window's last day.
+ *
+ * Whose name it is depends on the list it came from — a plugin's or a calling
+ * client's — because both are counted off the same rows.
+ */
+export interface WsStatsUsageEntry {
+  id: string;
+  /** Calls counted on the window's last day. */
+  today: number;
+  /** Calls counted across the whole window, that last day included. */
+  window: number;
+}
+
+export interface WsStatsUsageParams {
+  /** Inclusive last day of the window, and the day `today` counts. */
+  end: Ymd;
+  /** How many days the window spans, counting `end` itself. At least one. */
+  days: number;
+}
+
+/**
+ * A window's traffic at a glance: per service and per caller, each with the
+ * whole window and its last day.
+ *
+ * Both figures come out of one statement, so "today" is a subset of "the
+ * window" by construction rather than by timing. Two reads could not promise
+ * that: a call landing between them would count towards today and not towards
+ * the week that contains today, and a card whose columns contradict each other
+ * is worse than no card.
+ */
+export interface WsStatsUsage {
+  /** Inclusive first day of the window, derived from `end` and `days`. */
+  start: Ymd;
+  /** Inclusive last day of the window, as asked for. */
+  end: Ymd;
+  /** Calls per plugin, busiest window first. Plugins with none are absent. */
+  byPlugin: WsStatsUsageEntry[];
+  /** Calls per calling client, busiest window first. Callers with none are absent. */
+  byClient: WsStatsUsageEntry[];
+}
+
 export interface WsStatsStorage {
   /**
    * Count one served call against (plugin, client, operation, day).
@@ -118,6 +160,16 @@ export interface WsStatsStorage {
    * separately, which is what makes the breakdowns add up to `total`.
    */
   report(params: WsStatsRangeParams): Promise<WsStatsReport>;
+  /**
+   * One window's traffic, per service and per caller, with its last day
+   * counted alongside it.
+   *
+   * One grouped statement answers all of it — the last day is a filtered
+   * aggregate over the same rows, and both breakdowns are rolled up from them
+   * — so no transaction is needed to keep the four figures describing the same
+   * calls. A statement is its own snapshot.
+   */
+  usage(params: WsStatsUsageParams): Promise<WsStatsUsage>;
   /**
    * Every (plugin, client, operation) the table has ever counted.
    *
@@ -206,6 +258,29 @@ async function readCountsByDay(params: WsStatsRangeParams): Promise<WsStatsDay[]
   return rows.map((row) => ({ ymd: row.ymd, calls: Number(row.calls ?? 0) }));
 }
 
+/**
+ * Sum a window's counted rows into buckets named by `key`, busiest first.
+ *
+ * Ties are broken by name so the order is a fact about the counts rather than
+ * about the order Postgres happened to return the groups in.
+ */
+function rollUpUsage(
+  rows: Array<{ pluginId: string; clientId: string; today: number; window: number }>,
+  key: (row: { pluginId: string; clientId: string }) => string,
+): WsStatsUsageEntry[] {
+  const totals = new Map<string, { today: number; window: number }>();
+  for (const row of rows) {
+    const id = key(row);
+    const running = totals.get(id) ?? { today: 0, window: 0 };
+    running.today += row.today;
+    running.window += row.window;
+    totals.set(id, running);
+  }
+  return Array.from(totals)
+    .map(([id, counts]) => ({ id, ...counts }))
+    .sort((a, b) => b.window - a.window || a.id.localeCompare(b.id));
+}
+
 /** Roll the two grouped reads up into the figures a usage screen shows. */
 function buildReport(byDimension: WsStatsDimensionCalls[], days: WsStatsDay[]): WsStatsReport {
   return {
@@ -272,6 +347,48 @@ export function createWsStatsStorage(): WsStatsStorage {
         await getClient().execute(sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`);
         return readBoth();
       });
+    },
+
+    async usage(params: WsStatsUsageParams): Promise<WsStatsUsage> {
+      if (!Number.isInteger(params.days) || params.days < 1) {
+        throw new RangeError(`A usage window spans at least one day, not ${params.days}`);
+      }
+      const { end } = params;
+      const start = addDaysYmd(end, -(params.days - 1));
+
+      // One statement, deliberately. The last day is a filtered aggregate over
+      // the very rows the window is summed from, and the two breakdowns are
+      // rolled up from those same rows afterwards, so nothing here can report
+      // a caller more calls today than it made all week.
+      //
+      // Which names appear is decided by the window, not by its last day: a
+      // caller that was busy on Tuesday and silent today is still part of the
+      // week's traffic and belongs in the answer, reporting zero for today.
+      const conn = getClient();
+      const rows = await conn
+        .select({
+          pluginId: wsStats.pluginId,
+          clientId: wsStats.clientId,
+          window: sql<number>`sum(${wsStats.calls})::int`,
+          today: sql<number>`coalesce(sum(${wsStats.calls}) filter (where ${wsStats.ymd} = ${end}::date), 0)::int`,
+        })
+        .from(wsStats)
+        .where(and(gte(wsStats.ymd, start), lte(wsStats.ymd, end)))
+        .groupBy(wsStats.pluginId, wsStats.clientId);
+
+      const counted = rows.map((row) => ({
+        pluginId: row.pluginId,
+        clientId: row.clientId,
+        today: Number(row.today ?? 0),
+        window: Number(row.window ?? 0),
+      }));
+
+      return {
+        start,
+        end,
+        byPlugin: rollUpUsage(counted, (row) => row.pluginId),
+        byClient: rollUpUsage(counted, (row) => row.clientId),
+      };
     },
 
     async listDimensions(): Promise<WsStatsDimension[]> {

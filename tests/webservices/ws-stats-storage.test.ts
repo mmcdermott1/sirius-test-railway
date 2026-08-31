@@ -27,6 +27,8 @@ import { wsStats } from '@shared/schema';
 let rangeRows: Array<{ pluginId: string; clientId: string; operation: string; calls: number }> = [];
 /** Rows the stubbed per-day query will return. */
 let dayRows: Array<{ ymd: string; calls: number }> = [];
+/** Rows the stubbed usage-window query will return. */
+let usageRows: Array<{ pluginId: string; clientId: string; today: number; window: number }> = [];
 /** What `recordCall` handed to the database, if anything. */
 let write: { values?: any; conflict?: any } = {};
 /** Everything the storage did to the database, in order. */
@@ -44,18 +46,31 @@ function sqlText(fragment: any): string {
 
 function stubConnection() {
   const chain: any = {};
-  let readingDays = false;
+  let reading: 'dimensions' | 'days' | 'usage' = 'dimensions';
   chain.select = (fields: Record<string, unknown>) => {
     selectSpy(fields);
-    readingDays = 'ymd' in fields && !('operation' in fields);
+    reading =
+      'window' in fields
+        ? 'usage'
+        : 'ymd' in fields && !('operation' in fields)
+          ? 'days'
+          : 'dimensions';
     return chain;
   };
   chain.from = () => chain;
   chain.where = () => chain;
-  chain.groupBy = () => chain;
+  chain.groupBy = () => {
+    // The usage read ends here: it asks for no ordering, because busiest-first
+    // is arithmetic over the groups rather than something SQL is asked for.
+    if (reading === 'usage') {
+      events.push('read usage');
+      return Promise.resolve(usageRows);
+    }
+    return chain;
+  };
   chain.orderBy = () => {
-    events.push(readingDays ? 'read days' : 'read dimensions');
-    return Promise.resolve(readingDays ? dayRows : rangeRows);
+    events.push(reading === 'days' ? 'read days' : 'read dimensions');
+    return Promise.resolve(reading === 'days' ? dayRows : rangeRows);
   };
   chain.execute = (fragment: unknown) => {
     events.push(`execute ${sqlText(fragment)}`);
@@ -96,6 +111,7 @@ const RANGE = { start: '2026-08-01' as const, end: '2026-08-31' as const };
 beforeEach(() => {
   rangeRows = [];
   dayRows = [];
+  usageRows = [];
   write = {};
   events = [];
   callerHasTransaction = false;
@@ -252,7 +268,7 @@ describe('reading one report', () => {
     });
   });
 
-  it('keeps counting a plugin the registry no longer knows about', async () => {
+  it('keeps counting a plugin the registry no longer knows about (report)', async () => {
     rangeRows = [{ pluginId: 'retired-v0', clientId: 'partner-a', operation: 'gone', calls: 4 }];
 
     // This reads the counts, never the plugin registry: a retired service's
@@ -260,5 +276,89 @@ describe('reading one report', () => {
     const { byPlugin } = await storage.report(RANGE);
 
     expect(byPlugin).toEqual([{ pluginId: 'retired-v0', calls: 4 }]);
+  });
+});
+
+describe('reading one usage window', () => {
+  const WINDOW = { end: '2026-08-31' as const, days: 7 };
+
+  beforeEach(() => {
+    usageRows = [
+      { pluginId: 'edls', clientId: 'partner-a', today: 1, window: 4 },
+      { pluginId: 'edls', clientId: 'partner-b', today: 0, window: 5 },
+      { pluginId: 'roster', clientId: 'partner-b', today: 2, window: 2 },
+    ];
+  });
+
+  it('answers the whole window and its last day in one statement', async () => {
+    await storage.usage(WINDOW);
+
+    // One statement is one snapshot, which is the entire guarantee: read
+    // separately, a call landing between the two reads counts towards today
+    // and not towards the week that contains today, and the card then shows a
+    // caller more calls today than it made all week.
+    expect(events).toEqual(['read usage']);
+  });
+
+  it('counts the last day as a filtered aggregate over the window rows', async () => {
+    await storage.usage(WINDOW);
+
+    // The same rows, narrowed — not a second count of its own, which is what
+    // would let the two columns disagree.
+    const fields = selectSpy.mock.calls[0][0];
+    expect(sqlText(fields.today)).toContain('filter (where');
+    expect(sqlText(fields.window)).toContain('sum(');
+  });
+
+  it('derives the first day of the window from its last', async () => {
+    const { start, end } = await storage.usage(WINDOW);
+
+    // Seven days counting the last one, so six days before it.
+    expect(start).toBe('2026-08-25');
+    expect(end).toBe('2026-08-31');
+  });
+
+  it('rolls both breakdowns off the same rows, busiest first', async () => {
+    const { byPlugin, byClient } = await storage.usage(WINDOW);
+
+    expect(byPlugin).toEqual([
+      { id: 'edls', today: 1, window: 9 },
+      { id: 'roster', today: 2, window: 2 },
+    ]);
+    expect(byClient).toEqual([
+      { id: 'partner-b', today: 2, window: 7 },
+      { id: 'partner-a', today: 1, window: 4 },
+    ]);
+  });
+
+  it('keeps a name that was busy earlier in the window but not today', async () => {
+    const { byClient } = await storage.usage(WINDOW);
+
+    // The window decides who appears. Dropping a silent-today caller would
+    // make the card claim a partner stopped calling us, when it called five
+    // times this week.
+    expect(byClient.map((row) => row.id)).toContain('partner-b');
+    expect(byClient.find((row) => row.id === 'partner-b')).toMatchObject({
+      today: 2,
+      window: 7,
+    });
+    usageRows = [{ pluginId: 'edls', clientId: 'quiet-partner', today: 0, window: 5 }];
+    const quiet = await storage.usage(WINDOW);
+    expect(quiet.byClient).toEqual([{ id: 'quiet-partner', today: 0, window: 5 }]);
+  });
+
+  it('reports nothing at all for a window with no calls', async () => {
+    usageRows = [];
+
+    const usage = await storage.usage(WINDOW);
+
+    expect(usage).toMatchObject({ byPlugin: [], byClient: [] });
+  });
+
+  it('refuses a window that spans less than a day', async () => {
+    // A window of zero days would read the day *after* its own end, which is
+    // not a smaller answer but a wrong one.
+    await expect(storage.usage({ end: '2026-08-31', days: 0 })).rejects.toThrow(RangeError);
+    expect(events).toEqual([]);
   });
 });
