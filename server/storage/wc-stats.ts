@@ -23,6 +23,12 @@ export interface WcStatsDay {
   calls: number;
 }
 
+/** One service's calls, summed over the range asked for. */
+export interface WcStatsService {
+  service: string;
+  calls: number;
+}
+
 /** A (service, request type) pair that has at least one counted call. */
 export interface WcStatsDimension {
   service: string;
@@ -52,6 +58,14 @@ export interface WcStatsStorage {
   recordCall(service: string, requestType: string, ymd: Ymd): Promise<void>;
   /** Calls per day inside the range, oldest first. Days with none are absent. */
   countsByDay(params: WcStatsRangeParams): Promise<WcStatsDay[]>;
+  /**
+   * Calls per service inside the range, by service name. Services with no
+   * calls in the range are absent — including a service that is registered
+   * but was never called, and including, conversely, a service that has
+   * counts but is no longer registered: this reads the counts, not the
+   * behavior registry, so a retired service's calls are still accounted for.
+   */
+  countsByService(params: WcStatsRangeParams): Promise<WcStatsService[]>;
   /**
    * Every (service, request type) the table has ever counted.
    *
@@ -97,6 +111,22 @@ export function createWcStatsStorage(): WcStatsStorage {
         .groupBy(wcStats.ymd)
         .orderBy(asc(wcStats.ymd));
       return rows.map((row) => ({ ymd: row.ymd, calls: Number(row.calls ?? 0) }));
+    },
+
+    async countsByService(params: WcStatsRangeParams): Promise<WcStatsService[]> {
+      const client = getClient();
+      const rows = await client
+        .select({
+          service: wcStats.service,
+          calls: sql<number>`sum(${wcStats.calls})::int`,
+        })
+        .from(wcStats)
+        // The same range/filter builder the per-day read uses, so the two
+        // reads can never disagree about which calls are inside the window.
+        .where(rangeCondition(params))
+        .groupBy(wcStats.service)
+        .orderBy(asc(wcStats.service));
+      return rows.map((row) => ({ service: row.service, calls: Number(row.calls ?? 0) }));
     },
 
     async listDimensions(): Promise<WcStatsDimension[]> {
