@@ -55,10 +55,15 @@ interface WcStatsResponse {
 
 const DEFAULT_RANGE_DAYS = 30;
 
+// `--chart-1` already holds a whole colour (`hsl(221 83% 53%)`), so it is named
+// as-is. Wrapping it in a colour function — as the upstream chart examples do,
+// because their themes store bare channel values — nests one colour inside
+// another. That parses but is not a colour, so the browser drops the stroke and
+// the line renders invisibly while the grid and axes look perfectly fine.
 const chartConfig = {
   calls: {
     label: "Calls",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
