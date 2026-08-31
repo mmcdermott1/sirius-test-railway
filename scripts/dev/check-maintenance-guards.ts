@@ -29,12 +29,17 @@
  *      wrapper therefore fails this check on its first line, and the fix is to
  *      add it to GUARDED_MODULES — which immediately subjects it to rule 1.
  *
+ * The US Census joined the list later and is the odd one out: it is free and
+ * has no side effect. It is here because it is now a service the web client
+ * framework can name, and everything that framework calls is refused through
+ * this same guard — so leaving it out would split the one list in two.
+ *
  * Deliberately NOT covered, matching the task's scope: browser-side Google
  * Maps in `client/` (the browser calls Google directly and cannot be gated
  * server-side), standalone `scripts/` (they never arm the flag, exactly like
  * the database write lock), and the non-vendor external calls that live in
- * these same files (OpenStates, the US Census, the Replit connector
- * credential endpoint) — those are named in UNGUARDED_FUNCTIONS with a reason.
+ * these same files (OpenStates, the Replit connector credential endpoint) —
+ * those are named in UNGUARDED_FUNCTIONS with a reason.
  *
  * Like scripts/dev/check-env-registry.ts, this scans the CURRENT working tree
  * — tracked AND untracked files — so a brand-new vendor module cannot dodge
@@ -65,6 +70,8 @@ const GUARDED_MODULES = [
   "server/services/comm/providers/postal/lob.ts",
   "server/services/comm/validators/address.ts",
   "server/services/google-civics.ts",
+  "server/services/google-geocode.ts",
+  "server/services/census-geocoder.ts",
 ];
 
 /**
@@ -102,6 +109,7 @@ const VENDOR_MARKERS: { pattern: RegExp; what: string }[] = [
   { pattern: /https?:\/\/[\w.-]*\blob\.com/, what: "a Lob API endpoint" },
   { pattern: /https?:\/\/[\w.-]*\btwilio\.com/, what: "a Twilio API endpoint" },
   { pattern: /https?:\/\/[\w.-]*\bsendgrid\.(com|net)/, what: "a SendGrid API endpoint" },
+  { pattern: /https?:\/\/[\w.-]*\bcensus\.gov/, what: "a US Census API endpoint" },
   { pattern: /from\s+['"]@sendgrid\//, what: "the SendGrid SDK" },
   { pattern: /from\s+['"]twilio['"]/, what: "the Twilio SDK" },
 ];
@@ -241,7 +249,7 @@ function auditGuardedModule(file: string): Violation[] {
           line: lineOf(sf, node),
           detail: `${owner}() makes an outbound call (${calleeText(node, sf)}) with no maintenance guard`,
           remedy:
-            `Add \`${GUARD_FN}("<Twilio|SendGrid|Lob|Google>", "<what it does>");\` as the ` +
+            `Add \`${GUARD_FN}("<Twilio|SendGrid|Lob|Google|Census>", "<what it does>");\` as the ` +
             `first statement of ${owner}(), ahead of credential resolution and outside any try/catch.`,
         });
       }
@@ -309,7 +317,7 @@ function main(): void {
   if (violations.length === 0) {
     console.log(
       `[check-maintenance-guards] OK — every outbound call in ${GUARDED_MODULES.length} vendor ` +
-        `module(s) runs under ${GUARD_FN}(), and no other server file talks to Twilio, SendGrid, Lob or Google.`,
+        `module(s) runs under ${GUARD_FN}(), and no other server file talks to Twilio, SendGrid, Lob, Google or the US Census.`,
     );
     process.exit(0);
   }
@@ -323,7 +331,7 @@ function main(): void {
       "",
       "Maintenance mode makes the database read-only, but an SMS, an email, a",
       "letter or a metered geocode cannot be rolled back when maintenance ends.",
-      `Every call to Twilio, SendGrid, Lob and Google must go through ${GUARD_FN}()`,
+      `Every call to Twilio, SendGrid, Lob, Google and the US Census must go through ${GUARD_FN}()`,
       `from ${GUARD_MODULE}.`,
       "",
       ...violations.map((v) => `  ${v.file}:${v.line}  ${v.detail}\n      → ${v.remedy}`),

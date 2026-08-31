@@ -139,4 +139,5 @@
 - [Ambient transaction context lies twice](als-transaction-context-leaks.md) — deferred callbacks inherit the caller's (committed/read-only) tx; a helper that passes a client without binding the ALS lets ambient `getClient()` escape it.
 - [Web client (wc) request framework](wc-request-framework.md) — outbound calls: caller DECLARES answered (transports fake success), `local` 4th mode breaks the normalize↔cache cycle, holds live in the table except the paid-but-unstorable one.
 - [Boot-status HTTP surface](boot-status-http-surface.md) — a not-ready answer must name its phase (starting/failed/report-only) + identity + blocker; status must answer under BOTH ALB prefixes and on a non-health spelling.
+- [One cached answer, many askers](wc-request-shared-answer-identity.md) — shared wc entry: credential out of the key, restrictions in, caller-specific echoes stripped+re-applied; no infinite window (sweep can't reclaim); free services still join the vendor guard.
 - [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.

@@ -1,7 +1,7 @@
 import { lookupDistricts, type CensusDistrictInfo } from "./census-geocoder";
 import type { BtuPoliticalStorage } from "../storage/sitespecific/btu/political";
 import { getEnvironmentVariable, registerEnvironmentVariables } from "../config/env-registry";
-import { assertExternalServiceAllowed } from "./maintenance-flag";
+import { geocodeWithGoogle } from "./google-geocode";
 
 // changeTakesEffect: "immediate" for both. Each key is read through the
 // registry inside the function that makes the outbound call, once per lookup,
@@ -50,20 +50,6 @@ interface GeocodingResult {
   formattedAddress: string;
 }
 
-interface GoogleGeocodingResponse {
-  status: string;
-  results?: {
-    formatted_address?: string;
-    geometry?: {
-      location?: {
-        lat?: number;
-        lng?: number;
-      };
-    };
-  }[];
-  error_message?: string;
-}
-
 interface OpenStatesLink {
   url?: string;
   note?: string;
@@ -107,23 +93,32 @@ interface OpenStatesResponse {
   results?: OpenStatesPerson[];
 }
 
+/**
+ * Address → coordinates, through the shared Google geocode request.
+ *
+ * Shared with the comm address validator on purpose: it is the same question
+ * to the same vendor, so an address geocoded there is free here and the other
+ * way round. Only the key differs — this lookup is billed to the civic key —
+ * and a key decides who pays, not what the answer is, so it stays out of the
+ * request key.
+ *
+ * There is no maintenance guard here any more: the framework refuses the call
+ * it is about to make, and a stored answer is not a call. During maintenance
+ * an address we have already geocoded still resolves, and one we have not
+ * raises the refusal from inside `geocodeWithGoogle`.
+ */
 async function geocodeAddress(address: string): Promise<GeocodingResult> {
-  // First thing, ahead of the key read: during maintenance no lookup reaches
-  // Google, and none of them spends geocoding quota.
-  assertExternalServiceAllowed("Google", "geocode address");
   const apiKey = getEnvironmentVariable("GOOGLE_CIVICS_API_KEY");
   if (!apiKey) {
     throw new Error("GOOGLE_CIVICS_API_KEY environment variable is not set");
   }
 
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
-  const response = await fetch(url);
+  const outcome = await geocodeWithGoogle({ address }, { apiKey });
+  const data = outcome.response;
 
-  if (!response.ok) {
-    throw new CivicApiError(`Geocoding request failed (${response.status})`, response.status);
+  if (!data) {
+    throw new CivicApiError(outcome.error || "Geocoding request failed", 502);
   }
-
-  const data: GoogleGeocodingResponse = await response.json();
 
   if (data.status === "ZERO_RESULTS") {
     throw new CivicApiError("Could not find the specified address. Please check the address and try again.", 400);

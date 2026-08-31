@@ -29,8 +29,18 @@
  */
 import type { Response } from "express";
 
-/** The external vendors this guard covers. */
-export type ExternalService = "Twilio" | "SendGrid" | "Lob" | "Google";
+/**
+ * The external services this guard covers.
+ *
+ * Four of them are billed, and that is the original reason for the guard: an
+ * SMS, an email, a letter or a metered geocode cannot be rolled back when
+ * maintenance ends. "Census" is free and has no side effect at all — it is
+ * named here because the web client framework refuses every call it is about
+ * to make through this one guard, and a service the framework can name has to
+ * be a service the guard knows. Keeping the two lists one list is the whole
+ * point of `WcService = ExternalService`.
+ */
+export type ExternalService = "Twilio" | "SendGrid" | "Lob" | "Google" | "Census";
 
 let maintenanceActive = false;
 
