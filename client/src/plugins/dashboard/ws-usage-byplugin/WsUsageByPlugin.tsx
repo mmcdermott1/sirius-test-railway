@@ -15,7 +15,7 @@ export function WsUsageByPlugin(_props: DashboardPluginProps) {
 
   return (
     <UsageCard
-      title="Incoming Usage by Service"
+      title="Web Services - Incoming"
       icon={Server}
       testId="ws-usage-byplugin"
       columnLabel="Service"

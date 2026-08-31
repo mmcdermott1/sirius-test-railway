@@ -20,9 +20,11 @@ const WINDOW_DAYS = 7;
 
 export const wsUsageByPluginPlugin: DashboardPlugin = {
   id: "ws-usage-byplugin",
-  name: "Incoming Usage by Service",
-  description:
-    "Incoming calls per web service: today, and over the last 7 days.",
+  name: "Web Services - Incoming",
+  // The name it shares with the by-client card says which direction the
+  // traffic runs; this says which way it is broken out, and in the admin
+  // configuration list it is the only thing telling the two cards apart.
+  description: "Broken out by service",
   requiredPolicy: "admin",
 
   async content(ctx) {
