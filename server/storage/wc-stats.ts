@@ -35,6 +35,11 @@ export interface WcStatsDimension {
   requestType: string;
 }
 
+/** One (service, request type) pair's calls, summed over the range asked for. */
+export interface WcStatsServiceType extends WcStatsDimension {
+  calls: number;
+}
+
 /** Narrowing for the stats read. Every field is optional. */
 export interface WcStatsFilters {
   service?: string;
@@ -59,11 +64,27 @@ export interface WcStatsStorage {
   /** Calls per day inside the range, oldest first. Days with none are absent. */
   countsByDay(params: WcStatsRangeParams): Promise<WcStatsDay[]>;
   /**
+   * Calls per (service, request type) inside the range, by service then
+   * request type. The finest grouping the counter can answer for a range,
+   * and the one {@link WcStatsStorage.countsByService} is rolled up from.
+   *
+   * Same absence rule as the per-service total: a pair with no calls in the
+   * range is simply not there, and a pair the behavior registry no longer
+   * knows about still is — this reads the counts, not the registry.
+   */
+  countsByServiceType(params: WcStatsRangeParams): Promise<WcStatsServiceType[]>;
+  /**
    * Calls per service inside the range, by service name. Services with no
    * calls in the range are absent — including a service that is registered
    * but was never called, and including, conversely, a service that has
    * counts but is no longer registered: this reads the counts, not the
    * behavior registry, so a retired service's calls are still accounted for.
+   *
+   * Rolled up from the per-(service, request type) read above rather than
+   * asking the table a second, coarser question of its own: the dashboard
+   * usage widget and the system-status entry both want "the last N days for
+   * this service", and only one query is allowed to decide which calls that
+   * means, or the two surfaces can quietly disagree.
    */
   countsByService(params: WcStatsRangeParams): Promise<WcStatsService[]>;
   /**
@@ -84,6 +105,33 @@ function rangeCondition(params: WcStatsRangeParams): SQL {
   if (params.service) conditions.push(eq(wcStats.service, params.service));
   if (params.requestType) conditions.push(eq(wcStats.requestType, params.requestType));
   return and(...conditions) as SQL;
+}
+
+/**
+ * The one range-grouped read. Both the per-(service, request type) breakdown
+ * and the per-service total are answered from this single query, so the two
+ * can never disagree about which calls fall inside the window.
+ */
+async function readCountsByServiceType(
+  params: WcStatsRangeParams,
+): Promise<WcStatsServiceType[]> {
+  const client = getClient();
+  const rows = await client
+    .select({
+      service: wcStats.service,
+      requestType: wcStats.requestType,
+      calls: sql<number>`sum(${wcStats.calls})::int`,
+    })
+    .from(wcStats)
+    // The same range/filter builder every other read uses.
+    .where(rangeCondition(params))
+    .groupBy(wcStats.service, wcStats.requestType)
+    .orderBy(asc(wcStats.service), asc(wcStats.requestType));
+  return rows.map((row) => ({
+    service: row.service,
+    requestType: row.requestType,
+    calls: Number(row.calls ?? 0),
+  }));
 }
 
 export function createWcStatsStorage(): WcStatsStorage {
@@ -113,20 +161,21 @@ export function createWcStatsStorage(): WcStatsStorage {
       return rows.map((row) => ({ ymd: row.ymd, calls: Number(row.calls ?? 0) }));
     },
 
+    async countsByServiceType(params: WcStatsRangeParams): Promise<WcStatsServiceType[]> {
+      return readCountsByServiceType(params);
+    },
+
     async countsByService(params: WcStatsRangeParams): Promise<WcStatsService[]> {
-      const client = getClient();
-      const rows = await client
-        .select({
-          service: wcStats.service,
-          calls: sql<number>`sum(${wcStats.calls})::int`,
-        })
-        .from(wcStats)
-        // The same range/filter builder the per-day read uses, so the two
-        // reads can never disagree about which calls are inside the window.
-        .where(rangeCondition(params))
-        .groupBy(wcStats.service)
-        .orderBy(asc(wcStats.service));
-      return rows.map((row) => ({ service: row.service, calls: Number(row.calls ?? 0) }));
+      // A roll-up of the finer grouping, not a second query: summing the
+      // request types of a service is exactly the coarser aggregate, and
+      // doing it this way leaves one place that decides what the range means.
+      const totals = new Map<string, number>();
+      for (const row of await readCountsByServiceType(params)) {
+        totals.set(row.service, (totals.get(row.service) ?? 0) + row.calls);
+      }
+      return Array.from(totals, ([service, calls]) => ({ service, calls })).sort((a, b) =>
+        a.service.localeCompare(b.service),
+      );
     },
 
     async listDimensions(): Promise<WcStatsDimension[]> {
