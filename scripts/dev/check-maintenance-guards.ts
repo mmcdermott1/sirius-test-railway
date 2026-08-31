@@ -45,7 +45,7 @@
  * Exits 0 on pass, 1 on violations.
  */
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import ts from "typescript";
 
 /** The one guard every outbound vendor operation must call. */
@@ -138,7 +138,11 @@ function listWorkingTreeFiles(): string[] {
         .map((s) => s.trim())
         .filter(Boolean),
     ),
-  );
+    // `git ls-files` still names a tracked file that has been deleted in the
+    // working tree. The scan is of the working tree, so a file that is not
+    // there is not a file: reading it would crash the whole check on the one
+    // commit that removes a module.
+  ).filter((file) => existsSync(file));
 }
 
 function isScanned(file: string): boolean {

@@ -158,6 +158,15 @@ export {
   type WsClientIpRule,
 } from "./schema/webservices/schema";
 
+export {
+  wcCache,
+  wcCacheOutcomeEnum,
+  insertWcCacheSchema,
+  type WcCacheOutcome,
+  type InsertWcCache,
+  type WcCache,
+} from "./schema/webclient/schema";
+
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",

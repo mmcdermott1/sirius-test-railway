@@ -63,6 +63,8 @@ import "./core/1058_create_notes";
 import "./core/1059_ledger_accounts_sirius_id";
 import "./core/1060_ws_bundles_to_grants";
 import "./core/1061_create_plugin_configs_quicksearch";
+import "./core/1062_create_wc_cache";
+import "./core/1063_backfill_wc_cache_phone_lookup";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

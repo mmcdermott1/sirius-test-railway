@@ -164,6 +164,7 @@ import { type RawSqlStorage, createRawSqlStorage } from "./raw-sql";
 import { type ReadOnlyStorage, createReadOnlyStorage } from "./read-only";
 import { type BtuPoliticalStorage, createBtuPoliticalStorage, btuPoliticalLoggingConfig } from "./sitespecific/btu/political";
 import { type WsClientStorage, type WsClientGrantStorage, type WsClientCredentialStorage, type WsClientIpRuleStorage, createWsClientStorage, createWsClientGrantStorage, createWsClientCredentialStorage, createWsClientIpRuleStorage } from "./webservices";
+import { type WcCacheStorage, createWcCacheStorage } from "./wc-cache";
 import { type CompanyStorage, createCompanyStorage, companyLoggingConfig, type EmployerCompanyStorage, createEmployerCompanyStorage, employerCompanyLoggingConfig } from "./employers/companies";
 import { type ContractStorage, createContractStorage, contractLoggingConfig } from "./contract";
 import { type ContactLinkStorage, createContactLinkStorage } from "./contact-links";
@@ -290,6 +291,7 @@ export interface IStorage {
   wsClientGrants: WsClientGrantStorage;
   wsClientCredentials: WsClientCredentialStorage;
   wsClientIpRules: WsClientIpRuleStorage;
+  wcCache: WcCacheStorage;
   btuPolitical: BtuPoliticalStorage;
   companies: CompanyStorage;
   employerCompanies: EmployerCompanyStorage;
@@ -407,6 +409,7 @@ export class DatabaseStorage implements IStorage {
   wsClientGrants: WsClientGrantStorage;
   wsClientCredentials: WsClientCredentialStorage;
   wsClientIpRules: WsClientIpRuleStorage;
+  wcCache: WcCacheStorage;
   btuPolitical: BtuPoliticalStorage;
   companies: CompanyStorage;
   employerCompanies: EmployerCompanyStorage;
@@ -645,6 +648,7 @@ export class DatabaseStorage implements IStorage {
     this.wsClientGrants = createWsClientGrantStorage();
     this.wsClientCredentials = createWsClientCredentialStorage();
     this.wsClientIpRules = createWsClientIpRuleStorage();
+    this.wcCache = createWcCacheStorage();
     this.btuPolitical = withStorageLogging(createBtuPoliticalStorage(), btuPoliticalLoggingConfig);
     this.companies = withStorageLogging(createCompanyStorage(), companyLoggingConfig);
     this.employerCompanies = withStorageLogging(createEmployerCompanyStorage(), employerCompanyLoggingConfig);

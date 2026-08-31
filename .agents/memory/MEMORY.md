@@ -137,4 +137,5 @@
 - [Bespoke feed wizard subclass](feed-wizard-bespoke-subclass.md) — base feed processing is SSN/worker-create only; override validate+process over ONE resolution routine; mapping orientation flips client↔server; audit user comes from the request ALS.
 - [Paid lookups must be storable first](paid-lookup-store-gate.md) — gate a billable call on `current_setting('transaction_read_only')` on the caller's OWN connection; a swallowed-error transport "answers" locally, detect by payload richness.
 - [Ambient transaction context lies twice](als-transaction-context-leaks.md) — deferred callbacks inherit the caller's (committed/read-only) tx; a helper that passes a client without binding the ALS lets ambient `getClient()` escape it.
+- [Web client (wc) request framework](wc-request-framework.md) — outbound calls: caller DECLARES answered (transports fake success), `local` 4th mode breaks the normalize↔cache cycle, holds live in the table except the paid-but-unstorable one.
 - [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.
