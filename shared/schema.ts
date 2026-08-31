@@ -147,6 +147,8 @@ export {
   insertWsClientCredentialSchema,
   wsClientIpRules,
   insertWsClientIpRuleSchema,
+  wsStats,
+  insertWsStatsSchema,
   type WsClientStatus,
   type InsertWsClient,
   type WsClient,
@@ -156,6 +158,8 @@ export {
   type WsClientCredential,
   type InsertWsClientIpRule,
   type WsClientIpRule,
+  type InsertWsStats,
+  type WsStats,
 } from "./schema/webservices/schema";
 
 export {

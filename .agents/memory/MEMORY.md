@@ -143,4 +143,5 @@
 - [One cached answer, many askers](wc-request-shared-answer-identity.md) — shared wc entry: credential out of the key, restrictions in, caller-specific echoes stripped+re-applied; no infinite window (sweep can't reclaim); free services still join the vendor guard.
 - [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.
 - [Theme colour vars hold whole colours](theme-color-var-convention.md) — `var(--chart-1)`, never `hsl(var(--chart-1))`; nested colour is dropped at computed-value time with zero warnings (invisible chart line).
+- [Counting served work](counting-served-work.md) — usage counters: flag at the handler boundary (never infer from status), count on `close` / log on `finish`, write outside the caller's tx.
 - [Cross-process boot serialization](cross-process-boot-serialization.md) — two services boot one image against one DB: bring-up is exclusive (session advisory lock), every other boot write must be atomic/23505-retry/xact-lock, every wait bounded.
