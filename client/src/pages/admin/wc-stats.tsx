@@ -36,7 +36,7 @@ import { addDaysYmd, formatYmd, getTodayYmd, isYmdAfter, type Ymd } from "@share
  */
 
 interface WcStatsDay {
-  day: Ymd;
+  ymd: Ymd;
   calls: number;
 }
 
@@ -75,14 +75,14 @@ const chartConfig = {
  * days between were the average of the two.
  */
 function fillRange(start: Ymd, end: Ymd, days: WcStatsDay[]): WcStatsDay[] {
-  const counted = new Map(days.map((d) => [d.day, d.calls]));
+  const counted = new Map(days.map((d) => [d.ymd, d.calls]));
   const filled: WcStatsDay[] = [];
-  let day = start;
+  let ymd = start;
   // Bounded by the range the server echoed back, which it refuses to return
   // inverted, so this cannot run away.
-  while (!isYmdAfter(day, end)) {
-    filled.push({ day, calls: counted.get(day) ?? 0 });
-    day = addDaysYmd(day, 1);
+  while (!isYmdAfter(ymd, end)) {
+    filled.push({ ymd, calls: counted.get(ymd) ?? 0 });
+    ymd = addDaysYmd(ymd, 1);
   }
   return filled;
 }
@@ -123,7 +123,7 @@ export default function WcStatsPage() {
     if (!data) return [];
     return fillRange(data.start, data.end, data.days).map((day) => ({
       ...day,
-      label: formatYmd(day.day, "short"),
+      label: formatYmd(day.ymd, "short"),
     }));
   }, [data]);
 

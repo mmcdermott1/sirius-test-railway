@@ -19,7 +19,7 @@ import { getClient } from './transaction-context';
 
 /** One day's calls, as counted for the filters asked for. */
 export interface WcStatsDay {
-  day: Ymd;
+  ymd: Ymd;
   calls: number;
 }
 
@@ -49,7 +49,7 @@ export interface WcStatsStorage {
    * An atomic insert-or-increment on the uniqueness tuple: two calls landing
    * at once cannot read-modify-write over each other and lose a count.
    */
-  recordCall(service: string, requestType: string, day: Ymd): Promise<void>;
+  recordCall(service: string, requestType: string, ymd: Ymd): Promise<void>;
   /** Calls per day inside the range, oldest first. Days with none are absent. */
   countsByDay(params: WcStatsRangeParams): Promise<WcStatsDay[]>;
   /**
@@ -63,9 +63,10 @@ export interface WcStatsStorage {
 }
 
 function rangeCondition(params: WcStatsRangeParams): SQL {
-  // Ymd strings compare correctly as strings, which is the point of storing
-  // the day as one: no timezone gets a chance to move a call to another day.
-  const conditions: SQL[] = [gte(wcStats.day, params.start), lte(wcStats.day, params.end)];
+  // The day is a Postgres `date`, compared against Ymd strings: no timezone
+  // gets a chance to move a call to another day, and the range means the same
+  // inclusive span it always did.
+  const conditions: SQL[] = [gte(wcStats.ymd, params.start), lte(wcStats.ymd, params.end)];
   if (params.service) conditions.push(eq(wcStats.service, params.service));
   if (params.requestType) conditions.push(eq(wcStats.requestType, params.requestType));
   return and(...conditions) as SQL;
@@ -73,13 +74,13 @@ function rangeCondition(params: WcStatsRangeParams): SQL {
 
 export function createWcStatsStorage(): WcStatsStorage {
   return {
-    async recordCall(service: string, requestType: string, day: Ymd): Promise<void> {
+    async recordCall(service: string, requestType: string, ymd: Ymd): Promise<void> {
       const client = getClient();
       await client
         .insert(wcStats)
-        .values({ service, requestType, day, calls: 1 })
+        .values({ service, requestType, ymd, calls: 1 })
         .onConflictDoUpdate({
-          target: [wcStats.service, wcStats.requestType, wcStats.day],
+          target: [wcStats.service, wcStats.requestType, wcStats.ymd],
           set: { calls: sql`${wcStats.calls} + 1` },
         });
     },
@@ -88,14 +89,14 @@ export function createWcStatsStorage(): WcStatsStorage {
       const client = getClient();
       const rows = await client
         .select({
-          day: wcStats.day,
+          ymd: wcStats.ymd,
           calls: sql<number>`sum(${wcStats.calls})::int`,
         })
         .from(wcStats)
         .where(rangeCondition(params))
-        .groupBy(wcStats.day)
-        .orderBy(asc(wcStats.day));
-      return rows.map((row) => ({ day: row.day, calls: Number(row.calls ?? 0) }));
+        .groupBy(wcStats.ymd)
+        .orderBy(asc(wcStats.ymd));
+      return rows.map((row) => ({ ymd: row.ymd, calls: Number(row.calls ?? 0) }));
     },
 
     async listDimensions(): Promise<WcStatsDimension[]> {

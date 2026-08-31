@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, pgEnum, text, varchar, jsonb, timestamp, integer, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, varchar, jsonb, timestamp, integer, date, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { isValidYmd } from "../../utils/date";
@@ -73,32 +73,34 @@ export const wcCache = pgTable("wc_cache", {
  * unstorable hold, the writable-database gate) and a `local` pass-through all
  * count nothing, and a failed attempt counts, because it is a call we made.
  *
- * `day` is a Ymd string (`YYYY-MM-DD`) rather than a timestamp: a day must
- * read back as the same day however it is read, and the server's local day is
- * what the rest of the app means by "today".
+ * `ymd` is a date, not a timestamp: a day must read back as the same day
+ * however it is read, and the server's local day is what the rest of the app
+ * means by "today". Drizzle hands a `date` column back as a `YYYY-MM-DD`
+ * string here, so the day is an `Ymd` at every layer — nothing converts it
+ * through a `Date` on its way to or from the database.
  */
 export const wcStats = pgTable("wc_stats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   service: varchar("service", { length: 64 }).notNull(),
   requestType: varchar("request_type", { length: 64 }).notNull(),
-  day: varchar("day", { length: 10 }).notNull(),
+  ymd: date("ymd").notNull(),
   calls: integer("calls").notNull().default(0),
 }, (table) => ({
   // Named UNIQUE CONSTRAINT (not a unique index) so the startup drift gate
   // sees the same object the migration creates. It is also the conflict target
   // of the insert-or-increment, which is what stops concurrent calls losing
   // counts.
-  dayUnique: unique("wc_stats_service_type_day_uniq").on(
+  ymdUnique: unique("wc_stats_service_type_ymd_uniq").on(
     table.service,
     table.requestType,
-    table.day,
+    table.ymd,
   ),
 }));
 
 export const insertWcStatsSchema = createInsertSchema(wcStats, {
   service: z.string().min(1).max(64),
   requestType: z.string().min(1).max(64),
-  day: z.string().refine(isValidYmd, { message: "Expected a YYYY-MM-DD day" }),
+  ymd: z.string().refine(isValidYmd, { message: "Expected a YYYY-MM-DD day" }),
   calls: z.number().int().min(0),
 }).omit({
   id: true,
