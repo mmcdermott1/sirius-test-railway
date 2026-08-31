@@ -201,6 +201,7 @@ import { withStorageLogging, type StorageLoggingConfig } from "./middleware/logg
 import { db } from "./db";
 import { employers, workers, contacts } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { type AdvisoryLockStorage, createAdvisoryLockStorage } from "./advisory-lock";
 
 export interface IStorage {
   variables: VariableStorage;
@@ -287,6 +288,7 @@ export interface IStorage {
   authIdentities: AuthIdentitiesStorage;
   workerDispatchEligDenorm: WorkerDispatchEligDenormStorage;
   rawSql: RawSqlStorage;
+  advisoryLock: AdvisoryLockStorage;
   readOnly: ReadOnlyStorage;
   wsClients: WsClientStorage;
   wsClientGrants: WsClientGrantStorage;
@@ -406,6 +408,7 @@ export class DatabaseStorage implements IStorage {
   authIdentities: AuthIdentitiesStorage;
   workerDispatchEligDenorm: WorkerDispatchEligDenormStorage;
   rawSql: RawSqlStorage;
+  advisoryLock: AdvisoryLockStorage;
   readOnly: ReadOnlyStorage;
   wsClients: WsClientStorage;
   wsClientGrants: WsClientGrantStorage;
@@ -646,6 +649,7 @@ export class DatabaseStorage implements IStorage {
     this.authIdentities = createAuthIdentitiesStorage();
     this.workerDispatchEligDenorm = createWorkerDispatchEligDenormStorage();
     this.rawSql = createRawSqlStorage();
+    this.advisoryLock = createAdvisoryLockStorage();
     this.readOnly = createReadOnlyStorage();
     this.wsClients = createWsClientStorage();
     this.wsClientGrants = createWsClientGrantStorage();

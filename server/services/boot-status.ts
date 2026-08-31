@@ -41,11 +41,45 @@ export type BootBlockedOn =
   | "migrations"
   | "drift"
   | "report-only"
+  // Waited out the whole deadline for the schema bring-up lock: another
+  // process is holding it, or held it and died without releasing. NOT a
+  // schema problem — the image and the database may both be fine.
+  | "bringup-lock"
+  // Another process ran the bring-up while we waited, and ITS run failed.
+  // Re-applying what it just failed at would only reproduce its error, so
+  // this process refuses instead; the peer's failure is the thing to fix.
+  | "peer-bringup"
   | "other";
 
+/**
+ * How this process's schema bring-up related to the OTHER processes booting
+ * against the same database (Task #1350).
+ *
+ * A rollout restarts the UI and API services simultaneously, so "I ran the
+ * bring-up" and "I watched another task run it" are routinely both true of a
+ * successful deploy. They must not look identical afterwards: when a task
+ * never becomes ready, the first question is whether it was doing the work or
+ * waiting on someone else who was.
+ */
+export type BringUpConcurrency =
+  /** Bring-up has not reached the lock yet. */
+  | "not-run"
+  /** Report-only dry run: writes nothing, so it takes no lock. */
+  | "unlocked-report-only"
+  /** Took the lock uncontended — this process did the work alone. */
+  | "sole"
+  /** Waited for another task, then still had work of its own to do. */
+  | "waited-and-proceeded"
+  /** Waited for another task, which succeeded and left the schema current. */
+  | "deferred-to-peer"
+  /** Waited for another task, whose bring-up FAILED. */
+  | "peer-failed"
+  /** Gave up waiting for the lock. */
+  | "lock-timeout";
 export const bootStatus: {
   driftCheck: DriftCheckStatus;
   blockedOn: BootBlockedOn;
+  bringUpConcurrency: BringUpConcurrency;
   phase: BootPhase;
   /**
    * The error that ended the boot, in BOTH the failed and the report-only
@@ -56,6 +90,7 @@ export const bootStatus: {
 } = {
   driftCheck: "not-run",
   blockedOn: "none",
+  bringUpConcurrency: "not-run",
   phase: "starting",
   initError: null,
 };

@@ -141,3 +141,4 @@
 - [Boot-status HTTP surface](boot-status-http-surface.md) — a not-ready answer must name its phase (starting/failed/report-only) + identity + blocker; status must answer under BOTH ALB prefixes and on a non-health spelling.
 - [One cached answer, many askers](wc-request-shared-answer-identity.md) — shared wc entry: credential out of the key, restrictions in, caller-specific echoes stripped+re-applied; no infinite window (sweep can't reclaim); free services still join the vendor guard.
 - [Splitting a tab into sub-tabs](tab-split-into-subtabs.md) — keep the old URL on one child; child id goes in BOTH activeTab and ProtectedRoute tabId; ids unique tree-wide.
+- [Cross-process boot serialization](cross-process-boot-serialization.md) — two services boot one image against one DB: bring-up is exclusive (session advisory lock), every other boot write must be atomic/23505-retry/xact-lock, every wait bounded.

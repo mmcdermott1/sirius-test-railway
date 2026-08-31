@@ -540,6 +540,15 @@ registerEnvironmentVariables([
   // inferred or left set.
   { name: "BRINGUP_REPORT_ONLY", description: "Set to 1 to boot only far enough to print the schema bring-up report, then stop without running a migration, bootstrapping a schema, or writing any variable.", secret: false, category: "core", changeTakesEffect: "restart", },
   { name: "MIGRATIONS_RESUME_FROM_VERSION", description: "ONE-SHOT RECOVERY: set the stored core migrations_version to this number at boot, so every registered migration above it runs. Lowering replays them; raising declares them applied so a replay can resume past a migration that will not re-apply. Remove it after a successful boot.", secret: false, category: "core", changeTakesEffect: "restart", },
+  // Boot deadlines (Task #1350). One image runs as two services against one
+  // database and a rollout restarts both at once, so a booting task both
+  // waits for another task's schema bring-up and can be blocked by an
+  // unreachable database. Every such wait is bounded: a task that cannot
+  // make progress must fail visibly instead of sitting in "initializing"
+  // while the load balancer keeps routing to it.
+  { name: "DB_CONNECT_TIMEOUT_MS", description: "How long a database connection checkout may take before it fails, in milliseconds (default 15000). Bounds every boot step that needs a connection.", secret: false, category: "core", changeTakesEffect: "restart", },
+  { name: "BRINGUP_LOCK_TIMEOUT_MS", description: "How long a booting task waits for another task's schema bring-up to finish, in milliseconds (default 300000). On expiry the boot fails with blockedOn=bringup-lock rather than waiting indefinitely. This wait cannot be disabled: any value below 1 is refused and the default is used instead — give a long migration a LARGER number.", secret: false, category: "core", changeTakesEffect: "restart", },
+  { name: "BRINGUP_STEP_TIMEOUT_MS", description: "Deadline for each individual schema bring-up step — classification, bootstrap, migrations, drift gate — in milliseconds (default 300000). Raise it for a legitimately long migration; 0 disables it.", secret: false, category: "core", changeTakesEffect: "restart", },
   // "reload": the filesystem registry re-parses this and drops its cached
   // providers when the "Filesystem registry" subsystem is reloaded from the
   // admin Restart & Reload page (Task #1258) — no restart needed.
