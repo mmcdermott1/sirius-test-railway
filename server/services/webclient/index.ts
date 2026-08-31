@@ -14,6 +14,13 @@
  */
 export { wcRequest, resetUnstorableHolds, type WcRequestOptions } from "./client";
 export {
+  registerUncachedWcRequest,
+  wcUncachedRequest,
+  type UncachedWcRequest,
+  type WcUncachedOptions,
+  type WcUncachedResult,
+} from "./uncached";
+export {
   registerWcRequest,
   getWcRequest,
   listWcRequests,

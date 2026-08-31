@@ -97,9 +97,60 @@ browsing. A SQL-side backfill can produce the same hash with
 `encode(sha256(convert_to(key,'UTF8')),'hex')` — verified to match Node's
 `createHash('sha256').update(key,'utf8')`.
 
+
+## The uncached half is a separate front door
+
+An operation whose answer must never be replayed (a send, a connection test, a
+call to somebody else's system) still belongs on the framework — that is where
+the maintenance refusal, the failure hold and the one description of what was
+attempted live — but it registers through the uncached helper rather than
+passing `cached: false` by hand, and its wrapper refuses to run against an
+entry that caches.
+
+**Why:** "uncached" is a property of the operation, not of the call site. One
+caller remembering the flag and another forgetting it is how a send ends up
+with a stored answer, and a stored answer for a send reports a letter that was
+never printed.
+
+**How to apply:** the writable-database requirement is decided per entry, not
+per kind — a send must not fire when its result cannot be recorded, while a
+connection test or a status poll records nothing and must stay usable exactly
+when the site is read-only. Also note the wrapper swallows a thrown error into
+a failure result (only a maintenance error is rethrown), so a caller that needs
+the original error object back — a typed error carrying an HTTP status, a rich
+vendor failure shape — must capture it in a local inside the callback and
+rethrow it afterwards.
+
 ## Adopting a call that already has a cache
 
 Carry the answers already paid for into the table in the same migration that
 creates it. If the cache starts empty, the first read of every record buys the
 answer again. The old columns stay where they are when a UI reads them; they
 become a derived write that happens as the cache fills, not the cache.
+
+## A stored answer answers during maintenance, and that breaks refusal tests
+
+The maintenance gate runs AFTER the cache read, deliberately: reading a stored
+answer is not an outbound call, so a fresh entry — including a fresh failure,
+which is the hold — is served while the site is in maintenance.
+
+**Why it bites:** a test that asserts "this refuses during maintenance" shares
+the dev database with every earlier run, and a suite that stubs the network to
+throw stores a failure on its own maintenance-off half. The next run then reads
+that failure back and never reaches the refusal, so the suite fails on the
+second run and passes on a fresh database.
+
+**How to apply:** a refusal test must start from nothing stored (clear the
+service's rows first). Related: with the credential now read by the caller
+before the framework request, a machine missing that key answers
+"not configured" before maintenance gets a say — the test has to supply one.
+
+## Going through the framework is what the lint rule checks
+
+The architecture check over outbound modules is satisfied by the outbound call
+sitting under a framework request, not by a hand-written guard call. It accepts
+a callback that delegates: any function reachable from a `fetch:` callback
+*within the same file* counts, because a long operation is normally a callback
+handing off to one private method. A call that is genuinely off-framework needs
+a named entry with a written reason, and the companion rule still fails any
+unlisted file that names a vendor endpoint or SDK.
