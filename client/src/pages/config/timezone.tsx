@@ -68,7 +68,7 @@ export default function TimeZoneConfigPage() {
     TIMEZONE_POLICY_VARIABLE_NAME,
   );
   const storedPolicy = parseTimeZonePolicy(parseVariableJson(policyValue));
-  /** Whether the row exists at all — an absent row is the permissive default. */
+  /** Whether the row exists at all — an absent row means the default applies. */
   const policyConfigured = policyValue !== null && policyValue !== undefined;
 
   const [allowUserTimezones, setAllowUserTimezones] = useState(
@@ -327,7 +327,8 @@ export default function TimeZoneConfigPage() {
                   className="text-xs text-muted-foreground"
                   data-testid="text-policy-unset"
                 >
-                  Not configured yet — currently the default, which is on.
+                  Not configured yet — currently the default, which is off, so
+                  everyone here reads the site's time zone.
                 </p>
               )}
             </div>

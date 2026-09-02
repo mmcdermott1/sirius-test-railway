@@ -134,19 +134,36 @@ export function TimeZoneClock() {
             testId="clock-panel-site"
           />
           <Separator />
-          <ZoneClock
-            title="Your time zone"
-            zone={displayTimeZone}
-            at={now}
-            compact
-            showing={displayTimeZone !== timezone.systemTimeZone}
-            description={
-              timezone.userTimeZone && allowed
-                ? "Chosen by you."
-                : `From this browser (${browserTimeZone}).`
-            }
-            testId="clock-panel-user"
-          />
+          {/* With personal zones off the display zone IS the site zone, so
+              repeating it here under "your time zone" would say the site's
+              clock came from this browser. What is actually worth showing then
+              is where the browser is, so someone can see how far the site is
+              from them — labelled as not in use, because it is not. */}
+          {allowed ? (
+            <ZoneClock
+              title="Your time zone"
+              zone={displayTimeZone}
+              at={now}
+              compact
+              showing={displayTimeZone !== timezone.systemTimeZone}
+              description={
+                timezone.userTimeZone
+                  ? "Chosen by you."
+                  : `From this browser (${browserTimeZone}).`
+              }
+              testId="clock-panel-user"
+            />
+          ) : (
+            <ZoneClock
+              title="This browser"
+              zone={browserTimeZone}
+              at={now}
+              compact
+              showing={false}
+              description="Where you are. Not used for dates on this site."
+              testId="clock-panel-user"
+            />
+          )}
         </div>
 
         <Separator />

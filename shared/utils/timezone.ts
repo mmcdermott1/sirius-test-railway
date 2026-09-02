@@ -27,16 +27,27 @@ export interface TimeZonePolicy {
    * When false, everyone sees site time and a personal zone is ignored
    * (not merely hidden — the resolver below refuses to honour it).
    *
-   * Defaults to TRUE when the settings row is absent. That is deliberate: an
-   * unconfigured installation has no meaningful system zone yet, so falling
-   * back to "everyone sees UTC" would be a visible regression for every user
-   * on the day this ships. True preserves exactly what people see today.
+   * Defaults to FALSE when the settings row is absent. A site that has not
+   * been configured shows ONE clock to everyone: two people reading the same
+   * screen read the same times, and a date quoted between them means the same
+   * thing without either having to say where they are. Personal zones are a
+   * deliberate per-site choice, not something a site acquires by default.
+   *
+   * It is also the direction every unknown should fail in. An absent row, a
+   * malformed one, a client that has not loaded its auth payload yet — all of
+   * them land on site time, which is the answer that is at worst unhelpful
+   * rather than the one that is silently personal to whoever is looking.
+   *
+   * The cost, accepted knowingly: on an installation that has not set `TZ`
+   * either, site time is whatever zone the server process happened to start
+   * in. The time-zone settings screen shows that zone and links to where it is
+   * edited, which is how an administrator finds out.
    */
   allowUserTimezones: boolean;
 }
 
 export const DEFAULT_TIMEZONE_POLICY: TimeZonePolicy = {
-  allowUserTimezones: true,
+  allowUserTimezones: false,
 };
 
 /** The settings row that stores {@link TimeZonePolicy}. */
@@ -49,7 +60,8 @@ export const timeZonePolicySchema = z.object({
 /**
  * Read a stored policy value, falling back to the default for anything
  * unusable. A missing or malformed settings row must not break every date on
- * the site, and the default is the behaviour people already have.
+ * the site, and the default is the restrictive answer, so a corrupted row
+ * cannot hand out personal zones nobody configured.
  */
 export function parseTimeZonePolicy(value: unknown): TimeZonePolicy {
   const parsed = timeZonePolicySchema.safeParse(value);

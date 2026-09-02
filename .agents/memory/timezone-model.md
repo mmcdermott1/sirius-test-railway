@@ -110,6 +110,24 @@ tokens (`D` via `startOfYear`, `Y`/`R`/`w`/`I` via `startOfWeek`) clone the date
 and write fields to it. Getters-only leaves those tokens reading display-zone
 fields written in browser-local terms.
 
+### Personal zones are opt-in, per site
+
+An unconfigured site allows **no** personal zones: everyone reads site time, and
+`resolveEffectiveTimeZone` ignores a stored personal choice rather than merely
+hiding the picker. Owner decision — do not re-derive the permissive default from
+"preserve what people see today" reasoning, which is what the first version
+argued and what got reversed.
+
+It is also the direction the unknowns should fail in: absent row, malformed row,
+client that has not loaded its auth payload. The accepted cost is that a site
+which has set neither the policy nor `TZ` shows everyone whatever zone the
+server process started in.
+
+**A panel comparing zones must re-derive its labels from the policy.** With
+personal zones off the display zone IS the site zone, so a card captioned "your
+time zone / from this browser" ends up attributing the site's clock to the
+viewer's browser — true-looking, and wrong.
+
 ### Calendar dates are not instants
 
 The distinction that keeps resurfacing, and the one to check first on any new

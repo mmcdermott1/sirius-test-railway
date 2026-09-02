@@ -74,10 +74,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [components, setComponents] = useState<string[]>([]);
   const [masquerade, setMasquerade] = useState<MasqueradeInfo>({ isMasquerading: false });
-  // Seeded with the browser's own zone and the permissive default, which is
-  // exactly what people see before this ships. A screen that paints before
-  // /api/auth/user answers therefore renders the same dates it renders after,
-  // instead of flashing UTC.
+  // A placeholder for the window before /api/auth/user answers, which no dated
+  // screen is rendered in: the router holds a loading screen until auth
+  // resolves, and the surfaces that paint outside it (sign-in, bootstrap) show
+  // no dates. It exists so the resolver always has coherent input, not because
+  // anything is displayed from it.
+  //
+  // The browser's own zone stands in for the site's because the client cannot
+  // know the real one until the server sends it, and of the wrong answers
+  // available it is the one that would look least wrong if it ever did surface.
+  // Note this is NOT the permissive default returning by the back door — with
+  // personal zones off the resolver reads systemTimeZone, and this seeds
+  // systemTimeZone; a stored personal zone is still ignored.
   const [timezone, setTimezone] = useState<TimeZoneInfo>(() => ({
     systemTimeZone: getBrowserTimeZone(),
     userTimeZone: null,
