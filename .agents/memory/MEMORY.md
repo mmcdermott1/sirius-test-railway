@@ -151,4 +151,5 @@
 - [Alerting once from a repeating scan](repeating-scan-alert-once.md) — exactly-once is the send-once key (config+day+what+threshold), checked BEFORE the flood budget; events themselves repeat freely.
 - [Timezone model](timezone-model.md) — naive columns hold wall clock in the PROCESS zone (`now()` in the PG SESSION zone — set both); site zone = process.env.TZ; browser half redirects formatters (zoned Date subclass, calendar≠instant).
 - [Cron tick heartbeat](cron-tick-heartbeat.md) — periodic plugin work subscribes to a shared wall-clock tick (one EventType per period), not its own cron; best-effort + level-triggered, dueness from the last LIVE SUCCESS, never a "how late" count.
+- [Whole-job dispatch eligibility](whole-job-eligibility-without-facts.md) — job-level rule = no condition, or an `exists` on a category NO denorm plugin writes (comment it); job-type-less configs are inert.
 - [Dashboard widget registry glob depth](dashboard-widget-registry-glob-depth.md) — client registry globs ./*/*.tsx as `<dir>:<File>`; a SHARED card must sit above the widget dirs or it registers as a phantom widget.
