@@ -1,12 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, createElement, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { User } from '@/lib/user-types';
 import {
   DEFAULT_TIMEZONE_POLICY,
-  getRuntimeTimeZone,
   resolveEffectiveTimeZone,
 } from '@shared/utils/timezone';
+import { getBrowserTimeZone, setDisplayTimeZone } from '@/lib/display-timezone';
 
 let _clerkSignOut: ((opts?: { redirectUrl?: string }) => Promise<void>) | null = null;
 export function registerClerkSignOut(fn: typeof _clerkSignOut) {
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // /api/auth/user answers therefore renders the same dates it renders after,
   // instead of flashing UTC.
   const [timezone, setTimezone] = useState<TimeZoneInfo>(() => ({
-    systemTimeZone: getRuntimeTimeZone(),
+    systemTimeZone: getBrowserTimeZone(),
     userTimeZone: null,
     allowUserTimezones: DEFAULT_TIMEZONE_POLICY.allowUserTimezones,
   }));
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setComponents([]);
       setMasquerade({ isMasquerading: false });
       setTimezone({
-        systemTimeZone: getRuntimeTimeZone(),
+        systemTimeZone: getBrowserTimeZone(),
         userTimeZone: null,
         allowUserTimezones: DEFAULT_TIMEZONE_POLICY.allowUserTimezones,
       });
@@ -174,6 +174,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const authReady = !isLoading; // Auth state is ready when loading is complete
 
+  const displayTimeZone = resolveEffectiveTimeZone({
+    systemTimeZone: timezone.systemTimeZone,
+    userTimeZone: timezone.userTimeZone,
+    allowUserTimezones: timezone.allowUserTimezones,
+    // The browser's real zone, captured before the formatters were redirected.
+    // Asking the runtime here would hand back the zone we ourselves installed,
+    // so clearing a personal zone would never fall back to where you are.
+    runtimeTimeZone: getBrowserTimeZone(),
+  });
+
+  // Formatting reads the zone at call time, so it has to be in place BEFORE the
+  // subtree below renders — hence during render rather than in an effect, which
+  // would land after the first paint. Idempotent: a repeat render of the same
+  // zone changes nothing.
+  setDisplayTimeZone(displayTimeZone);
+
+  // And again once this render is actually COMMITTED. A render can be thrown
+  // away — Strict Mode's double invocation, an interrupted concurrent render —
+  // and the line above would have left the module pointing at a zone nothing
+  // on screen is using. Layout timing, so it lands before the browser paints.
+  useLayoutEffect(() => {
+    setDisplayTimeZone(displayTimeZone);
+  }, [displayTimeZone]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -182,11 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         components,
         masquerade,
         timezone,
-        displayTimeZone: resolveEffectiveTimeZone({
-          systemTimeZone: timezone.systemTimeZone,
-          userTimeZone: timezone.userTimeZone,
-          allowUserTimezones: timezone.allowUserTimezones,
-        }),
+        displayTimeZone,
         login,
         logout,
         stopMasquerade,
@@ -197,7 +217,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasComponent,
       }}
     >
-      {children}
+      {/*
+        Keyed on the display zone so that changing it actually repaints. Every
+        formatter reads the zone at call time, so without this the screen would
+        keep whatever it rendered until something else happened to re-render it.
+        Remounting is heavy-handed, but the zone changes at most once per
+        session — on the settings page, or once at login for someone whose
+        chosen zone differs from their browser's.
+
+        Built with createElement rather than written as `<Fragment key=…>`
+        because the dev tooling decorates JSX elements with a metadata prop,
+        and a Fragment accepts only `key` and `children`.
+      */}
+      {createElement(Fragment, { key: displayTimeZone }, children)}
     </AuthContext.Provider>
   );
 }

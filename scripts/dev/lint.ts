@@ -96,6 +96,11 @@ const RULES: Rule[] = [
     script: "scripts/dev/check-theme-color-vars.ts",
     summary: "theme colour variables are named as-is, never wrapped in hsl()",
   },
+  {
+    id: "date-formatting",
+    script: "scripts/dev/check-date-formatting.ts",
+    summary: "browser code formats dates through the zone-aware wrapper",
+  },
 ];
 
 function usage(): void {

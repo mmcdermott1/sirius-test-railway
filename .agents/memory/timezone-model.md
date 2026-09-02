@@ -68,11 +68,63 @@ meaning of what gets written rather than merely how the app behaves.
 
 ## The browser half
 
-There is no client-side equivalent — the resolved zone is read-only and no API
-changes it. Per-user display zones are therefore done by centralizing
-formatting: the built-in locale formatters can be redirected globally at the
-entry point (no file edits), but the date library's `format` reads raw local
-field getters and cannot be. Redirecting those getters at the prototype level
-would corrupt date *arithmetic* (the library round-trips through them
-internally) — that approach is off the table; the library's imports get swapped
-to a project wrapper instead, held in place by an architecture-lint rule.
+There is no client-side equivalent of `TZ` — the browser's zone is read-only.
+Per-user display zones are done by redirecting **formatters**, in two ways:
+
+- The built-in locale formatters (`Intl.DateTimeFormat`, `Date.prototype.
+  toLocale*String`) are patched globally at the entry point, injecting the zone
+  only when the caller named none. Zero file edits.
+- The date library's `format` reads raw local field getters and cannot be
+  redirected that way. Patching the getters at the *prototype* level would
+  corrupt date **arithmetic**, because the library round-trips through them
+  internally — permanently off the table. Its imports are swapped to a project
+  wrapper instead, held in place by an architecture-lint rule.
+
+**A patched formatter lies about the zone.** Once the `Intl` patch is
+installed, anything that asks the runtime what zone it is in gets the *injected*
+answer back. The browser's real zone must be captured at module load, before
+installation, or the "is the display zone different from the browser's?"
+comparison silently answers no forever.
+
+### Feeding a field-reading formatter another zone
+
+The obvious move — shift the timestamp by the difference between the two zones'
+offsets, let the formatter read local fields — is wrong twice, and the second
+one is unfixable:
+
+1. The offset difference is measured at the *original* instant while the fields
+   are read at the *shifted* one. Any shift stepping over a DST boundary **in
+   the browser's own zone** reads fields an hour off.
+2. Even computed perfectly, the target wall clock has to exist as a
+   browser-local instant. It does not, for the hour the browser's zone skips
+   each spring — so a viewer there cannot be shown that hour of any other zone
+   at all.
+
+The construction that works: a **`Date` subclass per zone** whose field getters
+answer from `Intl` while the time value stays the true instant. Nothing has to
+be representable locally, so there is no gap. Two things this needs that are
+easy to miss — the subclass must be per zone rather than per instance, because
+the library clones via `new date.constructor(+date)` and passes nothing but the
+timestamp; and the **setters must be overridden too**, because several format
+tokens (`D` via `startOfYear`, `Y`/`R`/`w`/`I` via `startOfWeek`) clone the date
+and write fields to it. Getters-only leaves those tokens reading display-zone
+fields written in browser-local terms.
+
+### Calendar dates are not instants
+
+The distinction that keeps resurfacing, and the one to check first on any new
+screen. A `date` column, or any `YYYY-MM-DD`, names a **day**. It has no
+instant to reinterpret, and a zone can only move it onto the day before or
+after. Two places it bites:
+
+- Anything rendered for display. Render it from the Ymd string, with no `Date`
+  in between.
+- Anything written into a `date`/`datetime-local` input, which the browser
+  parses back in the **browser's** zone. Render that in another zone and saving
+  the form silently changes the stored instant while the screen looks right.
+
+**Known pre-existing defect, not introduced by the display-zone work:** many
+date-only columns are still rendered with `new Date(ymd).toLocaleDateString()`,
+which shows the **previous day** to every viewer west of UTC. Establishing
+which of those columns are `date` and which are `timestamp` is a schema-reading
+job; do not guess a call site's kind from its name.

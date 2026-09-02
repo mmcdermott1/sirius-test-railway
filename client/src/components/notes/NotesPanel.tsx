@@ -22,7 +22,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getApiErrorMessage } from "@/lib/queryClient";
 import { NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
-import { format, parseISO, isValid } from "date-fns";
+import { parseISO, isValid } from "date-fns";
+import { format } from "@/lib/date-format";
 
 interface NoteTypeOption {
   id: string;

@@ -28,7 +28,7 @@ import {
   Tag as TagIcon,
   WifiOff,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format } from "@/lib/date-format";
 import { formatPhoneNumberForDisplay } from "@/lib/phone-utils";
 import { CommWithDetails } from "@/lib/comm-types";
 import { WinstonLog } from "@/lib/system-types";
