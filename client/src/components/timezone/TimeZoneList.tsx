@@ -22,11 +22,23 @@ import {
 const MAX_ROWS = 60;
 
 export interface TimeZoneListProps {
-  /** The person's chosen zone, or null when they have not chosen one. */
+  /** The chosen zone, or null when none is chosen. */
   value: string | null;
-  /** Where the browser says it is — the zone "automatic" resolves to. */
-  browserTimeZone: string;
-  /** Called with an IANA name, or null to go back to automatic. */
+  /**
+   * Where the browser says it is — the zone the default "no zone chosen" row
+   * resolves to. Not needed when {@link TimeZoneListProps.emptyOption} says
+   * what choosing no zone means on this surface.
+   */
+  browserTimeZone?: string;
+  /**
+   * Wording for the row that chooses NO zone. What that means is a property
+   * of the surface, not of the list: for a person it is "wherever this
+   * browser is", for a site-wide value it is "no override stored". The list
+   * must be told, because guessing would state one of those on a surface
+   * where it is false.
+   */
+  emptyOption?: { label: string; hint?: string };
+  /** Called with an IANA name, or null to choose no zone. */
   onSelect: (zone: string | null) => void;
   saving?: boolean;
   testId: string;
@@ -46,11 +58,16 @@ export interface TimeZoneListProps {
 export function TimeZoneList({
   value,
   browserTimeZone,
+  emptyOption,
   onSelect,
   saving = false,
   testId,
 }: TimeZoneListProps) {
   const [term, setTerm] = useState("");
+  const empty = emptyOption ?? {
+    label: "Automatic — wherever this browser is",
+    hint: browserTimeZone ? `currently ${browserTimeZone}` : undefined,
+  };
   const zones = useMemo(() => listSelectableTimeZones(), []);
   const now = useMemo(() => new Date(), []);
 
@@ -76,10 +93,10 @@ export function TimeZoneList({
       <CommandList>
         <CommandGroup>
           <CommandItem
-            value="__automatic__"
+            value="__none__"
             onSelect={() => onSelect(null)}
             disabled={saving}
-            data-testid={`${testId}-automatic`}
+            data-testid={`${testId}-none`}
           >
             {value === null ? (
               <Check className="mr-2 h-4 w-4 shrink-0" />
@@ -87,10 +104,12 @@ export function TimeZoneList({
               <span className="mr-2 h-4 w-4 shrink-0" />
             )}
             <div className="min-w-0">
-              <div className="truncate">Automatic — wherever this browser is</div>
-              <div className="truncate text-xs text-muted-foreground font-mono">
-                currently {browserTimeZone}
-              </div>
+              <div className="truncate">{empty.label}</div>
+              {empty.hint && (
+                <div className="truncate text-xs text-muted-foreground font-mono">
+                  {empty.hint}
+                </div>
+              )}
             </div>
           </CommandItem>
         </CommandGroup>
@@ -103,8 +122,8 @@ export function TimeZoneList({
             className="px-3 py-4 text-sm text-muted-foreground"
             data-testid={`${testId}-unavailable`}
           >
-            This browser cannot list the available time zones. Automatic above
-            still works, and an administrator can set the site's zone.
+            This browser cannot list the available time zones, so the option
+            above is the only one that can be chosen here.
           </div>
         )}
 

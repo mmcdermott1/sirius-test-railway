@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Clock, ExternalLink, Loader2, Power, Save } from "lucide-react";
+import { Clock, Loader2, Save } from "lucide-react";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNow } from "@/hooks/use-now";
@@ -13,7 +11,7 @@ import {
   useVariableValue,
 } from "@/lib/use-variable";
 import { ZoneClock } from "@/components/timezone/ZoneClock";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SiteTimeZoneCard } from "@/components/timezone/SiteTimeZoneCard";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,30 +29,14 @@ import {
   parseTimeZonePolicy,
 } from "@shared/utils/timezone";
 
-/** The environment variable that holds the site's zone. */
-const SITE_TIMEZONE_VARIABLE = "TZ";
-
-interface PendingRestartVariable {
-  name: string;
-  description: string;
-  category: string;
-  secret: boolean;
-  change: string;
-}
-
-interface RestartInfo {
-  pendingRestartVariables?: PendingRestartVariable[];
-  pendingRestartKnown?: boolean;
-}
-
 /**
  * One place to see what time this site thinks it is, and what that costs.
  *
  * The two clocks are the point of the screen, not decoration: "the site runs
  * in America/New_York" means nothing until it is next to a clock reading four
- * hours away from the reader's own. Everything else here — the warning, the
- * link to where the value is actually edited, the personal-zone policy — is
- * downstream of understanding that difference.
+ * hours away from the reader's own. Everything else here — the site zone and
+ * its warning, the personal-zone policy — is downstream of understanding that
+ * difference.
  */
 export default function TimeZoneConfigPage() {
   usePageTitle("Time Zone");
@@ -93,24 +75,6 @@ export default function TimeZoneConfigPage() {
         variant: "destructive",
       }),
   });
-
-  // Whether the site zone has been changed but not yet picked up. TZ is read
-  // once while the process starts, so a saved change sits inert until then and
-  // this page would otherwise show a site clock that disagrees with the value
-  // an admin just saved.
-  const { data: restartInfo } = useQuery<RestartInfo>({
-    queryKey: ["/api/admin/restart/info"],
-    retry: false,
-    staleTime: 30 * 1000,
-  });
-  const pendingSiteZone = restartInfo?.pendingRestartVariables?.find(
-    (v) => v.name === SITE_TIMEZONE_VARIABLE,
-  );
-  // A process that never recorded a baseline cannot answer the question at
-  // all. Silence would read as "nothing is pending", which is the one thing it
-  // does not know — say so instead. Nothing is claimed while the query is
-  // still in flight or was refused.
-  const pendingUnknown = restartInfo?.pendingRestartKnown === false;
 
   const hasChanges = allowUserTimezones !== storedPolicy.allowUserTimezones;
 
@@ -211,96 +175,7 @@ export default function TimeZoneConfigPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>The site's time zone</CardTitle>
-          <CardDescription>
-            Currently{" "}
-            <code className="font-mono" data-testid="text-site-timezone">
-              {timezone.systemTimeZone}
-            </code>
-            , from the{" "}
-            <code className="font-mono">{SITE_TIMEZONE_VARIABLE}</code>{" "}
-            environment variable.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Said here, where the change is made, because the consequence is
-              not reversible by simply changing it back: the same stored rows
-              will have been read and acted on in the meantime. */}
-          <Alert variant="destructive" data-testid="alert-timezone-consequences">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Changing this re-interprets history</AlertTitle>
-            <AlertDescription className="space-y-2">
-              <p>
-                Dates and times are stored as a wall-clock reading with no zone
-                attached, so they mean whatever zone the site is set to. Move
-                the site's zone and every date already stored moves with it: a
-                shift recorded at 8:00 AM still reads 8:00 AM, but it is now a
-                different moment. Nothing is converted, and there is no record
-                of the old reading.
-              </p>
-              <p>
-                The new value is read only while the app is starting, so it
-                takes effect on the next restart — not when it is saved.
-              </p>
-            </AlertDescription>
-          </Alert>
-
-          {pendingSiteZone && (
-            <Alert data-testid="alert-timezone-pending-restart">
-              <Power className="h-4 w-4" />
-              <AlertTitle>A new site time zone is waiting on a restart</AlertTitle>
-              <AlertDescription>
-                <code className="font-mono">{SITE_TIMEZONE_VARIABLE}</code> was{" "}
-                {pendingSiteZone.change} since this app started, so the clock
-                above is still the old zone. Restart to apply it.
-                <div className="mt-2">
-                  <Link href="/admin/restart">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      data-testid="link-timezone-restart"
-                    >
-                      Restart &amp; Reload
-                      <ExternalLink className="ml-2 h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {pendingUnknown && (
-            <Alert data-testid="alert-timezone-pending-unknown">
-              <Power className="h-4 w-4" />
-              <AlertTitle>
-                Whether a new time zone is waiting cannot be determined
-              </AlertTitle>
-              <AlertDescription>
-                This process did not reach the point where it records a
-                baseline, so it cannot tell whether{" "}
-                <code className="font-mono">{SITE_TIMEZONE_VARIABLE}</code> has
-                been edited since it started. If it has, the site clock above
-                is still the old zone.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">
-              The value lives with the other environment variables — this page
-              does not keep a second copy of it.
-            </p>
-            <Link href="/config/env">
-              <Button variant="outline" data-testid="link-timezone-env">
-                Edit {SITE_TIMEZONE_VARIABLE} on Environment Variables
-                <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+      <SiteTimeZoneCard systemTimeZone={timezone.systemTimeZone} />
 
       <Card>
         <CardHeader>
