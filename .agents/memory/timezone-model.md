@@ -123,6 +123,15 @@ after. Two places it bites:
   parses back in the **browser's** zone. Render that in another zone and saving
   the form silently changes the stored instant while the screen looks right.
 
+### Showing two zones at once
+
+The redirection injects the display zone whenever a caller names none, so any
+screen that COMPARES zones — a settings page, a clock in the chrome — must name
+the zone in **every** format call, or all of its clocks quietly agree. The
+failure renders a plausible time, throws nothing, and type-checks: the offset
+between the site and the viewer simply reads as zero. `formatInTimeZone` is the
+safe formatter here, and it is safe only because it always passes `timeZone`.
+
 **Known pre-existing defect, not introduced by the display-zone work:** many
 date-only columns are still rendered with `new Date(ymd).toLocaleDateString()`,
 which shows the **previous day** to every viewer west of UTC. Establishing

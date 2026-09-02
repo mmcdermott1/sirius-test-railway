@@ -46,6 +46,7 @@ export const configSections: NavSection[] = [
       { path: "/config/auth-settings", label: "Auth Settings", icon: KeyRound, testId: "nav-config-auth-settings", permission: "admin" },
       { path: "/config/system-status", label: "System Status", icon: Activity, testId: "nav-config-system-status", permission: "admin" },
       { path: "/config/env", label: "Environment", icon: Terminal, testId: "nav-config-env", permission: "admin" },
+      { path: "/config/timezone", label: "Time Zone", icon: Clock, testId: "nav-config-timezone", permission: "admin" },
       { path: "/config/twilio", label: "SMS Providers", icon: MessageSquare, testId: "nav-config-sms", permission: "admin" },
       { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", permission: "admin" },
       { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", permission: "admin" },
