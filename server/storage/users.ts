@@ -546,6 +546,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           lastLogin: users.lastLogin,
+          timezone: users.timezone,
           data: users.data,
         })
         .from(userRoles)
@@ -718,6 +719,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           lastLogin: users.lastLogin,
+          timezone: users.timezone,
           data: users.data,
         })
         .from(users)

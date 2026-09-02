@@ -512,6 +512,12 @@ export function getRawProcessEnv(): NodeJS.ProcessEnv {
 // ---------------------------------------------------------------------------
 registerEnvironmentVariables([
   { name: "NODE_ENV", description: "Runtime mode: development | production.", secret: false, category: "core", changeTakesEffect: "restart", },
+  // The system time zone. "restart" is the honest classification even though
+  // the runtime itself would pick up a mid-process change: cron jobs are
+  // already registered against the old zone by the time anyone could edit
+  // this, so applying it live would leave the app half-moved. Applied and
+  // validated at boot by server/config/system-timezone.ts.
+  { name: "TZ", description: "IANA time zone the server runs in (e.g. America/New_York). Determines how every stored timestamp is interpreted, when cron schedules fire, and where the day boundary falls. Unset means the container's zone, normally UTC. WARNING: changing this re-interprets every date already stored.", secret: false, category: "core", changeTakesEffect: "restart", },
   { name: "PORT", description: "HTTP port the server listens on (default 5000).", secret: false, category: "core", changeTakesEffect: "restart", },
   { name: "DATABASE_URL", description: "PostgreSQL connection URL. Assembled from DB_* parts at boot when absent.", secret: true, category: "core", changeTakesEffect: "restart", },
   { name: "DATABASE_DRIVER", description: "Force the DB driver: neon | pg (auto-detected from the URL otherwise).", secret: false, category: "core", changeTakesEffect: "restart", },

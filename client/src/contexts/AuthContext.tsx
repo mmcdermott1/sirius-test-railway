@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { User } from '@/lib/user-types';
+import {
+  DEFAULT_TIMEZONE_POLICY,
+  getRuntimeTimeZone,
+  resolveEffectiveTimeZone,
+} from '@shared/utils/timezone';
 
 let _clerkSignOut: ((opts?: { redirectUrl?: string }) => Promise<void>) | null = null;
 export function registerClerkSignOut(fn: typeof _clerkSignOut) {
@@ -18,11 +23,32 @@ interface MasqueradeInfo {
   };
 }
 
+/**
+ * The two facts published by the server that decide which zone this person
+ * sees dates in. The third input — the browser's own zone — is read locally.
+ */
+interface TimeZoneInfo {
+  /** The zone the server runs in: what every stored timestamp actually means. */
+  systemTimeZone: string;
+  /** This person's own recorded zone, or null when they have not chosen one. */
+  userTimeZone: string | null;
+  /** Whether site policy honours a personal zone at all. */
+  allowUserTimezones: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   permissions: string[];
   components: string[];
   masquerade: MasqueradeInfo;
+  /** Raw inputs, as published by the server. */
+  timezone: TimeZoneInfo;
+  /**
+   * The zone dates should be displayed in, already resolved. Read this rather
+   * than re-deciding from the parts — the resolution rule lives in exactly one
+   * place (resolveEffectiveTimeZone) so the server and client cannot disagree.
+   */
+  displayTimeZone: string;
   login: () => void;
   logout: () => void;
   stopMasquerade: () => Promise<void>;
@@ -48,6 +74,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [components, setComponents] = useState<string[]>([]);
   const [masquerade, setMasquerade] = useState<MasqueradeInfo>({ isMasquerading: false });
+  // Seeded with the browser's own zone and the permissive default, which is
+  // exactly what people see before this ships. A screen that paints before
+  // /api/auth/user answers therefore renders the same dates it renders after,
+  // instead of flashing UTC.
+  const [timezone, setTimezone] = useState<TimeZoneInfo>(() => ({
+    systemTimeZone: getRuntimeTimeZone(),
+    userTimeZone: null,
+    allowUserTimezones: DEFAULT_TIMEZONE_POLICY.allowUserTimezones,
+  }));
 
   // Check if user is authenticated on app start
   const { data: authData, isLoading } = useQuery({
@@ -78,11 +113,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPermissions((authData as any).permissions || []);
       setComponents((authData as any).components || []);
       setMasquerade((authData as any).masquerade || { isMasquerading: false });
+      const tz = (authData as any).timezone;
+      if (tz) setTimezone(tz as TimeZoneInfo);
     } else {
       setUser(null);
       setPermissions([]);
       setComponents([]);
       setMasquerade({ isMasquerading: false });
+      setTimezone({
+        systemTimeZone: getRuntimeTimeZone(),
+        userTimeZone: null,
+        allowUserTimezones: DEFAULT_TIMEZONE_POLICY.allowUserTimezones,
+      });
     }
   }, [authData]);
 
@@ -139,6 +181,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         permissions,
         components,
         masquerade,
+        timezone,
+        displayTimeZone: resolveEffectiveTimeZone({
+          systemTimeZone: timezone.systemTimeZone,
+          userTimeZone: timezone.userTimeZone,
+          allowUserTimezones: timezone.allowUserTimezones,
+        }),
         login,
         logout,
         stopMasquerade,

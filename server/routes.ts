@@ -8,6 +8,7 @@ import { insertWorkerSchema, insertWorkerDispatchHfeSchema, type WorkerId, type 
 import { z } from "zod";
 import { registerUserRoutes } from "./modules/users";
 import { registerVariableRoutes } from "./modules/system/variables";
+import { buildTimeZoneContext } from "./modules/system/timezone";
 import { registerAuthSettingsRoutes } from "./modules/auth-settings";
 import { registerEnvRoutes } from "./modules/system/env";
 import { registerDenormRoutes } from "./modules/system/denorm";
@@ -247,8 +248,15 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
           lastName: dbUser.lastName,
           profileImageUrl: dbUser.profileImageUrl,
           isActive: dbUser.isActive,
-          workerId: workerId
+          workerId: workerId,
+          timezone: dbUser.timezone ?? null,
         },
+        // Both halves of the display-zone decision, published together: the
+        // client resolves which zone to render dates in from these plus its
+        // own runtime zone (resolveEffectiveTimeZone in shared/utils/timezone).
+        // Sent here rather than fetched separately so no screen can paint a
+        // date before it knows which zone to paint it in.
+        timezone: await buildTimeZoneContext(dbUser.timezone),
         permissions: userPermissions.map((p) => p.key),
         components: enabledComponents,
         masquerade: session.masqueradeUserId

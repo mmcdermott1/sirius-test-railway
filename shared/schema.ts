@@ -197,6 +197,17 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   lastLogin: timestamp("last_login"),
+  /**
+   * The person's own IANA time zone, or null when they have not chosen one.
+   *
+   * DISPLAY ONLY. Nothing stored anywhere is written in this zone — it decides
+   * what a given viewer is shown and nothing else. Null does not mean "use the
+   * system zone": it means "no explicit choice", which resolves to the
+   * viewer's own runtime zone when site policy allows personal zones. See
+   * resolveEffectiveTimeZone in shared/utils/timezone.ts, which is the only
+   * place that decision is made.
+   */
+  timezone: varchar("timezone"),
   data: jsonb("data"),
 });
 
