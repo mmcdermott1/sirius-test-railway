@@ -3,7 +3,6 @@ import { Clock, Loader2, Save } from "lucide-react";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNow } from "@/hooks/use-now";
-import { getBrowserTimeZone } from "@/lib/display-timezone";
 import { queryClient } from "@/lib/queryClient";
 import {
   parseVariableJson,
@@ -11,6 +10,7 @@ import {
   useVariableValue,
 } from "@/lib/use-variable";
 import { ZoneClock } from "@/components/timezone/ZoneClock";
+import { describeTimeZones } from "@/components/timezone/zone-vocabulary";
 import { SiteTimeZoneCard } from "@/components/timezone/SiteTimeZoneCard";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,14 +37,16 @@ import {
  * hours away from the reader's own. Everything else here — the site zone and
  * its warning, the personal-zone policy — is downstream of understanding that
  * difference.
+ *
+ * The two are SYSTEM time and USER time, named and described in
+ * `@/components/timezone/zone-vocabulary`, which the header clock panel
+ * renders from as well so the two surfaces cannot tell different stories.
  */
 export default function TimeZoneConfigPage() {
   usePageTitle("Time Zone");
   const { toast } = useToast();
   const { timezone, displayTimeZone } = useAuth();
   const now = useNow(1000);
-
-  const browserTimeZone = getBrowserTimeZone();
 
   const { data: policyValue, isLoading: policyLoading } = useVariableValue(
     TIMEZONE_POLICY_VARIABLE_NAME,
@@ -78,44 +80,18 @@ export default function TimeZoneConfigPage() {
 
   const hasChanges = allowUserTimezones !== storedPolicy.allowUserTimezones;
 
-  // The site's clock and the reader's clock are both always shown, even when
-  // they are the same zone: "are these the same?" is the question this screen
-  // is opened with, and two cards reading the same time answer it, where a
-  // single card leaves the reader to take it on faith. A third appears only
-  // when a personal choice put the display somewhere neither of them is.
-  const chosenZoneDiffers =
-    displayTimeZone !== timezone.systemTimeZone &&
-    displayTimeZone !== browserTimeZone;
-  const clocks = [
-    {
-      title: "Site time zone",
-      zone: timezone.systemTimeZone,
-      description:
-        "What every stored date and time means, when scheduled work fires, and where the day ends.",
-      testId: "clock-site",
-    },
-    {
-      title: "Your time zone",
-      zone: browserTimeZone,
-      description: "Where this browser says it is.",
-      testId: "clock-browser",
-    },
-    ...(chosenZoneDiffers
-      ? [
-          {
-            title: "Your chosen time zone",
-            zone: displayTimeZone,
-            description: "The zone you picked for yourself.",
-            testId: "clock-display",
-          },
-        ]
-      : []),
-  ];
-  // Only the first match is badged — when the site's zone and this browser's
-  // zone coincide, badging both would read as two different answers.
-  const showingIndex = clocks.findIndex((c) => c.zone === displayTimeZone);
-  const zonesAgree =
-    timezone.systemTimeZone === browserTimeZone && !chosenZoneDiffers;
+  // Both zones are always shown, even when they are the same one: "are these
+  // the same?" is the question this screen is opened with, and two clocks
+  // reading the same time answer it, where a single clock leaves the reader to
+  // take it on faith. There is never a third — see the vocabulary module for
+  // why the browser's own zone is not one of the site's zones.
+  const zones = describeTimeZones({
+    systemTimeZone: timezone.systemTimeZone,
+    userTimeZone: timezone.userTimeZone,
+    allowUserTimezones: timezone.allowUserTimezones,
+    displayTimeZone,
+    testIdPrefix: "clock",
+  });
 
   if (policyLoading) {
     return (
@@ -146,32 +122,29 @@ export default function TimeZoneConfigPage() {
             Right now
           </CardTitle>
           <CardDescription>
-            The same instant, in each zone that matters here.
+            The same instant, in each of this site's two zones.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {clocks.map((clock, index) => (
+          <div className="grid gap-6 sm:grid-cols-2">
+            {[zones.system, zones.user].map((clock) => (
               <ZoneClock
                 key={clock.testId}
                 title={clock.title}
                 zone={clock.zone}
                 at={now}
-                showing={index === showingIndex}
+                showing={clock.showing}
                 description={clock.description}
                 testId={clock.testId}
               />
             ))}
           </div>
-          {zonesAgree && (
-            <p
-              className="text-sm text-muted-foreground mt-4"
-              data-testid="text-zones-identical"
-            >
-              This browser is in the site's own time zone, so the two clocks
-              agree and there is nothing to reconcile.
-            </p>
-          )}
+          <p
+            className="text-sm text-muted-foreground mt-4"
+            data-testid="text-zones-summary"
+          >
+            {zones.summary}
+          </p>
         </CardContent>
       </Card>
 
@@ -191,11 +164,11 @@ export default function TimeZoneConfigPage() {
                 Let people choose their own time zone
               </Label>
               <p className="text-sm text-muted-foreground max-w-prose">
-                On, someone in another state can read every date in their own
-                zone; a person who has not chosen one sees their browser's.
-                Off, everyone reads the site's zone — including anyone who
-                already picked one, whose choice stops being honoured rather
-                than merely becoming un-editable.
+                On, user time is a zone each person picks for themselves, and
+                whoever has not picked one gets the zone their browser reports.
+                Off, user time IS system time for everyone — including anyone
+                who already picked a zone, whose choice stops being honoured
+                rather than merely becoming un-editable.
               </p>
               {!policyConfigured && (
                 <p
@@ -203,7 +176,7 @@ export default function TimeZoneConfigPage() {
                   data-testid="text-policy-unset"
                 >
                   Not configured yet — currently the default, which is off, so
-                  everyone here reads the site's time zone.
+                  everyone here reads system time.
                 </p>
               )}
             </div>

@@ -12,6 +12,7 @@ import {
   getTimeZoneOffsetLabel,
   listSelectableTimeZones,
 } from "@shared/utils/timezone";
+import { getBrowserTimeZone } from "@/lib/display-timezone";
 
 /**
  * How many zones to render at once. The full IANA list is several hundred
@@ -24,12 +25,6 @@ const MAX_ROWS = 60;
 export interface TimeZoneListProps {
   /** The chosen zone, or null when none is chosen. */
   value: string | null;
-  /**
-   * Where the browser says it is — the zone the default "no zone chosen" row
-   * resolves to. Not needed when {@link TimeZoneListProps.emptyOption} says
-   * what choosing no zone means on this surface.
-   */
-  browserTimeZone?: string;
   /**
    * Wording for the row that chooses NO zone. What that means is a property
    * of the surface, not of the list: for a person it is "wherever this
@@ -57,16 +52,21 @@ export interface TimeZoneListProps {
  */
 export function TimeZoneList({
   value,
-  browserTimeZone,
   emptyOption,
   onSelect,
   saving = false,
   testId,
 }: TimeZoneListProps) {
   const [term, setTerm] = useState("");
+  // The one place in the app that names the browser's own zone, and the only
+  // one that has a reason to: "automatic" is a promise about a value the
+  // reader cannot otherwise see, so choosing it blind would be choosing
+  // nothing in particular. Everywhere else the browser's zone is an input to
+  // the resolver, never something shown — see
+  // `@/components/timezone/zone-vocabulary`.
   const empty = emptyOption ?? {
     label: "Automatic — wherever this browser is",
-    hint: browserTimeZone ? `currently ${browserTimeZone}` : undefined,
+    hint: `currently ${getBrowserTimeZone()}`,
   };
   const zones = useMemo(() => listSelectableTimeZones(), []);
   const now = useMemo(() => new Date(), []);

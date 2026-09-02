@@ -101,6 +101,11 @@ const RULES: Rule[] = [
     script: "scripts/dev/check-date-formatting.ts",
     summary: "browser code formats dates through the zone-aware wrapper",
   },
+  {
+    id: "browser-timezone",
+    script: "scripts/dev/check-browser-timezone.ts",
+    summary: "only the resolver plumbing asks what zone the browser is in",
+  },
 ];
 
 function usage(): void {

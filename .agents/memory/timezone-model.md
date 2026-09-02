@@ -128,6 +128,22 @@ personal zones off the display zone IS the site zone, so a card captioned "your
 time zone / from this browser" ends up attributing the site's clock to the
 viewer's browser — true-looking, and wrong.
 
+**There are exactly TWO zones, and the browser's is not one of them.** Owner
+decision. System time (what stored timestamps mean) and user time (what a person
+is shown) are the whole vocabulary; where the browser happens to be is an INPUT
+to resolving user time, and a screen showing it presents a zone the reader
+cannot act on — one that governs nothing at all under the default policy. The
+words for both live in one shared client module that every clock surface renders
+from, because two surfaces each inventing their own labels is how they came to
+contradict each other about the same fact. An architecture-lint rule confines
+the browser-zone read to the resolver plumbing plus the picker's "automatic"
+row, which must say what automatic would resolve to.
+
+**Describe provenance from the OUTCOME, not the stored value.** "You chose this
+zone" is true only when the resolved zone equals the stored one: the resolver
+discards a name it cannot validate and falls back, so a stale or malformed
+stored zone would otherwise be captioned as a deliberate choice.
+
 ### Calendar dates are not instants
 
 The distinction that keeps resurfacing, and the one to check first on any new
