@@ -37,6 +37,7 @@
  */
 import {
   getEnvironmentVariable,
+  isEnvironmentVariableSetInProcess,
   setEnvironmentVariable,
 } from "./env-registry";
 import { getRuntimeTimeZone, isValidTimeZone } from "@shared/utils/timezone";
@@ -86,7 +87,22 @@ export function applySystemTimeZone(
    */
   fallback?: () => string | undefined,
 ): AppliedSystemTimeZone {
-  const configured = (getEnvironmentVariable("TZ")?.trim() || fallback?.()?.trim()) || undefined;
+  // WHICH of the two sources supplied the zone has to be carried into the
+  // write, because the write itself erases the distinction: after it, TZ is in
+  // the process environment either way. Asking whether the variable is set in
+  // the REAL environment is the question that survives repeat calls — on the
+  // second pass the value this function planted is already sitting there, and
+  // a plain read would report a stored zone as a deployment one.
+  const fromEnvironment = isEnvironmentVariableSetInProcess("TZ")
+    ? getEnvironmentVariable("TZ")?.trim() || undefined
+    : undefined;
+  // Not supplied by the deployment: the zone comes from the in-app store,
+  // either through the override cache (a plain read reaches it) or, at first
+  // boot, through the direct row read the caller passes in.
+  const fromStore = fromEnvironment
+    ? undefined
+    : getEnvironmentVariable("TZ")?.trim() || fallback?.()?.trim() || undefined;
+  const configured = fromEnvironment ?? fromStore;
 
   if (!configured) {
     return { zone: getRuntimeTimeZone(), configured: false, changed: false };
@@ -107,7 +123,7 @@ export function applySystemTimeZone(
   // scripts/dev/check-env-registry.ts). Writing it into the environment —
   // rather than only remembering it here — is the entire mechanism: Date,
   // Intl and node-cron all read the zone from there.
-  setEnvironmentVariable("TZ", configured);
+  setEnvironmentVariable("TZ", configured, fromEnvironment ? "environment" : "override");
   const after = getRuntimeTimeZone();
 
   return { zone: after, configured: true, changed: after !== before };
