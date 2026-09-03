@@ -251,6 +251,7 @@ const PhoneNumbersConfigPage = lazy(() => import("@/pages/config/phone-numbers")
 const DynamicOptionsPage = lazy(() => import("@/pages/config/options"));
 
 const OptionsExportPage = lazy(() => import("@/pages/config/options-export"));
+const OptionsIndexPage = lazy(() => import("@/pages/config/options-index"));
 const StewardSettingsPage = lazy(() => import("@/pages/config/steward-settings"));
 const EventTypesPage = lazy(() => import("@/pages/config/event-types"));
 const DispatchJobTypesPage = lazy(() => import("@/pages/config/dispatch-job-types"));
@@ -2623,6 +2624,18 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <PhoneNumbersConfigPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* The index of every dropdown list. Registered before the
+          parameterized options routes so "options" isn't read as a type. */}
+      <Route path="/config/options">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <OptionsIndexPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

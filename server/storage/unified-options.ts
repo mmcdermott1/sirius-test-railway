@@ -278,13 +278,20 @@ interface OptionsTableMetadata<T extends PgTable<TableConfig>> {
   supportsParent?: boolean;
   supportsSequencing?: boolean;
   requiredComponent?: string;
+  /**
+   * Set when this list is administered on its own page instead of the generic
+   * options screen — the path of that page. The generic routes still serve the
+   * type; this only tells the navigation and the options index where the list
+   * really lives, so they don't offer a second, lesser door to it.
+   */
+  bespokePath?: string;
   fields: FieldDefinition[];
 }
 
 const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   "department": {
     table: optionsDepartment,
-    displayName: "Departments",
+    displayName: "Department",
     description: "Manage organizational departments",
     singularName: "Department",
     pluralName: "Departments",
@@ -301,7 +308,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "employer-type": {
     table: optionsEmployerType,
-    displayName: "Employer Types",
+    displayName: "Employer Type",
     description: "Manage employer classification types",
     singularName: "Employer Type",
     pluralName: "Employer Types",
@@ -317,7 +324,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "employer-contact-type": {
     table: optionsEmployerContactType,
-    displayName: "Employer Contact Types",
+    displayName: "Employer Contact Type",
     description: "Manage types of employer contacts",
     singularName: "Employer Contact Type",
     pluralName: "Employer Contact Types",
@@ -334,7 +341,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "worker-id-type": {
     table: optionsWorkerIdType,
-    displayName: "Worker ID Types",
+    displayName: "Worker ID Type",
     description: "Manage types of worker identification",
     singularName: "Worker ID Type",
     pluralName: "Worker ID Types",
@@ -352,7 +359,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "gender": {
     table: optionsGender,
-    displayName: "Gender Options",
+    displayName: "Gender",
     description: "Manage gender options for worker profiles",
     singularName: "Gender",
     pluralName: "Genders",
@@ -369,7 +376,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "trust-benefit-type": {
     table: optionsTrustBenefitType,
-    displayName: "Trust Benefit Types",
+    displayName: "Trust Benefit Type",
     description: "Manage types of trust benefits",
     singularName: "Trust Benefit Type",
     pluralName: "Trust Benefit Types",
@@ -386,7 +393,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "trust-provider-type": {
     table: optionsTrustProviderType,
-    displayName: "Trust Provider Types",
+    displayName: "Trust Provider Type",
     description: "Manage types of trust providers",
     singularName: "Trust Provider Type",
     pluralName: "Trust Provider Types",
@@ -402,10 +409,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "worker-ws": {
     table: optionsWorkerWs,
-    displayName: "Work Statuses",
+    displayName: "Worker Work Status",
     description: "Manage worker status options",
-    singularName: "Work Status",
-    pluralName: "Work Statuses",
+    singularName: "Worker Work Status",
+    pluralName: "Worker Work Statuses",
     orderByColumn: "sequence" as const,
     loggingModule: "options.workerWs",
     requiredFields: ["name"],
@@ -419,10 +426,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "worker-ms": {
     table: optionsWorkerMs,
-    displayName: "Member Statuses",
+    displayName: "Worker Member Status",
     description: "Manage worker member status options",
-    singularName: "Member Status",
-    pluralName: "Member Statuses",
+    singularName: "Worker Member Status",
+    pluralName: "Worker Member Statuses",
     orderByColumn: "sequence" as const,
     loggingModule: "options.workerMs",
     requiredFields: ["name", "industryId"],
@@ -438,7 +445,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "employment-status": {
     table: optionsEmploymentStatus,
-    displayName: "Employment Statuses",
+    displayName: "Employment Status",
     description: "Manage employment status options",
     singularName: "Employment Status",
     pluralName: "Employment Statuses",
@@ -457,12 +464,13 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "event-type": {
     table: optionsEventType,
-    displayName: "Event Types",
+    displayName: "Event Type",
     description: "Manage types of events",
     singularName: "Event Type",
     pluralName: "Event Types",
     orderByColumn: "name" as const,
     loggingModule: "options.eventTypes",
+    bespokePath: "/config/event-types",
     requiredFields: ["name"],
     optionalFields: ["description", "data", "siriusId", "category", "config"],
     supportsSequencing: false,
@@ -473,12 +481,13 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "dispatch-job-type": {
     table: optionsDispatchJobType,
-    displayName: "Dispatch Job Types",
+    displayName: "Dispatch Job Type",
     description: "Manage types of dispatch jobs",
     singularName: "Dispatch Job Type",
     pluralName: "Dispatch Job Types",
     orderByColumn: "name" as const,
     loggingModule: "options.dispatchJobTypes",
+    bespokePath: "/config/dispatch-job-types",
     requiredFields: ["name"],
     optionalFields: ["description", "data"],
     supportsSequencing: false,
@@ -489,12 +498,13 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "ledger-payment-type": {
     table: optionsLedgerPaymentType,
-    displayName: "Ledger Payment Types",
+    displayName: "Ledger Payment Type",
     description: "Manage payment type options for ledger entries",
-    singularName: "Payment Type",
-    pluralName: "Payment Types",
+    singularName: "Ledger Payment Type",
+    pluralName: "Ledger Payment Types",
     orderByColumn: "sequence" as const,
     loggingModule: "options.ledgerPaymentTypes",
+    bespokePath: "/config/ledger/payment-types",
     requiredFields: ["name", "category"],
     optionalFields: ["description", "sequence", "currencyCode", "data"],
     supportsSequencing: true,
@@ -507,10 +517,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "grievance-status": {
     table: optionsGrievanceStatus,
-    displayName: "Grievance Status Options",
+    displayName: "Grievance Status",
     description: "Manage status options for grievances",
-    singularName: "Status Option",
-    pluralName: "Status Options",
+    singularName: "Grievance Status",
+    pluralName: "Grievance Statuses",
     orderByColumn: "sequence" as const,
     loggingModule: "options.grievanceStatus",
     requiredFields: ["name"],
@@ -527,10 +537,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "grievance-category": {
     table: optionsGrievanceCategory,
-    displayName: "Grievance Category Options",
+    displayName: "Grievance Category",
     description: "Manage category options for grievances",
-    singularName: "Category Option",
-    pluralName: "Category Options",
+    singularName: "Grievance Category",
+    pluralName: "Grievance Categories",
     orderByColumn: "name" as const,
     loggingModule: "options.grievanceCategory",
     requiredFields: ["name"],
@@ -545,10 +555,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "grievance-step": {
     table: optionsGrievanceSteps,
-    displayName: "Grievance Step Options",
+    displayName: "Grievance Step",
     description: "Manage step options for grievances",
-    singularName: "Step Option",
-    pluralName: "Step Options",
+    singularName: "Grievance Step",
+    pluralName: "Grievance Steps",
     orderByColumn: "sequence" as const,
     loggingModule: "options.grievanceStep",
     requiredFields: ["name", "actor"],
@@ -565,10 +575,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "grievance-complaint": {
     table: optionsGrievanceComplaints,
-    displayName: "Grievance Complaint Options",
+    displayName: "Grievance Complaint",
     description: "Manage complaint options for grievances",
-    singularName: "Complaint Option",
-    pluralName: "Complaint Options",
+    singularName: "Grievance Complaint",
+    pluralName: "Grievance Complaints",
     orderByColumn: "sequence" as const,
     loggingModule: "options.grievanceComplaint",
     requiredFields: ["name"],
@@ -584,10 +594,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "grievance-remedy": {
     table: optionsGrievanceRemedies,
-    displayName: "Grievance Remedy Options",
+    displayName: "Grievance Remedy",
     description: "Manage remedy options for grievances",
-    singularName: "Remedy Option",
-    pluralName: "Remedy Options",
+    singularName: "Grievance Remedy",
+    pluralName: "Grievance Remedies",
     orderByColumn: "sequence" as const,
     loggingModule: "options.grievanceRemedy",
     requiredFields: ["name"],
@@ -603,10 +613,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "grievance-role": {
     table: optionsGrievanceRoles,
-    displayName: "Grievance Role Options",
+    displayName: "Grievance Role",
     description: "Manage role options for grievances",
-    singularName: "Role Option",
-    pluralName: "Role Options",
+    singularName: "Grievance Role",
+    pluralName: "Grievance Roles",
     orderByColumn: "sequence" as const,
     loggingModule: "options.grievanceRole",
     requiredFields: ["name"],
@@ -623,10 +633,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "grievance-settlement-type": {
     table: optionsGrievanceSettlementType,
-    displayName: "Grievance Settlement Type Options",
+    displayName: "Grievance Settlement Type",
     description: "Manage settlement type options for grievances",
-    singularName: "Settlement Type",
-    pluralName: "Settlement Types",
+    singularName: "Grievance Settlement Type",
+    pluralName: "Grievance Settlement Types",
     orderByColumn: "sequence" as const,
     loggingModule: "options.grievanceSettlementType",
     requiredFields: ["name"],
@@ -642,10 +652,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "worker-ban-type": {
     table: optionsWorkerBanType,
-    displayName: "Worker Ban Types",
+    displayName: "Worker Ban Type",
     description: "Ban types available on the worker bans page. Each type applies one or more ban behaviors (what the ban prohibits).",
-    singularName: "Ban Type",
-    pluralName: "Ban Types",
+    singularName: "Worker Ban Type",
+    pluralName: "Worker Ban Types",
     orderByColumn: "name" as const,
     loggingModule: "options.workerBanType",
     requiredFields: ["name"],
@@ -662,7 +672,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "note-type": {
     table: optionsNoteType,
-    displayName: "Note Types",
+    displayName: "Note Type",
     description: "Types available when staff add a note to a record. Each type declares which record types it applies to.",
     singularName: "Note Type",
     pluralName: "Note Types",
@@ -682,10 +692,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "skill": {
     table: optionsSkills,
-    displayName: "Skills",
+    displayName: "Worker Skill",
     description: "Manage skills and qualifications that can be assigned to workers",
-    singularName: "Skill",
-    pluralName: "Skills",
+    singularName: "Worker Skill",
+    pluralName: "Worker Skills",
     orderByColumn: "name" as const,
     loggingModule: "options.skills",
     requiredFields: ["name"],
@@ -700,12 +710,13 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "edls-task": {
     table: optionsEdlsTasks,
-    displayName: "EDLS Tasks",
+    displayName: "EDLS Task",
     description: "Manage tasks for the Employer Day Labor Scheduler",
     singularName: "EDLS Task",
     pluralName: "EDLS Tasks",
     orderByColumn: "name" as const,
     loggingModule: "options.edlsTasks",
+    bespokePath: "/config/edls/tasks",
     requiredFields: ["name", "departmentId"],
     optionalFields: ["siriusId", "data"],
     supportsSequencing: false,
@@ -717,7 +728,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "edls-show-status": {
     table: optionsEdlsShowStatus,
-    displayName: "EDLS Show Statuses",
+    displayName: "EDLS Show Status",
     description: "Manage show statuses for EDLS sheets",
     singularName: "EDLS Show Status",
     pluralName: "EDLS Show Statuses",
@@ -734,10 +745,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "certification": {
     table: optionsCertifications,
-    displayName: "Certifications",
+    displayName: "Worker Certification",
     description: "Manage certification types that can be assigned to workers",
-    singularName: "Certification",
-    pluralName: "Certifications",
+    singularName: "Worker Certification",
+    pluralName: "Worker Certifications",
     orderByColumn: "name" as const,
     loggingModule: "options.certifications",
     requiredFields: ["name"],
@@ -754,10 +765,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "worker-rating": {
     table: optionsWorkerRatings,
-    displayName: "Rating Types",
+    displayName: "Worker Rating Type",
     description: "Manage rating types for evaluating workers. Ratings can have parent ratings to create a hierarchy.",
-    singularName: "Rating Type",
-    pluralName: "Rating Types",
+    singularName: "Worker Rating Type",
+    pluralName: "Worker Rating Types",
     orderByColumn: "name" as const,
     loggingModule: "options.workerRatings",
     requiredFields: ["name"],
@@ -773,10 +784,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "classification": {
     table: optionsClassifications,
-    displayName: "Classifications",
+    displayName: "Worker Classification",
     description: "Manage worker classification options",
-    singularName: "Classification",
-    pluralName: "Classifications",
+    singularName: "Worker Classification",
+    pluralName: "Worker Classifications",
     orderByColumn: "sequence" as const,
     loggingModule: "options.classifications",
     requiredFields: ["name"],
@@ -790,7 +801,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "industry": {
     table: optionsIndustry,
-    displayName: "Industries",
+    displayName: "Industry",
     description: "Manage industry options for workers",
     singularName: "Industry",
     pluralName: "Industries",
@@ -807,7 +818,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "comm-tag": {
     table: optionsCommTags,
-    displayName: "Comm Tags",
+    displayName: "Comm Tag",
     description: "Tags that can be applied to communications, scoped to specific comm media.",
     singularName: "Comm Tag",
     pluralName: "Comm Tags",
@@ -839,10 +850,10 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
   },
   "worker-relation-type": {
     table: optionsWorkerRelationType,
-    displayName: "Relationship Types",
+    displayName: "Worker Relationship Type",
     description: "Manage relationship types used between workers (e.g. spouse, parent, sibling).",
-    singularName: "Relationship Type",
-    pluralName: "Relationship Types",
+    singularName: "Worker Relationship Type",
+    pluralName: "Worker Relationship Types",
     orderByColumn: "name" as const,
     loggingModule: "options.workerRelationType",
     requiredFields: ["name"],
@@ -1051,6 +1062,43 @@ export function createUnifiedOptionsStorage(): UnifiedOptionsStorage {
   // method with `this` bound to the unwrapped implementation, so internal
   // `this.list()` / `this.get()` calls are unaffected.
   return withStorageLogging(createUnifiedOptionsStorageImpl(), unifiedOptionsLoggingConfig);
+}
+
+/**
+ * One entry per options type: the name the list is known by everywhere, and
+ * the gating a caller needs to decide whether to offer it. Deliberately
+ * lighter than `OptionsResourceDefinition` — navigation and the options index
+ * need names, not field/schema payloads for 31 types.
+ */
+export interface OptionsCatalogEntry {
+  type: OptionsTypeName;
+  name: string;
+  /** The same name for a screen that lists the records, e.g. "Event Types". */
+  pluralName: string;
+  description?: string;
+  requiredComponent?: string;
+  /** Set when the list is administered on its own page, at this path. */
+  bespokePath?: string;
+}
+
+/**
+ * The registry's own answer to "what dropdown lists exist and what are they
+ * called", sorted by name. Pure: no database access, no request context.
+ */
+export function getOptionsCatalog(): OptionsCatalogEntry[] {
+  return (Object.keys(optionsMetadata) as OptionsTypeName[])
+    .map((type) => {
+      const metadata = optionsMetadata[type];
+      return {
+        type,
+        name: metadata.displayName,
+        pluralName: metadata.pluralName,
+        description: metadata.description,
+        requiredComponent: metadata.requiredComponent,
+        bespokePath: metadata.bespokePath,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export { optionsMetadata };

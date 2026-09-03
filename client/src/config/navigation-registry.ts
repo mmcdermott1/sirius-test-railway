@@ -13,14 +13,40 @@ export interface NavItem {
   policy?: string;
   requiresComponent?: string;
   requiresComponents?: string[];
+  /**
+   * Set when this item leads to an options list: the label is then the options
+   * registry's name for that list, filled in by `resolveConfigSections`, and
+   * the `label` written here is ignored.
+   */
+  optionsType?: string;
 }
+
+/**
+ * Where a section's items come from, when they are not written down here.
+ * `options-catalog` = one item per unified-options list, named by the options
+ * registry (the server's `/api/options/catalog`), which is the single source
+ * of truth for what those lists are called.
+ */
+export type NavItemSource = "options-catalog";
 
 export interface NavSection {
   id: string;
   title: string;
   description: string;
   icon: LucideIcon;
+  /**
+   * The section's items. Empty in the registry when `itemsFrom` is set — call
+   * `resolveConfigSections` to fill them in before rendering.
+   */
   items: NavItem[];
+  /** Set when the items are resolved at render time instead of listed here. */
+  itemsFrom?: NavItemSource;
+  /**
+   * How a dynamic section's items arrived, stamped by `resolveConfigSections`.
+   * Renderers must say "loading" / "couldn't load" rather than draw an empty
+   * group, which would claim the lists don't exist.
+   */
+  itemsStatus?: "loading" | "error" | "ready";
   subsections?: NavSection[];
 }
 
@@ -123,42 +149,18 @@ export const configSections: NavSection[] = [
   },
   {
     // Every list served by unified options lives here, whatever domain it
-    // belongs to — the group IS "/config/options". Each item keeps the
-    // component gate it had in its old home: the gating is per item, which is
-    // what lets a disabled component's lists share this group and stay hidden.
+    // belongs to — the group IS "/config/options". The items are not listed:
+    // they come from the options registry via `resolveConfigSections`, so a
+    // list added to the registry appears here, correctly named, with no edit
+    // to this file. Each resolved item keeps the component gate the registry
+    // declares for its type, which is what lets a disabled component's lists
+    // share this group and stay hidden.
     id: "dropdown-lists",
     title: "Dropdown Lists",
     description: "Configurable dropdown options",
     icon: List,
-    items: [
-      { path: "/config/options/worker-id-type/list", label: "Worker ID Types", icon: List, testId: "nav-config-worker-id-types", permission: "admin" },
-      { path: "/config/options/gender/list", label: "Gender Options", icon: List, testId: "nav-config-gender-options", permission: "admin" },
-      { path: "/config/options/worker-ws/list", label: "Worker Work Statuses", icon: List, testId: "nav-config-worker-work-statuses", permission: "admin" },
-      { path: "/config/options/worker-ms/list", label: "Worker Member Statuses", icon: List, testId: "nav-config-worker-member-statuses", permission: "admin" },
-      { path: "/config/options/skill/list", label: "Skill Options", icon: List, testId: "nav-config-skill-options", permission: "admin", requiresComponent: "worker.skills" },
-      { path: "/config/options/certification/list", label: "Certifications", icon: FileText, testId: "nav-config-certification-options", permission: "admin", requiresComponent: "worker.certifications" },
-      { path: "/config/options/classification/list", label: "Classifications", icon: List, testId: "nav-config-classification-options", permission: "admin" },
-      { path: "/config/options/industry/list", label: "Industries", icon: List, testId: "nav-config-industry-options", permission: "admin" },
-      { path: "/config/options/worker-rating/list", label: "Rating Types", icon: List, testId: "nav-config-rating-options", permission: "admin", requiresComponent: "worker.ratings" },
-      { path: "/config/options/worker-relation-type/list", label: "Relationship Types", icon: List, testId: "nav-config-worker-relation-types", permission: "admin", requiresComponent: "worker.relations" },
-      { path: "/config/options/employment-status/list", label: "Employment Statuses", icon: List, testId: "nav-config-employment-statuses", permission: "admin" },
-      { path: "/config/options/comm-tag/list", label: "Comm Tags", icon: Tag, testId: "nav-config-comm-tags", permission: "admin" },
-      { path: "/config/options/note-type/list", label: "Note Types", icon: List, testId: "nav-config-note-types", permission: "admin" },
-      { path: "/config/options/employer-type/list", label: "Employer Types", icon: List, testId: "nav-config-employer-types", permission: "admin" },
-      { path: "/config/options/department/list", label: "Departments", icon: List, testId: "nav-config-departments", permission: "admin" },
-      { path: "/config/options/employer-contact-type/list", label: "Employer Contact Types", icon: List, testId: "nav-config-employer-contact-types", permission: "admin" },
-      { path: "/config/options/trust-benefit-type/list", label: "Trust Benefit Types", icon: List, testId: "nav-config-trust-benefit-types", permission: "admin" },
-      { path: "/config/options/trust-provider-type/list", label: "Provider Contact Types", icon: List, testId: "nav-config-provider-contact-types", permission: "admin" },
-      { path: "/config/options/worker-ban-type/list", label: "Worker Ban Types", icon: List, testId: "nav-config-worker-ban-types", permission: "admin", requiresComponent: "dispatch" },
-      { path: "/config/options/grievance-status/list", label: "Status Options", icon: List, testId: "nav-config-grievance-status-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-category/list", label: "Category Options", icon: List, testId: "nav-config-grievance-category-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-step/list", label: "Step Options", icon: List, testId: "nav-config-grievance-step-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-complaint/list", label: "Complaint Options", icon: List, testId: "nav-config-grievance-complaint-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-remedy/list", label: "Remedy Options", icon: List, testId: "nav-config-grievance-remedy-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-role/list", label: "Role Options", icon: List, testId: "nav-config-grievance-role-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-settlement-type/list", label: "Settlement Types", icon: List, testId: "nav-config-grievance-settlement-type-options", permission: "admin", requiresComponent: "grievance.settlement" },
-      { path: "/config/options/edls-show-status/list", label: "Show Statuses", icon: List, testId: "nav-config-edls-show-statuses", permission: "admin", requiresComponent: "edls" },
-    ],
+    items: [],
+    itemsFrom: "options-catalog",
   },
   {
     id: "events",
@@ -166,7 +168,7 @@ export const configSections: NavSection[] = [
     description: "Event management and configuration",
     icon: Calendar,
     items: [
-      { path: "/config/event-types", label: "Event Types", icon: List, testId: "nav-config-event-types", permission: "admin", requiresComponent: "event" },
+      bespokeOptionsNavItem({ path: "/config/event-types", optionsType: "event-type", icon: List, testId: "nav-config-event-types", permission: "admin", requiresComponent: "event" }),
     ],
   },
   {
@@ -175,7 +177,7 @@ export const configSections: NavSection[] = [
     description: "Dispatch management and configuration",
     icon: Truck,
     items: [
-      { path: "/config/dispatch-job-types", label: "Job Types", icon: List, testId: "nav-config-dispatch-job-types", permission: "admin", requiresComponent: "dispatch" },
+      bespokeOptionsNavItem({ path: "/config/dispatch-job-types", optionsType: "dispatch-job-type", icon: List, testId: "nav-config-dispatch-job-types", permission: "admin", requiresComponent: "dispatch" }),
       { path: "/admin/plugin-configs/dispatch-eligibility", label: "Eligibility Plugins", icon: Zap, testId: "nav-config-dispatch-eligibility-plugins", permission: "admin" },
       { path: "/config/dispatch/backfill", label: "Eligibility Backfill", icon: RefreshCw, testId: "nav-config-dispatch-backfill", permission: "admin", requiresComponent: "dispatch" },
       { path: "/config/dispatch/dnc", label: "Do Not Call", icon: Phone, testId: "nav-config-dispatch-dnc", permission: "admin", requiresComponent: "dispatch.dnc" },
@@ -212,7 +214,7 @@ export const configSections: NavSection[] = [
     description: "Financial ledger and payment configuration",
     icon: Wallet,
     items: [
-      { path: "/config/ledger/payment-types", label: "Payment Types", icon: Wallet, testId: "nav-ledger-payment-types", policy: "staff" },
+      bespokeOptionsNavItem({ path: "/config/ledger/payment-types", optionsType: "ledger-payment-type", icon: Wallet, testId: "nav-ledger-payment-types", policy: "staff", requiresComponent: "ledger" }),
       { path: "/admin/plugin-configs/charge", label: "Charge Plugins", icon: Zap, testId: "nav-ledger-charge-plugins", permission: "admin" },
       { path: "/config/ledger/payment-gateways/test", label: "Gateway Test", icon: Activity, testId: "nav-ledger-gateway-test", permission: "admin" },
       { path: "/config/ledger/payment-gateways/payment-types", label: "Gateway Payment Types", icon: CreditCard, testId: "nav-ledger-gateway-payment-types", permission: "admin" },
@@ -226,7 +228,7 @@ export const configSections: NavSection[] = [
     icon: Calendar,
     items: [
       { path: "/config/edls/settings", label: "Settings", icon: Settings, testId: "nav-config-edls-settings", permission: "admin", requiresComponent: "edls" },
-      { path: "/config/edls/tasks", label: "Tasks", icon: List, testId: "nav-config-edls-tasks", permission: "admin", requiresComponent: "edls" },
+      bespokeOptionsNavItem({ path: "/config/edls/tasks", optionsType: "edls-task", icon: List, testId: "nav-config-edls-tasks", permission: "admin", requiresComponent: "edls" }),
       { path: "/config/edls/t631-fetch", label: "Teamsters 631 Fetch", icon: Zap, testId: "nav-config-edls-t631-fetch", permission: "admin", requiresComponents: ["edls", "sitespecific.t631.client"] },
       { path: "/config/edls/t631-ms", label: "Teamsters 631 MS", icon: List, testId: "nav-config-edls-t631-ms", permission: "admin", requiresComponents: ["edls", "sitespecific.t631.client"] },
       { path: "/admin/sitespecific/freeman/edls/migrate", label: "Freeman Migration", icon: Server, testId: "nav-config-edls-freeman-migrate", permission: "admin", requiresComponents: ["edls", "sitespecific.freeman.edls_migrate"] },
@@ -246,6 +248,110 @@ export const configSections: NavSection[] = [
     ],
   },
 ];
+
+/** One options list, as the server's `/api/options/catalog` describes it. */
+export interface OptionsCatalogEntry {
+  type: string;
+  name: string;
+  /** The same name for a screen listing the records, e.g. "Event Types". */
+  pluralName: string;
+  description?: string;
+  requiredComponent?: string;
+  /** Set when the list is administered on its own page, at this path. */
+  bespokePath?: string;
+}
+
+/**
+ * The options lists that belong in the generic options navigation: everything
+ * the registry knows about except the types administered on their own page
+ * (those already have a home elsewhere in Config, and the catalog says so).
+ */
+export function listedOptionsCatalogEntries(catalog: OptionsCatalogEntry[]): OptionsCatalogEntry[] {
+  return catalog.filter(entry => !entry.bespokePath);
+}
+
+/** The path of an options list's generic page. */
+export function optionsListPath(type: string): string {
+  return `/config/options/${type}/list`;
+}
+
+/**
+ * Turn a catalog entry into a nav item. The label is the registry's name — the
+ * same name the page heading uses — and the component gate is the registry's,
+ * so nothing about this list is spelled out twice.
+ */
+export function optionsCatalogNavItem(entry: OptionsCatalogEntry): NavItem {
+  return {
+    path: optionsListPath(entry.type),
+    label: entry.name,
+    icon: List,
+    testId: `nav-config-options-${entry.type}`,
+    permission: "admin",
+    requiresComponent: entry.requiredComponent,
+  };
+}
+
+/**
+ * An item leading to an options list that is administered on its own page. It
+ * carries the page's own access gate — which can be stricter than the list's —
+ * and takes its label from the options registry like every other list.
+ */
+export function bespokeOptionsNavItem(
+  item: Omit<NavItem, "label" | "optionsType"> & { optionsType: string },
+): NavItem {
+  return { ...item, label: "" };
+}
+
+/**
+ * Fill in what the options catalog owns: the items of every section whose
+ * `itemsFrom` names it, and the label of any item that names an options type.
+ * A section holding either kind is stamped with how its items arrived, so a
+ * renderer can say "loading" / "couldn't load" instead of quietly dropping
+ * lists that do exist.
+ */
+export function resolveConfigSections(
+  catalog: { entries: OptionsCatalogEntry[]; status: "loading" | "error" | "ready" },
+  sections: NavSection[] = configSections,
+): NavSection[] {
+  const byType = new Map(catalog.entries.map(entry => [entry.type, entry]));
+
+  const resolveSection = (section: NavSection): NavSection => {
+    const namedItems = section.items.filter(item => item.optionsType);
+    const isDynamic = section.itemsFrom !== undefined || namedItems.length > 0;
+
+    let items: NavItem[];
+    let resolved: boolean;
+
+    if (section.itemsFrom === "options-catalog") {
+      items = listedOptionsCatalogEntries(catalog.entries).map(optionsCatalogNavItem);
+      resolved = catalog.status === "ready";
+    } else {
+      items = section.items.flatMap(item => {
+        if (!item.optionsType) return [item];
+        const entry = byType.get(item.optionsType);
+        // An unnamed item is left out rather than shown under a guessed name;
+        // the section says why below.
+        return entry ? [{ ...item, label: entry.pluralName }] : [];
+      });
+      resolved = namedItems.every(item => byType.has(item.optionsType!));
+    }
+
+    return {
+      ...section,
+      items,
+      itemsStatus: isDynamic
+        ? resolved
+          ? "ready"
+          : catalog.status === "error"
+            ? "error"
+            : "loading"
+        : section.itemsStatus,
+      subsections: section.subsections?.map(resolveSection),
+    };
+  };
+
+  return sections.map(resolveSection);
+}
 
 export interface AccessContext {
   hasPermission: (permission: string) => boolean;
@@ -271,8 +377,11 @@ export function getAccessibleItems(items: NavItem[], context: AccessContext): Na
   return items.filter(item => hasAccessToItem(item, context));
 }
 
-export function getAccessibleSections(context: AccessContext): NavSection[] {
-  return configSections
+export function getAccessibleSections(
+  context: AccessContext,
+  sections: NavSection[] = configSections,
+): NavSection[] {
+  return sections
     .map(section => {
       const accessibleItems = getAccessibleItems(section.items, context);
       const accessibleSubsections = section.subsections
@@ -288,12 +397,18 @@ export function getAccessibleSections(context: AccessContext): NavSection[] {
         subsections: accessibleSubsections,
       };
     })
-    .filter(section => section.items.length > 0 || (section.subsections && section.subsections.length > 0));
+    .filter(section =>
+      section.items.length > 0
+      || (section.subsections && section.subsections.length > 0)
+      // A dynamic section that has not resolved yet is kept so the renderer can
+      // say so. Dropping it would claim its lists don't exist.
+      || (section.itemsStatus !== undefined && section.itemsStatus !== "ready")
+    );
 }
 
-export function getAllNavItems(): NavItem[] {
+export function getAllNavItems(sections: NavSection[] = configSections): NavItem[] {
   const items: NavItem[] = [];
-  for (const section of configSections) {
+  for (const section of sections) {
     items.push(...section.items);
     if (section.subsections) {
       for (const sub of section.subsections) {
@@ -326,14 +441,14 @@ function pathMatchesItem(path: string, itemPath: string): boolean {
  * matching via prefix. Falls back to the generic parent item when no more
  * specific item exists. Returns `null` when nothing matches.
  */
-export function findActiveItemPath(path: string): string | null {
+export function findActiveItemPath(path: string, sections: NavSection[] = configSections): string | null {
   let best: string | null = null;
   const consider = (itemPath: string) => {
     if (pathMatchesItem(path, itemPath)) {
       if (best === null || itemPath.length > best.length) best = itemPath;
     }
   };
-  for (const section of configSections) {
+  for (const section of sections) {
     section.items.forEach(item => consider(item.path));
     section.subsections?.forEach(sub => sub.items.forEach(item => consider(item.path)));
   }
