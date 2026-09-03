@@ -50,18 +50,13 @@ export interface NavSection {
   subsections?: NavSection[];
 }
 
+/**
+ * Every config section, in the order they are shown. Both config surfaces (the
+ * sidebar and the Config landing page) render this list in order, so the order
+ * here IS the display order — a new section goes where a reader expects it, not
+ * on the end.
+ */
 export const configSections: NavSection[] = [
-  {
-    id: "policies",
-    title: "Policies",
-    description: "Policy configuration and defaults",
-    icon: FileText,
-    items: [
-      { path: "/config/policies", label: "Policies", icon: FileText, testId: "nav-config-policies", permission: "admin" },
-      { path: "/config/default-policy", label: "Default Policy", icon: Settings, testId: "nav-config-default-policy", permission: "admin" },
-      { path: "/contracts", label: "Contracts", icon: FileText, testId: "nav-config-contracts", permission: "staff", requiresComponent: "contract" },
-    ],
-  },
   {
     id: "system",
     title: "System",
@@ -100,27 +95,6 @@ export const configSections: NavSection[] = [
     ],
   },
   {
-    id: "trust",
-    title: "Trust",
-    description: "Trust benefits and provider configuration",
-    icon: Heart,
-    items: [
-      { path: "/trust-benefits", label: "Trust Benefits", icon: Heart, testId: "nav-trust-benefits", permission: "staff" },
-      { path: "/admin/plugin-configs/trust-eligibility", label: "Eligibility Plugins", icon: Zap, testId: "nav-config-trust-eligibility-plugins", permission: "admin" },
-      { path: "/config/trust/providers/user-settings", label: "Provider User Settings", icon: Settings, testId: "nav-config-users-trust-provider-settings", permission: "admin" },
-      { path: "/config/trust/sitespecific/bao/thresholds", label: "Member Status Thresholds", icon: Clock, testId: "nav-config-bao-thresholds", permission: "admin", requiresComponent: "sitespecific.bao" },
-    ],
-  },
-  {
-    id: "employers",
-    title: "Employers",
-    description: "Employer-related configuration",
-    icon: Building2,
-    items: [
-      { path: "/config/employers/user-settings", label: "Employer User Settings", icon: Settings, testId: "nav-config-users-employer-settings", permission: "admin" },
-    ],
-  },
-  {
     // The id stays "contact" although the group is now called "Comm": it is
     // never shown, and it is what the sidebar's per-section test-id map and
     // every data-testid built from it are keyed on.
@@ -133,18 +107,6 @@ export const configSections: NavSection[] = [
       { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", permission: "admin" },
       { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", permission: "admin" },
       { path: "/config/addresses", label: "Postal Addresses", icon: MapPin, testId: "nav-config-addresses", permission: "admin" },
-    ],
-  },
-  {
-    id: "workers",
-    title: "Workers",
-    description: "Worker settings and notifications",
-    icon: Users,
-    items: [
-      { path: "/config/steward-settings", label: "Steward", icon: Users, testId: "nav-config-steward-settings", permission: "admin", requiresComponent: "worker.steward" },
-      { path: "/config/workers/ban", label: "Ban Notifications", icon: Shield, testId: "nav-config-workers-ban", permission: "admin", requiresComponent: "worker.ban" },
-      { path: "/config/workers/tos", label: "Time Off Sick", icon: Calendar, testId: "nav-config-workers-tos", permission: "admin", requiresComponent: "worker.tos" },
-      { path: "/config/workers/user-settings", label: "Worker User Settings", icon: Settings, testId: "nav-config-users-worker-settings", permission: "admin" },
     ],
   },
   {
@@ -163,12 +125,37 @@ export const configSections: NavSection[] = [
     itemsFrom: "options-catalog",
   },
   {
-    id: "events",
-    title: "Events",
-    description: "Event management and configuration",
-    icon: Calendar,
+    id: "ledger",
+    title: "Ledger",
+    description: "Financial ledger and payment configuration",
+    icon: Wallet,
     items: [
-      bespokeOptionsNavItem({ path: "/config/event-types", optionsType: "event-type", icon: List, testId: "nav-config-event-types", permission: "admin", requiresComponent: "event" }),
+      bespokeOptionsNavItem({ path: "/config/ledger/payment-types", optionsType: "ledger-payment-type", icon: Wallet, testId: "nav-ledger-payment-types", policy: "staff", requiresComponent: "ledger" }),
+      { path: "/admin/plugin-configs/charge", label: "Charge Plugins", icon: Zap, testId: "nav-ledger-charge-plugins", permission: "admin" },
+      { path: "/config/ledger/payment-gateways/test", label: "Gateway Test", icon: Activity, testId: "nav-ledger-gateway-test", permission: "admin" },
+      { path: "/config/ledger/payment-gateways/payment-types", label: "Gateway Payment Types", icon: CreditCard, testId: "nav-ledger-gateway-payment-types", permission: "admin" },
+      { path: "/config/ledger/settings", label: "Settings", icon: Settings, testId: "nav-ledger-settings", permission: "admin" },
+    ],
+  },
+  {
+    id: "workers",
+    title: "Workers",
+    description: "Worker settings and notifications",
+    icon: Users,
+    items: [
+      { path: "/config/steward-settings", label: "Steward", icon: Users, testId: "nav-config-steward-settings", permission: "admin", requiresComponent: "worker.steward" },
+      { path: "/config/workers/ban", label: "Ban Notifications", icon: Shield, testId: "nav-config-workers-ban", permission: "admin", requiresComponent: "worker.ban" },
+      { path: "/config/workers/tos", label: "Time Off Sick", icon: Calendar, testId: "nav-config-workers-tos", permission: "admin", requiresComponent: "worker.tos" },
+      { path: "/config/workers/user-settings", label: "Worker User Settings", icon: Settings, testId: "nav-config-users-worker-settings", permission: "admin" },
+    ],
+  },
+  {
+    id: "employers",
+    title: "Employers",
+    description: "Employer-related configuration",
+    icon: Building2,
+    items: [
+      { path: "/config/employers/user-settings", label: "Employer User Settings", icon: Settings, testId: "nav-config-users-employer-settings", permission: "admin" },
     ],
   },
   {
@@ -187,16 +174,12 @@ export const configSections: NavSection[] = [
     ],
   },
   {
-    id: "btu",
-    title: "BTU",
-    description: "Boston Teachers Union configuration",
-    icon: GraduationCap,
+    id: "events",
+    title: "Events",
+    description: "Event management and configuration",
+    icon: Calendar,
     items: [
-      { path: "/sitespecific/btu/csgs", label: "CSG Management", icon: Users, testId: "nav-btu-csgs", permission: "admin", requiresComponent: "sitespecific.btu" },
-      { path: "/sitespecific/btu/employer-map", label: "Employer Map", icon: Building2, testId: "nav-btu-employer-map", permission: "admin", requiresComponent: "sitespecific.btu" },
-      { path: "/sitespecific/btu/territories", label: "Territories", icon: MapPin, testId: "nav-btu-territories", permission: "admin", requiresComponent: "sitespecific.btu" },
-      { path: "/sitespecific/btu/school-types", label: "School Types", icon: School, testId: "nav-btu-school-types", permission: "admin", requiresComponent: "sitespecific.btu" },
-      { path: "/sitespecific/btu/regions", label: "Regions", icon: MapPin, testId: "nav-btu-regions", permission: "admin", requiresComponent: "sitespecific.btu" },
+      bespokeOptionsNavItem({ path: "/config/event-types", optionsType: "event-type", icon: List, testId: "nav-config-event-types", permission: "admin", requiresComponent: "event" }),
     ],
   },
   {
@@ -209,16 +192,15 @@ export const configSections: NavSection[] = [
     ],
   },
   {
-    id: "ledger",
-    title: "Ledger",
-    description: "Financial ledger and payment configuration",
-    icon: Wallet,
+    id: "trust",
+    title: "Trust",
+    description: "Trust benefits and provider configuration",
+    icon: Heart,
     items: [
-      bespokeOptionsNavItem({ path: "/config/ledger/payment-types", optionsType: "ledger-payment-type", icon: Wallet, testId: "nav-ledger-payment-types", policy: "staff", requiresComponent: "ledger" }),
-      { path: "/admin/plugin-configs/charge", label: "Charge Plugins", icon: Zap, testId: "nav-ledger-charge-plugins", permission: "admin" },
-      { path: "/config/ledger/payment-gateways/test", label: "Gateway Test", icon: Activity, testId: "nav-ledger-gateway-test", permission: "admin" },
-      { path: "/config/ledger/payment-gateways/payment-types", label: "Gateway Payment Types", icon: CreditCard, testId: "nav-ledger-gateway-payment-types", permission: "admin" },
-      { path: "/config/ledger/settings", label: "Settings", icon: Settings, testId: "nav-ledger-settings", permission: "admin" },
+      { path: "/trust-benefits", label: "Trust Benefits", icon: Heart, testId: "nav-trust-benefits", permission: "staff" },
+      { path: "/admin/plugin-configs/trust-eligibility", label: "Eligibility Plugins", icon: Zap, testId: "nav-config-trust-eligibility-plugins", permission: "admin" },
+      { path: "/config/trust/providers/user-settings", label: "Provider User Settings", icon: Settings, testId: "nav-config-users-trust-provider-settings", permission: "admin" },
+      { path: "/config/trust/sitespecific/bao/thresholds", label: "Member Status Thresholds", icon: Clock, testId: "nav-config-bao-thresholds", permission: "admin", requiresComponent: "sitespecific.bao" },
     ],
   },
   {
@@ -232,6 +214,30 @@ export const configSections: NavSection[] = [
       { path: "/config/edls/t631-fetch", label: "Teamsters 631 Fetch", icon: Zap, testId: "nav-config-edls-t631-fetch", permission: "admin", requiresComponents: ["edls", "sitespecific.t631.client"] },
       { path: "/config/edls/t631-ms", label: "Teamsters 631 MS", icon: List, testId: "nav-config-edls-t631-ms", permission: "admin", requiresComponents: ["edls", "sitespecific.t631.client"] },
       { path: "/admin/sitespecific/freeman/edls/migrate", label: "Freeman Migration", icon: Server, testId: "nav-config-edls-freeman-migrate", permission: "admin", requiresComponents: ["edls", "sitespecific.freeman.edls_migrate"] },
+    ],
+  },
+  {
+    id: "btu",
+    title: "BTU",
+    description: "Boston Teachers Union configuration",
+    icon: GraduationCap,
+    items: [
+      { path: "/sitespecific/btu/csgs", label: "CSG Management", icon: Users, testId: "nav-btu-csgs", permission: "admin", requiresComponent: "sitespecific.btu" },
+      { path: "/sitespecific/btu/employer-map", label: "Employer Map", icon: Building2, testId: "nav-btu-employer-map", permission: "admin", requiresComponent: "sitespecific.btu" },
+      { path: "/sitespecific/btu/territories", label: "Territories", icon: MapPin, testId: "nav-btu-territories", permission: "admin", requiresComponent: "sitespecific.btu" },
+      { path: "/sitespecific/btu/school-types", label: "School Types", icon: School, testId: "nav-btu-school-types", permission: "admin", requiresComponent: "sitespecific.btu" },
+      { path: "/sitespecific/btu/regions", label: "Regions", icon: MapPin, testId: "nav-btu-regions", permission: "admin", requiresComponent: "sitespecific.btu" },
+    ],
+  },
+  {
+    id: "policies",
+    title: "Policies",
+    description: "Policy configuration and defaults",
+    icon: FileText,
+    items: [
+      { path: "/config/policies", label: "Policies", icon: FileText, testId: "nav-config-policies", permission: "admin" },
+      { path: "/config/default-policy", label: "Default Policy", icon: Settings, testId: "nav-config-default-policy", permission: "admin" },
+      { path: "/contracts", label: "Contracts", icon: FileText, testId: "nav-config-contracts", permission: "staff", requiresComponent: "contract" },
     ],
   },
   {
