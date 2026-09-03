@@ -47,9 +47,6 @@ export const configSections: NavSection[] = [
       { path: "/config/system-status", label: "System Status", icon: Activity, testId: "nav-config-system-status", permission: "admin" },
       { path: "/config/env", label: "Environment", icon: Terminal, testId: "nav-config-env", permission: "admin" },
       { path: "/config/timezone", label: "Time Zone", icon: Clock, testId: "nav-config-timezone", permission: "admin" },
-      { path: "/config/twilio", label: "SMS Providers", icon: MessageSquare, testId: "nav-config-sms", permission: "admin" },
-      { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", permission: "admin" },
-      { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", permission: "admin" },
       { path: "/config/components", label: "Components", icon: Package, testId: "nav-config-components", permission: "admin" },
       { path: "/admin/plugin-configs", label: "Plugins", icon: Puzzle, testId: "nav-config-plugins", permission: "admin" },
       { path: "/admin/denorm", label: "Denorm", icon: RefreshCw, testId: "nav-config-denorm", permission: "admin" },
@@ -103,11 +100,17 @@ export const configSections: NavSection[] = [
     ],
   },
   {
+    // The id stays "contact" although the group is now called "Comm": it is
+    // never shown, and it is what the sidebar's per-section test-id map and
+    // every data-testid built from it are keyed on.
     id: "contact",
-    title: "Contact Information",
-    description: "Address and phone number settings",
+    title: "Comm",
+    description: "Message providers, addresses, and contact settings",
     icon: Phone,
     items: [
+      { path: "/config/twilio", label: "SMS Providers", icon: MessageSquare, testId: "nav-config-sms", permission: "admin" },
+      { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", permission: "admin" },
+      { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", permission: "admin" },
       { path: "/config/addresses", label: "Postal Addresses", icon: MapPin, testId: "nav-config-addresses", permission: "admin" },
       { path: "/config/options/gender/list", label: "Gender Options", icon: List, testId: "nav-config-gender-options", permission: "admin" },
     ],
