@@ -112,7 +112,6 @@ export const configSections: NavSection[] = [
       { path: "/config/email", label: "Email Providers", icon: MessageSquare, testId: "nav-config-email", permission: "admin" },
       { path: "/config/postal", label: "Postal Providers", icon: MessageSquare, testId: "nav-config-postal", permission: "admin" },
       { path: "/config/addresses", label: "Postal Addresses", icon: MapPin, testId: "nav-config-addresses", permission: "admin" },
-      { path: "/config/options/gender/list", label: "Gender Options", icon: List, testId: "nav-config-gender-options", permission: "admin" },
     ],
   },
   {
@@ -122,6 +121,7 @@ export const configSections: NavSection[] = [
     icon: List,
     items: [
       { path: "/config/options/worker-id-type/list", label: "Worker ID Types", icon: List, testId: "nav-config-worker-id-types", permission: "admin" },
+      { path: "/config/options/gender/list", label: "Gender Options", icon: List, testId: "nav-config-gender-options", permission: "admin" },
       { path: "/config/options/worker-ws/list", label: "Worker Work Statuses", icon: List, testId: "nav-config-worker-work-statuses", permission: "admin" },
       { path: "/config/options/worker-ms/list", label: "Worker Member Statuses", icon: List, testId: "nav-config-worker-member-statuses", permission: "admin" },
       { path: "/config/options/skill/list", label: "Skill Options", icon: List, testId: "nav-config-skill-options", permission: "admin", requiresComponent: "worker.skills" },
