@@ -213,7 +213,6 @@ export default function ConfigurationLayout({ children }: ConfigurationLayoutPro
 
 function getSectionDisplayTitle(section: NavSection): string {
   const titleMap: Record<string, string> = {
-    "dropdown-lists": "Workers",
     "theme": "Theme",
   };
   return titleMap[section.id] || section.title;
@@ -221,7 +220,6 @@ function getSectionDisplayTitle(section: NavSection): string {
 
 function getSectionTestId(section: NavSection): string {
   const testIdMap: Record<string, string> = {
-    "dropdown-lists": "nav-config-workers",
     "user-management": "nav-config-user-management",
     "contact": "nav-config-contact",
     "employers": "nav-config-employers",

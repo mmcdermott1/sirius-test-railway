@@ -81,8 +81,6 @@ export const configSections: NavSection[] = [
     items: [
       { path: "/trust-benefits", label: "Trust Benefits", icon: Heart, testId: "nav-trust-benefits", permission: "staff" },
       { path: "/admin/plugin-configs/trust-eligibility", label: "Eligibility Plugins", icon: Zap, testId: "nav-config-trust-eligibility-plugins", permission: "admin" },
-      { path: "/config/options/trust-benefit-type/list", label: "Trust Benefit Types", icon: List, testId: "nav-config-trust-benefit-types", permission: "admin" },
-      { path: "/config/options/trust-provider-type/list", label: "Provider Contact Types", icon: List, testId: "nav-config-provider-contact-types", permission: "admin" },
       { path: "/config/trust/providers/user-settings", label: "Provider User Settings", icon: Settings, testId: "nav-config-users-trust-provider-settings", permission: "admin" },
       { path: "/config/trust/sitespecific/bao/thresholds", label: "Member Status Thresholds", icon: Clock, testId: "nav-config-bao-thresholds", permission: "admin", requiresComponent: "sitespecific.bao" },
     ],
@@ -93,9 +91,6 @@ export const configSections: NavSection[] = [
     description: "Employer-related configuration",
     icon: Building2,
     items: [
-      { path: "/config/options/employer-type/list", label: "Employer Types", icon: List, testId: "nav-config-employer-types", permission: "admin" },
-      { path: "/config/options/department/list", label: "Departments", icon: List, testId: "nav-config-departments", permission: "admin" },
-      { path: "/config/options/employer-contact-type/list", label: "Employer Contact Types", icon: List, testId: "nav-config-employer-contact-types", permission: "admin" },
       { path: "/config/employers/user-settings", label: "Employer User Settings", icon: Settings, testId: "nav-config-users-employer-settings", permission: "admin" },
     ],
   },
@@ -115,6 +110,22 @@ export const configSections: NavSection[] = [
     ],
   },
   {
+    id: "workers",
+    title: "Workers",
+    description: "Worker settings and notifications",
+    icon: Users,
+    items: [
+      { path: "/config/steward-settings", label: "Steward", icon: Users, testId: "nav-config-steward-settings", permission: "admin", requiresComponent: "worker.steward" },
+      { path: "/config/workers/ban", label: "Ban Notifications", icon: Shield, testId: "nav-config-workers-ban", permission: "admin", requiresComponent: "worker.ban" },
+      { path: "/config/workers/tos", label: "Time Off Sick", icon: Calendar, testId: "nav-config-workers-tos", permission: "admin", requiresComponent: "worker.tos" },
+      { path: "/config/workers/user-settings", label: "Worker User Settings", icon: Settings, testId: "nav-config-users-worker-settings", permission: "admin" },
+    ],
+  },
+  {
+    // Every list served by unified options lives here, whatever domain it
+    // belongs to — the group IS "/config/options". Each item keeps the
+    // component gate it had in its old home: the gating is per item, which is
+    // what lets a disabled component's lists share this group and stay hidden.
     id: "dropdown-lists",
     title: "Dropdown Lists",
     description: "Configurable dropdown options",
@@ -133,10 +144,20 @@ export const configSections: NavSection[] = [
       { path: "/config/options/employment-status/list", label: "Employment Statuses", icon: List, testId: "nav-config-employment-statuses", permission: "admin" },
       { path: "/config/options/comm-tag/list", label: "Comm Tags", icon: Tag, testId: "nav-config-comm-tags", permission: "admin" },
       { path: "/config/options/note-type/list", label: "Note Types", icon: List, testId: "nav-config-note-types", permission: "admin" },
-      { path: "/config/steward-settings", label: "Steward", icon: Users, testId: "nav-config-steward-settings", permission: "admin", requiresComponent: "worker.steward" },
-      { path: "/config/workers/ban", label: "Ban Notifications", icon: Shield, testId: "nav-config-workers-ban", permission: "admin", requiresComponent: "worker.ban" },
-      { path: "/config/workers/tos", label: "Time Off Sick", icon: Calendar, testId: "nav-config-workers-tos", permission: "admin", requiresComponent: "worker.tos" },
-      { path: "/config/workers/user-settings", label: "Worker User Settings", icon: Settings, testId: "nav-config-users-worker-settings", permission: "admin" },
+      { path: "/config/options/employer-type/list", label: "Employer Types", icon: List, testId: "nav-config-employer-types", permission: "admin" },
+      { path: "/config/options/department/list", label: "Departments", icon: List, testId: "nav-config-departments", permission: "admin" },
+      { path: "/config/options/employer-contact-type/list", label: "Employer Contact Types", icon: List, testId: "nav-config-employer-contact-types", permission: "admin" },
+      { path: "/config/options/trust-benefit-type/list", label: "Trust Benefit Types", icon: List, testId: "nav-config-trust-benefit-types", permission: "admin" },
+      { path: "/config/options/trust-provider-type/list", label: "Provider Contact Types", icon: List, testId: "nav-config-provider-contact-types", permission: "admin" },
+      { path: "/config/options/worker-ban-type/list", label: "Worker Ban Types", icon: List, testId: "nav-config-worker-ban-types", permission: "admin", requiresComponent: "dispatch" },
+      { path: "/config/options/grievance-status/list", label: "Status Options", icon: List, testId: "nav-config-grievance-status-options", permission: "admin", requiresComponent: "grievance" },
+      { path: "/config/options/grievance-category/list", label: "Category Options", icon: List, testId: "nav-config-grievance-category-options", permission: "admin", requiresComponent: "grievance" },
+      { path: "/config/options/grievance-step/list", label: "Step Options", icon: List, testId: "nav-config-grievance-step-options", permission: "admin", requiresComponent: "grievance" },
+      { path: "/config/options/grievance-complaint/list", label: "Complaint Options", icon: List, testId: "nav-config-grievance-complaint-options", permission: "admin", requiresComponent: "grievance" },
+      { path: "/config/options/grievance-remedy/list", label: "Remedy Options", icon: List, testId: "nav-config-grievance-remedy-options", permission: "admin", requiresComponent: "grievance" },
+      { path: "/config/options/grievance-role/list", label: "Role Options", icon: List, testId: "nav-config-grievance-role-options", permission: "admin", requiresComponent: "grievance" },
+      { path: "/config/options/grievance-settlement-type/list", label: "Settlement Types", icon: List, testId: "nav-config-grievance-settlement-type-options", permission: "admin", requiresComponent: "grievance.settlement" },
+      { path: "/config/options/edls-show-status/list", label: "Show Statuses", icon: List, testId: "nav-config-edls-show-statuses", permission: "admin", requiresComponent: "edls" },
     ],
   },
   {
@@ -155,7 +176,6 @@ export const configSections: NavSection[] = [
     icon: Truck,
     items: [
       { path: "/config/dispatch-job-types", label: "Job Types", icon: List, testId: "nav-config-dispatch-job-types", permission: "admin", requiresComponent: "dispatch" },
-      { path: "/config/options/worker-ban-type/list", label: "Worker Ban Types", icon: List, testId: "nav-config-worker-ban-types", permission: "admin", requiresComponent: "dispatch" },
       { path: "/admin/plugin-configs/dispatch-eligibility", label: "Eligibility Plugins", icon: Zap, testId: "nav-config-dispatch-eligibility-plugins", permission: "admin" },
       { path: "/config/dispatch/backfill", label: "Eligibility Backfill", icon: RefreshCw, testId: "nav-config-dispatch-backfill", permission: "admin", requiresComponent: "dispatch" },
       { path: "/config/dispatch/dnc", label: "Do Not Call", icon: Phone, testId: "nav-config-dispatch-dnc", permission: "admin", requiresComponent: "dispatch.dnc" },
@@ -183,13 +203,6 @@ export const configSections: NavSection[] = [
     description: "Grievance tracking configuration",
     icon: FileText,
     items: [
-      { path: "/config/options/grievance-status/list", label: "Status Options", icon: List, testId: "nav-config-grievance-status-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-category/list", label: "Category Options", icon: List, testId: "nav-config-grievance-category-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-step/list", label: "Step Options", icon: List, testId: "nav-config-grievance-step-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-complaint/list", label: "Complaint Options", icon: List, testId: "nav-config-grievance-complaint-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-remedy/list", label: "Remedy Options", icon: List, testId: "nav-config-grievance-remedy-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-role/list", label: "Role Options", icon: List, testId: "nav-config-grievance-role-options", permission: "admin", requiresComponent: "grievance" },
-      { path: "/config/options/grievance-settlement-type/list", label: "Settlement Types", icon: List, testId: "nav-config-grievance-settlement-type-options", permission: "admin", requiresComponent: "grievance.settlement" },
       { path: "/grievance-timeline-templates", label: "Timeline Templates", icon: List, testId: "nav-config-grievance-timeline-templates", permission: "admin", requiresComponent: "grievance" },
     ],
   },
@@ -214,7 +227,6 @@ export const configSections: NavSection[] = [
     items: [
       { path: "/config/edls/settings", label: "Settings", icon: Settings, testId: "nav-config-edls-settings", permission: "admin", requiresComponent: "edls" },
       { path: "/config/edls/tasks", label: "Tasks", icon: List, testId: "nav-config-edls-tasks", permission: "admin", requiresComponent: "edls" },
-      { path: "/config/options/edls-show-status/list", label: "Show Statuses", icon: List, testId: "nav-config-edls-show-statuses", permission: "admin", requiresComponent: "edls" },
       { path: "/config/edls/t631-fetch", label: "Teamsters 631 Fetch", icon: Zap, testId: "nav-config-edls-t631-fetch", permission: "admin", requiresComponents: ["edls", "sitespecific.t631.client"] },
       { path: "/config/edls/t631-ms", label: "Teamsters 631 MS", icon: List, testId: "nav-config-edls-t631-ms", permission: "admin", requiresComponents: ["edls", "sitespecific.t631.client"] },
       { path: "/admin/sitespecific/freeman/edls/migrate", label: "Freeman Migration", icon: Server, testId: "nav-config-edls-freeman-migrate", permission: "admin", requiresComponents: ["edls", "sitespecific.freeman.edls_migrate"] },
