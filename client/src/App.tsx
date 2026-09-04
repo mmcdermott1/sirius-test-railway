@@ -62,8 +62,11 @@ const WorkerDispatchEba = lazy(() => import("@/pages/workers/dispatch-eba"));
 const WorkerDispatchAsi = lazy(() => import("@/pages/workers/dispatch-asi"));
 const WorkerBans = lazy(() => import("@/pages/workers/bans"));
 const WorkerNotes = lazy(() => import("@/pages/workers/notes"));
+const WorkerFiles = lazy(() => import("@/pages/workers/files"));
 const EmployerNotes = lazy(() => import("@/pages/employers/notes"));
+const EmployerFiles = lazy(() => import("@/pages/employers/files"));
 const TrustProviderNotesPage = lazy(() => import("@/pages/trust-provider-notes"));
+const TrustProviderFilesPage = lazy(() => import("@/pages/trust-provider-files"));
 const WorkerEdls = lazy(() => import("@/pages/worker-edls"));
 const WorkerEdlsAssignments = lazy(() => import("@/pages/worker-edls-assignments"));
 const WorkerSecondShift = lazy(() => import("@/pages/worker-sitespecific-freeman-2shift"));
@@ -909,6 +912,14 @@ function Router() {
         <ProtectedRoute tabId="notes" entityType="worker">
           <AuthenticatedLayout>
             <WorkerNotes />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/workers/:id/files">
+        <ProtectedRoute tabId="files" entityType="worker">
+          <AuthenticatedLayout>
+            <WorkerFiles />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
@@ -1819,6 +1830,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/employers/:id/files">
+        <ProtectedRoute tabId="files" entityType="employer">
+          <AuthenticatedLayout>
+            <EmployerFiles />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/employers/:id/policy-history">
         <ProtectedRoute tabId="policy-history" entityType="employer">
           <AuthenticatedLayout>
@@ -2210,6 +2229,14 @@ function Router() {
         <ProtectedRoute tabId="notes" entityType="provider">
           <AuthenticatedLayout>
             <TrustProviderNotesPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/trust/provider/:id/files">
+        <ProtectedRoute tabId="files" entityType="provider">
+          <AuthenticatedLayout>
+            <TrustProviderFilesPage />
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>

@@ -14,7 +14,9 @@ import {
   resolveUsableContextConfig,
   expandDirectoryTemplate,
   isExtensionAllowed,
+  ENTITY_FILES_DIRECTORY_TOKEN,
 } from "../services/entity-files/config";
+import { storage } from "../storage";
 import { insertFileSchema } from "@shared/schema";
 import { logger } from "../logger";
 import { z } from "zod";
@@ -71,7 +73,8 @@ async function resolveContextAndAuthorize(
  */
 export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddleware) {
   // Admin metadata for the config page: registered contexts (with their
-  // directory tokens and current config) plus the available filesystems.
+  // current config), the available filesystems, and the ONE directory token
+  // the framework expands — the page should not hardcode its spelling.
   app.get(
     "/api/entity-files/contexts",
     requireAuth,
@@ -86,7 +89,6 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
             componentEnabled: context.component
               ? await isComponentEnabled(context.component)
               : true,
-            tokens: context.tokens,
             config: (await getEntityFilesContextConfig(context.id)) ?? null,
           })),
         );
@@ -94,7 +96,7 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           id: fs.id,
           access: fs.access,
         }));
-        res.json({ contexts, fileSystems });
+        res.json({ contexts, fileSystems, directoryToken: ENTITY_FILES_DIRECTORY_TOKEN });
       } catch (error) {
         logger.error("Failed to list entity file contexts", {
           service: "entityFiles",
@@ -111,7 +113,7 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
       const context = await resolveContextAndAuthorize(req, res, "view");
       if (!context) return;
       const [files, usable] = await Promise.all([
-        context.adapter.list(req.params.entityId),
+        storage.entityFiles.list(context.id, req.params.entityId),
         resolveUsableContextConfig(context.id),
       ]);
       res.json({
@@ -131,7 +133,7 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
   });
 
   // Upload: bytes first (a failed row insert leaves a sweepable orphan
-  // object), then files row + join row in ONE transaction via the adapter.
+  // object), then files row + attachment row in ONE transaction.
   app.post(
     "/api/entity-files/:context/:entityId",
     requireAuth,
@@ -159,8 +161,17 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           return res.status(401).json({ message: "Could not determine the current user for this upload. Please sign in again." });
         }
 
-        const tokenValues = await context.resolveTokens(req.params.entityId);
-        const directory = expandDirectoryTemplate(usable.config.directory, tokenValues);
+        // Throws when the stored template names a token the framework does
+        // not supply — refuse the upload rather than write a path with a
+        // literal ":something" segment in it.
+        let directory: string;
+        try {
+          directory = expandDirectoryTemplate(usable.config.directory, req.params.entityId);
+        } catch (error) {
+          return res.status(503).json({
+            message: `${error instanceof Error ? error.message : String(error)} An administrator must fix it under Config → Entity Files.`,
+          });
+        }
         const safeName = req.file.originalname.split(/[/\\]/).pop() || "file";
         const customPath = `${directory ? directory + "/" : ""}${Date.now()}-${safeName.replace(/[^\w.\-]+/g, "_").slice(0, 200)}`;
 
@@ -189,7 +200,8 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           metadata: null,
         });
 
-        const record = await context.adapter.attach(
+        const record = await storage.entityFiles.createWithFile(
+          context.id,
           req.params.entityId,
           fileData,
           displayName,
@@ -235,7 +247,8 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
         if (!parsed.success) {
           return res.status(400).json({ message: "Invalid update", errors: parsed.error.issues });
         }
-        const record = await context.adapter.update(
+        const record = await storage.entityFiles.update(
+          context.id,
           req.params.entityId,
           req.params.attachmentId,
           parsed.data,
@@ -255,7 +268,7 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
     },
   );
 
-  // Delete: join row + files row in one transaction (adapter), bytes after
+  // Delete: attachment row + files row in one transaction, bytes after
   // commit inside the storage method.
   app.delete(
     "/api/entity-files/:context/:entityId/:attachmentId",
@@ -264,7 +277,8 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
       try {
         const context = await resolveContextAndAuthorize(req, res, "manage");
         if (!context) return;
-        const removed = await context.adapter.remove(
+        const removed = await storage.entityFiles.deleteWithFile(
+          context.id,
           req.params.entityId,
           req.params.attachmentId,
         );

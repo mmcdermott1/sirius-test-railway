@@ -72,6 +72,7 @@ import "./core/1067_create_ws_stats";
 import "./core/1068_add_comm_send_key";
 import "./core/1069_delete_web_usage_alert_scan_cron_config";
 import "./core/1070_add_users_timezone";
+import "./core/1071_create_entity_files";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the
@@ -114,7 +115,6 @@ import "./components/grievance/025_make_grievance_sirius_id_not_null";
 import "./components/grievance/026_add_employer_contact_id_to_grievances";
 import "./components/grievance/027_create_grievance_status_history_drop_status_id";
 import "./components/grievance/028_replace_grievance_steps_with_denorm";
-import "./components/grievance/029_create_grievance_files";
 import "./components/grievance.settlement/001_create_grievance_settlement";
 import "./components/grievance.contract/001_create_grievance_contract_sections";
 import "./components/grievance.contract/002_create_grievance_contracts";

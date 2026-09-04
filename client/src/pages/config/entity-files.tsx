@@ -23,13 +23,14 @@ interface ContextInfo {
   label: string;
   component: string | null;
   componentEnabled: boolean;
-  tokens: string[];
   config: { file_system: string; directory: string; allowed?: string[] } | null;
 }
 
 interface ContextsResponse {
   contexts: ContextInfo[];
   fileSystems: { id: string; access: string }[];
+  /** The one directory token the framework expands, e.g. ":entity-id". */
+  directoryToken: string;
 }
 
 interface DraftEntry {
@@ -112,6 +113,10 @@ export default function EntityFilesConfigPage() {
     );
   }
 
+  // The one token the framework expands, named by the server so the page
+  // never hardcodes its spelling.
+  const DIRECTORY_TOKEN = data.directoryToken;
+
   return (
     <div className="space-y-6">
       <div>
@@ -121,7 +126,12 @@ export default function EntityFilesConfigPage() {
         </h1>
         <p className="text-muted-foreground mt-2">
           Configure where file attachments are stored for each area of the app. An area with
-          no configuration will not accept uploads.
+          no configuration will not accept uploads. A directory may embed{" "}
+          <code className="font-mono">{DIRECTORY_TOKEN}</code>, the only token there is, which
+          expands to the id of the record the files hang off — so{" "}
+          <code className="font-mono">employers/{DIRECTORY_TOKEN}</code> gives every employer
+          its own folder. Any other <code className="font-mono">:token</code> is rejected on
+          save.
         </p>
       </div>
 
@@ -143,9 +153,7 @@ export default function EntityFilesConfigPage() {
                   <CardDescription>
                     {context.component && !context.componentEnabled
                       ? `Component "${context.component}" is disabled — this area is currently hidden.`
-                      : context.tokens.length > 0
-                        ? `Directory tokens available: ${context.tokens.join(", ")}`
-                        : "No directory tokens available."}
+                      : `Directory may embed ${DIRECTORY_TOKEN} — the id of the ${context.label.replace(/s$/, "").toLowerCase()} the files belong to.`}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -187,11 +195,7 @@ export default function EntityFilesConfigPage() {
                     <Input
                       value={draft.directory}
                       onChange={(e) => setDraft(context.id, { directory: e.target.value })}
-                      placeholder={
-                        context.tokens[0]
-                          ? `e.g. grievances/${context.tokens[0]}`
-                          : "e.g. attachments"
-                      }
+                      placeholder={`e.g. attachments/${DIRECTORY_TOKEN}`}
                       data-testid={`input-directory-${context.id}`}
                     />
                   </div>

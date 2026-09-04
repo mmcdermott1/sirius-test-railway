@@ -994,6 +994,47 @@ export const files = pgTable("files", {
   unique("files_file_system_id_storage_path_unique").on(table.fileSystemId, table.storagePath),
 ]);
 
+/**
+ * File attachments for the generic entity-files framework.
+ *
+ * ONE shared table for every registered area (grievance, worker, employer,
+ * trust provider, …): `context_id` names the registered context and
+ * `entity_id` the record it hangs off. That pair is a soft reference — the
+ * same polymorphic shape as `notes`, with no FK to the owning entity — so
+ * registering a new area is a code registration plus operator config, never
+ * a migration.
+ *
+ * `file_id` DOES have a real FK (cascade both ways in effect: deleting the
+ * files row removes the attachment), and is UNIQUE — a files row belongs to
+ * at most one attachment. `name` is the user-editable display name served on
+ * download; `data` is freeform jsonb.
+ *
+ * Every constraint and index is explicitly named because the startup drift
+ * gate compares reflected definitions against these declarations.
+ */
+export const entityFiles = pgTable("entity_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contextId: varchar("context_id").notNull(),
+  entityId: varchar("entity_id").notNull(),
+  fileId: varchar("file_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  data: jsonb("data"),
+}, (table) => [
+  foreignKey({
+    name: "entity_files_file_id_files_id_fk",
+    columns: [table.fileId],
+    foreignColumns: [files.id],
+  }).onDelete("cascade"),
+  unique("entity_files_file_id_unique").on(table.fileId),
+  index("idx_entity_files_entity").on(table.contextId, table.entityId),
+]);
+
+export const insertEntityFileSchema = createInsertSchema(entityFiles).omit({
+  id: true,
+});
+export type EntityFile = typeof entityFiles.$inferSelect;
+export type InsertEntityFile = z.infer<typeof insertEntityFileSchema>;
+
 export const esigStatusEnum = pgEnum("esig_status", ["pending", "signed"]);
 export const esigTypeEnum = pgEnum("esig_type", ["online", "offline", "upload"]);
 
@@ -1270,10 +1311,6 @@ export {
   insertGrievanceStatusHistorySchema,
   type GrievanceStatusHistory,
   type InsertGrievanceStatusHistory,
-  grievanceFiles,
-  insertGrievanceFileSchema,
-  type GrievanceFile,
-  type InsertGrievanceFile,
   grievanceTimelineAdjustmentSchema,
   type GrievanceTimelineAdjustment,
   TIMELINE_ADJUSTMENT_DATA_KEY,
