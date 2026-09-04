@@ -321,11 +321,28 @@ export const optionsWorkerBanType = pgTable("options_worker_ban_type", {
 });
 
 /**
- * Note types (unified options kind `note-type`). `data.entityTypes` holds the
- * record types a type applies to, validated against the shared note-entity
- * registry (`shared/entity-notes.ts`) on save.
+ * Note types (unified options kind `note-type`). `data.contextIds` holds the
+ * note contexts a type applies to, validated against the note-context
+ * registry (`server/services/entity-notes/registry.ts`) on save.
  */
 export const optionsNoteType = pgTable("options_note_type", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  siriusId: text("sirius_id").unique(),
+  data: jsonb("data"),
+});
+
+/**
+ * File types (unified options kind `file-type`) — the notes list's twin for
+ * attachments. `data.contextIds` holds the entity-file contexts a type
+ * applies to, validated against the file-context registry
+ * (`server/services/entity-files/registry.ts`) on save.
+ *
+ * Unlike a note's type, an attachment's type is OPTIONAL: `entity_files`
+ * predates this list and an area with no types must still accept uploads.
+ */
+export const optionsFileType = pgTable("options_file_type", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
@@ -1011,6 +1028,12 @@ export const files = pgTable("files", {
  * at most one attachment. `name` is the user-editable display name served on
  * download; `data` is freeform jsonb.
  *
+ * `type_id` names an `options_file_type` row and is NULLABLE — an attachment
+ * may have no type, and an area whose operator has created no types uploads
+ * exactly as it did before the list existed. The FK is ON DELETE RESTRICT
+ * (same as notes), so a type in use cannot be deleted out from under its
+ * files.
+ *
  * Every constraint and index is explicitly named because the startup drift
  * gate compares reflected definitions against these declarations.
  */
@@ -1019,6 +1042,7 @@ export const entityFiles = pgTable("entity_files", {
   contextId: varchar("context_id").notNull(),
   entityId: varchar("entity_id").notNull(),
   fileId: varchar("file_id").notNull(),
+  typeId: varchar("type_id"),
   name: varchar("name", { length: 255 }).notNull(),
   data: jsonb("data"),
 }, (table) => [
@@ -1027,8 +1051,14 @@ export const entityFiles = pgTable("entity_files", {
     columns: [table.fileId],
     foreignColumns: [files.id],
   }).onDelete("cascade"),
+  foreignKey({
+    name: "entity_files_type_id_options_file_type_id_fk",
+    columns: [table.typeId],
+    foreignColumns: [optionsFileType.id],
+  }).onDelete("restrict"),
   unique("entity_files_file_id_unique").on(table.fileId),
   index("idx_entity_files_entity").on(table.contextId, table.entityId),
+  index("idx_entity_files_type_id").on(table.typeId),
 ]);
 
 export const insertEntityFileSchema = createInsertSchema(entityFiles).omit({

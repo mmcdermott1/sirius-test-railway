@@ -40,6 +40,7 @@ export function registerEntityFileContexts(): void {
   registerEntityFileContext({
     id: "grievance",
     label: "Grievances",
+    recordLabel: "Grievance",
     component: "grievance",
     async entityExists(entityId: string): Promise<boolean> {
       return Boolean(await storage.grievances.get(entityId));
@@ -51,6 +52,7 @@ export function registerEntityFileContexts(): void {
   registerEntityFileContext({
     id: "worker",
     label: "Workers",
+    recordLabel: "Worker",
     async entityExists(entityId: string): Promise<boolean> {
       return Boolean(await storage.workers.getWorker(entityId));
     },
@@ -61,6 +63,7 @@ export function registerEntityFileContexts(): void {
   registerEntityFileContext({
     id: "employer",
     label: "Employers",
+    recordLabel: "Employer",
     async entityExists(entityId: string): Promise<boolean> {
       return Boolean(await storage.employers.getEmployer(entityId));
     },
@@ -71,6 +74,7 @@ export function registerEntityFileContexts(): void {
   registerEntityFileContext({
     id: "trust_provider",
     label: "Trust Providers",
+    recordLabel: "Trust Provider",
     component: "trust.providers",
     async entityExists(entityId: string): Promise<boolean> {
       return Boolean(await storage.trustProviders.getTrustProvider(entityId));

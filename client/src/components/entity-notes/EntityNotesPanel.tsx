@@ -29,7 +29,7 @@ interface NoteTypeOption {
   id: string;
   name: string;
   description: string | null;
-  data: { entityTypes?: string[] } | null;
+  data: { contextIds?: string[] } | null;
 }
 
 interface NoteRow {
@@ -89,7 +89,7 @@ export default function EntityNotesPanel({ contextId, entityId }: NotesPanelProp
   // Only types that declare this context are offerable; the server enforces
   // the same pairing on save.
   const noteTypes = useMemo(
-    () => allNoteTypes.filter((t) => (t.data?.entityTypes ?? []).includes(contextId)),
+    () => allNoteTypes.filter((t) => (t.data?.contextIds ?? []).includes(contextId)),
     [allNoteTypes, contextId],
   );
 

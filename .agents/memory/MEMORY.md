@@ -155,3 +155,4 @@
 - [Dashboard widget registry glob depth](dashboard-widget-registry-glob-depth.md) — client registry globs ./*/*.tsx as `<dir>:<File>`; a SHARED card must sit above the widget dirs or it registers as a phantom widget.
 - [Context-framework gating](context-framework-gating.md) — presence in the config var = on; a hidden tab needs a route guard reading the same server answer; a context id rename also moves discriminators + config KEYS.
 - [Server-fed nav sections](nav-section-fed-by-server-registry.md) — a nav group whose items come from a server registry must feed the path helpers too, and say "loading/couldn't load" rather than render empty.
+- [Context-filtered picker resend](context-filtered-picker-resend.md) — seed a scoped picker from the OFFERED set and omit the field when the control isn't rendered; resending a de-scoped id 400s unrelated edits.

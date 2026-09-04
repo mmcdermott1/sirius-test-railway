@@ -32,8 +32,38 @@ const updateSchema = z
   .object({
     name: z.string().trim().min(1).max(255).optional(),
     data: z.unknown().optional(),
+    // null clears the type; absent leaves it alone.
+    typeId: z.string().min(1).nullable().optional(),
   })
   .strict();
+
+/**
+ * Validate that a file type exists and applies to the given context. The
+ * dropdown already filters by record type, but a hand-made request must not be
+ * able to pair a type with a record type it does not declare.
+ *
+ * A type is OPTIONAL: null / undefined is always fine.
+ */
+async function checkFileType(
+  typeId: string | null | undefined,
+  context: EntityFileContext,
+): Promise<{ status: number; message: string } | null> {
+  if (typeId === null || typeId === undefined) return null;
+  const optionsStorage = (await import("./options-registry")).getOptionsStorage();
+  const fileType = await optionsStorage.get("file-type", typeId);
+  if (!fileType) {
+    return { status: 400, message: "Unknown file type" };
+  }
+  const contextIds = (fileType.data as { contextIds?: unknown } | null)?.contextIds;
+  const applies = Array.isArray(contextIds) && contextIds.includes(context.id);
+  if (!applies) {
+    return {
+      status: 400,
+      message: `File type "${fileType.name}" does not apply to ${context.recordLabel} records`,
+    };
+  }
+  return null;
+}
 
 /**
  * Resolve the context from :context, enforce its component gate, its access
@@ -155,6 +185,15 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           });
         }
 
+        // Multipart carries everything as a string; an empty field means
+        // "no type". Checked BEFORE any bytes are uploaded.
+        const rawTypeId = typeof req.body?.typeId === "string" ? req.body.typeId.trim() : "";
+        const typeId = rawTypeId === "" ? null : rawTypeId;
+        const typeError = await checkFileType(typeId, context);
+        if (typeError) {
+          return res.status(typeError.status).json({ message: typeError.message });
+        }
+
         const accessContext = await buildContext(req);
         const uploaderId = accessContext.user?.id;
         if (!uploaderId) {
@@ -205,6 +244,7 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
           req.params.entityId,
           fileData,
           displayName,
+          typeId,
         );
         res.status(201).json(record);
       } catch (error) {
@@ -246,6 +286,10 @@ export function registerEntityFileRoutes(app: Express, requireAuth: AuthMiddlewa
         const parsed = updateSchema.safeParse(req.body);
         if (!parsed.success) {
           return res.status(400).json({ message: "Invalid update", errors: parsed.error.issues });
+        }
+        const typeError = await checkFileType(parsed.data.typeId, context);
+        if (typeError) {
+          return res.status(typeError.status).json({ message: typeError.message });
         }
         const record = await storage.entityFiles.update(
           context.id,

@@ -89,8 +89,8 @@ async function checkNoteType(
   if (!noteType) {
     return { status: 400, message: "Unknown note type" };
   }
-  const entityTypes = (noteType.data as { entityTypes?: unknown } | null)?.entityTypes;
-  const applies = Array.isArray(entityTypes) && entityTypes.includes(context.id);
+  const contextIds = (noteType.data as { contextIds?: unknown } | null)?.contextIds;
+  const applies = Array.isArray(contextIds) && contextIds.includes(context.id);
   if (!applies) {
     return {
       status: 400,

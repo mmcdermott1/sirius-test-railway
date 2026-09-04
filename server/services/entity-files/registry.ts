@@ -32,8 +32,11 @@ export type EntityFilesVerb = "view" | "manage";
 export interface EntityFileContext {
   /** Stable id used in URLs and as the key in entity_files_config. */
   id: string;
-  /** Human label for the admin config page. */
+  /** Human label for the admin config page (plural: "Workers"). */
   label: string;
+  /** Human label for ONE record of this area ("Worker"), used wherever a
+   * single record kind is named — the file-type "Applies To" list. */
+  recordLabel: string;
   /** Optional component gate; when set the context 404s while disabled. */
   component?: string;
   /** Whether the entity exists (drives 404s before any file work). */

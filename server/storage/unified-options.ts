@@ -34,9 +34,11 @@ import {
   optionsGrievanceSettlementType,
   optionsWorkerBanType,
   optionsNoteType,
+  optionsFileType,
   bulkMediumEnum,
 } from "@shared/schema";
 import { listEntityNoteContexts } from "../services/entity-notes/registry";
+import { listEntityFileContexts } from "../services/entity-files/registry";
 import { defineLoggingConfig, withStorageLogging } from "./middleware/logging";
 import type { JsonSchema, UiSchema } from "@shared/json-schema-form";
 
@@ -76,7 +78,8 @@ export type OptionsTypeName =
   | "grievance-role"
   | "grievance-settlement-type"
   | "worker-ban-type"
-  | "note-type";
+  | "note-type"
+  | "file-type";
 
 /**
  * Field definition for dynamic form and table rendering
@@ -708,7 +711,29 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
       { name: "description", label: "Description", inputType: "textarea", required: false, placeholder: "Optional description of this note type", showInTable: true, columnHeader: "Description" },
       // Choices come from the shared note-entity registry so this list and the
       // API's entity-type validation cannot drift.
-      { name: "entityTypes", label: "Applies To", inputType: "multi-enum", required: true, helperText: "Record types that can use this note type.", showInTable: true, columnHeader: "Applies To", dataField: true, enumOptionsResolver: () => listEntityNoteContexts().map((c) => ({ value: c.id, label: c.recordLabel })) },
+      // Same key as the file-type list: what a type applies to is a context
+      // id in both frameworks.
+      { name: "contextIds", label: "Applies To", inputType: "multi-enum", required: true, helperText: "Record types that can use this note type.", showInTable: true, columnHeader: "Applies To", dataField: true, enumOptionsResolver: () => listEntityNoteContexts().map((c) => ({ value: c.id, label: c.recordLabel })) },
+      { name: "siriusId", label: "Sirius ID", inputType: "text", required: false, placeholder: "External ID", showInTable: true, columnHeader: "Sirius ID" },
+    ],
+  },
+  "file-type": {
+    table: optionsFileType,
+    displayName: "File Type",
+    description: "Types available when staff attach a file to a record. Each type declares which record types it applies to. Choosing a type is optional.",
+    singularName: "File Type",
+    pluralName: "File Types",
+    orderByColumn: "name" as const,
+    loggingModule: "options.fileType",
+    requiredFields: ["name"],
+    optionalFields: ["description", "siriusId", "data"],
+    supportsSequencing: false,
+    fields: [
+      { name: "name", label: "Name", inputType: "text", required: true, placeholder: "e.g., Contract, Photo ID", showInTable: true, columnHeader: "Name" },
+      { name: "description", label: "Description", inputType: "textarea", required: false, placeholder: "Optional description of this file type", showInTable: true, columnHeader: "Description" },
+      // Choices come from the entity-file context registry so this list and
+      // the API's context validation cannot drift.
+      { name: "contextIds", label: "Applies To", inputType: "multi-enum", required: true, helperText: "Record types that can use this file type.", showInTable: true, columnHeader: "Applies To", dataField: true, enumOptionsResolver: () => listEntityFileContexts().map((c) => ({ value: c.id, label: c.recordLabel })) },
       { name: "siriusId", label: "Sirius ID", inputType: "text", required: false, placeholder: "External ID", showInTable: true, columnHeader: "Sirius ID" },
     ],
   },

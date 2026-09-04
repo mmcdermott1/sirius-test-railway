@@ -2,17 +2,20 @@ import { getClient, onAfterCommit, runInTransaction } from "./transaction-contex
 import {
   entityFiles,
   files,
+  optionsFileType,
   type EntityFile,
   type File,
   type InsertFile,
 } from "@shared/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, count } from "drizzle-orm";
 import { type StorageLoggingConfig } from "./middleware/logging";
 import { fileSystemService } from "../services/files";
 import { logger } from "../logger";
 
 export interface EntityFileWithFile extends EntityFile {
   file: File;
+  /** Name of the attachment's file type, or null when it has none. */
+  typeName: string | null;
 }
 
 /**
@@ -48,13 +51,16 @@ export interface EntityFilesStorage {
     entityId: string,
     file: InsertFile,
     name: string,
+    typeId?: string | null,
   ): Promise<EntityFileWithFile>;
   update(
     contextId: string,
     entityId: string,
     attachmentId: string,
-    updates: { name?: string; data?: unknown },
+    updates: { name?: string; data?: unknown; typeId?: string | null },
   ): Promise<EntityFileWithFile | undefined>;
+  /** How many attachments name this file type (drives the delete guard). */
+  countByTypeId(typeId: string): Promise<number>;
   deleteWithFile(
     contextId: string,
     entityId: string,
@@ -62,8 +68,26 @@ export interface EntityFilesStorage {
   ): Promise<{ attachment: EntityFile; file: File } | undefined>;
 }
 
-function rowToRecord(row: { entity_files: EntityFile; files: File }): EntityFileWithFile {
-  return { ...row.entity_files, file: row.files };
+function rowToRecord(row: {
+  entity_files: EntityFile;
+  files: File;
+  options_file_type: { name: string } | null;
+}): EntityFileWithFile {
+  return {
+    ...row.entity_files,
+    file: row.files,
+    typeName: row.options_file_type?.name ?? null,
+  };
+}
+
+/** Display name of one file type, for the records assembled without a join. */
+async function typeNameFor(typeId: string | null): Promise<string | null> {
+  if (!typeId) return null;
+  const [row] = await getClient()
+    .select({ name: optionsFileType.name })
+    .from(optionsFileType)
+    .where(eq(optionsFileType.id, typeId));
+  return row?.name ?? null;
 }
 
 function scope(contextId: string, entityId: string) {
@@ -78,6 +102,7 @@ export function createEntityFilesStorage(): EntityFilesStorage {
         .select()
         .from(entityFiles)
         .innerJoin(files, eq(entityFiles.fileId, files.id))
+        .leftJoin(optionsFileType, eq(optionsFileType.id, entityFiles.typeId))
         .where(scope(contextId, entityId))
         .orderBy(asc(files.uploadedAt), asc(entityFiles.id));
       return rows.map(rowToRecord);
@@ -93,6 +118,7 @@ export function createEntityFilesStorage(): EntityFilesStorage {
         .select()
         .from(entityFiles)
         .innerJoin(files, eq(entityFiles.fileId, files.id))
+        .leftJoin(optionsFileType, eq(optionsFileType.id, entityFiles.typeId))
         .where(and(scope(contextId, entityId), eq(entityFiles.id, attachmentId)));
       return rows[0] ? rowToRecord(rows[0]) : undefined;
     },
@@ -107,6 +133,7 @@ export function createEntityFilesStorage(): EntityFilesStorage {
         .select()
         .from(entityFiles)
         .innerJoin(files, eq(entityFiles.fileId, files.id))
+        .leftJoin(optionsFileType, eq(optionsFileType.id, entityFiles.typeId))
         .where(and(scope(contextId, entityId), eq(entityFiles.fileId, fileId)));
       return rows[0] ? rowToRecord(rows[0]) : undefined;
     },
@@ -116,15 +143,16 @@ export function createEntityFilesStorage(): EntityFilesStorage {
       entityId: string,
       file: InsertFile,
       name: string,
+      typeId?: string | null,
     ): Promise<EntityFileWithFile> {
       return runInTransaction(async () => {
         const client = getClient();
         const [fileRow] = await client.insert(files).values(file).returning();
         const [attachment] = await client
           .insert(entityFiles)
-          .values({ contextId, entityId, fileId: fileRow.id, name })
+          .values({ contextId, entityId, fileId: fileRow.id, name, typeId: typeId ?? null })
           .returning();
-        return { ...attachment, file: fileRow };
+        return { ...attachment, file: fileRow, typeName: await typeNameFor(attachment.typeId) };
       });
     },
 
@@ -132,12 +160,14 @@ export function createEntityFilesStorage(): EntityFilesStorage {
       contextId: string,
       entityId: string,
       attachmentId: string,
-      updates: { name?: string; data?: unknown },
+      updates: { name?: string; data?: unknown; typeId?: string | null },
     ): Promise<EntityFileWithFile | undefined> {
       const client = getClient();
       const set: Record<string, unknown> = {};
       if (updates.name !== undefined) set.name = updates.name;
       if (updates.data !== undefined) set.data = updates.data;
+      // null is a value here, not an absence: it clears the type.
+      if (updates.typeId !== undefined) set.typeId = updates.typeId;
       if (Object.keys(set).length === 0) {
         return this.get(contextId, entityId, attachmentId);
       }
@@ -148,7 +178,18 @@ export function createEntityFilesStorage(): EntityFilesStorage {
         .returning();
       if (!updated) return undefined;
       const [fileRow] = await client.select().from(files).where(eq(files.id, updated.fileId));
-      return fileRow ? { ...updated, file: fileRow } : undefined;
+      return fileRow
+        ? { ...updated, file: fileRow, typeName: await typeNameFor(updated.typeId) }
+        : undefined;
+    },
+
+    async countByTypeId(typeId: string): Promise<number> {
+      const client = getClient();
+      const [row] = await client
+        .select({ value: count() })
+        .from(entityFiles)
+        .where(eq(entityFiles.typeId, typeId));
+      return Number(row?.value ?? 0);
     },
 
     async deleteWithFile(
