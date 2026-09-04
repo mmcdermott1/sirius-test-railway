@@ -19,6 +19,8 @@ import { registerGrievanceRoutes } from "./modules/grievances/grievances";
 import { registerEntityFileContexts } from "./modules/entity-files-contexts";
 import { registerEntityFileRoutes } from "./modules/entity-files";
 import { wireEntityFilesFileReadAccess } from "./services/entity-files/file-read-access";
+import { initEntityFilesDeleteCleanup } from "./services/entity-files/delete-cleanup";
+import { assertFileContextTablesComplete } from "./storage/entity-files-context-tables";
 import { registerGrievanceTimelineTemplateRoutes } from "./modules/grievances/grievance-timeline-templates";
 import { registerEmployerContactRoutes } from "./modules/employers/contacts";
 import { registerTrustBenefitsRoutes } from "./modules/trust/benefits";
@@ -103,6 +105,7 @@ import { registerWorkerBansRoutes } from "./modules/worker-bans";
 import { registerEntityNoteContexts } from "./modules/entity-notes-contexts";
 import { registerEntityNotesRoutes } from "./modules/entity-notes";
 import { assertNoteContextTablesComplete } from "./storage/entity-notes-context-tables";
+import { initEntityNotesDeleteCleanup } from "./services/entity-notes/delete-cleanup";
 import { registerWorkerSkillsRoutes } from "./modules/workers/skills";
 import { registerWorkerRelationsRoutes } from "./modules/workers/relations";
 import { registerWorkerTrustElectionsRoutes } from "./modules/trust/elections";
@@ -322,8 +325,12 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // Register grievance routes
   registerGrievanceRoutes(app, requireAuth, requireAccess);
 
-  // Entity file attachments framework: register contexts, then the generic routes
+  // Entity file attachments framework: register contexts, assert each one has
+  // a table binding for the orphan sweep, subscribe the immediate cleanup that
+  // removes a deleted record's attachments, then the generic routes.
   registerEntityFileContexts();
+  assertFileContextTablesComplete();
+  initEntityFilesDeleteCleanup();
   wireEntityFilesFileReadAccess();
   registerEntityFileRoutes(app, requireAuth);
 
@@ -1786,6 +1793,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   // binding for the orphan sweep, then the generic routes.
   registerEntityNoteContexts();
   assertNoteContextTablesComplete();
+  initEntityNotesDeleteCleanup();
   registerEntityNotesRoutes(app, requireAuth);
 
   // Register worker skills routes (handles all access control internally)

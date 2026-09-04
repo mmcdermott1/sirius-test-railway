@@ -6,7 +6,7 @@ import {
   type EntityNote,
   type InsertEntityNote,
 } from "@shared/schema";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { defineLoggingConfig } from "./middleware/logging";
 import { noteContextTables, isNoteContextAvailable } from "./entity-notes-context-tables";
 
@@ -37,8 +37,6 @@ export interface EntityNotesStorage {
    * bulk anti-join, which cannot be expressed record by record.
    */
   findOrphanIds(contextId: string, limit: number): Promise<string[]>;
-  /** Hard-delete notes by id (orphan sweep). Returns the number removed. */
-  deleteByIds(ids: string[]): Promise<number>;
 }
 
 /**
@@ -192,13 +190,6 @@ export function createEntityNotesStorage(): EntityNotesStorage {
         .where(and(eq(entityNotes.contextId, contextId), isNull(idColumn)))
         .limit(limit);
       return rows.map((r) => r.id);
-    },
-
-    async deleteByIds(ids: string[]): Promise<number> {
-      if (ids.length === 0) return 0;
-      const client = getClient();
-      const deleted = await client.delete(entityNotes).where(inArray(entityNotes.id, ids)).returning({ id: entityNotes.id });
-      return deleted.length;
     },
   };
 }

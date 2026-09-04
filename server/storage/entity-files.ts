@@ -7,10 +7,11 @@ import {
   type File,
   type InsertFile,
 } from "@shared/schema";
-import { eq, and, asc, count } from "drizzle-orm";
+import { eq, and, asc, count, isNull } from "drizzle-orm";
 import { type StorageLoggingConfig } from "./middleware/logging";
 import { fileSystemService } from "../services/files";
 import { logger } from "../logger";
+import { fileContextTables, isFileContextAvailable } from "./entity-files-context-tables";
 
 export interface EntityFileWithFile extends EntityFile {
   file: File;
@@ -61,6 +62,22 @@ export interface EntityFilesStorage {
   ): Promise<EntityFileWithFile | undefined>;
   /** How many attachments name this file type (drives the delete guard). */
   countByTypeId(typeId: string): Promise<number>;
+  /**
+   * Attachments in one context whose parent record no longer exists.
+   *
+   * Drives the orphan sweep; one anti-join per registered context. Returns an
+   * empty list for a context whose table is not currently present (component
+   * off) — attachments are kept, not swept, while their record type is
+   * unavailable. The entity id comes back alongside the attachment id because
+   * removal goes through `deleteWithFile`, which is scoped to
+   * (context, entity, attachment).
+   *
+   * A per-record existence check does NOT live here: the routes ask the
+   * context's own `entityExists` (see server/services/entity-files/registry.ts).
+   * The table map (server/storage/entity-files-context-tables.ts) exists for
+   * this bulk anti-join, which cannot be expressed record by record.
+   */
+  findOrphans(contextId: string, limit: number): Promise<Array<{ id: string; entityId: string }>>;
   deleteWithFile(
     contextId: string,
     entityId: string,
@@ -190,6 +207,25 @@ export function createEntityFilesStorage(): EntityFilesStorage {
         .from(entityFiles)
         .where(eq(entityFiles.typeId, typeId));
       return Number(row?.value ?? 0);
+    },
+
+    async findOrphans(
+      contextId: string,
+      limit: number,
+    ): Promise<Array<{ id: string; entityId: string }>> {
+      const table = fileContextTables[contextId];
+      // Never anti-join against a table that may not exist: a disabled
+      // component's attachments are left alone rather than treated as orphans.
+      if (!table || !isFileContextAvailable(contextId)) return [];
+      const client = getClient();
+      const idColumn = (table as any).id;
+      const rows = await client
+        .select({ id: entityFiles.id, entityId: entityFiles.entityId })
+        .from(entityFiles)
+        .leftJoin(table, eq(idColumn, entityFiles.entityId))
+        .where(and(eq(entityFiles.contextId, contextId), isNull(idColumn)))
+        .limit(limit);
+      return rows.map((r) => ({ id: r.id, entityId: r.entityId }));
     },
 
     async deleteWithFile(

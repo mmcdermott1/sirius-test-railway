@@ -1,5 +1,6 @@
 import { storage } from "../../../../storage";
 import { listEntityNoteContexts } from "../../../../services/entity-notes/registry";
+import { deleteNotesByIds } from "../../../../services/entity-notes/cleanup";
 import { isNoteContextAvailable } from "../../../../storage/entity-notes-context-tables";
 import { registerCronPlugin } from "../registry";
 import type { CronJobContext, CronJobResult } from "../types";
@@ -17,6 +18,15 @@ const BATCH_LIMIT = 500;
  * Because it iterates the registry, a newly note-able record type is swept
  * automatically — nothing to add here. In `test` mode it reports what it would
  * delete without writing.
+ *
+ * This is the SECOND of the two cleanup layers. The first removes a record's
+ * notes the moment it is deleted (see
+ * `server/services/entity-notes/delete-cleanup.ts`); this sweep catches what
+ * that missed — a crash, a handler error, a delete path that predates the
+ * event. Both go through the same routine
+ * (`server/services/entity-notes/cleanup.ts`), which removes notes ONE AT A
+ * TIME through the logged single-note delete, so every removal shows up in the
+ * admin log viewer naming the record it belonged to.
  *
  * Contexts an operator has switched OFF are still swept: their notes are still
  * stored, and a deleted record's notes should not survive because the area is
@@ -40,10 +50,16 @@ registerCronPlugin({
   defaultEnabled: true,
 
   async execute(context: CronJobContext): Promise<CronJobResult> {
-    const perContext: Array<{ contextId: string; orphans: number; deleted: number }> = [];
+    const perContext: Array<{
+      contextId: string;
+      orphans: number;
+      deleted: number;
+      failed: number;
+    }> = [];
     const skipped: string[] = [];
     let totalDeleted = 0;
     let totalFound = 0;
+    let totalFailed = 0;
 
     for (const noteContext of listEntityNoteContexts()) {
       if (!isNoteContextAvailable(noteContext.id)) {
@@ -55,19 +71,24 @@ registerCronPlugin({
       totalFound += orphanIds.length;
 
       let deleted = 0;
+      let failed = 0;
       if (context.mode === "live" && orphanIds.length > 0) {
-        deleted = await storage.entityNotes.deleteByIds(orphanIds);
+        const result = await deleteNotesByIds(orphanIds);
+        deleted = result.deleted;
+        failed = result.failed.length;
         totalDeleted += deleted;
+        totalFailed += failed;
       }
-      perContext.push({ contextId: noteContext.id, orphans: orphanIds.length, deleted });
+      perContext.push({ contextId: noteContext.id, orphans: orphanIds.length, deleted, failed });
     }
 
     const verb = context.mode === "live" ? "Deleted" : "Would delete";
     const count = context.mode === "live" ? totalDeleted : totalFound;
     const skipNote = skipped.length > 0 ? `; skipped ${skipped.join(", ")} (feature not enabled)` : "";
+    const failNote = totalFailed > 0 ? `; ${totalFailed} could not be deleted` : "";
     return {
-      message: `${verb} ${count} orphaned note${count === 1 ? "" : "s"} across ${perContext.length} record type${perContext.length === 1 ? "" : "s"}${skipNote}`,
-      metadata: { totalFound, totalDeleted, perContext, skipped },
+      message: `${verb} ${count} orphaned note${count === 1 ? "" : "s"} across ${perContext.length} record type${perContext.length === 1 ? "" : "s"}${failNote}${skipNote}`,
+      metadata: { totalFound, totalDeleted, totalFailed, perContext, skipped },
     };
   },
 });
