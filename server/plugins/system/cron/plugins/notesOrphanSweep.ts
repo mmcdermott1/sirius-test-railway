@@ -1,6 +1,6 @@
-import { NOTE_ENTITY_TYPES } from "@shared/notes";
+import { NOTE_ENTITY_TYPES } from "@shared/entity-notes";
 import { storage } from "../../../../storage";
-import { isNoteEntityTypeAvailable } from "../../../../storage/notes-entity-types";
+import { isNoteEntityTypeAvailable } from "../../../../storage/entity-notes-entity-types";
 import { registerCronPlugin } from "../registry";
 import type { CronJobContext, CronJobResult } from "../types";
 
@@ -13,7 +13,7 @@ const BATCH_LIMIT = 500;
  * `notes.entity_type` / `entity_id` are a polymorphic pair with no FK, so
  * deleting a worker, employer or provider leaves its notes behind. This job
  * runs one anti-join per record type registered in the shared note-entity
- * registry (`shared/notes.ts`) and hard-deletes what it finds. Because it
+ * registry (`shared/entity-notes.ts`) and hard-deletes what it finds. Because it
  * iterates the registry, a newly note-able record type is swept automatically
  * — nothing to add here. In `test` mode it reports what it would delete
  * without writing.
@@ -47,12 +47,12 @@ registerCronPlugin({
         continue;
       }
 
-      const orphanIds = await storage.notes.findOrphanIds(entityType.id, BATCH_LIMIT);
+      const orphanIds = await storage.entityNotes.findOrphanIds(entityType.id, BATCH_LIMIT);
       totalFound += orphanIds.length;
 
       let deleted = 0;
       if (context.mode === "live" && orphanIds.length > 0) {
-        deleted = await storage.notes.deleteByIds(orphanIds);
+        deleted = await storage.entityNotes.deleteByIds(orphanIds);
         totalDeleted += deleted;
       }
       perEntityType.push({ entityType: entityType.id, orphans: orphanIds.length, deleted });

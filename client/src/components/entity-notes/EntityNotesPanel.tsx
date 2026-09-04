@@ -65,7 +65,7 @@ function formatTimestamp(value: string): string {
  * type, and every mutation posts the pair back. Staff-only — the tab itself is
  * gated, and the API refuses non-staff regardless.
  */
-export default function NotesPanel({ entityType, entityId }: NotesPanelProps) {
+export default function EntityNotesPanel({ entityType, entityId }: NotesPanelProps) {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<NoteRow | null>(null);
@@ -74,7 +74,7 @@ export default function NotesPanel({ entityType, entityId }: NotesPanelProps) {
   const [formSubject, setFormSubject] = useState("");
   const [formBody, setFormBody] = useState("");
 
-  const notesQueryKey = ["/api/notes", entityType, entityId];
+  const notesQueryKey = ["/api/entity-notes", entityType, entityId];
 
   const { data: notes = [], isLoading } = useQuery<NoteRow[]>({
     queryKey: notesQueryKey,
@@ -105,7 +105,7 @@ export default function NotesPanel({ entityType, entityId }: NotesPanelProps) {
 
   const createMutation = useMutation({
     mutationFn: async (data: { typeId: string; subject: string; body: string | null }) =>
-      apiRequest("POST", "/api/notes", { entityType, entityId, ...data }),
+      apiRequest("POST", "/api/entity-notes", { entityType, entityId, ...data }),
     onSuccess: () => {
       invalidate();
       toast({ title: "Note added" });
@@ -118,7 +118,7 @@ export default function NotesPanel({ entityType, entityId }: NotesPanelProps) {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { typeId: string; subject: string; body: string | null } }) =>
-      apiRequest("PUT", `/api/notes/${id}`, data),
+      apiRequest("PUT", `/api/entity-notes/${id}`, data),
     onSuccess: () => {
       invalidate();
       toast({ title: "Note updated" });
@@ -130,7 +130,7 @@ export default function NotesPanel({ entityType, entityId }: NotesPanelProps) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => apiRequest("DELETE", `/api/notes/${id}`),
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/entity-notes/${id}`),
     onSuccess: () => {
       invalidate();
       toast({ title: "Note deleted" });

@@ -10,7 +10,7 @@
  *   - the orphan sweep that deletes notes whose record is gone
  *
  * Adding a record type here plus one line in the server-side table map
- * (`server/storage/notes-entity-types.ts`) plus its tab/route is the whole
+ * (`server/storage/entity-notes-entity-types.ts`) plus its tab/route is the whole
  * cost of making a new record note-able — no schema change, because
  * `notes.entity_type` is a plain varchar validated against this registry
  * (the house convention for polymorphic references; a PG enum would cost a

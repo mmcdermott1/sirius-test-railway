@@ -1,31 +1,31 @@
 import { getClient } from './transaction-context';
 import {
-  notes,
+  entityNotes,
   users,
   optionsNoteType,
-  type Note,
-  type InsertNote,
+  type EntityNote,
+  type InsertEntityNote,
 } from "@shared/schema";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { defineLoggingConfig } from "./middleware/logging";
-import { noteEntityTables, isNoteEntityTypeAvailable } from "./notes-entity-types";
+import { noteEntityTables, isNoteEntityTypeAvailable } from "./entity-notes-entity-types";
 
 /** A note plus the display fields the notes tab renders alongside it. */
-export interface NoteWithDetails extends Note {
+export interface EntityNoteWithDetails extends EntityNote {
   typeName: string | null;
   authorName: string | null;
 }
 
-export interface NotesStorage {
+export interface EntityNotesStorage {
   /** Notes on one record, newest first. */
-  listByEntity(entityType: string, entityId: string): Promise<NoteWithDetails[]>;
-  get(id: string): Promise<Note | undefined>;
-  create(note: InsertNote): Promise<Note>;
-  update(id: string, note: Partial<InsertNote>): Promise<Note | undefined>;
+  listByEntity(entityType: string, entityId: string): Promise<EntityNoteWithDetails[]>;
+  get(id: string): Promise<EntityNote | undefined>;
+  create(note: InsertEntityNote): Promise<EntityNote>;
+  update(id: string, note: Partial<InsertEntityNote>): Promise<EntityNote | undefined>;
   delete(id: string): Promise<boolean>;
   /**
    * Does the parent record exist? `entityType` must be a registered note-able
-   * type whose owning component is enabled (see `notes-entity-types.ts`);
+   * type whose owning component is enabled (see `entity-notes-entity-types.ts`);
    * anything else returns false so an unregistered — or currently table-less —
    * type can never be persisted.
    */
@@ -80,7 +80,7 @@ function redactNote<T extends Record<string, any> | null | undefined>(row: T): T
 }
 
 /**
- * Logging for notes.
+ * Logging for entityNotes.
  *
  * Two things distinguish this config from the usual CRUD one:
  *   - The host entity is the note's PARENT record (the worker / employer /
@@ -90,8 +90,8 @@ function redactNote<T extends Record<string, any> | null | undefined>(row: T): T
  *   - The note body is redacted everywhere it would otherwise be persisted:
  *     logged args, before-state and after-state.
  */
-export const notesLoggingConfig = defineLoggingConfig<NotesStorage>({
-  module: 'notes',
+export const entityNotesLoggingConfig = defineLoggingConfig<EntityNotesStorage>({
+  module: 'entityNotes',
   state: { key: 'note' },
   hostEntityId: (args, result, beforeState) =>
     result?.entityId ?? beforeState?.note?.entityId ?? args[0]?.entityId,
@@ -118,23 +118,23 @@ export const notesLoggingConfig = defineLoggingConfig<NotesStorage>({
   },
 });
 
-export function createNotesStorage(): NotesStorage {
+export function createEntityNotesStorage(): EntityNotesStorage {
   return {
-    async listByEntity(entityType: string, entityId: string): Promise<NoteWithDetails[]> {
+    async listByEntity(entityType: string, entityId: string): Promise<EntityNoteWithDetails[]> {
       const client = getClient();
       const rows = await client
         .select({
-          note: notes,
+          note: entityNotes,
           typeName: optionsNoteType.name,
           firstName: users.firstName,
           lastName: users.lastName,
           email: users.email,
         })
-        .from(notes)
-        .leftJoin(optionsNoteType, eq(optionsNoteType.id, notes.typeId))
-        .leftJoin(users, eq(users.id, notes.userId))
-        .where(and(eq(notes.entityType, entityType), eq(notes.entityId, entityId)))
-        .orderBy(desc(notes.timestamp));
+        .from(entityNotes)
+        .leftJoin(optionsNoteType, eq(optionsNoteType.id, entityNotes.typeId))
+        .leftJoin(users, eq(users.id, entityNotes.userId))
+        .where(and(eq(entityNotes.entityType, entityType), eq(entityNotes.entityId, entityId)))
+        .orderBy(desc(entityNotes.timestamp));
 
       return rows.map((row) => ({
         ...row.note,
@@ -143,31 +143,31 @@ export function createNotesStorage(): NotesStorage {
       }));
     },
 
-    async get(id: string): Promise<Note | undefined> {
+    async get(id: string): Promise<EntityNote | undefined> {
       const client = getClient();
-      const [note] = await client.select().from(notes).where(eq(notes.id, id));
+      const [note] = await client.select().from(entityNotes).where(eq(entityNotes.id, id));
       return note;
     },
 
-    async create(note: InsertNote): Promise<Note> {
+    async create(note: InsertEntityNote): Promise<EntityNote> {
       const client = getClient();
-      const [created] = await client.insert(notes).values(note as any).returning();
+      const [created] = await client.insert(entityNotes).values(note as any).returning();
       return created;
     },
 
-    async update(id: string, note: Partial<InsertNote>): Promise<Note | undefined> {
+    async update(id: string, note: Partial<InsertEntityNote>): Promise<EntityNote | undefined> {
       const client = getClient();
       const [updated] = await client
-        .update(notes)
+        .update(entityNotes)
         .set(note as any)
-        .where(eq(notes.id, id))
+        .where(eq(entityNotes.id, id))
         .returning();
       return updated;
     },
 
     async delete(id: string): Promise<boolean> {
       const client = getClient();
-      const result = await client.delete(notes).where(eq(notes.id, id)).returning();
+      const result = await client.delete(entityNotes).where(eq(entityNotes.id, id)).returning();
       return result.length > 0;
     },
 
@@ -186,8 +186,8 @@ export function createNotesStorage(): NotesStorage {
       const client = getClient();
       const [row] = await client
         .select({ count: sql<number>`count(*)::int` })
-        .from(notes)
-        .where(eq(notes.typeId, typeId));
+        .from(entityNotes)
+        .where(eq(entityNotes.typeId, typeId));
       return Number(row?.count ?? 0);
     },
 
@@ -199,10 +199,10 @@ export function createNotesStorage(): NotesStorage {
       const client = getClient();
       const idColumn = (table as any).id;
       const rows = await client
-        .select({ id: notes.id })
-        .from(notes)
-        .leftJoin(table, eq(idColumn, notes.entityId))
-        .where(and(eq(notes.entityType, entityType), isNull(idColumn)))
+        .select({ id: entityNotes.id })
+        .from(entityNotes)
+        .leftJoin(table, eq(idColumn, entityNotes.entityId))
+        .where(and(eq(entityNotes.entityType, entityType), isNull(idColumn)))
         .limit(limit);
       return rows.map((r) => r.id);
     },
@@ -210,7 +210,7 @@ export function createNotesStorage(): NotesStorage {
     async deleteByIds(ids: string[]): Promise<number> {
       if (ids.length === 0) return 0;
       const client = getClient();
-      const deleted = await client.delete(notes).where(inArray(notes.id, ids)).returning({ id: notes.id });
+      const deleted = await client.delete(entityNotes).where(inArray(entityNotes.id, ids)).returning({ id: entityNotes.id });
       return deleted.length;
     },
   };

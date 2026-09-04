@@ -100,7 +100,7 @@ import { registerWorkerDispatchHfeRoutes } from "./modules/dispatch/worker-hfe";
 import { registerWorkerDispatchEbaRoutes } from "./modules/dispatch/worker-eba";
 import { registerWorkerDispatchAsiRoutes } from "./modules/dispatch/worker-asi";
 import { registerWorkerBansRoutes } from "./modules/worker-bans";
-import { registerNotesRoutes } from "./modules/notes";
+import { registerEntityNotesRoutes } from "./modules/entity-notes";
 import { registerWorkerSkillsRoutes } from "./modules/workers/skills";
 import { registerWorkerRelationsRoutes } from "./modules/workers/relations";
 import { registerWorkerTrustElectionsRoutes } from "./modules/trust/elections";
@@ -1780,7 +1780,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   registerWorkerBansRoutes(app, requireAuth, requireAccess);
 
   // Register notes routes (staff-only, all record types)
-  registerNotesRoutes(app, requireAuth, requireAccess);
+  registerEntityNotesRoutes(app, requireAuth, requireAccess);
 
   // Register worker skills routes (handles all access control internally)
   registerWorkerSkillsRoutes(app, requireAuth, requireAccess);

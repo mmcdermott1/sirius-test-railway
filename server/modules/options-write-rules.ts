@@ -6,7 +6,7 @@
  * import must not be able to write anything the single-record form would
  * reject, so both call these helpers rather than keeping their own copies.
  */
-import { isNoteEntityType } from "@shared/notes";
+import { isNoteEntityType } from "@shared/entity-notes";
 import { jobTypeBullpenEnum } from "@shared/schema";
 import { storage } from "../storage";
 import type { OptionsTypeConfig } from "./options-registry";
@@ -256,7 +256,7 @@ export async function checkOptionDeleteGuard(
   // DELETE RESTRICT so the database would refuse anyway; this pre-check
   // turns that into a message that says what to do about it.
   if (type === "note-type") {
-    const inUse = await storage.notes.countByTypeId(id);
+    const inUse = await storage.entityNotes.countByTypeId(id);
     if (inUse > 0) {
       return {
         status: 409,

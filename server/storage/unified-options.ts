@@ -36,7 +36,7 @@ import {
   optionsNoteType,
   bulkMediumEnum,
 } from "@shared/schema";
-import { noteEntityTypeEnumOptions } from "@shared/notes";
+import { noteEntityTypeEnumOptions } from "@shared/entity-notes";
 import { defineLoggingConfig, withStorageLogging } from "./middleware/logging";
 import type { JsonSchema, UiSchema } from "@shared/json-schema-form";
 

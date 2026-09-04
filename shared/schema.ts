@@ -323,7 +323,7 @@ export const optionsWorkerBanType = pgTable("options_worker_ban_type", {
 /**
  * Note types (unified options kind `note-type`). `data.entityTypes` holds the
  * record types a type applies to, validated against the shared note-entity
- * registry (`shared/notes.ts`) on save.
+ * registry (`shared/entity-notes.ts`) on save.
  */
 export const optionsNoteType = pgTable("options_note_type", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -342,7 +342,7 @@ export const optionsNoteType = pgTable("options_note_type", {
  * the `notes_orphan_sweep` cron. `type_id` DOES have a real FK, on delete
  * restrict, so a note type in use cannot be deleted out from under its notes.
  */
-export const notes = pgTable("notes", {
+export const entityNotes = pgTable("entity_notes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   entityType: varchar("entity_type").notNull(),
   entityId: varchar("entity_id").notNull(),
@@ -353,8 +353,8 @@ export const notes = pgTable("notes", {
   timestamp: timestamp("timestamp").default(sql`now()`).notNull(),
   userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
 }, (table) => [
-  index("idx_notes_entity").on(table.entityType, table.entityId),
-  index("idx_notes_type_id").on(table.typeId),
+  index("idx_entity_notes_entity").on(table.entityType, table.entityId),
+  index("idx_entity_notes_type_id").on(table.typeId),
 ]);
 
 export const workerBans = pgTable("worker_bans", {
@@ -1517,7 +1517,7 @@ export const insertWorkerBanSchema = createInsertSchema(workerBans).omit({
   type: z.string().optional().nullable(),
 });
 
-export const insertNoteSchema = createInsertSchema(notes).omit({
+export const insertEntityNoteSchema = createInsertSchema(entityNotes).omit({
   id: true,
   timestamp: true,
 }).extend({
@@ -1823,8 +1823,8 @@ export type Worker = Omit<typeof workers.$inferSelect, "data"> & {
 export type InsertWorkerBan = z.infer<typeof insertWorkerBanSchema>;
 export type WorkerBan = typeof workerBans.$inferSelect;
 
-export type InsertNote = z.infer<typeof insertNoteSchema>;
-export type Note = typeof notes.$inferSelect;
+export type InsertEntityNote = z.infer<typeof insertEntityNoteSchema>;
+export type EntityNote = typeof entityNotes.$inferSelect;
 export type OptionsNoteType = typeof optionsNoteType.$inferSelect;
 
 export type InsertEmployer = z.infer<typeof insertEmployerSchema>;

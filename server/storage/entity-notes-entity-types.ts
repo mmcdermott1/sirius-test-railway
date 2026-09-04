@@ -1,11 +1,11 @@
 import { workers, employers, trustProviders, grievances } from "@shared/schema";
-import { NOTE_ENTITY_TYPES, getNoteEntityType } from "@shared/notes";
+import { NOTE_ENTITY_TYPES, getNoteEntityType } from "@shared/entity-notes";
 import { isComponentEnabledSync } from "../services/component-cache";
 import type { PgTable, TableConfig } from "drizzle-orm/pg-core";
 
 /**
  * Server-side half of the note-entity registry: maps each note-able record
- * type declared in `shared/notes.ts` to the table that holds it.
+ * type declared in `shared/entity-notes.ts` to the table that holds it.
  *
  * This is the ONLY place a note-able record type is bound to a table. The
  * existence check on save and the orphan sweep both drive off this map, so a
@@ -28,7 +28,7 @@ export function assertNoteEntityTablesComplete(): void {
   const missing = NOTE_ENTITY_TYPES.filter((t) => !noteEntityTables[t.id]).map((t) => t.id);
   if (missing.length > 0) {
     throw new Error(
-      `Note entity types missing a table binding in server/storage/notes-entity-types.ts: ${missing.join(", ")}`,
+      `Note entity types missing a table binding in server/storage/entity-notes-entity-types.ts: ${missing.join(", ")}`,
     );
   }
 }

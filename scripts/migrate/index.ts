@@ -73,6 +73,7 @@ import "./core/1068_add_comm_send_key";
 import "./core/1069_delete_web_usage_alert_scan_cron_config";
 import "./core/1070_add_users_timezone";
 import "./core/1071_create_entity_files";
+import "./core/1072_rename_notes_to_entity_notes";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

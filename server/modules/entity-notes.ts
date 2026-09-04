@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
 import { isComponentEnabled } from "./components";
-import { getNoteEntityType, isNoteEntityType, noteEntityTypeLabel } from "@shared/notes";
+import { getNoteEntityType, isNoteEntityType, noteEntityTypeLabel } from "@shared/entity-notes";
 
 type RequireAccess = (policy: string, getEntityId?: (req: Request) => string | Promise<string | undefined> | undefined) => (req: Request, res: Response, next: () => void) => void;
 type RequireAuth = (req: Request, res: Response, next: () => void) => void;
@@ -74,19 +74,19 @@ async function checkNoteType(
  * against the shared registry, that the parent record actually exists, and
  * that the chosen note type applies to that record type.
  */
-export function registerNotesRoutes(
+export function registerEntityNotesRoutes(
   app: Express,
   requireAuth: RequireAuth,
   requireAccess: RequireAccess,
 ) {
-  app.get("/api/notes/:entityType/:entityId", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
+  app.get("/api/entity-notes/:entityType/:entityId", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
     try {
       const { entityType, entityId } = req.params;
       const typeError = await checkEntityType(entityType);
       if (typeError) {
         return res.status(typeError.status).json({ message: typeError.message });
       }
-      const notes = await storage.notes.listByEntity(entityType, entityId);
+      const notes = await storage.entityNotes.listByEntity(entityType, entityId);
       res.json(notes);
     } catch (error) {
       console.error("Error fetching notes:", error);
@@ -94,7 +94,7 @@ export function registerNotesRoutes(
     }
   });
 
-  app.post("/api/notes", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
+  app.post("/api/entity-notes", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
     try {
       const validated = createNoteApiSchema.parse(req.body);
 
@@ -102,7 +102,7 @@ export function registerNotesRoutes(
       if (typeError) {
         return res.status(typeError.status).json({ message: typeError.message });
       }
-      if (!(await storage.notes.entityExists(validated.entityType, validated.entityId))) {
+      if (!(await storage.entityNotes.entityExists(validated.entityType, validated.entityId))) {
         return res.status(404).json({ message: `${noteEntityTypeLabel(validated.entityType)} not found` });
       }
       const noteTypeError = await checkNoteType(validated.typeId, validated.entityType);
@@ -114,7 +114,7 @@ export function registerNotesRoutes(
       const { getEffectiveUser } = await import("./masquerade");
       const { dbUser } = await getEffectiveUser((req as any).session ?? {}, (req as any).user);
 
-      const note = await storage.notes.create({
+      const note = await storage.entityNotes.create({
         entityType: validated.entityType,
         entityId: validated.entityId,
         typeId: validated.typeId,
@@ -133,10 +133,10 @@ export function registerNotesRoutes(
     }
   });
 
-  app.put("/api/notes/:id", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
+  app.put("/api/entity-notes/:id", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
     try {
       const validated = updateNoteApiSchema.parse(req.body);
-      const existing = await storage.notes.get(req.params.id);
+      const existing = await storage.entityNotes.get(req.params.id);
       if (!existing) {
         return res.status(404).json({ message: "Note not found" });
       }
@@ -160,7 +160,7 @@ export function registerNotesRoutes(
       if (validated.body !== undefined) updates.body = validated.body;
       if (validated.data !== undefined) updates.data = validated.data;
 
-      const note = await storage.notes.update(req.params.id, updates);
+      const note = await storage.entityNotes.update(req.params.id, updates);
       if (!note) {
         return res.status(404).json({ message: "Note not found" });
       }
@@ -174,9 +174,9 @@ export function registerNotesRoutes(
     }
   });
 
-  app.delete("/api/notes/:id", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
+  app.delete("/api/entity-notes/:id", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
     try {
-      const existing = await storage.notes.get(req.params.id);
+      const existing = await storage.entityNotes.get(req.params.id);
       if (!existing) {
         return res.status(404).json({ message: "Note not found" });
       }
@@ -184,7 +184,7 @@ export function registerNotesRoutes(
       if (typeError) {
         return res.status(typeError.status).json({ message: typeError.message });
       }
-      const deleted = await storage.notes.delete(req.params.id);
+      const deleted = await storage.entityNotes.delete(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Note not found" });
       }

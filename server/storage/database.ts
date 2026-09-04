@@ -142,7 +142,7 @@ import { type BtuSchoolAttributesStorage, createBtuSchoolAttributesStorage } fro
 import { type BaoImmediateEligibilityStorage, createBaoImmediateEligibilityStorage, baoImmediateEligibilityLoggingConfig } from "./sitespecific/bao/immediate-eligibility";
 import { type BaoBeneficiariesStorage, createBaoBeneficiariesStorage, baoBeneficiariesLoggingConfig } from "./sitespecific/bao/beneficiaries";
 import { type WorkerBanStorage, createWorkerBanStorage, workerBanLoggingConfig } from "./worker-bans";
-import { type NotesStorage, type NoteWithDetails, createNotesStorage, notesLoggingConfig } from "./notes";
+import { type EntityNotesStorage, type EntityNoteWithDetails, createEntityNotesStorage, entityNotesLoggingConfig } from "./entity-notes";
 import { type WorkerDispatchDncStorage, createWorkerDispatchDncStorage, workerDispatchDncLoggingConfig } from "./dispatch/worker-dnc";
 import { type WorkerDispatchDepartmentStorage, createWorkerDispatchDepartmentStorage, workerDispatchDepartmentLoggingConfig } from "./dispatch/worker-departments";
 import { type DispatchJobDepartmentStorage, createDispatchJobDepartmentStorage } from "./dispatch/job-departments";
@@ -270,7 +270,7 @@ export interface IStorage {
   freemanEdlsMigrateStaging: FreemanEdlsMigrateStagingStorage;
   t631Interviews: T631InterviewsStorage;
   workerBans: WorkerBanStorage;
-  notes: NotesStorage;
+  entityNotes: EntityNotesStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
   workerDispatchDepartments: WorkerDispatchDepartmentStorage;
   dispatchJobDepartments: DispatchJobDepartmentStorage;
@@ -391,7 +391,7 @@ export class DatabaseStorage implements IStorage {
   freemanEdlsMigrateStaging: FreemanEdlsMigrateStagingStorage;
   t631Interviews: T631InterviewsStorage;
   workerBans: WorkerBanStorage;
-  notes: NotesStorage;
+  entityNotes: EntityNotesStorage;
   workerDispatchDnc: WorkerDispatchDncStorage;
   workerDispatchDepartments: WorkerDispatchDepartmentStorage;
   dispatchJobDepartments: DispatchJobDepartmentStorage;
@@ -633,7 +633,7 @@ export class DatabaseStorage implements IStorage {
       t631InterviewsLoggingConfig,
     );
     this.workerBans = withStorageLogging(createWorkerBanStorage(), workerBanLoggingConfig);
-    this.notes = withStorageLogging(createNotesStorage(), notesLoggingConfig);
+    this.entityNotes = withStorageLogging(createEntityNotesStorage(), entityNotesLoggingConfig);
     this.workerDispatchDnc = withStorageLogging(createWorkerDispatchDncStorage(), workerDispatchDncLoggingConfig);
     this.workerDispatchDepartments = withStorageLogging(createWorkerDispatchDepartmentStorage(), workerDispatchDepartmentLoggingConfig);
     this.dispatchJobDepartments = createDispatchJobDepartmentStorage();
