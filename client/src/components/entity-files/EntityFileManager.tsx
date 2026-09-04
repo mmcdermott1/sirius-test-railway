@@ -32,6 +32,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ALL_TYPES,
+  TypeFilter,
+  buildTypeFilterChoices,
+  typeFilterMatches,
+  type TypeFilterChoice,
+} from "@/components/type-filter";
 import { apiRequest, queryClient, getApiErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -107,6 +114,7 @@ export function EntityFileManager({
   const [metaTypeTouched, setMetaTypeTouched] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploadTypeId, setUploadTypeId] = useState<string>(NO_TYPE);
+  const [typeFilter, setTypeFilter] = useState<TypeFilterChoice>(ALL_TYPES);
 
   const listKey = ["/api/entity-files", context, entityId];
 
@@ -146,6 +154,18 @@ export function EntityFileManager({
     : metaTarget?.typeId && fileTypes.some((t) => t.id === metaTarget.typeId)
       ? metaTarget.typeId
       : NO_TYPE;
+
+  // A view over the attachments already loaded: the filter narrows what is
+  // listed, it never changes what was fetched.
+  const allFiles = data?.files ?? [];
+  const filterChoices = useMemo(
+    () => buildTypeFilterChoices(allFiles, typeFilter),
+    [allFiles, typeFilter],
+  );
+  const visibleFiles = useMemo(
+    () => allFiles.filter((item) => typeFilterMatches(typeFilter, item)),
+    [allFiles, typeFilter],
+  );
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, typeId }: { file: File; typeId: string | null }) => {
@@ -309,13 +329,27 @@ export function EntityFileManager({
             Allowed file types: {data.allowed.join(", ")}
           </p>
         )}
+        <TypeFilter
+          id="entity-file-type-filter"
+          value={typeFilter}
+          onChange={setTypeFilter}
+          choices={filterChoices}
+          shown={visibleFiles.length}
+          total={data.files.length}
+        />
+
         {data.files.length === 0 ? (
           <p className="text-muted-foreground text-sm" data-testid="text-files-empty">
             No files attached.
           </p>
+        ) : visibleFiles.length === 0 ? (
+          <p className="text-muted-foreground text-sm" data-testid="text-files-empty-match">
+            No files of this type. {data.files.length} file
+            {data.files.length === 1 ? " is" : "s are"} hidden by the filter.
+          </p>
         ) : (
           <div className="divide-y">
-            {data.files.map((item) => (
+            {visibleFiles.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center gap-3 py-3"

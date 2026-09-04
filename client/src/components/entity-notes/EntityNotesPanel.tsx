@@ -22,6 +22,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getApiErrorMessage } from "@/lib/queryClient";
 import { NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ALL_TYPES,
+  TypeFilter,
+  buildTypeFilterChoices,
+  typeFilterMatches,
+  type TypeFilterChoice,
+} from "@/components/type-filter";
 import { parseISO, isValid } from "date-fns";
 import { format } from "@/lib/date-format";
 
@@ -75,6 +82,7 @@ export default function EntityNotesPanel({ contextId, entityId }: NotesPanelProp
   const [formTypeId, setFormTypeId] = useState("");
   const [formSubject, setFormSubject] = useState("");
   const [formBody, setFormBody] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilterChoice>(ALL_TYPES);
 
   const notesQueryKey = ["/api/entity-notes", contextId, entityId];
 
@@ -91,6 +99,14 @@ export default function EntityNotesPanel({ contextId, entityId }: NotesPanelProp
   const noteTypes = useMemo(
     () => allNoteTypes.filter((t) => (t.data?.contextIds ?? []).includes(contextId)),
     [allNoteTypes, contextId],
+  );
+
+  // A view over the notes already loaded: the filter narrows what is listed,
+  // it never changes what was fetched.
+  const filterChoices = useMemo(() => buildTypeFilterChoices(notes, typeFilter), [notes, typeFilter]);
+  const visibleNotes = useMemo(
+    () => notes.filter((note) => typeFilterMatches(typeFilter, note)),
+    [notes, typeFilter],
   );
 
   const closeDialog = () => {
@@ -207,6 +223,17 @@ export default function EntityNotesPanel({ contextId, entityId }: NotesPanelProp
             </p>
           )}
 
+          {!isLoading && (
+            <TypeFilter
+              id="note-type-filter"
+              value={typeFilter}
+              onChange={setTypeFilter}
+              choices={filterChoices}
+              shown={visibleNotes.length}
+              total={notes.length}
+            />
+          )}
+
           {isLoading ? (
             <div className="space-y-3" data-testid="loading-notes">
               <Skeleton className="h-16 w-full" />
@@ -218,9 +245,14 @@ export default function EntityNotesPanel({ contextId, entityId }: NotesPanelProp
                 No notes on this record yet.
               </p>
             )
+          ) : visibleNotes.length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="text-no-notes-match">
+              No notes of this type. {notes.length} note{notes.length === 1 ? " is" : "s are"} hidden
+              by the filter.
+            </p>
           ) : (
             <div className="space-y-3">
-              {notes.map((note) => (
+              {visibleNotes.map((note) => (
                 <div
                   key={note.id}
                   className="rounded-md border p-4 space-y-2"
