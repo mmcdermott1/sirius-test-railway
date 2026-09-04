@@ -120,6 +120,7 @@ const GrievanceTimeline = lazy(() => import("@/pages/grievance-timeline"));
 const GrievanceSettlements = lazy(() => import("@/pages/grievance-settlements"));
 const GrievanceFiles = lazy(() => import("@/pages/grievance-files"));
 const EntityFilesConfigPage = lazy(() => import("@/pages/config/entity-files"));
+const EntityNotesConfigPage = lazy(() => import("@/pages/config/entity-notes"));
 const GrievanceTimelineTemplatesPage = lazy(() => import("@/pages/config/grievance-timeline-templates"));
 const GrievanceTimelineTemplateView = lazy(() => import("@/pages/grievance-timeline-template-view"));
 const GrievanceTimelineTemplateEdit = lazy(() => import("@/pages/grievance-timeline-template-edit"));
@@ -2641,6 +2642,16 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <EntityFilesConfigPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/config/entity-notes">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <EntityNotesConfigPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

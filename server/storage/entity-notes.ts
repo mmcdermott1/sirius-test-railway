@@ -8,7 +8,7 @@ import {
 } from "@shared/schema";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { defineLoggingConfig } from "./middleware/logging";
-import { noteEntityTables, isNoteEntityTypeAvailable } from "./entity-notes-entity-types";
+import { noteContextTables, isNoteContextAvailable } from "./entity-notes-context-tables";
 
 /** A note plus the display fields the notes tab renders alongside it. */
 export interface EntityNoteWithDetails extends EntityNote {
@@ -18,27 +18,25 @@ export interface EntityNoteWithDetails extends EntityNote {
 
 export interface EntityNotesStorage {
   /** Notes on one record, newest first. */
-  listByEntity(entityType: string, entityId: string): Promise<EntityNoteWithDetails[]>;
+  listByEntity(contextId: string, entityId: string): Promise<EntityNoteWithDetails[]>;
   get(id: string): Promise<EntityNote | undefined>;
   create(note: InsertEntityNote): Promise<EntityNote>;
   update(id: string, note: Partial<InsertEntityNote>): Promise<EntityNote | undefined>;
   delete(id: string): Promise<boolean>;
-  /**
-   * Does the parent record exist? `entityType` must be a registered note-able
-   * type whose owning component is enabled (see `entity-notes-entity-types.ts`);
-   * anything else returns false so an unregistered — or currently table-less —
-   * type can never be persisted.
-   */
-  entityExists(entityType: string, entityId: string): Promise<boolean>;
   /** How many notes reference a note type (delete guard). */
   countByTypeId(typeId: string): Promise<number>;
   /**
-   * Ids of notes of one entity type whose parent record no longer exists.
-   * Drives the orphan sweep; one anti-join per registered type. Returns an
-   * empty list for a type whose table is not currently present (component off)
-   * — notes are kept, not swept, while their record type is unavailable.
+   * Ids of notes in one context whose parent record no longer exists.
+   * Drives the orphan sweep; one anti-join per registered context. Returns an
+   * empty list for a context whose table is not currently present (component
+   * off) — notes are kept, not swept, while their record type is unavailable.
+   *
+   * A per-record existence check does NOT live here: the routes ask the
+   * context's own `entityExists` (see server/services/entity-notes/registry.ts),
+   * the same way the files framework does. The table map below exists for this
+   * bulk anti-join, which cannot be expressed record by record.
    */
-  findOrphanIds(entityType: string, limit: number): Promise<string[]>;
+  findOrphanIds(contextId: string, limit: number): Promise<string[]>;
   /** Hard-delete notes by id (orphan sweep). Returns the number removed. */
   deleteByIds(ids: string[]): Promise<number>;
 }
@@ -101,26 +99,26 @@ export const entityNotesLoggingConfig = defineLoggingConfig<EntityNotesStorage>(
       logArgs: (args) => [redactNote(args[0])],
       after: async (args, result) => ({ note: redactNote(result) }),
       getDescription: (args, result) =>
-        `Created note on ${result?.entityType ?? args[0]?.entityType} ${result?.entityId ?? args[0]?.entityId}`,
+        `Created note on ${result?.contextId ?? args[0]?.contextId} ${result?.entityId ?? args[0]?.entityId}`,
     },
     update: {
       logArgs: (args) => [args[0], redactNote(args[1])],
       before: async (args, storage) => ({ note: redactNote(await storage.get(args[0])) }),
       after: async (args, result) => ({ note: redactNote(result) }),
       getDescription: (args, result, beforeState) =>
-        `Updated note ${args[0]} on ${result?.entityType ?? beforeState?.note?.entityType} ${result?.entityId ?? beforeState?.note?.entityId}`,
+        `Updated note ${args[0]} on ${result?.contextId ?? beforeState?.note?.contextId} ${result?.entityId ?? beforeState?.note?.entityId}`,
     },
     delete: {
       before: async (args, storage) => ({ note: redactNote(await storage.get(args[0])) }),
       getDescription: (args, result, beforeState) =>
-        `Deleted note ${args[0]} on ${beforeState?.note?.entityType} ${beforeState?.note?.entityId}`,
+        `Deleted note ${args[0]} on ${beforeState?.note?.contextId} ${beforeState?.note?.entityId}`,
     },
   },
 });
 
 export function createEntityNotesStorage(): EntityNotesStorage {
   return {
-    async listByEntity(entityType: string, entityId: string): Promise<EntityNoteWithDetails[]> {
+    async listByEntity(contextId: string, entityId: string): Promise<EntityNoteWithDetails[]> {
       const client = getClient();
       const rows = await client
         .select({
@@ -133,7 +131,7 @@ export function createEntityNotesStorage(): EntityNotesStorage {
         .from(entityNotes)
         .leftJoin(optionsNoteType, eq(optionsNoteType.id, entityNotes.typeId))
         .leftJoin(users, eq(users.id, entityNotes.userId))
-        .where(and(eq(entityNotes.entityType, entityType), eq(entityNotes.entityId, entityId)))
+        .where(and(eq(entityNotes.contextId, contextId), eq(entityNotes.entityId, entityId)))
         .orderBy(desc(entityNotes.timestamp));
 
       return rows.map((row) => ({
@@ -171,17 +169,6 @@ export function createEntityNotesStorage(): EntityNotesStorage {
       return result.length > 0;
     },
 
-    async entityExists(entityType: string, entityId: string): Promise<boolean> {
-      const table = noteEntityTables[entityType];
-      // No table binding, or the component that owns the table is off (its
-      // tables do not exist) — the record cannot be confirmed, so refuse.
-      if (!table || !isNoteEntityTypeAvailable(entityType)) return false;
-      const client = getClient();
-      const idColumn = (table as any).id;
-      const rows = await client.select({ id: idColumn }).from(table).where(eq(idColumn, entityId)).limit(1);
-      return rows.length > 0;
-    },
-
     async countByTypeId(typeId: string): Promise<number> {
       const client = getClient();
       const [row] = await client
@@ -191,18 +178,18 @@ export function createEntityNotesStorage(): EntityNotesStorage {
       return Number(row?.count ?? 0);
     },
 
-    async findOrphanIds(entityType: string, limit: number): Promise<string[]> {
-      const table = noteEntityTables[entityType];
+    async findOrphanIds(contextId: string, limit: number): Promise<string[]> {
+      const table = noteContextTables[contextId];
       // Never anti-join against a table that may not exist: a disabled
       // component's notes are left alone rather than treated as orphans.
-      if (!table || !isNoteEntityTypeAvailable(entityType)) return [];
+      if (!table || !isNoteContextAvailable(contextId)) return [];
       const client = getClient();
       const idColumn = (table as any).id;
       const rows = await client
         .select({ id: entityNotes.id })
         .from(entityNotes)
         .leftJoin(table, eq(idColumn, entityNotes.entityId))
-        .where(and(eq(entityNotes.entityType, entityType), isNull(idColumn)))
+        .where(and(eq(entityNotes.contextId, contextId), isNull(idColumn)))
         .limit(limit);
       return rows.map((r) => r.id);
     },

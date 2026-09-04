@@ -336,15 +336,17 @@ export const optionsNoteType = pgTable("options_note_type", {
 /**
  * Staff notes attached to a record.
  *
- * `entity_type` / `entity_id` are a polymorphic pair (the house convention —
+ * `context_id` / `entity_id` are a polymorphic pair (the house convention —
  * see `files`), so there is no FK to the parent: existence is checked at the
- * API layer against the shared note-entity registry and orphans are swept by
- * the `notes_orphan_sweep` cron. `type_id` DOES have a real FK, on delete
+ * API layer against the note-context registry and orphans are swept by
+ * the `notes_orphan_sweep` cron. `context_id` names the registered note
+ * context (worker, employer, …), the same spelling `entity_files` uses for
+ * its contexts. `type_id` DOES have a real FK, on delete
  * restrict, so a note type in use cannot be deleted out from under its notes.
  */
 export const entityNotes = pgTable("entity_notes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  entityType: varchar("entity_type").notNull(),
+  contextId: varchar("context_id").notNull(),
   entityId: varchar("entity_id").notNull(),
   typeId: varchar("type_id").notNull().references(() => optionsNoteType.id, { onDelete: 'restrict' }),
   subject: text("subject").notNull(),
@@ -353,7 +355,7 @@ export const entityNotes = pgTable("entity_notes", {
   timestamp: timestamp("timestamp").default(sql`now()`).notNull(),
   userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
 }, (table) => [
-  index("idx_entity_notes_entity").on(table.entityType, table.entityId),
+  index("idx_entity_notes_entity").on(table.contextId, table.entityId),
   index("idx_entity_notes_type_id").on(table.typeId),
 ]);
 

@@ -3,7 +3,6 @@ import type { Server } from "http";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./vite";
 import { initializePermissions } from "@shared/permissions";
-import { assertNoteEntityTablesComplete } from "./storage/entity-notes-entity-types";
 import { addressValidationService } from "./services/comm/validators/address";
 import { logger } from "./logger";
 import { setupAuth } from "./auth";
@@ -187,10 +186,6 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
   }
 
   installBaseMiddleware(app);
-
-  // Fail fast when a note-able record type declared in shared/entity-notes.ts has no
-  // table binding: without one the orphan sweep would silently skip its notes.
-  assertNoteEntityTablesComplete();
 
   // Initialize the permission system
   initializePermissions();

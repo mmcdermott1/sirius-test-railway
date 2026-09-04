@@ -153,4 +153,5 @@
 - [Cron tick heartbeat](cron-tick-heartbeat.md) — periodic plugin work subscribes to a shared wall-clock tick (one EventType per period), not its own cron; best-effort + level-triggered, dueness from the last LIVE SUCCESS, never a "how late" count.
 - [Whole-job dispatch eligibility](whole-job-eligibility-without-facts.md) — job-level rule = no condition, or an `exists` on a category NO denorm plugin writes (comment it); job-type-less configs are inert.
 - [Dashboard widget registry glob depth](dashboard-widget-registry-glob-depth.md) — client registry globs ./*/*.tsx as `<dir>:<File>`; a SHARED card must sit above the widget dirs or it registers as a phantom widget.
+- [Context-framework gating](context-framework-gating.md) — presence in the config var = on; a hidden tab needs a route guard reading the same server answer; a context id rename also moves discriminators + config KEYS.
 - [Server-fed nav sections](nav-section-fed-by-server-registry.md) — a nav group whose items come from a server registry must feed the path helpers too, and say "loading/couldn't load" rather than render empty.

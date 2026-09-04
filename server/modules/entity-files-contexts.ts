@@ -69,7 +69,7 @@ export function registerEntityFileContexts(): void {
 
   // Trust providers — staff-only, and hidden while `trust.providers` is off.
   registerEntityFileContext({
-    id: "trust-provider",
+    id: "trust_provider",
     label: "Trust Providers",
     component: "trust.providers",
     async entityExists(entityId: string): Promise<boolean> {

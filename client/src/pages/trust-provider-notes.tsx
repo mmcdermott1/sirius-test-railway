@@ -8,7 +8,7 @@ function TrustProviderNotesContent() {
     return null;
   }
 
-  return <EntityNotesPanel entityType="trust_provider" entityId={provider.id} />;
+  return <EntityNotesPanel contextId="trust_provider" entityId={provider.id} />;
 }
 
 export default function TrustProviderNotesPage() {

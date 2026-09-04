@@ -36,7 +36,7 @@ import {
   optionsNoteType,
   bulkMediumEnum,
 } from "@shared/schema";
-import { noteEntityTypeEnumOptions } from "@shared/entity-notes";
+import { listEntityNoteContexts } from "../services/entity-notes/registry";
 import { defineLoggingConfig, withStorageLogging } from "./middleware/logging";
 import type { JsonSchema, UiSchema } from "@shared/json-schema-form";
 
@@ -95,6 +95,14 @@ export interface FieldDefinition {
   selectOptionsType?: OptionsTypeName;
   /** For inputType="multi-enum" or "enum": the allowed string values (and optional human labels). */
   enumOptions?: Array<{ value: string; label?: string }>;
+  /**
+   * Same thing, computed when the definition is READ rather than when this
+   * module is imported. Use it whenever the choices come from a registry that
+   * is populated during boot: a static `enumOptions` array would freeze the
+   * empty registry into the field and the form would offer nothing.
+   * `getDefinition` resolves this into `enumOptions` before serving.
+   */
+  enumOptionsResolver?: () => Array<{ value: string; label?: string }>;
   /**
    * Optional form default for the generated JSON Schema. Currently honored
    * for `checkbox` fields (otherwise checkboxes default to false). Lets a
@@ -263,6 +271,20 @@ export function fieldsToJsonSchema(
     ...(required.length > 0 ? { required } : {}),
   };
   return { schema, uiSchema };
+}
+
+/**
+ * Materialize a field list for serving: any field whose choices are resolved
+ * at read time (see `enumOptionsResolver`) gets a concrete `enumOptions`, so
+ * every consumer downstream — the JSON Schema, the table cells, the write
+ * routes' enum constraints — sees one shape.
+ */
+export function resolveFieldChoices(fields: FieldDefinition[]): FieldDefinition[] {
+  return fields.map((field) =>
+    field.enumOptionsResolver
+      ? { ...field, enumOptions: field.enumOptionsResolver() }
+      : field,
+  );
 }
 
 interface OptionsTableMetadata<T extends PgTable<TableConfig>> {
@@ -686,7 +708,7 @@ const optionsMetadata: Record<OptionsTypeName, OptionsTableMetadata<any>> = {
       { name: "description", label: "Description", inputType: "textarea", required: false, placeholder: "Optional description of this note type", showInTable: true, columnHeader: "Description" },
       // Choices come from the shared note-entity registry so this list and the
       // API's entity-type validation cannot drift.
-      { name: "entityTypes", label: "Applies To", inputType: "multi-enum", required: true, helperText: "Record types that can use this note type.", showInTable: true, columnHeader: "Applies To", dataField: true, enumOptions: noteEntityTypeEnumOptions() },
+      { name: "entityTypes", label: "Applies To", inputType: "multi-enum", required: true, helperText: "Record types that can use this note type.", showInTable: true, columnHeader: "Applies To", dataField: true, enumOptionsResolver: () => listEntityNoteContexts().map((c) => ({ value: c.id, label: c.recordLabel })) },
       { name: "siriusId", label: "Sirius ID", inputType: "text", required: false, placeholder: "External ID", showInTable: true, columnHeader: "Sirius ID" },
     ],
   },
@@ -994,14 +1016,15 @@ function createUnifiedOptionsStorageImpl(): UnifiedOptionsStorage {
     getDefinition(type: OptionsTypeName): OptionsResourceDefinition | undefined {
       const metadata = optionsMetadata[type];
       if (!metadata) return undefined;
-      const { schema, uiSchema } = fieldsToJsonSchema(metadata.fields);
+      const fields = resolveFieldChoices(metadata.fields);
+      const { schema, uiSchema } = fieldsToJsonSchema(fields);
       return {
         type,
         displayName: metadata.displayName,
         description: metadata.description,
         singularName: metadata.singularName,
         pluralName: metadata.pluralName,
-        fields: metadata.fields,
+        fields,
         schema,
         uiSchema,
         supportsSequencing: metadata.supportsSequencing ?? false,
@@ -1013,14 +1036,15 @@ function createUnifiedOptionsStorageImpl(): UnifiedOptionsStorage {
     getAllDefinitions(): OptionsResourceDefinition[] {
       return (Object.keys(optionsMetadata) as OptionsTypeName[]).map(type => {
         const metadata = optionsMetadata[type];
-        const { schema, uiSchema } = fieldsToJsonSchema(metadata.fields);
+        const fields = resolveFieldChoices(metadata.fields);
+        const { schema, uiSchema } = fieldsToJsonSchema(fields);
         return {
           type,
           displayName: metadata.displayName,
           description: metadata.description,
           singularName: metadata.singularName,
           pluralName: metadata.pluralName,
-          fields: metadata.fields,
+          fields,
           schema,
           uiSchema,
           supportsSequencing: metadata.supportsSequencing ?? false,

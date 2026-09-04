@@ -74,6 +74,8 @@ import "./core/1069_delete_web_usage_alert_scan_cron_config";
 import "./core/1070_add_users_timezone";
 import "./core/1071_create_entity_files";
 import "./core/1072_rename_notes_to_entity_notes";
+import "./core/1073_rename_entity_notes_entity_type_to_context_id";
+import "./core/1074_rename_trust_provider_file_context";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

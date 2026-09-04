@@ -34,7 +34,7 @@ interface NoteTypeOption {
 
 interface NoteRow {
   id: string;
-  entityType: string;
+  contextId: string;
   entityId: string;
   typeId: string;
   subject: string;
@@ -46,8 +46,8 @@ interface NoteRow {
 }
 
 interface NotesPanelProps {
-  /** Registered note-able record type, e.g. "worker". */
-  entityType: string;
+  /** Registered note context, e.g. "worker". */
+  contextId: string;
   /** Id of the record the notes hang off. */
   entityId: string;
 }
@@ -60,12 +60,14 @@ function formatTimestamp(value: string): string {
 /**
  * Notes tab content, shared by every note-able record type.
  *
- * The only thing that varies per record is the `entityType` / `entityId` pair:
- * the note-type dropdown filters itself to the types that declare this record
- * type, and every mutation posts the pair back. Staff-only — the tab itself is
- * gated, and the API refuses non-staff regardless.
+ * The only thing that varies per record is the `contextId` / `entityId` pair:
+ * the note-type dropdown filters itself to the types that declare this
+ * context, and every mutation posts the pair back. Staff-only — the tab itself
+ * is gated, and the API refuses non-staff regardless. The tab is hidden
+ * entirely where an operator has not switched notes on, so this panel does not
+ * render there at all.
  */
-export default function EntityNotesPanel({ entityType, entityId }: NotesPanelProps) {
+export default function EntityNotesPanel({ contextId, entityId }: NotesPanelProps) {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<NoteRow | null>(null);
@@ -74,7 +76,7 @@ export default function EntityNotesPanel({ entityType, entityId }: NotesPanelPro
   const [formSubject, setFormSubject] = useState("");
   const [formBody, setFormBody] = useState("");
 
-  const notesQueryKey = ["/api/entity-notes", entityType, entityId];
+  const notesQueryKey = ["/api/entity-notes", contextId, entityId];
 
   const { data: notes = [], isLoading } = useQuery<NoteRow[]>({
     queryKey: notesQueryKey,
@@ -84,11 +86,11 @@ export default function EntityNotesPanel({ entityType, entityId }: NotesPanelPro
     queryKey: ["/api/options/note-type"],
   });
 
-  // Only types that declare this record type are offerable; the server
-  // enforces the same pairing on save.
+  // Only types that declare this context are offerable; the server enforces
+  // the same pairing on save.
   const noteTypes = useMemo(
-    () => allNoteTypes.filter((t) => (t.data?.entityTypes ?? []).includes(entityType)),
-    [allNoteTypes, entityType],
+    () => allNoteTypes.filter((t) => (t.data?.entityTypes ?? []).includes(contextId)),
+    [allNoteTypes, contextId],
   );
 
   const closeDialog = () => {
@@ -105,7 +107,7 @@ export default function EntityNotesPanel({ entityType, entityId }: NotesPanelPro
 
   const createMutation = useMutation({
     mutationFn: async (data: { typeId: string; subject: string; body: string | null }) =>
-      apiRequest("POST", "/api/entity-notes", { entityType, entityId, ...data }),
+      apiRequest("POST", "/api/entity-notes", { contextId, entityId, ...data }),
     onSuccess: () => {
       invalidate();
       toast({ title: "Note added" });

@@ -8,7 +8,7 @@ function TrustProviderFilesContent() {
     return null;
   }
 
-  return <EntityFileManager context="trust-provider" entityId={provider.id} />;
+  return <EntityFileManager context="trust_provider" entityId={provider.id} />;
 }
 
 export default function TrustProviderFilesPage() {

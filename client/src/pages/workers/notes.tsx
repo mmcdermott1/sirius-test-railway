@@ -3,7 +3,7 @@ import EntityNotesPanel from "@/components/entity-notes/EntityNotesPanel";
 
 function WorkerNotesContent() {
   const { worker } = useWorkerLayout();
-  return <EntityNotesPanel entityType="worker" entityId={worker.id} />;
+  return <EntityNotesPanel contextId="worker" entityId={worker.id} />;
 }
 
 export default function WorkerNotesPage() {

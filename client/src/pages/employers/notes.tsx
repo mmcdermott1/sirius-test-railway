@@ -3,7 +3,7 @@ import EntityNotesPanel from "@/components/entity-notes/EntityNotesPanel";
 
 function EmployerNotesContent() {
   const { employer } = useEmployerLayout();
-  return <EntityNotesPanel entityType="employer" entityId={employer.id} />;
+  return <EntityNotesPanel contextId="employer" entityId={employer.id} />;
 }
 
 export default function EmployerNotesPage() {

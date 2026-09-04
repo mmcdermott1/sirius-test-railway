@@ -1,14 +1,22 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
+import { requireAccess } from "../services/access-policy-evaluator";
 import { isComponentEnabled } from "./components";
-import { getNoteEntityType, isNoteEntityType, noteEntityTypeLabel } from "@shared/entity-notes";
+import { resolveEntityContextAvailability } from "./entity-contexts";
+import {
+  getEntityNoteContext,
+  listEntityNoteContexts,
+  type EntityNoteContext,
+  type EntityNotesVerb,
+} from "../services/entity-notes/registry";
+import { getEntityNotesContextConfig } from "../services/entity-notes/config";
+import { logger } from "../logger";
 
-type RequireAccess = (policy: string, getEntityId?: (req: Request) => string | Promise<string | undefined> | undefined) => (req: Request, res: Response, next: () => void) => void;
-type RequireAuth = (req: Request, res: Response, next: () => void) => void;
+type AuthMiddleware = (req: Request, res: Response, next: () => void) => void;
 
 const createNoteApiSchema = z.object({
-  entityType: z.string().min(1),
+  contextId: z.string().min(1),
   entityId: z.string().min(1),
   typeId: z.string().min(1),
   subject: z.string().min(1),
@@ -24,31 +32,57 @@ const updateNoteApiSchema = z.object({
 });
 
 /**
- * Guard an entity type: it must be registered in the shared note-entity
- * registry AND, when the record's pages belong to a component, that component
- * must be enabled. Returns an error payload or null.
+ * The ONE refusal for "this area does not take notes": unknown context or a
+ * disabled component are indistinguishable 404s (no probing), an area an
+ * operator has not switched on is a 403 that says so. Every verb goes through
+ * here, including the two that address a note by id, so a note in an area that
+ * was switched off can no longer be read, edited or deleted through the API —
+ * matching the tab, which is hidden for exactly the same reason.
  */
-async function checkEntityType(
-  entityType: string,
-): Promise<{ status: number; message: string } | null> {
-  if (!isNoteEntityType(entityType)) {
-    return { status: 400, message: `Notes are not supported for "${entityType}"` };
+async function resolveContext(
+  contextId: string,
+  res: Response,
+): Promise<EntityNoteContext | undefined> {
+  const availability = await resolveEntityContextAvailability({
+    framework: "entity-notes",
+    contextId,
+  });
+  if (!availability.available) {
+    res.status(availability.status).json({ message: availability.reason });
+    return undefined;
   }
-  const requiredComponent = getNoteEntityType(entityType)?.requiredComponent;
-  if (requiredComponent && !(await isComponentEnabled(requiredComponent))) {
-    return { status: 403, message: `Access denied: the feature that owns ${noteEntityTypeLabel(entityType)} records is not enabled` };
+  return getEntityNoteContext(contextId);
+}
+
+/** Context resolution plus the context's access callback and record existence. */
+async function resolveContextAndAuthorize(
+  req: Request,
+  res: Response,
+  contextId: string,
+  entityId: string,
+  verb: EntityNotesVerb,
+): Promise<EntityNoteContext | undefined> {
+  const context = await resolveContext(contextId, res);
+  if (!context) return undefined;
+  if (!(await context.checkAccess(verb, entityId, req))) {
+    res.status(403).json({ message: "Insufficient permissions" });
+    return undefined;
   }
-  return null;
+  if (!(await context.entityExists(entityId))) {
+    res.status(404).json({ message: `${context.recordLabel} not found` });
+    return undefined;
+  }
+  return context;
 }
 
 /**
- * Validate that a note type exists and applies to the given record type. The
+ * Validate that a note type exists and applies to the given context. The
  * dropdown already filters by record type, but a hand-made request must not be
  * able to pair a type with a record type it does not declare.
  */
 async function checkNoteType(
   typeId: string,
-  entityType: string,
+  context: EntityNoteContext,
 ): Promise<{ status: number; message: string } | null> {
   const optionsStorage = (await import("./options-registry")).getOptionsStorage();
   const noteType = await optionsStorage.get("note-type", typeId);
@@ -56,56 +90,92 @@ async function checkNoteType(
     return { status: 400, message: "Unknown note type" };
   }
   const entityTypes = (noteType.data as { entityTypes?: unknown } | null)?.entityTypes;
-  const applies = Array.isArray(entityTypes) && entityTypes.includes(entityType);
+  const applies = Array.isArray(entityTypes) && entityTypes.includes(context.id);
   if (!applies) {
     return {
       status: 400,
-      message: `Note type "${noteType.name}" does not apply to ${noteEntityTypeLabel(entityType)} records`,
+      message: `Note type "${noteType.name}" does not apply to ${context.recordLabel} records`,
     };
   }
   return null;
 }
 
 /**
- * Notes routes.
+ * Generic entity notes routes.
  *
- * Staff-only on every verb, reads included — notes are internal commentary and
- * a worker must not see their own. Every write re-checks the entity type
- * against the shared registry, that the parent record actually exists, and
- * that the chosen note type applies to that record type.
+ * Which record types can carry notes is a code registration
+ * (server/services/entity-notes/registry.ts); WHETHER an area carries them is
+ * operator configuration in the `entity_notes_config` variable. Access is the
+ * context's own callback — staff-only for every area today, reads included,
+ * since notes are internal commentary a worker must not see about themselves.
  */
-export function registerEntityNotesRoutes(
-  app: Express,
-  requireAuth: RequireAuth,
-  requireAccess: RequireAccess,
-) {
-  app.get("/api/entity-notes/:entityType/:entityId", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
-    try {
-      const { entityType, entityId } = req.params;
-      const typeError = await checkEntityType(entityType);
-      if (typeError) {
-        return res.status(typeError.status).json({ message: typeError.message });
+export function registerEntityNotesRoutes(app: Express, requireAuth: AuthMiddleware) {
+  // Admin metadata for the config page: registered contexts and whether notes
+  // are currently switched on for each. Registered before the `:context`
+  // routes so "contexts" is never read as a context id.
+  app.get(
+    "/api/entity-notes/contexts",
+    requireAuth,
+    requireAccess("admin"),
+    async (_req: Request, res: Response) => {
+      try {
+        const contexts = await Promise.all(
+          listEntityNoteContexts().map(async (context) => ({
+            id: context.id,
+            label: context.label,
+            recordLabel: context.recordLabel,
+            component: context.component ?? null,
+            componentEnabled: context.component
+              ? await isComponentEnabled(context.component)
+              : true,
+            enabled: (await getEntityNotesContextConfig(context.id)) !== undefined,
+          })),
+        );
+        res.json({ contexts });
+      } catch (error) {
+        logger.error("Failed to list entity note contexts", {
+          service: "entityNotes",
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({ message: "Failed to list entity note contexts" });
       }
-      const notes = await storage.entityNotes.listByEntity(entityType, entityId);
-      res.json(notes);
-    } catch (error) {
-      console.error("Error fetching notes:", error);
-      res.status(500).json({ message: "Failed to fetch notes" });
-    }
-  });
+    },
+  );
 
-  app.post("/api/entity-notes", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
+  app.get(
+    "/api/entity-notes/:context/:entityId",
+    requireAuth,
+    async (req: Request, res: Response) => {
+      try {
+        const { context: contextId, entityId } = req.params;
+        const context = await resolveContextAndAuthorize(req, res, contextId, entityId, "view");
+        if (!context) return;
+
+        const notes = await storage.entityNotes.listByEntity(context.id, entityId);
+        res.json(notes);
+      } catch (error) {
+        logger.error("Failed to list notes", {
+          service: "entityNotes",
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({ message: "Failed to fetch notes" });
+      }
+    },
+  );
+
+  app.post("/api/entity-notes", requireAuth, async (req: Request, res: Response) => {
     try {
       const validated = createNoteApiSchema.parse(req.body);
+      const context = await resolveContextAndAuthorize(
+        req,
+        res,
+        validated.contextId,
+        validated.entityId,
+        "manage",
+      );
+      if (!context) return;
 
-      const typeError = await checkEntityType(validated.entityType);
-      if (typeError) {
-        return res.status(typeError.status).json({ message: typeError.message });
-      }
-      if (!(await storage.entityNotes.entityExists(validated.entityType, validated.entityId))) {
-        return res.status(404).json({ message: `${noteEntityTypeLabel(validated.entityType)} not found` });
-      }
-      const noteTypeError = await checkNoteType(validated.typeId, validated.entityType);
+      const noteTypeError = await checkNoteType(validated.typeId, context);
       if (noteTypeError) {
         return res.status(noteTypeError.status).json({ message: noteTypeError.message });
       }
@@ -115,7 +185,7 @@ export function registerEntityNotesRoutes(
       const { dbUser } = await getEffectiveUser((req as any).session ?? {}, (req as any).user);
 
       const note = await storage.entityNotes.create({
-        entityType: validated.entityType,
+        contextId: context.id,
         entityId: validated.entityId,
         typeId: validated.typeId,
         subject: validated.subject,
@@ -128,12 +198,15 @@ export function registerEntityNotesRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", details: error.errors });
       }
-      console.error("Error creating note:", error);
+      logger.error("Failed to create note", {
+        service: "entityNotes",
+        error: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).json({ message: "Failed to create note" });
     }
   });
 
-  app.put("/api/entity-notes/:id", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
+  app.put("/api/entity-notes/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const validated = updateNoteApiSchema.parse(req.body);
       const existing = await storage.entityNotes.get(req.params.id);
@@ -141,14 +214,19 @@ export function registerEntityNotesRoutes(
         return res.status(404).json({ message: "Note not found" });
       }
 
-      // Gate on the note's OWN record type, not on anything the caller sends:
-      // a note never moves between records.
-      const typeError = await checkEntityType(existing.entityType);
-      if (typeError) {
-        return res.status(typeError.status).json({ message: typeError.message });
-      }
+      // Gate on the note's OWN context, not on anything the caller sends: a
+      // note never moves between records.
+      const context = await resolveContextAndAuthorize(
+        req,
+        res,
+        existing.contextId,
+        existing.entityId,
+        "manage",
+      );
+      if (!context) return;
+
       if (validated.typeId !== undefined) {
-        const noteTypeError = await checkNoteType(validated.typeId, existing.entityType);
+        const noteTypeError = await checkNoteType(validated.typeId, context);
         if (noteTypeError) {
           return res.status(noteTypeError.status).json({ message: noteTypeError.message });
         }
@@ -169,28 +247,39 @@ export function registerEntityNotesRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", details: error.errors });
       }
-      console.error("Error updating note:", error);
+      logger.error("Failed to update note", {
+        service: "entityNotes",
+        error: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).json({ message: "Failed to update note" });
     }
   });
 
-  app.delete("/api/entity-notes/:id", requireAuth, requireAccess('staff'), async (req: Request, res: Response) => {
+  app.delete("/api/entity-notes/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const existing = await storage.entityNotes.get(req.params.id);
       if (!existing) {
         return res.status(404).json({ message: "Note not found" });
       }
-      const typeError = await checkEntityType(existing.entityType);
-      if (typeError) {
-        return res.status(typeError.status).json({ message: typeError.message });
-      }
+      const context = await resolveContextAndAuthorize(
+        req,
+        res,
+        existing.contextId,
+        existing.entityId,
+        "manage",
+      );
+      if (!context) return;
+
       const deleted = await storage.entityNotes.delete(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Note not found" });
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting note:", error);
+      logger.error("Failed to delete note", {
+        service: "entityNotes",
+        error: error instanceof Error ? error.message : String(error),
+      });
       res.status(500).json({ message: "Failed to delete note" });
     }
   });

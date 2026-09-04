@@ -6,7 +6,7 @@
  * import must not be able to write anything the single-record form would
  * reject, so both call these helpers rather than keeping their own copies.
  */
-import { isNoteEntityType } from "@shared/entity-notes";
+import { getEntityNoteContext } from "../services/entity-notes/registry";
 import { jobTypeBullpenEnum } from "@shared/schema";
 import { storage } from "../storage";
 import type { OptionsTypeConfig } from "./options-registry";
@@ -108,16 +108,22 @@ async function validateWorkerBanTypePlugins(data: unknown): Promise<string | nul
 
 /**
  * Validation for `note-type` writes: `data.entityTypes` must be a non-empty
- * array of record types registered in the shared note-entity registry. The
- * form constrains this via a multi-select, but a direct API call must not be
- * able to declare a type for a record kind that cannot hold notes.
+ * array of registered note contexts. The form constrains this via a
+ * multi-select, but a direct API call must not be able to declare a type for a
+ * record kind that cannot hold notes.
+ *
+ * Registration, not configuration: a note type may name an area whose notes an
+ * operator has currently switched off. Switching an area back on must not have
+ * to repair note types that were edited while it was off.
  */
 function validateNoteTypeEntityTypes(data: unknown): string | null {
   const entityTypes = (data as { entityTypes?: unknown } | null | undefined)?.entityTypes;
   if (!Array.isArray(entityTypes) || entityTypes.length === 0) {
     return "At least one record type is required";
   }
-  const unknown = entityTypes.filter((t) => typeof t !== "string" || !isNoteEntityType(t));
+  const unknown = entityTypes.filter(
+    (t) => typeof t !== "string" || !getEntityNoteContext(t),
+  );
   if (unknown.length > 0) {
     return `Unknown record type(s): ${unknown.join(", ")}`;
   }
@@ -152,7 +158,7 @@ export function checkOptionEnumValues(
   config: OptionsTypeConfig,
   values: Record<string, any>,
 ): string | null {
-  for (const [field, allowed] of Object.entries(config.enumConstraints)) {
+  for (const [field, allowed] of Object.entries(config.enumConstraints())) {
     const value = values[field];
     if (value !== undefined && value !== null && !allowed.includes(value)) {
       return `${field} must be one of: ${allowed.join(", ")}`;

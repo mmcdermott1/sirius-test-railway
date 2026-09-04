@@ -100,7 +100,9 @@ import { registerWorkerDispatchHfeRoutes } from "./modules/dispatch/worker-hfe";
 import { registerWorkerDispatchEbaRoutes } from "./modules/dispatch/worker-eba";
 import { registerWorkerDispatchAsiRoutes } from "./modules/dispatch/worker-asi";
 import { registerWorkerBansRoutes } from "./modules/worker-bans";
+import { registerEntityNoteContexts } from "./modules/entity-notes-contexts";
 import { registerEntityNotesRoutes } from "./modules/entity-notes";
+import { assertNoteContextTablesComplete } from "./storage/entity-notes-context-tables";
 import { registerWorkerSkillsRoutes } from "./modules/workers/skills";
 import { registerWorkerRelationsRoutes } from "./modules/workers/relations";
 import { registerWorkerTrustElectionsRoutes } from "./modules/trust/elections";
@@ -1780,7 +1782,11 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   registerWorkerBansRoutes(app, requireAuth, requireAccess);
 
   // Register notes routes (staff-only, all record types)
-  registerEntityNotesRoutes(app, requireAuth, requireAccess);
+  // Entity notes framework: register contexts, assert each one has a table
+  // binding for the orphan sweep, then the generic routes.
+  registerEntityNoteContexts();
+  assertNoteContextTablesComplete();
+  registerEntityNotesRoutes(app, requireAuth);
 
   // Register worker skills routes (handles all access control internally)
   registerWorkerSkillsRoutes(app, requireAuth, requireAccess);
