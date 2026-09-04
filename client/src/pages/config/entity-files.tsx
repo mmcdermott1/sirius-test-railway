@@ -42,6 +42,16 @@ interface DraftEntry {
 
 const VARIABLE_NAME = "entity_files_config";
 
+/**
+ * The directory an area is proposed when it has none: the area's own id, then
+ * the one token the server names. Relative on purpose — the framework trims
+ * surrounding slashes and every path is relative to the filesystem's own base.
+ * This is a front-end suggestion only; what gets stored is this plain string.
+ */
+function proposeDirectory(contextId: string, directoryToken: string): string {
+  return `${contextId}/${directoryToken}`;
+}
+
 export default function EntityFilesConfigPage() {
   usePageTitle("Entity Files");
   const { toast } = useToast();
@@ -59,7 +69,9 @@ export default function EntityFilesConfigPage() {
       next[context.id] = {
         enabled: !!context.config,
         file_system: context.config?.file_system ?? "",
-        directory: context.config?.directory ?? "",
+        // A saved directory is kept verbatim; an area with no configuration
+        // starts from the conventional proposal.
+        directory: context.config?.directory ?? proposeDirectory(context.id, data.directoryToken),
         allowed: context.config?.allowed?.join(", ") ?? "",
       };
     }
@@ -126,12 +138,13 @@ export default function EntityFilesConfigPage() {
         </h1>
         <p className="text-muted-foreground mt-2">
           Configure where file attachments are stored for each area of the app. An area with
-          no configuration will not accept uploads. A directory may embed{" "}
-          <code className="font-mono">{DIRECTORY_TOKEN}</code>, the only token there is, which
-          expands to the id of the record the files hang off — so{" "}
-          <code className="font-mono">employers/{DIRECTORY_TOKEN}</code> gives every employer
-          its own folder. Any other <code className="font-mono">:token</code> is rejected on
-          save.
+          no configuration will not accept uploads. Switching an area on proposes the
+          conventional directory{" "}
+          <code className="font-mono">&lt;area id&gt;/{DIRECTORY_TOKEN}</code> — so a grievance
+          file lands in <code className="font-mono">grievance/{DIRECTORY_TOKEN}</code> — which
+          you are free to edit. <code className="font-mono">{DIRECTORY_TOKEN}</code> is the only
+          token there is, and expands to the id of the record the files hang off. Any other{" "}
+          <code className="font-mono">:token</code> is rejected on save.
         </p>
       </div>
 
@@ -163,7 +176,16 @@ export default function EntityFilesConfigPage() {
                   <Switch
                     id={`enabled-${context.id}`}
                     checked={draft.enabled}
-                    onCheckedChange={(checked) => setDraft(context.id, { enabled: checked })}
+                    onCheckedChange={(checked) =>
+                      setDraft(context.id, {
+                        enabled: checked,
+                        // Only ever fill an empty box — a saved or typed
+                        // directory survives the toggle untouched.
+                        ...(checked && !draft.directory.trim()
+                          ? { directory: proposeDirectory(context.id, DIRECTORY_TOKEN) }
+                          : {}),
+                      })
+                    }
                     data-testid={`switch-enabled-${context.id}`}
                   />
                 </div>
@@ -195,7 +217,7 @@ export default function EntityFilesConfigPage() {
                     <Input
                       value={draft.directory}
                       onChange={(e) => setDraft(context.id, { directory: e.target.value })}
-                      placeholder={`e.g. attachments/${DIRECTORY_TOKEN}`}
+                      placeholder={proposeDirectory(context.id, DIRECTORY_TOKEN)}
                       data-testid={`input-directory-${context.id}`}
                     />
                   </div>
