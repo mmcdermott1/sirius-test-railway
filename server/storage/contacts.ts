@@ -1053,10 +1053,13 @@ function formatAddressForLog(address: any): string {
  */
 export const addressLoggingConfig: StorageLoggingConfig<AddressStorage> = {
   module: 'contacts.addresses',
+  table: 'contact_postal',
+  hostTable: 'contacts',
   methods: {
     createContactPostal: {
       enabled: true,
       getEntityId: (args) => args[0]?.contactId || 'new address',
+      metadataEntityId: (_args, result) => result?.id,
       getHostEntityId: (args, result) => result?.contactId,
       after: async (args, result) => {
         return result;
@@ -1151,10 +1154,13 @@ function formatPhoneNumberForLog(phoneNumber: any): string {
  */
 export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> = {
   module: 'contacts.phoneNumbers',
+  table: 'contact_phone',
+  hostTable: 'contacts',
   methods: {
     createPhoneNumber: {
       enabled: true,
       getEntityId: (args) => args[0]?.contactId || 'new phone number',
+      metadataEntityId: (_args, result) => result?.id,
       getHostEntityId: (args, result) => result?.contactId,
       after: async (args, result) => {
         return result;
@@ -1226,6 +1232,7 @@ export const phoneNumberLoggingConfig: StorageLoggingConfig<PhoneNumberStorage> 
 
 export const contactLoggingConfig: StorageLoggingConfig<ContactStorage> = {
   module: 'contacts',
+  table: 'contacts',
   methods: {
     createContact: {
       enabled: true,

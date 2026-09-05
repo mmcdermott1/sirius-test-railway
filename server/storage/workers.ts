@@ -1295,6 +1295,7 @@ export function createWorkerStorage(contactsStorage: ContactsStorage): WorkerSto
  */
 export const workerLoggingConfig: StorageLoggingConfig<WorkerStorage> = {
   module: 'workers',
+  table: 'workers',
   methods: {
     createWorker: {
       enabled: true,

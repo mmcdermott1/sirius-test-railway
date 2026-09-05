@@ -112,6 +112,7 @@ export function createSnapshotsStorage(): SnapshotsStorage {
 
 export const snapshotsLoggingConfig = defineLoggingConfig<SnapshotsStorage>({
   module: 'snapshots',
+  table: 'snapshots',
   methods: {
     create: {
       state: { fallbackId: 'new snapshot' },

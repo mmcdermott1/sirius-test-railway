@@ -106,6 +106,8 @@ export function createEmployerPolicyHistoryStorage(
 
 export const employerPolicyHistoryLoggingConfig: StorageLoggingConfig<EmployerPolicyHistoryStorage> = {
   module: 'employer-policy-history',
+  table: 'employer_policy_history',
+  hostTable: 'employers',
   methods: {
     createEmployerPolicyHistory: {
       enabled: true,

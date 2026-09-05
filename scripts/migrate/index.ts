@@ -78,6 +78,7 @@ import "./core/1073_rename_entity_notes_entity_type_to_context_id";
 import "./core/1074_rename_trust_provider_file_context";
 import "./core/1075_create_options_file_type";
 import "./core/1076_rename_note_type_entity_types_key";
+import "./core/1077_create_entity_metadata";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

@@ -2135,8 +2135,12 @@ export function createLedgerStorage(
  */
 export const ledgerAccountLoggingConfig = defineLoggingConfig<LedgerAccountStorage>({
   module: 'ledger.accounts',
+  table: 'ledger_accounts',
   methods: {
-    create: { getEntityId: (args, result) => result?.id || args[0]?.name || 'new account' },
+    create: {
+      getEntityId: (args, result) => result?.id || args[0]?.name || 'new account',
+      metadataEntityId: (_args, result) => result?.id,
+    },
     update: {},
     delete: {},
   },
@@ -2155,9 +2159,13 @@ function formatPaymentForLog(payment: LedgerPayment | undefined): string {
 
 export const ledgerPaymentBatchLoggingConfig = defineLoggingConfig<LedgerPaymentBatchStorage>({
   module: 'ledger.paymentBatches',
+  table: 'ledger_payment_batches',
   hostEntityId: (args, result) => result?.id ?? args[0],
   methods: {
-    create: { getEntityId: (args, result) => result?.id || args[0]?.name || 'new batch' },
+    create: {
+      getEntityId: (args, result) => result?.id || args[0]?.name || 'new batch',
+      metadataEntityId: (_args, result) => result?.id,
+    },
     update: {},
     delete: {},
   },
@@ -2171,10 +2179,12 @@ export const ledgerPaymentBatchLoggingConfig = defineLoggingConfig<LedgerPayment
  */
 export const ledgerPaymentLoggingConfig: StorageLoggingConfig<LedgerPaymentStorage> = {
   module: 'ledger.payments',
+  table: 'ledger_payments',
   methods: {
     create: {
       enabled: true,
       getEntityId: (args, result) => formatPaymentForLog(result),
+      metadataEntityId: (args, result, beforeState) => result?.id ?? beforeState?.id ?? args[0],
       getHostEntityId: async (args, result) => {
         return result?.id;
       },
@@ -2185,6 +2195,7 @@ export const ledgerPaymentLoggingConfig: StorageLoggingConfig<LedgerPaymentStora
     update: {
       enabled: true,
       getEntityId: (args, result, beforeState) => formatPaymentForLog(result || beforeState),
+      metadataEntityId: (args, result, beforeState) => result?.id ?? beforeState?.id ?? args[0],
       getHostEntityId: async (args, result, beforeState) => {
         return result?.id || beforeState?.id || args[0];
       },
@@ -2198,6 +2209,7 @@ export const ledgerPaymentLoggingConfig: StorageLoggingConfig<LedgerPaymentStora
     delete: {
       enabled: true,
       getEntityId: (args, result, beforeState) => formatPaymentForLog(beforeState),
+      metadataEntityId: (args, result, beforeState) => result?.id ?? beforeState?.id ?? args[0],
       getHostEntityId: async (args, result, beforeState) => {
         return beforeState?.id || args[0];
       },

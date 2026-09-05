@@ -138,6 +138,8 @@ export function createWorkerWshStorage(
 
 export const workerWshLoggingConfig: StorageLoggingConfig<WorkerWshStorage> = {
   module: 'worker-wsh',
+  table: 'worker_wsh',
+  hostTable: 'workers',
   methods: {
     createWorkerWsh: {
       enabled: true,

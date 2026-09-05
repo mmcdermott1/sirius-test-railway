@@ -245,10 +245,12 @@ export function createWizardStorage(): WizardStorage {
 
 export const wizardLoggingConfig: StorageLoggingConfig<WizardStorage> = {
   module: 'wizards',
+  table: 'wizards',
   methods: {
     create: {
       enabled: true,
       getEntityId: (args) => args[0]?.type || 'new wizard',
+      metadataEntityId: (_args, result) => result?.id,
       getHostEntityId: (args, result) => {
         return result?.entityId || null;
       },

@@ -91,6 +91,8 @@ async function getJobTypeName(jobTypeId: string | null | undefined): Promise<str
 
 export const dispatchJobLoggingConfig = defineLoggingConfig<DispatchJobStorage>({
   module: 'dispatchJobs',
+  table: 'dispatch_jobs',
+  hostTable: 'employers',
   state: { key: 'job' },
   hostEntityIdField: 'employerId',
   methods: {

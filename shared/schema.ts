@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { foreignKey, pgTable, pgEnum, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer, unique, serial, index, uniqueIndex, numeric, check } from "drizzle-orm/pg-core";
+import { foreignKey, pgTable, pgEnum, text, varchar, boolean, timestamp, date, primaryKey, jsonb, doublePrecision, integer, unique, serial, bigserial, index, uniqueIndex, numeric, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { isValidYmd, type Ymd } from "./utils/date";
@@ -1066,6 +1066,61 @@ export const insertEntityFileSchema = createInsertSchema(entityFiles).omit({
 });
 export type EntityFile = typeof entityFiles.$inferSelect;
 export type InsertEntityFile = z.infer<typeof insertEntityFileSchema>;
+
+/**
+ * One row of provenance per record, for every table whose storage module
+ * emits audit logs. Maintained in-application by the storage logging
+ * middleware (`server/storage/middleware/logging.ts`) — there is no database
+ * trigger, and the contract is explicitly best effort.
+ *
+ * `entity_id` alone is unique: every id involved is a UUID, so the record's id
+ * identifies it across the whole database. `table_name` says which table that
+ * record lives in and never changes once written.
+ *
+ * `seq` is a second, sequential name for the record, assigned once at insert
+ * and never reassigned: "entity #12345" permanently means one row in one
+ * table. A record whose metadata row is deleted loses its seq with it.
+ *
+ * The `subrecord_modified_*` pair records activity on a record's children:
+ * editing a phone number stamps the phone number's own row, and — because the
+ * log entry names the contact as its host — the contact's subrecord pair.
+ */
+export const entityMetadata = pgTable("entity_metadata", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  seq: bigserial("seq", { mode: "number" }).notNull(),
+  /** Raw database table the record lives in, e.g. `contact_phone`. */
+  tableName: varchar("table_name", { length: 255 }).notNull(),
+  entityId: varchar("entity_id").notNull(),
+  /** When the record was created, or when it was first observed. */
+  createdDate: timestamp("created_date"),
+  /** Only set when the creation itself was observed; null for a record we met mid-life. */
+  createdBy: varchar("created_by"),
+  modifiedDate: timestamp("modified_date"),
+  modifiedBy: varchar("modified_by"),
+  subrecordModifiedDate: timestamp("subrecord_modified_date"),
+  subrecordModifiedBy: varchar("subrecord_modified_by"),
+}, (table) => [
+  foreignKey({
+    name: "entity_metadata_created_by_users_id_fk",
+    columns: [table.createdBy],
+    foreignColumns: [users.id],
+  }).onDelete("set null"),
+  foreignKey({
+    name: "entity_metadata_modified_by_users_id_fk",
+    columns: [table.modifiedBy],
+    foreignColumns: [users.id],
+  }).onDelete("set null"),
+  foreignKey({
+    name: "entity_metadata_sub_modified_by_users_id_fk",
+    columns: [table.subrecordModifiedBy],
+    foreignColumns: [users.id],
+  }).onDelete("set null"),
+  unique("entity_metadata_seq_unique").on(table.seq),
+  unique("entity_metadata_entity_id_unique").on(table.entityId),
+  index("idx_entity_metadata_table_name").on(table.tableName),
+]);
+
+export type EntityMetadata = typeof entityMetadata.$inferSelect;
 
 export const esigStatusEnum = pgEnum("esig_status", ["pending", "signed"]);
 export const esigTypeEnum = pgEnum("esig_type", ["online", "offline", "upload"]);

@@ -742,9 +742,11 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
  */
 export const userLoggingConfig = defineLoggingConfig<UserStorage>({
   module: 'users',
+  table: 'users',
   methods: {
     createUser: {
       getEntityId: (args) => args[0]?.email || 'new user',
+      metadataEntityId: (_args, result) => result?.id,
       getHostEntityId: (_args, result) => result?.id, // User ID is the host
     },
     updateUser: {
@@ -789,13 +791,16 @@ export const userLoggingConfig = defineLoggingConfig<UserStorage>({
     },
     createRole: {
       enabled: true,
+      table: 'roles',
       getEntityId: (args) => args[0]?.name || 'new role',
+      metadataEntityId: (_args, result) => result?.id,
       after: async (args, result, storage) => {
         return result; // Capture created role
       }
     },
     updateRole: {
       enabled: true,
+      table: 'roles',
       getEntityId: (args) => args[0], // Role ID
       before: async (args, storage) => {
         return await storage.getRole(args[0]); // Current state
@@ -819,6 +824,7 @@ export const userLoggingConfig = defineLoggingConfig<UserStorage>({
     },
     deleteRole: {
       enabled: true,
+      table: 'roles',
       getEntityId: (args) => args[0], // Role ID
       before: async (args, storage) => {
         return await storage.getRole(args[0]); // Capture what's being deleted
@@ -826,6 +832,7 @@ export const userLoggingConfig = defineLoggingConfig<UserStorage>({
     },
     updateRoleSequence: {
       enabled: true,
+      table: 'roles',
       getEntityId: (args) => args[0], // Role ID
       before: async (args, storage) => {
         return await storage.getRole(args[0]); // Current state
@@ -836,6 +843,10 @@ export const userLoggingConfig = defineLoggingConfig<UserStorage>({
     },
     assignRoleToUser: {
       enabled: true,
+      table: 'user_roles',
+      hostTable: 'users',
+      // The log's entity is the parent, not the row written here.
+      metadataEntityId: () => undefined,
       getEntityId: (args) => args[0]?.userId || 'user',
       getHostEntityId: (args, result) => result?.userId || args[0]?.userId, // User ID is the host
       after: async (args, result, storage) => {
@@ -852,6 +863,10 @@ export const userLoggingConfig = defineLoggingConfig<UserStorage>({
     },
     unassignRoleFromUser: {
       enabled: true,
+      table: 'user_roles',
+      hostTable: 'users',
+      // The log's entity is the parent, not the row written here.
+      metadataEntityId: () => undefined,
       getEntityId: (args) => args[0], // User ID
       getHostEntityId: (args) => args[0], // User ID is the host
       before: async (args, storage) => {
@@ -871,6 +886,9 @@ export const userLoggingConfig = defineLoggingConfig<UserStorage>({
     },
     assignPermissionToRole: {
       enabled: true,
+      table: 'role_permissions',
+      // The log's entity is the parent, not the row written here.
+      metadataEntityId: () => undefined,
       getEntityId: (args) => args[0]?.roleId || 'role',
       after: async (args, result, storage) => {
         return result; // Capture permission assignment
@@ -884,6 +902,9 @@ export const userLoggingConfig = defineLoggingConfig<UserStorage>({
     },
     unassignPermissionFromRole: {
       enabled: true,
+      table: 'role_permissions',
+      // The log's entity is the parent, not the row written here.
+      metadataEntityId: () => undefined,
       getEntityId: (args) => args[0], // Role ID
       before: async (args, storage) => {
         // Capture the permissions before removal

@@ -1,6 +1,6 @@
 import { createNoopValidator } from './utils/validation';
 import { getClient } from './transaction-context';
-import { eq, asc, SQL } from "drizzle-orm";
+import { eq, asc, getTableName, SQL } from "drizzle-orm";
 import { PgTable, TableConfig } from "drizzle-orm/pg-core";
 import { 
   optionsGender, 
@@ -1087,9 +1087,15 @@ function createUnifiedOptionsStorageImpl(): UnifiedOptionsStorage {
 
 export const unifiedOptionsLoggingConfig = defineLoggingConfig<UnifiedOptionsStorage>({
   module: "options",
+  // One storage over every options table: the type argument names which.
+  table: (args) => {
+    const metadata = optionsMetadata[args[0] as OptionsTypeName];
+    return metadata ? getTableName(metadata.table) : undefined;
+  },
   methods: {
     create: {
       getEntityId: (args) => args[1]?.name || `new ${args[0]}`,
+      metadataEntityId: (_args, result) => result?.id,
     },
     update: {
       getEntityId: (args) => args[1],

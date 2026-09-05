@@ -108,6 +108,7 @@ export function createPaymentMethodStorage(): PaymentMethodStorage {
  */
 export const paymentMethodLoggingConfig = defineLoggingConfig<PaymentMethodStorage>({
   module: 'ledger.paymentMethods',
+  table: 'ledger_paymentmethods',
   methods: {
     create: { getEntityId: (args, result) => result?.id || 'new payment method' },
     update: {},

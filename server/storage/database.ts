@@ -737,6 +737,7 @@ export class DatabaseStorage implements IStorage {
       },
       {
         module: 'comm',
+        table: 'comm',
         methods: {
           updateWithTags: {
             enabled: true,

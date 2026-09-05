@@ -180,6 +180,8 @@ export function createWorkerMshStorage(
 
 export const workerMshLoggingConfig: StorageLoggingConfig<WorkerMshStorage> = {
   module: 'worker-msh',
+  table: 'worker_msh',
+  hostTable: 'workers',
   methods: {
     createWorkerMsh: {
       enabled: true,

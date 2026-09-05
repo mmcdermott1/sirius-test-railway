@@ -20,6 +20,7 @@ export interface TrustProviderStorage {
 
 const loggingConfig: StorageLoggingConfig<TrustProviderStorage> = {
   module: 'trust-providers',
+  table: 'trust_providers',
   methods: {
     createTrustProvider: {
       enabled: true,

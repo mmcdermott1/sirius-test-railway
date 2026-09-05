@@ -62,6 +62,7 @@ export function createGatewayCustomerStorage(): GatewayCustomerStorage {
  */
 export const gatewayCustomerLoggingConfig = defineLoggingConfig<GatewayCustomerStorage>({
   module: 'ledger.gatewayCustomers',
+  table: 'ledger_gateway_customers',
   methods: {
     upsert: { getEntityId: (args, result) => result?.id || 'new gateway customer' },
   },

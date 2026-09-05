@@ -619,6 +619,7 @@ export function createEdlsSheetsStorage(): EdlsSheetsStorage {
 
 export const edlsSheetsLoggingConfig = defineLoggingConfig<EdlsSheetsStorage>({
   module: 'edls-sheets',
+  table: 'edls_sheets',
   // Note: no module-level stateKey — `before` for update/delete stores the raw
   // sheet row (legacy shape). The explicit `after` hooks on create/update
   // wrap the result as `{ sheet, crews, metadata }` to preserve byte-identical
