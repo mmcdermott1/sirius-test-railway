@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { recordGoHref } from "@shared/utils/record-go";
 
 export function recordGoDestination(identifier: string): { href: string } | { error: string } {
   const value = identifier.trim();
   if (!value) {
     return { error: "Enter a record ID, metadata ID, or record sequence." };
   }
-  return { href: `/go/${encodeURIComponent(value)}` };
+  return { href: recordGoHref(value) };
 }
 
 export default function RecordGoPage() {

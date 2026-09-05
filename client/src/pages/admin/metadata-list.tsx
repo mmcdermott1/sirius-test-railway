@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { RecordHistoryLayout } from "@/components/layouts/RecordHistoryLayout";
@@ -37,8 +36,8 @@ import { formatRecordSequence } from "@shared/utils/record-sequence";
  * exists to answer are of the form "what did this person change last Tuesday"
  * and "which of these was created before the migration".
  *
- * A row opens the same dialog the badge on the record's own page opens; where
- * that record has a page, the row links to it.
+ * A row opens the same dialog the badge on the record's own page opens and
+ * offers the server-owned Go to record resolver for every record.
  */
 
 const PAGE_SIZE = 50;
@@ -53,8 +52,8 @@ type SortColumn =
 
 interface MetadataRow extends RecordMetadata {
   contextLabel: string;
-  /** Where the record lives, or null when its kind has no page. */
-  href: string | null;
+  /** The universal server-owned record resolver URL. */
+  href: string;
 }
 
 interface ListResponse {
@@ -321,18 +320,15 @@ export default function MetadataListPage() {
                         >
                           Details
                         </Button>
-                        {row.href && (
-                          <Link href={row.href}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Open the record"
-                              data-testid={`link-record-${row.seq}`}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        )}
+                        <Button asChild variant="ghost" size="sm">
+                          <a
+                            href={row.href}
+                            title="Open the record"
+                            data-testid={`link-record-${row.seq}`}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

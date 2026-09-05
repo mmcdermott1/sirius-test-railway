@@ -10,11 +10,11 @@ import {
 } from "../storage/system/entity-metadata-admin";
 import {
   listMetadataRecordContexts,
-  metadataRecordHref,
 } from "../storage/entity-metadata-record-tables";
 import { storage } from "../storage";
 import { requireAccess } from "../services/access-policy-evaluator";
 import { logger } from "../logger";
+import { recordGoHref } from "@shared/utils/record-go";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
 type PermissionMiddleware = (permissionKey: string) => AuthMiddleware;
@@ -184,9 +184,10 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
         },
       });
 
-      // The label and the link are added here rather than in storage: they
-      // come from the record table registry, which knows about pages, and
-      // storage does not get to know about pages.
+      // The label is added here rather than in storage: it comes from the
+      // record table registry, and storage does not get to know about labels.
+      // Every row uses the same resolver, even when its context has no
+      // dedicated destination page; /go/:id explains that case.
       const labels = new Map(
         listMetadataRecordContexts().map((entry) => [entry.contextId, entry.label]),
       );
@@ -195,7 +196,7 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
         data: result.data.map((row) => ({
           ...row,
           contextLabel: labels.get(row.contextId) ?? row.contextId,
-          href: metadataRecordHref(row.contextId, row.entityId),
+          href: recordGoHref(row.entityId),
         })),
       });
     } catch (error) {
