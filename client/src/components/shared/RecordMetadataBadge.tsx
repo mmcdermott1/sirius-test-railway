@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -45,8 +44,7 @@ interface RecordMetadataBadgeProps {
  *
  * None of it is editable, here or anywhere. The system writes a record's
  * history as it writes the record; there is no form behind this dialog and no
- * endpoint to change what it shows, which the dialog says out loud so nobody
- * goes hunting for one.
+ * endpoint to change what it shows.
  *
  * Records that predate this bookkeeping have nothing recorded and show a muted
  * placeholder until something touches them. That is the ordinary case today,
@@ -101,12 +99,18 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-md" data-testid="dialog-record-metadata">
+        {/*
+          There is no description to give: the dialog is its own explanation.
+          The dialog primitive warns about a missing description unless the
+          caller says so on purpose, which is what the undefined below is.
+        */}
+        <DialogContent
+          className="max-w-md"
+          aria-describedby={undefined}
+          data-testid="dialog-record-metadata"
+        >
           <DialogHeader>
             <DialogTitle>Record history</DialogTitle>
-            <DialogDescription>
-              Maintained by the system as the record changes. It cannot be edited.
-            </DialogDescription>
           </DialogHeader>
 
           {isFetching && !data ? (
@@ -119,8 +123,7 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
             </p>
           ) : !metadata ? (
             <p className="text-sm text-muted-foreground" data-testid="text-record-metadata-empty">
-              Nothing has been recorded for this record yet. Its history begins the
-              next time it changes.
+              No data
             </p>
           ) : (
             <dl className="space-y-3 text-sm">
