@@ -18,7 +18,7 @@ import {
   type EdlsCrew,
   type InsertEdlsCrew
 } from "@shared/schema";
-import { eq, ne, desc, sql, and, gte, lte, type SQL } from "drizzle-orm";
+import { eq, ne, desc, sql, and, gte, lte, ilike, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { defineLoggingConfig } from "../middleware/logging";
 import { getClient, runInTransaction, onAfterCommit } from "../transaction-context";
@@ -141,6 +141,12 @@ export interface EdlsSheetsFilterOptions {
   jobGroupId?: string;
   facilityId?: string;
   showStatusId?: string;
+  departmentId?: string;
+  /**
+   * Case-insensitive "contains" match on the sheet title (the job number).
+   * A blank string is not a filter — the caller is expected to drop it.
+   */
+  title?: string;
   /**
    * Only sheets whose `changed` timestamp is at or after this instant — i.e.
    * sheets created or edited since that point in time.
@@ -255,6 +261,15 @@ export function createEdlsSheetsStorage(): EdlsSheetsStorage {
       }
       if (filters?.showStatusId) {
         conditions.push(eq(edlsSheets.showStatusId, filters.showStatusId));
+      }
+      if (filters?.departmentId) {
+        conditions.push(eq(edlsSheets.departmentId, filters.departmentId));
+      }
+      if (filters?.title) {
+        // `ilike` needs the wildcards escaped, or a title containing % or _
+        // would match far more than the caller typed.
+        const pattern = `%${filters.title.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+        conditions.push(ilike(edlsSheets.title, pattern));
       }
       if (filters?.changedSince) {
         conditions.push(gte(edlsSheets.changed, filters.changedSince));
