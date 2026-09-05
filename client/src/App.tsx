@@ -26,6 +26,7 @@ import RegisterPage from "@/pages/register";
 
 // Lazy-loaded pages
 const Bootstrap = lazy(() => import("@/pages/bootstrap"));
+const RecordGoPage = lazy(() => import("@/pages/record-go"));
 const SmsOptinPage = lazy(() => import("@/pages/sms-optin"));
 const EdlsSchedulePage = lazy(() => import("@/pages/edls-schedule"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
@@ -547,6 +548,14 @@ function Router() {
         <Route path="/edls-sched/:id" component={EdlsScheduleRoute} />
 
       {/* Protected routes */}
+      <Route path="/go">
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <RecordGoPage />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/workers/add">
         <ProtectedRoute permission="staff">
           <AuthenticatedLayout>

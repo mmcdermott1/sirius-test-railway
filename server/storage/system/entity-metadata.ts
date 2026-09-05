@@ -116,6 +116,12 @@ export interface EntityMetadataStorage {
    */
   get(entityId: string): Promise<EntityMetadataView | undefined>;
 
+  /** One provenance row by its metadata-row UUID. */
+  getByMetadataId(metadataId: string): Promise<EntityMetadataView | undefined>;
+
+  /** One provenance row by its database-wide sequence number. */
+  getBySequence(seq: number): Promise<EntityMetadataView | undefined>;
+
   /**
    * The same read for a page of records at once, keyed by record id.
    *
@@ -385,6 +391,26 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       const client = getClient();
       const result = await client.execute(sql`
         ${VIEW_SELECT} WHERE m.entity_id = ${entityId}
+      `);
+      const row = result.rows?.[0] as Record<string, unknown> | undefined;
+      return row && isMetadataTableEligible(String(row.table_name)) ? viewFrom(row) : undefined;
+    },
+
+    async getByMetadataId(metadataId) {
+      if (!isRecordId(metadataId)) return undefined;
+      const client = getClient();
+      const result = await client.execute(sql`
+        ${VIEW_SELECT} WHERE m.id = ${metadataId}
+      `);
+      const row = result.rows?.[0] as Record<string, unknown> | undefined;
+      return row && isMetadataTableEligible(String(row.table_name)) ? viewFrom(row) : undefined;
+    },
+
+    async getBySequence(seq) {
+      if (!Number.isSafeInteger(seq) || seq <= 0) return undefined;
+      const client = getClient();
+      const result = await client.execute(sql`
+        ${VIEW_SELECT} WHERE m.seq = ${seq}
       `);
       const row = result.rows?.[0] as Record<string, unknown> | undefined;
       return row && isMetadataTableEligible(String(row.table_name)) ? viewFrom(row) : undefined;
