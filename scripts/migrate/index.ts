@@ -79,6 +79,7 @@ import "./core/1074_rename_trust_provider_file_context";
 import "./core/1075_create_options_file_type";
 import "./core/1076_rename_note_type_entity_types_key";
 import "./core/1077_create_entity_metadata";
+import "./core/1078_rename_orphan_sweep_cron_ids";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

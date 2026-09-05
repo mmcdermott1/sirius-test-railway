@@ -356,7 +356,7 @@ export const optionsFileType = pgTable("options_file_type", {
  * `context_id` / `entity_id` are a polymorphic pair (the house convention —
  * see `files`), so there is no FK to the parent: existence is checked at the
  * API layer against the note-context registry and orphans are swept by
- * the `notes_orphan_sweep` cron. `context_id` names the registered note
+ * the `entity_notes_orphan_sweep` cron. `context_id` names the registered note
  * context (worker, employer, …), the same spelling `entity_files` uses for
  * its contexts. `type_id` DOES have a real FK, on delete
  * restrict, so a note type in use cannot be deleted out from under its notes.

@@ -9,10 +9,10 @@ import type { CronJobContext, CronJobResult } from "../types";
 const BATCH_LIMIT = 500;
 
 /**
- * `files_orphan_sweep` cron — deletes file attachments whose parent record is
+ * `entity_files_orphan_sweep` cron — deletes file attachments whose parent record is
  * gone, taking their stored bytes with them.
  *
- * The twin of `notes_orphan_sweep`, and deliberately a SEPARATE cron plugin
+ * The twin of `entity_notes_orphan_sweep`, and deliberately a SEPARATE cron plugin
  * rather than a second phase of it: a cron plugin's id is persisted as a
  * singleton config row carrying its schedule and enabled flag, so folding
  * both sweeps under one id would quietly retire the operator's ability to
@@ -51,8 +51,8 @@ const BATCH_LIMIT = 500;
  */
 registerCronPlugin({
   metadata: {
-    id: "files_orphan_sweep",
-    name: "File Attachments Orphan Sweep",
+    id: "entity_files_orphan_sweep",
+    name: "Entity Files Orphan Sweep",
     description:
       "Daily sweep that deletes file attachments whose parent record (worker, employer, trust provider, …) no longer exists, including their stored bytes.",
     singleton: true,

@@ -1,6 +1,13 @@
 import { sql } from "drizzle-orm";
 import { getClient } from "../transaction-context";
 import { storageLogger } from "../../logger";
+import {
+  isPlainTableIdentifier,
+  isRecordId,
+  judgeSweepTable,
+  type TableFacts,
+  type TableVerdict,
+} from "./entity-metadata-tables";
 
 /**
  * Provenance rows for the `entity_metadata` table: one row per record, keyed
@@ -22,24 +29,19 @@ import { storageLogger } from "../../logger";
  *    same row still settle on the newest.
  *
  * This module is deliberately NOT wrapped in storage logging: it is the thing
- * logging calls.
- */
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * Whether an id is shaped like the record ids this table indexes.
+ * logging calls. That also means its own removals leave no audit entry, so the
+ * orphan sweep below reports what it removed in its run summary instead.
  *
- * Log entries carry an `entity_id` that is only *usually* the record's own id
- * — some configs report a parent's id, a placeholder ("new address"), or a
- * batch summary ("batch of 12"). Filing those under `entity_id` would attach
- * one record's provenance to another's, so anything that is not a UUID is
- * dropped before it reaches the table.
+ * Reads are only ever ABOUT the table, never through it: one record's
+ * provenance (for display), and the sweep's view of which rows have outlived
+ * the record they name. Nothing here is a source of business data.
  */
-export function isRecordId(value: unknown): value is string {
-  return typeof value === "string" && UUID_PATTERN.test(value);
-}
+
+// The id-shape and table-acceptance rules live one file down, dependency-free
+// (./entity-metadata-tables.ts). Re-exported here because this module is where
+// callers already look for them.
+export { isRecordId } from "./entity-metadata-tables";
+export type { TableVerdict } from "./entity-metadata-tables";
 
 /**
  * Whether a write may proceed for this id, reporting the ones that look like
@@ -98,9 +100,10 @@ export interface EntityMetadataStorage {
    * it — which is the normal state for every record that predates this
    * framework and has not been touched since.
    *
-   * This is the module's ONLY read, and it has no write counterpart beyond
-   * the system-maintained ones below: provenance is written by the mutation
-   * that caused it and by nothing else.
+   * This is the module's only read of a record's own provenance, and it has
+   * no write counterpart beyond the system-maintained ones below: provenance
+   * is written by the mutation that caused it and by nothing else. (The
+   * orphan sweep's reads, further down, are about rows whose record is gone.)
    */
   get(entityId: string): Promise<EntityMetadataView | undefined>;
 
@@ -125,6 +128,39 @@ export interface EntityMetadataStorage {
    * same id would be a different entity and gets a new one.
    */
   recordDeletion(input: Pick<EntityMetadataTouch, "tableName" | "entityId">): Promise<void>;
+
+  /**
+   * Every table currently named by a provenance row — the sweep's worklist.
+   * Read from the rows themselves rather than from the logging configs: a row
+   * can outlive the config that wrote it, and it is the row that has to go.
+   */
+  listTables(): Promise<string[]>;
+
+  /**
+   * Whether provenance rows naming this table may be swept against it. See
+   * `./entity-metadata-tables.ts` for the rule; this only gathers the facts
+   * the rule is decided on.
+   */
+  checkTable(tableName: string): Promise<TableVerdict>;
+
+  /**
+   * Ids of the provenance rows in one table whose record is gone, capped at
+   * `limit` so one sweep cannot run long.
+   *
+   * Only for a table `checkTable` has approved — it refuses anything else
+   * rather than trusting its caller, because the name goes into SQL text.
+   */
+  findOrphans(tableName: string, limit: number): Promise<string[]>;
+
+  /**
+   * Forget provenance rows the sweep found orphaned, returning how many rows
+   * actually went.
+   *
+   * Goes through the same per-id serialization and forgotten-window path as
+   * `recordDeletion`: a sweep delete must not overtake — or be overtaken by —
+   * a write still queued for that id in this process.
+   */
+  removeOrphans(tableName: string, entityIds: string[]): Promise<number>;
 }
 
 /**
@@ -224,6 +260,33 @@ function stampFrom(
   const date =
     raw instanceof Date ? raw : typeof raw === "string" ? new Date(raw) : null;
   return { date, personName: personNameFrom(row, personPrefix) };
+}
+
+/** How many of a table's own ids the sweep looks at before trusting its key. */
+const SAMPLE_SIZE = 20;
+
+/**
+ * Forget one record's provenance, reporting whether a row went.
+ *
+ * The ONE definition of "forget this record", shared by the logged delete the
+ * middleware observes and by the orphan sweep. Both need the same window:
+ * marking the queue forgotten drops writes still queued for this id, which is
+ * what stops a deferred edit from resurrecting a row the sweep just removed.
+ */
+async function forget(tableName: string, entityId: string): Promise<boolean> {
+  let removed = false;
+  await serialize(entityId, async (queue) => {
+    // Anything still queued for this id is a write about a record that no
+    // longer exists.
+    queue.forgotten = true;
+    const client = getClient();
+    const result = await client.execute(sql`
+      DELETE FROM entity_metadata
+      WHERE entity_id = ${entityId} AND table_name = ${tableName}
+    `);
+    removed = (result.rowCount ?? result.rows?.length ?? 0) > 0;
+  });
+  return removed;
 }
 
 export function createEntityMetadataStorage(): EntityMetadataStorage {
@@ -358,16 +421,88 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
 
     async recordDeletion({ tableName, entityId }) {
       if (!acceptsId(entityId, tableName, "deletion")) return;
-      return serialize(entityId, async (queue) => {
-          // Anything still queued for this id is a write about a record that no
-          // longer exists.
-          queue.forgotten = true;
-          const client = getClient();
-          await client.execute(sql`
-            DELETE FROM entity_metadata
-            WHERE entity_id = ${entityId} AND table_name = ${tableName}
-          `);
-      });
+      await forget(tableName, entityId);
+    },
+
+    async listTables() {
+      const client = getClient();
+      const result = await client.execute(sql`
+        SELECT DISTINCT table_name FROM entity_metadata ORDER BY table_name
+      `);
+      return (result.rows ?? []).map((row) =>
+        String((row as Record<string, unknown>).table_name),
+      );
+    },
+
+    async checkTable(tableName) {
+      // The name is data, so nothing may be built from it until it has been
+      // admitted as an identifier — including the fact-gathering queries.
+      if (!isPlainTableIdentifier(tableName)) {
+        return judgeSweepTable(tableName, { exists: false, idColumnType: null, sampleIds: [] });
+      }
+
+      const client = getClient();
+      const catalog = await client.execute(sql`
+        SELECT
+          EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = ${tableName}
+          ) AS table_exists,
+          (
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = ${tableName}
+              AND column_name = 'id'
+          ) AS id_type
+      `);
+      const row = (catalog.rows?.[0] ?? {}) as Record<string, unknown>;
+      const exists = row.table_exists === true || row.table_exists === "t";
+      const idColumnType = typeof row.id_type === "string" ? row.id_type : null;
+
+      const facts: TableFacts = { exists, idColumnType, sampleIds: [] };
+      if (exists && idColumnType !== null) {
+        // Ask the table what its ids actually look like. A declared type of
+        // `varchar` says nothing about whether the column holds record ids or
+        // slugs, and the difference decides whether an anti-join finds
+        // orphans or condemns every row.
+        const sample = await client.execute(
+          sql`SELECT id::text AS id FROM ${sql.raw(`"${tableName}"`)} WHERE id IS NOT NULL LIMIT ${SAMPLE_SIZE}`,
+        );
+        facts.sampleIds = (sample.rows ?? []).map((r) =>
+          String((r as Record<string, unknown>).id),
+        );
+      }
+      return judgeSweepTable(tableName, facts);
+    },
+
+    async findOrphans(tableName, limit) {
+      if (!isPlainTableIdentifier(tableName)) {
+        throw new Error(`Refusing to sweep entity_metadata against "${tableName}": not a table name`);
+      }
+      const client = getClient();
+      // `id::text` because the record id columns in this schema are varchar
+      // but a table may key on a real `uuid`, and Postgres has no `uuid = varchar`.
+      const result = await client.execute(sql`
+        SELECT m.entity_id
+        FROM entity_metadata m
+        WHERE m.table_name = ${tableName}
+          AND NOT EXISTS (
+            SELECT 1 FROM ${sql.raw(`"${tableName}"`)} t WHERE t.id::text = m.entity_id
+          )
+        LIMIT ${limit}
+      `);
+      return (result.rows ?? []).map((row) =>
+        String((row as Record<string, unknown>).entity_id),
+      );
+    },
+
+    async removeOrphans(tableName, entityIds) {
+      let removed = 0;
+      for (const entityId of entityIds) {
+        if (!isRecordId(entityId)) continue;
+        if (await forget(tableName, entityId)) removed += 1;
+      }
+      return removed;
     },
   };
 }

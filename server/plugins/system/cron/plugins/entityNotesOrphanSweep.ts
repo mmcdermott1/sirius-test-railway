@@ -9,7 +9,7 @@ import type { CronJobContext, CronJobResult } from "../types";
 const BATCH_LIMIT = 500;
 
 /**
- * `notes_orphan_sweep` cron — deletes notes whose parent record is gone.
+ * `entity_notes_orphan_sweep` cron — deletes notes whose parent record is gone.
  *
  * `entity_notes.context_id` / `entity_id` are a polymorphic pair with no FK,
  * so deleting a worker, employer or provider leaves its notes behind. This job
@@ -40,8 +40,8 @@ const BATCH_LIMIT = 500;
  */
 registerCronPlugin({
   metadata: {
-    id: "notes_orphan_sweep",
-    name: "Notes Orphan Sweep",
+    id: "entity_notes_orphan_sweep",
+    name: "Entity Notes Orphan Sweep",
     description:
       "Daily sweep that deletes notes whose parent record (worker, employer, trust provider, …) no longer exists.",
     singleton: true,
