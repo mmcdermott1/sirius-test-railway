@@ -12,6 +12,16 @@ export { type EntityFilesStorage, type EntityFileWithFile, createEntityFilesStor
 export { type GrievanceStatusHistoryStorage, type GrievanceStatusHistoryItem, createGrievanceStatusHistoryStorage, grievanceStatusHistoryLoggingConfig } from "./grievances/grievance-status-history";
 export { type GrievanceContractStorage, type GrievanceContractLink, type GrievanceLinkedSection, type CatalogArticle, type CatalogSection, createGrievanceContractStorage, grievanceContractLoggingConfig } from "./grievances/grievance-contract-links";
 export { type LogsStorage, type LogsQueryParams, type LogsResult, type LogFilters, type HostEntityLogsParams, createLogsStorage } from "./system/logs";
+export {
+  type EntityMetadataAdminStorage,
+  type MetadataListRow,
+  type MetadataListQuery,
+  type MetadataListResult,
+  type MetadataSortColumn,
+  type MetadataTableCount,
+  type MetadataBackfillResult,
+  createEntityMetadataAdminStorage,
+} from "./system/entity-metadata-admin";
 export { type WorkerBanStorage, createWorkerBanStorage } from "./worker-bans";
 export { type EntityNotesStorage, type EntityNoteWithDetails, createEntityNotesStorage, entityNotesLoggingConfig } from "./entity-notes";
 export { type WsClientStorage, type WsClientGrantStorage, type WsClientCredentialStorage, type CredentialCreateResult, type WsClientIpRuleStorage, createWsClientStorage, createWsClientGrantStorage, createWsClientCredentialStorage, createWsClientIpRuleStorage } from "./webservices";

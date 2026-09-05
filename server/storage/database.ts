@@ -97,6 +97,10 @@ import {
   createEbsStorage,
 } from "./system/ebs";
 import { type LogsStorage, createLogsStorage } from "./system/logs";
+import {
+  type EntityMetadataAdminStorage,
+  createEntityMetadataAdminStorage,
+} from "./system/entity-metadata-admin";
 import { type WorkerWshStorage, createWorkerWshStorage, workerWshLoggingConfig } from "./worker-wsh";
 import { type WorkerMshStorage, createWorkerMshStorage, workerMshLoggingConfig } from "./worker-msh";
 import { type WorkerHoursStorage, createWorkerHoursStorage, workerHoursLoggingConfig } from "./worker-hours";
@@ -235,6 +239,7 @@ export interface IStorage {
   grievanceNameDenorm: GrievanceNameDenormStorage;
   grievanceStepsDenorm: GrievanceStepsDenormStorage;
   logs: LogsStorage;
+  entityMetadataAdmin: EntityMetadataAdminStorage;
   workerWsh: WorkerWshStorage;
   workerMsh: WorkerMshStorage;
   workerHours: WorkerHoursStorage;
@@ -356,6 +361,7 @@ export class DatabaseStorage implements IStorage {
   grievanceNameDenorm: GrievanceNameDenormStorage;
   grievanceStepsDenorm: GrievanceStepsDenormStorage;
   logs: LogsStorage;
+  entityMetadataAdmin: EntityMetadataAdminStorage;
   workerWsh: WorkerWshStorage;
   workerMsh: WorkerMshStorage;
   workerHours: WorkerHoursStorage;
@@ -529,6 +535,7 @@ export class DatabaseStorage implements IStorage {
     this.grievanceNameDenorm = createGrievanceNameDenormStorage();
     this.grievanceStepsDenorm = createGrievanceStepsDenormStorage();
     this.logs = createLogsStorage();
+    this.entityMetadataAdmin = createEntityMetadataAdminStorage();
 
     // No logging for wmb scan queue - high-volume internal state changes
     // Actual benefit changes are logged via the benefits-scan service

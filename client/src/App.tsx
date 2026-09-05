@@ -356,6 +356,8 @@ const EbsInspectionPage = lazy(() => import("@/pages/admin/ebs"));
 const WcOverviewPage = lazy(() => import("@/pages/admin/wc-overview"));
 const WcCachePage = lazy(() => import("@/pages/admin/wc-cache"));
 const WcStatsPage = lazy(() => import("@/pages/admin/wc-stats"));
+const MetadataListPage = lazy(() => import("@/pages/admin/metadata-list"));
+const MetadataBackfillPage = lazy(() => import("@/pages/admin/metadata-backfill"));
 const RestartPage = lazy(() => import("@/pages/admin/restart"));
 const ConfigurationLandingPage = lazy(() => import("@/pages/config/index"));
 const LedgerAccountsPage = lazy(() => import("@/pages/config/ledger/accounts"));
@@ -3810,6 +3812,37 @@ function Router() {
           <AuthenticatedLayout>
             <ConfigurationLayout>
               <WcStatsPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Record history: the provenance rows themselves, and filling them in
+          for records that predate the bookkeeping. `/admin/metadata` is the
+          page's own address and lands on the default tab. */}
+      <Route path="/admin/metadata">
+        <ProtectedRoute permission="admin">
+          <Redirect to="/admin/metadata/list" />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Every record history row in the system. */}
+      <Route path="/admin/metadata/list">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <MetadataListPage />
+            </ConfigurationLayout>
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* Filling in history for records that have none. */}
+      <Route path="/admin/metadata/backfill">
+        <ProtectedRoute permission="admin">
+          <AuthenticatedLayout>
+            <ConfigurationLayout>
+              <MetadataBackfillPage />
             </ConfigurationLayout>
           </AuthenticatedLayout>
         </ProtectedRoute>

@@ -22,6 +22,7 @@ import { registerEntityMetadataRoutes } from "./modules/entity-metadata";
 import { wireEntityFilesFileReadAccess } from "./services/entity-files/file-read-access";
 import { initEntityFilesDeleteCleanup } from "./services/entity-files/delete-cleanup";
 import { assertFileContextTablesComplete } from "./storage/entity-files-context-tables";
+import { assertEntityMetadataRecordTablesComplete } from "./storage/entity-metadata-record-tables";
 import { registerGrievanceTimelineTemplateRoutes } from "./modules/grievances/grievance-timeline-templates";
 import { registerEmployerContactRoutes } from "./modules/employers/contacts";
 import { registerTrustBenefitsRoutes } from "./modules/trust/benefits";
@@ -1873,6 +1874,15 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
 
   // Register companies routes
   registerCompaniesRoutes(app, requireAuth);
+
+  // Every logged table must be declared in the record history registry.
+  // Asserted here, at the end of route registration, rather than beside the
+  // entity metadata routes: a logging config is recorded as it is wired, and
+  // the dispatch, ledger, contact and options modules wire theirs while
+  // registering their own routes above. Anything wired later still than this
+  // — a component's storage brought up on enable — is not visible from here
+  // and is caught the next time the process starts with that component on.
+  assertEntityMetadataRecordTablesComplete();
 
   const httpServer = existingServer || createServer(app);
 

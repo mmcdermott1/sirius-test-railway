@@ -12,6 +12,22 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * The same rule as {@link isRecordId}, spelled for Postgres.
+ *
+ * A query that asks "which records could carry a history" has to ask it of
+ * the database rather than of each row in turn, and it must get the same
+ * answer {@link isRecordId} would give — otherwise a record can be counted as
+ * missing a history that nothing is ever able to write, and it stays counted
+ * forever. Case-insensitively matched at the call site (`~*`), which is what
+ * makes this equivalent to the `i` flag above.
+ *
+ * It lives here, beside the pattern it mirrors, so the two are changed
+ * together or not at all.
+ */
+export const RECORD_ID_SQL_PATTERN =
+  "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
+
+/**
  * Whether an id is shaped like the record ids `entity_metadata` indexes.
  *
  * Log entries carry an `entity_id` that is only *usually* the record's own id

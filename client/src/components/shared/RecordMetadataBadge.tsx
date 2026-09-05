@@ -2,29 +2,12 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { History } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { format } from "@/lib/date-format";
 import { formatRecordSequence } from "@shared/utils/record-sequence";
-
-/** One date/person pair as the lookup returns it. */
-interface RecordMetadataStamp {
-  date: string | null;
-  personName: string | null;
-}
-
-interface RecordMetadata {
-  seq: number;
-  tableName: string;
-  entityId: string;
-  created: RecordMetadataStamp;
-  modified: RecordMetadataStamp;
-  subrecordModified: RecordMetadataStamp;
-}
+import {
+  RecordHistoryDialog,
+  type RecordHistoryState,
+  type RecordMetadata,
+} from "./RecordHistoryDialog";
 
 const RECORD_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -41,6 +24,11 @@ interface RecordMetadataBadgeProps {
  * system has for it — and opens what little else it knows: when the record was
  * created, when it last changed, and when something hanging off it last
  * changed, each with the person responsible.
+ *
+ * The dialog itself is {@link RecordHistoryDialog}, shared with the
+ * administrator's list of every record's history, so the two cannot drift into
+ * showing the same facts differently. What this component owns is the badge
+ * and the lookup behind it.
  *
  * None of it is editable, here or anywhere. The system writes a record's
  * history as it writes the record; there is no form behind this dialog and no
@@ -83,6 +71,13 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
   const metadata = data?.metadata ?? null;
   const label = metadata ? formatRecordSequence(metadata.seq) : "—";
 
+  const state: RecordHistoryState =
+    isFetching && !data
+      ? { status: "loading" }
+      : isError
+        ? { status: "error" }
+        : { status: "ready", metadata };
+
   return (
     <>
       <Button
@@ -98,80 +93,7 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
         {label}
       </Button>
 
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        {/*
-          There is no description to give: the dialog is its own explanation.
-          The dialog primitive warns about a missing description unless the
-          caller says so on purpose, which is what the undefined below is.
-        */}
-        <DialogContent
-          className="max-w-md"
-          aria-describedby={undefined}
-          data-testid="dialog-record-metadata"
-        >
-          <DialogHeader>
-            <DialogTitle>Record history</DialogTitle>
-          </DialogHeader>
-
-          {isFetching && !data ? (
-            <p className="text-sm text-muted-foreground" data-testid="text-record-metadata-loading">
-              Loading…
-            </p>
-          ) : isError ? (
-            <p className="text-sm text-muted-foreground" data-testid="text-record-metadata-error">
-              This record's history could not be read.
-            </p>
-          ) : !metadata ? (
-            <p className="text-sm text-muted-foreground" data-testid="text-record-metadata-empty">
-              No data
-            </p>
-          ) : (
-            <dl className="space-y-3 text-sm">
-              <StampRow label="Created" stamp={metadata.created} testId="created" />
-              <StampRow label="Last modified" stamp={metadata.modified} testId="modified" />
-              <StampRow
-                label="Sub-record modified"
-                stamp={metadata.subrecordModified}
-                testId="subrecord"
-              />
-              <div className="flex items-baseline justify-between gap-4 pt-2 border-t border-border">
-                <dt className="text-muted-foreground">Sequence</dt>
-                <dd className="font-mono" data-testid="text-record-metadata-seq">
-                  {formatRecordSequence(metadata.seq)}
-                </dd>
-              </div>
-            </dl>
-          )}
-        </DialogContent>
-      </Dialog>
+      <RecordHistoryDialog open={open} onOpenChange={handleOpenChange} state={state} />
     </>
-  );
-}
-
-function StampRow({
-  label,
-  stamp,
-  testId,
-}: {
-  label: string;
-  stamp: RecordMetadataStamp;
-  testId: string;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-muted-foreground shrink-0">{label}</dt>
-      <dd className="text-right" data-testid={`text-record-metadata-${testId}`}>
-        {stamp.date ? (
-          <>
-            <span>{format(new Date(stamp.date), "MMM d, yyyy h:mm a")}</span>
-            <span className="block text-muted-foreground">
-              {stamp.personName ?? "person not recorded"}
-            </span>
-          </>
-        ) : (
-          <span className="text-muted-foreground">Never</span>
-        )}
-      </dd>
-    </div>
   );
 }

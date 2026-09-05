@@ -275,6 +275,7 @@ export function registerAccessPolicyRoutes(app: Express) {
         options: 'admin',
         ws: 'admin',
         wc: 'admin',
+        record_metadata: 'admin',
       };
       const basePolicy = entityPolicyMap[entityType] || 'authenticated';
       const baseAccessResult = await checkAccess(basePolicy, context.user, resolvedEntityId);

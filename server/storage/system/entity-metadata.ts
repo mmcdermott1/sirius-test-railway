@@ -27,6 +27,13 @@ import {
  *    write carrying an older timestamp than the row already holds must not
  *    win. The comparison happens in SQL, so concurrent writers racing on the
  *    same row still settle on the newest.
+ *  - **A row always has a created date and a modified date.** Any write that
+ *    creates or updates a row fills in whichever of the two is still empty,
+ *    at the moment of that write. Only the DATES are guaranteed: the person
+ *    stays unknown when it is unknown, because a first sighting says when we
+ *    noticed the record, never who made it or last changed it. This is why a
+ *    subrecord touch — which reaches a record we may never have seen touched
+ *    itself — still stamps a modified date and no modifier.
  *
  * This module is deliberately NOT wrapped in storage logging: it is the thing
  * logging calls. That also means its own removals leave no audit entry, so the
@@ -122,6 +129,20 @@ export interface EntityMetadataStorage {
    * `subrecord_modified_*` pair — the record itself did not change.
    */
   recordSubrecordTouch(touch: EntityMetadataTouch): Promise<void>;
+
+  /**
+   * Note that a record exists, without claiming to know anything about how it
+   * got that way — the backfill's write, for records that predate this
+   * framework entirely.
+   *
+   * Stamps created and modified at the moment of observation and names nobody,
+   * which is what the framework already says about a record it meets mid-life.
+   * A record that already has provenance keeps it untouched: `false` comes
+   * back and nothing is written.
+   */
+  recordFirstObservation(
+    input: Pick<EntityMetadataTouch, "tableName" | "entityId" | "at">,
+  ): Promise<boolean>;
 
   /**
    * Forget a record. Its `seq` goes with it; a record re-created under the
@@ -391,15 +412,23 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
           INSERT INTO entity_metadata (
             table_name, entity_id,
             created_date,
+            modified_date,
             subrecord_modified_date, subrecord_modified_by
           )
           VALUES (
             ${tableName}, ${entityId},
             ${at},
+            ${at},
             ${at}, ${actorId ?? null}
           )
           ON CONFLICT (entity_id) DO UPDATE SET
             created_date = LEAST(entity_metadata.created_date, EXCLUDED.created_date),
+            -- The record itself did not change, so the modified stamp is not
+            -- advanced and no modifier is named. It is only FILLED IN when it
+            -- is still empty: the row must never hold an empty created or
+            -- modified date, and this is the one write that can create a row
+            -- for a record whose own mutations we have never observed.
+            modified_date = COALESCE(entity_metadata.modified_date, EXCLUDED.modified_date),
             subrecord_modified_date = GREATEST(
               entity_metadata.subrecord_modified_date,
               EXCLUDED.subrecord_modified_date
@@ -417,6 +446,33 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
           await reportTableMismatch(tableName, entityId);
         }
       });
+    },
+
+    async recordFirstObservation({ tableName, entityId, at }) {
+      if (!acceptsId(entityId, tableName, "first observation")) return false;
+      let written = false;
+      await serialize(entityId, async (queue) => {
+        if (queue.forgotten) return;
+        const client = getClient();
+        // DO NOTHING, not DO UPDATE: a record that gained real provenance
+        // between being counted as missing and being written here keeps it.
+        // An observation is the weakest thing this table can hold and must
+        // never displace something better.
+        const result = await client.execute(sql`
+          INSERT INTO entity_metadata (
+            table_name, entity_id,
+            created_date, modified_date
+          )
+          VALUES (
+            ${tableName}, ${entityId},
+            ${at}, ${at}
+          )
+          ON CONFLICT (entity_id) DO NOTHING
+          RETURNING id
+        `);
+        written = (result.rowCount ?? result.rows?.length ?? 0) > 0;
+      });
+      return written;
     },
 
     async recordDeletion({ tableName, entityId }) {

@@ -67,6 +67,45 @@ export type EntityTableResolver<T = any> =
 export type EntityMetadataMode = 'created' | 'modified' | 'deleted' | 'none';
 
 /**
+ * Which raw tables the logging configs wired into this process actually name.
+ *
+ * Nothing else can answer this. A config is handed to `withStorageLogging`
+ * one module at a time from `database.ts` (and from the component and plugin
+ * wiring beyond it) and is never collected anywhere, so the only place that
+ * sees them all is the wrapper itself — which records what it was wired with
+ * as it is wired.
+ *
+ * `hostTable` counts as much as `table` does: a host gets a subrecord stamp,
+ * which is a provenance row like any other.
+ *
+ * A config whose table is named by the call rather than by the config (the
+ * options tables) cannot be enumerated from here at all; those modules are
+ * recorded separately so the completeness check can say what it could not
+ * see rather than quietly leaving it out.
+ */
+const loggedTableNames = new Set<string>();
+const modulesNamingTablesAtRuntime = new Set<string>();
+
+/** Every statically-named logged table, as wired so far. */
+export function getLoggedTableNames(): string[] {
+  return Array.from(loggedTableNames).sort();
+}
+
+/** Modules whose table is decided by the call, so it cannot be listed here. */
+export function getModulesNamingTablesAtRuntime(): string[] {
+  return Array.from(modulesNamingTablesAtRuntime).sort();
+}
+
+function noteLoggedTable(module: string, resolver: EntityTableResolver<any> | undefined): void {
+  if (resolver === undefined) return;
+  if (typeof resolver === 'string') {
+    loggedTableNames.add(resolver);
+    return;
+  }
+  modulesNamingTablesAtRuntime.add(module);
+}
+
+/**
  * Configuration for logging a single storage method
  */
 export interface MethodLoggingConfig<T = any> {
@@ -725,6 +764,15 @@ export function withStorageLogging<T extends Record<string, any>>(
   storage: T,
   config: StorageLoggingConfig<T>
 ): T {
+  // Recorded before anything is wrapped, so a module counts as participating
+  // whether or not any of its methods ever run.
+  noteLoggedTable(config.module, config.table);
+  noteLoggedTable(config.module, config.hostTable);
+  for (const methodConfig of Object.values(config.methods)) {
+    noteLoggedTable(config.module, methodConfig?.table);
+    noteLoggedTable(config.module, methodConfig?.hostTable);
+  }
+
   const wrappedStorage: any = {};
 
   for (const key in storage) {
