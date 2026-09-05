@@ -1,16 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRecordSequence } from "@shared/utils/record-sequence";
+import { useRecordMetadata } from "@/hooks/useRecordMetadata";
 import {
   RecordHistoryDialog,
   type RecordHistoryState,
-  type RecordMetadata,
 } from "./RecordHistoryDialog";
-
-const RECORD_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface RecordMetadataBadgeProps {
   /** The record's own id. Anything else renders nothing. */
@@ -26,9 +22,10 @@ interface RecordMetadataBadgeProps {
  * changed, each with the person responsible.
  *
  * The dialog itself is {@link RecordHistoryDialog}, shared with the
- * administrator's list of every record's history, so the two cannot drift into
- * showing the same facts differently. What this component owns is the badge
- * and the lookup behind it.
+ * administrator's list of every record's history, and the lookup is
+ * {@link useRecordMetadata}, shared with the screens that show one of these
+ * dates in their own layout — so neither the facts nor the way they are read
+ * can drift apart. What this component owns is the badge.
  *
  * None of it is editable, here or anywhere. The system writes a record's
  * history as it writes the record; there is no form behind this dialog and no
@@ -40,22 +37,14 @@ interface RecordMetadataBadgeProps {
  */
 export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
   const [open, setOpen] = useState(false);
-  const isRecordId = !!entityId && RECORD_ID_PATTERN.test(entityId);
-
-  const { data, isFetching, isError, refetch } = useQuery<{ metadata: RecordMetadata | null }>({
-    queryKey: ["/api/entity-metadata", entityId],
+  const {
+    data,
+    metadata,
     enabled: isRecordId,
-    retry: false,
-    // What this shows changes underneath us constantly: a record's history is
-    // written by whatever mutation caused it, moments after that mutation
-    // answered, and by other people's mutations besides. Nothing invalidates
-    // this query, so it must never be treated as settled — the client's
-    // default is to cache a query forever, which here would pin a record's
-    // history to whatever was true when the page first opened. A record
-    // created seconds ago is the sharpest case: its first read can beat the
-    // after-commit write and see nothing at all.
-    staleTime: 0,
-  });
+    isFetching,
+    isError,
+    refetch,
+  } = useRecordMetadata(entityId);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -68,7 +57,6 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
   // all, has nothing to ask about.
   if (!isRecordId) return null;
 
-  const metadata = data?.metadata ?? null;
   const label = metadata ? formatRecordSequence(metadata.seq) : "—";
 
   const state: RecordHistoryState =

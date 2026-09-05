@@ -67,6 +67,22 @@ export type EntityTableResolver<T = any> =
 export type EntityMetadataMode = 'created' | 'modified' | 'deleted' | 'none';
 
 /**
+ * What a method did to its record's provenance, when the answer is not the
+ * same every call.
+ *
+ * A method named like CRUD says what it does in its name; an upsert does not.
+ * Whether an upsert created the record or changed one that was already there
+ * is only knowable from the call itself, and a config that has to answer
+ * "created" or "modified" for both cases lies in one of them — either a new
+ * record loses the creator we did observe, or a repair names its repairer as
+ * the author. The resolver is handed the same three things every other hook
+ * gets, so a config can decide from a `before` state whether the record
+ * existed.
+ */
+export type EntityMetadataModeResolver =
+  | EntityMetadataMode
+  | ((args: any[], result?: any, beforeState?: any) => EntityMetadataMode | Promise<EntityMetadataMode>);
+/**
  * Which raw tables the logging configs wired into this process actually name.
  *
  * Nothing else can answer this. A config is handed to `withStorageLogging`
@@ -224,8 +240,11 @@ export interface MethodLoggingConfig<T = any> {
    */
   metadataEntityId?: (args: any[], result?: any, beforeState?: any) => string | undefined | Promise<string | undefined>;
 
-  /** Override what this method does to its record's provenance. */
-  metadataMode?: EntityMetadataMode;
+  /**
+   * Override what this method does to its record's provenance. A function when
+   * only the call can say — see {@link EntityMetadataModeResolver}.
+   */
+  metadataMode?: EntityMetadataModeResolver;
 }
 
 /**
@@ -645,11 +664,17 @@ function resolveHooks<T extends Record<string, any>>(
  * file provenance under. A bulk path maintains no per-record metadata; that
  * follows from riding on the log's grain and is accepted.
  */
-function resolveMetadataMode(
+async function resolveMetadataMode(
   methodKey: string,
   methodConfig: MethodLoggingConfig<any>,
   configMode: EntityMetadataMode | undefined,
-): EntityMetadataMode {
+  args: any[],
+  result: any,
+  beforeState: any,
+): Promise<EntityMetadataMode> {
+  if (typeof methodConfig.metadataMode === 'function') {
+    return methodConfig.metadataMode(args, result, beforeState);
+  }
   if (methodConfig.metadataMode) return methodConfig.metadataMode;
   if (configMode) return configMode;
   if (/^(bulkCreate|createMany|bulkUpdate|updateMany|bulkDelete|deleteMany)/i.test(methodKey)) {
@@ -694,7 +719,14 @@ async function maintainEntityMetadata(params: {
 }): Promise<void> {
   const { config, methodKey, methodConfig, args, result, beforeState, at, actorId } = params;
 
-  const mode = resolveMetadataMode(methodKey, methodConfig, config.metadataMode);
+  const mode = await resolveMetadataMode(
+    methodKey,
+    methodConfig,
+    config.metadataMode,
+    args,
+    result,
+    beforeState,
+  );
   if (mode === 'none') return;
 
   const tableName = await resolveTable(

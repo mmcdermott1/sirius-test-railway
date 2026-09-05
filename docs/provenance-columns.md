@@ -91,9 +91,6 @@ its own rows from this table and from the allowlist.
 | `dispatches` | `created_at` | Retire Dispatch Job And Dispatch Timestamps |
 | `edls_sheets` | `created_by` | Retire EDLS Sheet Creator Column |
 | `employer_policy_history` | `created_at` | Retire Policy History Created Column |
-| `ledger_payments` | `date_created` | Retire Ledger Metadata Timestamps |
-| `ledger_paymentmethods` | `created_at` | Retire Ledger Metadata Timestamps |
-| `ledger_gateway_customers` | `created_at` | Retire Ledger Metadata Timestamps |
 | `snapshots` | `created_at`, `author_id`, `author_name` | Retire Snapshot Author Columns |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
 | `worker_msh` | `created_at` | Retire Worker History Created Columns |

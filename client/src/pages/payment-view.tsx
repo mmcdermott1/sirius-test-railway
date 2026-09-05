@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LedgerTransactionsView } from "@/components/ledger/LedgerTransactionsView";
 import { formatAmount } from "@shared/currency";
 import { isValidYmd, ymdToDateForPicker } from "@shared/utils/date";
+import { useRecordMetadata } from "@/hooks/useRecordMetadata";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const MONTH_NAMES = [
@@ -28,6 +29,12 @@ function PaymentViewContent() {
   const { data: payment, isLoading } = useQuery<LedgerPayment>({
     queryKey: ["/api/ledger/payments", id],
   });
+
+  // When the payment was created is the record's history, not a field of the
+  // payment: the other two dates below are accounting facts someone entered,
+  // this one is a fact about the row. It is the same reading the record-history
+  // badge in this page's title bar shows.
+  const { metadata: recordMetadata } = useRecordMetadata(id);
 
   const details = (payment?.details || {}) as Record<string, unknown>;
   const proposedAllocation = (details.proposedAllocation || []) as ProposedAllocationEntry[];
@@ -148,7 +155,9 @@ function PaymentViewContent() {
               <div>
                 <p className="text-xs text-muted-foreground">Created</p>
                 <p className="mt-1" data-testid="text-date-created">
-                  {payment.dateCreated ? new Date(payment.dateCreated).toLocaleDateString() : 'N/A'}
+                  {recordMetadata?.created.date
+                    ? new Date(recordMetadata.created.date).toLocaleDateString()
+                    : 'N/A'}
                 </p>
               </div>
               <div>

@@ -825,7 +825,6 @@ export const ledgerPaymentMethods = pgTable("ledger_paymentmethods", {
   data: jsonb("data").default(sql`'{}'::jsonb`),
   isActive: boolean("is_active").default(true).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 }, (table) => [
   foreignKey({
     name: "ledger_paymentmethods_gateway_config_id_plugin_configs_payment_",
@@ -848,7 +847,6 @@ export const ledgerGatewayCustomers = pgTable("ledger_gateway_customers", {
   gatewayConfigId: varchar("gateway_config_id").notNull(),
   // Opaque provider customer reference (e.g. Stripe `cus_...`).
   customerRef: text("customer_ref").notNull(),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 }, (table) => ({
   entityGatewayUnique: unique("ledger_gateway_customers_entity_gateway_unique").on(
     table.entityType,
@@ -864,7 +862,6 @@ export const ledgerGatewayCustomers = pgTable("ledger_gateway_customers", {
 
 export const insertLedgerGatewayCustomerSchema = createInsertSchema(ledgerGatewayCustomers).omit({
   id: true,
-  createdAt: true,
 });
 export type InsertLedgerGatewayCustomer = z.infer<typeof insertLedgerGatewayCustomerSchema>;
 export type LedgerGatewayCustomer = typeof ledgerGatewayCustomers.$inferSelect;
@@ -900,7 +897,6 @@ export const ledgerPayments = pgTable("ledger_payments", {
   paymentType: varchar("payment_type").notNull().references(() => optionsLedgerPaymentType.id),
   ledgerEaId: varchar("ledger_ea_id").notNull().references(() => ledgerEa.id),
   details: jsonb("details"),
-  dateCreated: timestamp("date_created").default(sql`now()`).notNull(),
   dateReceived: timestamp("date_received"),
   dateCleared: timestamp("date_cleared"),
   memo: text("memo"),
@@ -1690,7 +1686,6 @@ export const insertBookmarkSchema = createInsertSchema(bookmarks).omit({
 
 export const insertLedgerPaymentMethodSchema = createInsertSchema(ledgerPaymentMethods).omit({
   id: true,
-  createdAt: true,
 });
 
 export const ledgerAccountDataSchema = z.object({
@@ -1711,7 +1706,6 @@ export const insertLedgerAccountSchema = createInsertSchema(ledgerAccounts).omit
 
 export const insertLedgerPaymentSchema = createInsertSchema(ledgerPayments).omit({
   id: true,
-  dateCreated: true,
 });
 
 export const insertLedgerEaSchema = createInsertSchema(ledgerEa).omit({
@@ -1960,6 +1954,19 @@ export type LedgerAccount = typeof ledgerAccounts.$inferSelect;
 export type InsertLedgerPayment = z.infer<typeof insertLedgerPaymentSchema>;
 export type LedgerPayment = typeof ledgerPayments.$inferSelect;
 
+/**
+ * A payment as the payment LISTS read it: the stored row plus the date the
+ * record was created.
+ *
+ * The payment table no longer keeps its own creation column — a payment's
+ * creation date is provenance, held in `entity_metadata` and joined on the
+ * payment's id. Null for a payment the provenance framework has never seen,
+ * which is also the state of a payment for the moment between its insert
+ * committing and the deferred provenance write landing.
+ */
+export type LedgerPaymentWithCreatedDate = LedgerPayment & {
+  createdDate: Date | null;
+};
 export type AllocatedEntity = {
   eaId: string;
   entityType: string;
@@ -1967,7 +1974,7 @@ export type AllocatedEntity = {
   entityName: string | null;
 };
 
-export type LedgerPaymentWithEntity = LedgerPayment & {
+export type LedgerPaymentWithEntity = LedgerPaymentWithCreatedDate & {
   entityType: string;
   entityId: string;
   entityName: string | null;
@@ -3084,3 +3091,8 @@ export type InsertBusinessCalendarManualVacation = z.infer<typeof insertBusiness
 export type BusinessCalendarManualVacation = typeof businessCalendarManualVacation.$inferSelect;
 export type InsertBusinessCalendarManualOpen = z.infer<typeof insertBusinessCalendarManualOpenSchema>;
 export type BusinessCalendarManualOpen = typeof businessCalendarManualOpen.$inferSelect;
+
+/** A payment method plus its provenance creation date — see {@link LedgerPaymentWithCreatedDate}. */
+export type LedgerPaymentMethodWithCreatedDate = LedgerPaymentMethod & {
+  createdDate: Date | null;
+};
