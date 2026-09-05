@@ -145,6 +145,7 @@ import { registerTerminologyRoutes } from "./modules/terminology";
 import { registerCompaniesRoutes } from "./modules/employers/companies";
 import { registerPoliciesRoutes } from "./modules/policies";
 import { requireAccess } from "./services/access-policy-evaluator";
+import { authorizeRecordGoRequest } from "./services/record-go-access";
 import { addressValidationService } from "./services/comm/validators/address";
 import { phoneValidationService, DEFAULT_REVALIDATE_AFTER_DAYS } from "./services/comm/validators/phone";
 import { serviceRegistry } from "./services/service-registry";
@@ -337,7 +338,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   wireEntityFilesFileReadAccess();
   registerEntityFileRoutes(app, requireAuth);
   registerEntityMetadataRoutes(app, requireAuth, requirePermission);
-  registerRecordGoRoutes(app, requireAuth);
+  registerRecordGoRoutes(app, requireAuth, authorizeRecordGoRequest);
 
   // Register grievance timeline template routes
   registerGrievanceTimelineTemplateRoutes(app, requireAuth, requireAccess);

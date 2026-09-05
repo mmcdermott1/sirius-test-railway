@@ -8,6 +8,23 @@ const { getByMetadataId, getBySequence, getByEntityId } = vi.hoisted(() => ({
   getBySequence: vi.fn(),
   getByEntityId: vi.fn(),
 }));
+const {
+  checkAccessInline,
+  buildContext,
+  employerContactGet,
+  dispatchGet,
+  wizardGet,
+  userHasPermission,
+  componentEnabled,
+} = vi.hoisted(() => ({
+  checkAccessInline: vi.fn(),
+  buildContext: vi.fn(),
+  employerContactGet: vi.fn(),
+  dispatchGet: vi.fn(),
+  wizardGet: vi.fn(),
+  userHasPermission: vi.fn(),
+  componentEnabled: vi.fn(),
+}));
 vi.mock("../server/storage/system/entity-metadata", () => ({
   entityMetadataStorage: {
     getByMetadataId,
@@ -21,11 +38,28 @@ vi.mock("../server/storage/entity-metadata-record-tables", () => ({
     contextId === "workers" ? `/workers/${entityId}` : null,
   ),
 }));
+vi.mock("../server/services/access-policy-evaluator", () => ({
+  checkAccessInline,
+  buildContext,
+}));
+vi.mock("../server/modules/components", () => ({
+  isComponentEnabled: componentEnabled,
+}));
+vi.mock("../server/storage", () => ({
+  storage: {
+    employerContacts: { get: employerContactGet },
+    dispatches: { get: dispatchGet },
+    wizards: { getById: wizardGet },
+    users: { userHasPermission },
+  },
+}));
 const {
   parseRecordGoIdentifier,
   resolveRecordGoIdentifier,
+  recordGoAccessRequirement,
 } = await import("../server/services/record-go");
 const { registerRecordGoRoutes } = await import("../server/modules/record-go");
+const { authorizeRecordGoRequest } = await import("../server/services/record-go-access");
 const { recordGoDestination } = await import("../client/src/pages/record-go");
 
 const METADATA_ID = "11111111-1111-4111-8111-111111111111";
@@ -45,6 +79,13 @@ describe("record go identifier parsing and resolution", () => {
     getByMetadataId.mockReset().mockResolvedValue(undefined);
     getBySequence.mockReset().mockResolvedValue(undefined);
     getByEntityId.mockReset().mockResolvedValue(undefined);
+    checkAccessInline.mockReset().mockResolvedValue({ granted: false });
+    buildContext.mockReset().mockResolvedValue({ user: null });
+    employerContactGet.mockReset().mockResolvedValue(undefined);
+    dispatchGet.mockReset().mockResolvedValue(undefined);
+    wizardGet.mockReset().mockResolvedValue(undefined);
+    userHasPermission.mockReset().mockResolvedValue(false);
+    componentEnabled.mockReset().mockResolvedValue(true);
   });
 
   it.each([
@@ -108,13 +149,17 @@ describe("record go route", () => {
 
   beforeAll(async () => {
     const app = express();
-    registerRecordGoRoutes(app, (req, res, next) => {
-      if (req.header("x-authenticated") !== "yes") {
-        res.status(401).send("Sign in required");
-        return;
-      }
-      next();
-    });
+    registerRecordGoRoutes(
+      app,
+      (req, res, next) => {
+        if (req.header("x-authenticated") !== "yes") {
+          res.status(401).send("Sign in required");
+          return;
+        }
+        next();
+      },
+      async () => true,
+    );
     server = http.createServer(app);
     await new Promise<void>((resolveListen) => server.listen(0, resolveListen));
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -130,6 +175,13 @@ describe("record go route", () => {
     getByMetadataId.mockReset().mockResolvedValue(undefined);
     getBySequence.mockReset().mockResolvedValue(undefined);
     getByEntityId.mockReset().mockResolvedValue(undefined);
+    checkAccessInline.mockReset().mockResolvedValue({ granted: false });
+    buildContext.mockReset().mockResolvedValue({ user: null });
+    employerContactGet.mockReset().mockResolvedValue(undefined);
+    dispatchGet.mockReset().mockResolvedValue(undefined);
+    wizardGet.mockReset().mockResolvedValue(undefined);
+    userHasPermission.mockReset().mockResolvedValue(false);
+    componentEnabled.mockReset().mockResolvedValue(true);
   });
 
   it("requires authentication without metadata.view", async () => {
@@ -149,6 +201,118 @@ describe("record go route", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(`/workers/${ENTITY_ID}`);
+  });
+
+  it("does not redirect when record authorization denies the resolved entity", async () => {
+    const app = express();
+    registerRecordGoRoutes(
+      app,
+      (req, res, next) => next(),
+      async () => false,
+    );
+    const deniedServer = http.createServer(app);
+    await new Promise<void>((resolveListen) => deniedServer.listen(0, resolveListen));
+    const deniedBaseUrl = `http://127.0.0.1:${(deniedServer.address() as AddressInfo).port}`;
+
+    getBySequence.mockResolvedValue(metadata);
+    const response = await fetch(`${deniedBaseUrl}/go/123`, { redirect: "manual" });
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).toContain("Record not found");
+
+    await new Promise<void>((resolveClose, reject) =>
+      deniedServer.close((error) => (error ? reject(error) : resolveClose())),
+    );
+  });
+
+  it("authorizes employer contacts against their parent employer", async () => {
+    const req = {} as any;
+    const resolution = {
+      kind: "resolved" as const,
+      metadata: { ...metadata, contextId: "employer_contacts", entityId: "contact-id" },
+      href: "/employer-contacts/contact-id",
+    };
+    employerContactGet.mockResolvedValue({ employerId: "employer-id" });
+    checkAccessInline.mockResolvedValue({ granted: true });
+
+    await expect(authorizeRecordGoRequest(req, resolution)).resolves.toBe(true);
+    expect(checkAccessInline).toHaveBeenCalledWith(req, "employer.manage", "employer-id");
+  });
+
+  it("uses the employer detail policy and preserves its denial", async () => {
+    const req = {} as any;
+    const resolution = {
+      kind: "resolved" as const,
+      metadata: { ...metadata, contextId: "employers", entityId: "employer-id" },
+      href: "/employers/employer-id",
+    };
+    checkAccessInline.mockResolvedValue({ granted: false });
+
+    await expect(authorizeRecordGoRequest(req, resolution)).resolves.toBe(false);
+    expect(checkAccessInline).toHaveBeenCalledWith(req, "employer.view", "employer-id");
+  });
+
+  it("requires the destination permission even for an admin-only user", async () => {
+    const req = {} as any;
+    const resolution = {
+      kind: "resolved" as const,
+      metadata: { ...metadata, contextId: "trust_providers" },
+      href: "/trust/provider/entity-id",
+    };
+    buildContext.mockResolvedValue({ user: { id: "admin-id" } });
+    userHasPermission.mockResolvedValue(false);
+
+    await expect(authorizeRecordGoRequest(req, resolution)).resolves.toBe(false);
+    expect(userHasPermission).toHaveBeenCalledWith("admin-id", "staff");
+  });
+
+  it("authorizes dispatches against their related worker", async () => {
+    const req = {} as any;
+    const resolution = {
+      kind: "resolved" as const,
+      metadata: { ...metadata, contextId: "dispatches", entityId: "dispatch-id" },
+      href: "/dispatches/dispatch-id",
+    };
+    dispatchGet.mockResolvedValue({ workerId: "worker-id" });
+    checkAccessInline.mockResolvedValue({ granted: true });
+
+    await expect(authorizeRecordGoRequest(req, resolution)).resolves.toBe(true);
+    expect(checkAccessInline).toHaveBeenCalledWith(req, "worker.view", "worker-id");
+  });
+
+  it("denies a resolved record when its destination component is disabled", async () => {
+    const req = {} as any;
+    const resolution = {
+      kind: "resolved" as const,
+      metadata: { ...metadata, contextId: "events" },
+      href: "/events/event-id",
+    };
+    componentEnabled.mockResolvedValue(false);
+
+    await expect(authorizeRecordGoRequest(req, resolution)).resolves.toBe(false);
+    expect(componentEnabled).toHaveBeenCalledWith("event");
+    expect(checkAccessInline).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["cardcheck_definitions", "cardcheck"],
+    ["companies", "employer.company"],
+    ["contracts", "contract"],
+    ["dispatch_job_group", "dispatch.job_group"],
+    ["dispatch_jobs", "dispatch"],
+    ["dispatches", "dispatch"],
+    ["edls_sheets", "edls"],
+    ["events", "event"],
+    ["facilities", "facility"],
+    ["grievance_timeline_templates", "grievance"],
+    ["grievances", "grievance"],
+    ["sftp_client_destinations", "system.sftp.client"],
+    ["sitespecific_btu_csg", "sitespecific.btu"],
+    ["trust_providers", "trust.providers"],
+    ["worker_trust_elections", "trust.elections"],
+  ])("declares the destination component for %s", (contextId, componentId) => {
+    expect(recordGoAccessRequirement(contextId)?.componentId).toBe(componentId);
   });
 
   it("explains unknown and page-less records", async () => {
