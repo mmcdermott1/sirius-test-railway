@@ -82,8 +82,6 @@ its own rows from this table and from the allowlist.
 | Table | Column(s) | Owning task |
 | --- | --- | --- |
 | `bookmarks` | `created_at` | Retire Bookmark Created Column |
-| `worker_wsh` | `created_at` | Retire Worker History Created Columns |
-| `worker_msh` | `created_at` | Retire Worker History Created Columns |
 | `sitespecific_btu_csg` | `created_at`, `updated_at` | Retire BTU Table Timestamps |
 | `sitespecific_btu_political_officials` | `created_at`, `updated_at` | Retire BTU Table Timestamps |
 | `sitespecific_btu_political_worker_reps` | `created_at` | Retire BTU Table Timestamps |
@@ -120,6 +118,7 @@ are listed here so the inventory is complete.
 | `user_roles` | `assigned_at` | Join table with no record id of its own, so provenance cannot key it at all. | yes |
 | `role_permissions` | `assigned_at` | Join table with no record id of its own. | yes |
 | `worker_wsh`, `worker_msh` | `date` | The status's EFFECTIVE date — which day the worker held that status — not when the row was written. | no |
+| `worker_wsh` | `created_at` | Tie-break ordering key. Nothing stops a worker holding two work-status entries for one effective date, and the entry made LAST is the current status — read by `getCurrentWorkStatusId` and the HTA inactivity scan, and through them by the `worker_ws` denorm and dispatch eligibility. See the note below. | yes |
 | `employer_policy_history` | `date` | The policy assignment's effective date. | no |
 | `wizards` | `date` | The run's business date. | no |
 | `wizard_report_data` | `created_at` | Bulk output of a report run, one row per result row. The data-retention purge reads a row's age to decide whether the run's output has outlived its wizard's retention setting, and it is the order the rows are read back in (the results table and the EDI file both). Same call as `ebs_status`. | yes |
@@ -132,3 +131,26 @@ are listed here so the inventory is complete.
 `entity_metadata`'s own `created_date` / `created_by` / `modified_date` /
 `modified_by` / `subrecord_modified_*` columns are the framework itself, and
 the lint rule exempts the table outright.
+
+
+### Why the two worker status history tables ended up on different sides
+
+`worker_msh` and `worker_wsh` carried the same column, written the same way,
+and were read by the same clause: `ORDER BY date DESC, created_at DESC NULLS
+LAST, id DESC`, picking the worker's current status. They still parted company,
+because a constraint decides whether that clause can fire at all.
+
+`worker_msh` is unique on (worker_id, industry_id, date), so one worker cannot
+hold two member statuses for one industry on one date: the tie-break was
+unreachable, the column decided nothing, and it retired (migration 1099) with
+its dates seeded into provenance first (migration 1098). The orderings now say
+`date DESC, id DESC` and return exactly what they returned before.
+
+`worker_wsh` has no such constraint. Two work-status entries for one effective
+date are a same-day correction, the later entry is the worker's current status,
+and that answer feeds the `worker_ws` denorm and dispatch eligibility. The
+ordering key therefore has to be written by the mutation itself: provenance is
+maintained best effort, off the caller's transaction and after it commits, so a
+dropped provenance row could otherwise flip a worker's current work status. Its
+records are seeded into provenance all the same — the column staying is about
+what the ordering reads, not about where the record's history lives.

@@ -751,6 +751,22 @@ export const workerWsh = pgTable("worker_wsh", {
   workerId: varchar("worker_id").notNull().references(() => workers.id, { onDelete: 'cascade' }),
   wsId: varchar("ws_id").notNull().references(() => optionsWorkerWs.id, { onDelete: 'cascade' }),
   data: jsonb("data"),
+  /**
+   * When the entry was made — kept as BUSINESS DATA, not as provenance.
+   *
+   * Unlike `worker_msh` below, this table has no unique constraint on
+   * (worker_id, date), so a worker can hold two work-status entries for the
+   * same effective date — a same-day correction. Which of the two is the
+   * worker's CURRENT work status is decided by this column: the entry made
+   * last wins (`getCurrentWorkStatusId`, the HTA inactivity scan). That answer
+   * feeds the `worker_ws` denorm and, through it, dispatch eligibility, so the
+   * ordering key has to be something the mutation itself writes — provenance
+   * is maintained best-effort and off the caller's transaction, and a lost
+   * provenance row must never be able to flip a worker's current status.
+   *
+   * See `docs/provenance-columns.md` (KEEP table). Its twin on `worker_msh`
+   * was retired in migration 1099.
+   */
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
@@ -761,7 +777,6 @@ export const workerMsh = pgTable("worker_msh", {
   msId: varchar("ms_id").notNull().references(() => optionsWorkerMs.id, { onDelete: 'cascade' }),
   industryId: varchar("industry_id").notNull().references(() => optionsIndustry.id, { onDelete: 'cascade' }),
   data: jsonb("data"),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 }, (table) => ({
   // Declared in TABLE-column order with an explicit name (see trust_wmb's
   // constraint comment): drizzle-kit push introspects constraint columns in

@@ -136,11 +136,16 @@ const ALLOWLIST: Record<string, string> = {
   "user_roles.assigned_at": "KEEP — join table with no record id to key provenance by",
   "role_permissions.assigned_at":
     "KEEP — join table with no record id to key provenance by",
+  // Tie-break ordering key. `worker_wsh` has no unique (worker_id, date), so a
+  // worker can hold two work-status entries for one effective date, and the
+  // one entered LAST is the current status — an answer the work-status denorm
+  // and dispatch eligibility read. Its twin on `worker_msh` was retired: that
+  // table's unique (worker_id, industry_id, date) made the same tie-break
+  // unreachable. See the inventory's KEEP table.
+  "worker_wsh.created_at": "KEEP — tie-break ordering key for same-date work statuses",
 
   // ── RETIRE: not moved yet, one task per area ─────────────────────────────
   "bookmarks.created_at": "RETIRE — Retire Bookmark Created Column",
-  "worker_wsh.created_at": "RETIRE — Retire Worker History Created Columns",
-  "worker_msh.created_at": "RETIRE — Retire Worker History Created Columns",
   "wizard_report_data.created_at":
     "KEEP — bulk report output: the retention purge reads a row's age to decide " +
     "whether the run's output has expired, and it is the order the rows are read back in",
