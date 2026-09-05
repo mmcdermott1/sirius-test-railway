@@ -81,7 +81,6 @@ its own rows from this table and from the allowlist.
 
 | Table | Column(s) | Owning task |
 | --- | --- | --- |
-| `bookmarks` | `created_at` | Retire Bookmark Created Column |
 | `sitespecific_btu_csg` | `created_at`, `updated_at` | Retire BTU Table Timestamps |
 | `sitespecific_btu_political_officials` | `created_at`, `updated_at` | Retire BTU Table Timestamps |
 | `sitespecific_btu_political_worker_reps` | `created_at` | Retire BTU Table Timestamps |

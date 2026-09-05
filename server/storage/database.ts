@@ -11,7 +11,7 @@ import { type TrustWmbStorage, createTrustWmbStorage, trustWmbLoggingConfig } fr
 import { type TrustWmbEventsStorage, createTrustWmbEventsStorage } from "./trust/wmb-events";
 import { type TrustProviderContactStorage, createTrustProviderContactStorage, trustProviderContactLoggingConfig } from "./trust/provider/contacts";
 import { type WorkerIdStorage, createWorkerIdStorage, workerIdLoggingConfig } from "./workers/ids";
-import { type BookmarkStorage, createBookmarkStorage } from "./bookmarks";
+import { type BookmarkStorage, createBookmarkStorage, bookmarkLoggingConfig } from "./bookmarks";
 import {
   type LedgerStorage,
   createLedgerStorage,
@@ -498,7 +498,10 @@ export class DatabaseStorage implements IStorage {
       createWorkerIdStorage(),
       workerIdLoggingConfig,
     );
-    this.bookmarks = createBookmarkStorage();
+    this.bookmarks = withStorageLogging(
+      createBookmarkStorage(),
+      bookmarkLoggingConfig,
+    );
     this.ledger = {
       ...createLedgerStorage(
         ledgerAccountLoggingConfig,

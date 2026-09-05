@@ -831,12 +831,16 @@ export const phoneNumbers = pgTable("contact_phone", {
   validationResponse: jsonb("validation_response"),
 });
 
+// When a bookmark was added, and by whom, is provenance: it lives in
+// `entity_metadata`, written by storage logging (see
+// `docs/provenance-columns.md`). The bookmark reads that date back through
+// the storage layer's provenance join, which is also where its newest-first
+// order comes from.
 export const bookmarks = pgTable("bookmarks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   entityType: text("entity_type").notNull(),
   entityId: varchar("entity_id").notNull(),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
 export const ledgerPaymentMethods = pgTable("ledger_paymentmethods", {
@@ -1703,7 +1707,6 @@ export const insertPhoneNumberSchema = createInsertSchema(phoneNumbers).omit({
 
 export const insertBookmarkSchema = createInsertSchema(bookmarks).omit({
   id: true,
-  createdAt: true,
 });
 
 export const insertLedgerPaymentMethodSchema = createInsertSchema(ledgerPaymentMethods).omit({

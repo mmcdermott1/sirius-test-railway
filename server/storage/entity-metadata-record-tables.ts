@@ -62,6 +62,7 @@ export interface MetadataRecordTable {
 export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   auth_identities: { label: "Sign-in Identities", hrefTemplate: null },
   bargaining_units: { label: "Bargaining Units", hrefTemplate: "/bargaining-units/{id}" },
+  bookmarks: { label: "Bookmarks", hrefTemplate: null },
   bulk_messages: { label: "Bulk Messages", hrefTemplate: "/bulk/{id}" },
   bulk_messages_email: { label: "Bulk Message Email Settings", hrefTemplate: null },
   bulk_messages_inapp: { label: "Bulk Message In-App Settings", hrefTemplate: null },

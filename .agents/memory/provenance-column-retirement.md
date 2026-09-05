@@ -1,6 +1,6 @@
 ---
 name: Retiring a bespoke provenance column
-description: What a "retire table X's created_at/created_by" task actually costs — the seed migration, the ordering join, and the two nulls the reads must survive.
+description: What a "retire table X's created_at/created_by" task actually costs — joining the framework, the seed migration, the ordering join, and the two nulls the reads must survive.
 ---
 
 Retiring a table's own `created_at` / `created_by` columns into `entity_metadata`
@@ -11,6 +11,15 @@ the decision rule; this is what the doc does not say.
 the framework's answer is strictly better — it can name the person, which a
 timestamp column never could.
 
+
+## Before any of it: the table has to be in the framework
+
+Nothing writes `entity_metadata` for a table that is not under storage logging,
+so a table that never had a logging config needs one FIRST — the create/delete
+named methods already resolve to the `created` / `deleted` provenance modes by
+name convention. Declare the table in the record-tables registry too: a boot
+assertion keeps that registry honest, and it is what lets the orphan sweep
+clean up rows whose record went away by cascade rather than by a logged delete.
 
 ## The recipe
 
@@ -44,6 +53,10 @@ A column that only DISPLAYS is easy. A column the queries ORDER BY becomes a
 `LEFT JOIN entity_metadata ON entity_id = <record>.id AND table_name = '<table>'`
 in every read that ordered by it — and the join has to carry the table name, or
 a provenance row belonging to another table can answer.
+
+Do the join ONCE, in the storage read, and hand the date out as a field. Two
+surfaces reading the same list (a page and a dashboard widget, say) must not
+each grow their own join.
 
 **A descending sort on the provenance date puts unstamped rows FIRST**
 (Postgres DESC defaults to NULLS FIRST), and that is the right place for them:
@@ -81,6 +94,9 @@ A denormalised NAME column (`author_name` and friends) is not seedable — the
 framework names a person and resolves their current name at read time, which is
 the point. Drop it; do not try to preserve the frozen string.
 
+Only move what the column actually said. A `user_id` on the record is whose
+record it is, not who created it; seeding it as the creator invents provenance
+out of a foreign key.
 
 ## An upsert has to be asked which thing it did
 

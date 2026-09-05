@@ -145,7 +145,6 @@ const ALLOWLIST: Record<string, string> = {
   "worker_wsh.created_at": "KEEP — tie-break ordering key for same-date work statuses",
 
   // ── RETIRE: not moved yet, one task per area ─────────────────────────────
-  "bookmarks.created_at": "RETIRE — Retire Bookmark Created Column",
   "wizard_report_data.created_at":
     "KEEP — bulk report output: the retention purge reads a row's age to decide " +
     "whether the run's output has expired, and it is the order the rows are read back in",
