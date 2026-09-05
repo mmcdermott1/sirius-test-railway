@@ -89,6 +89,8 @@ import "./core/1084_seed_snapshot_provenance";
 import "./core/1085_drop_snapshot_author_columns";
 import "./core/1086_seed_ws_client_provenance";
 import "./core/1087_drop_ws_client_timestamps";
+import "./core/1088_seed_contact_provenance";
+import "./core/1089_drop_contact_timestamps";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

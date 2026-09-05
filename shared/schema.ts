@@ -766,13 +766,11 @@ export const contactPostal = pgTable("contact_postal", {
   source: text("source").$type<'worker_self' | 'employer_feed' | 'admin' | 'import' | 'system'>().default('admin').notNull(),
   deliverabilityStatus: text("deliverability_status").$type<'unknown' | 'verified' | 'undeliverable' | 'vacant' | 'returned_mail'>().default('unknown').notNull(),
   lastVerifiedAt: timestamp("last_verified_at"),
-  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   needsReview: boolean("needs_review").default(false).notNull(),
   validationResponse: jsonb("validation_response"),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
   accuracy: text("accuracy"),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 }, (table) => ({
   chkSource: check(
     "chk_source",
@@ -799,7 +797,6 @@ export const phoneNumbers = pgTable("contact_phone", {
   isPrimary: boolean("is_primary").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   validationResponse: jsonb("validation_response"),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
 export const bookmarks = pgTable("bookmarks", {
@@ -1671,12 +1668,10 @@ export const insertContactPostalSchema = createInsertSchema(contactPostal, {
   deliverabilityStatus: z.enum(['unknown', 'verified', 'undeliverable', 'vacant', 'returned_mail']).optional(),
 }).omit({
   id: true,
-  createdAt: true,
 });
 
 export const insertPhoneNumberSchema = createInsertSchema(phoneNumbers).omit({
   id: true,
-  createdAt: true,
 });
 
 export const insertBookmarkSchema = createInsertSchema(bookmarks).omit({
