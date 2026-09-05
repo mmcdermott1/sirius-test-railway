@@ -45,6 +45,7 @@ async function up(): Promise<void> {
     CREATE TABLE entity_metadata (
       "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
       "seq" bigserial NOT NULL,
+      "rev" integer NOT NULL DEFAULT 1,
       "table_name" varchar(255) NOT NULL,
       "entity_id" varchar NOT NULL,
       "created_date" timestamp,
@@ -73,7 +74,7 @@ const migration: Migration = {
   version: 1077,
   name: "create_entity_metadata",
   description:
-    "Create the entity_metadata table: one best-effort provenance row per record (table_name plus a unique entity_id, a permanent auto-increment seq, and the created / modified / subrecord_modified date+user trios, each user column a SET NULL FK to users), maintained in-application by the storage logging middleware rather than by a database trigger.",
+    "Create the entity_metadata table: one best-effort provenance row per record (table_name plus a unique entity_id, a permanent auto-increment seq, an application-maintained revision, and the created / modified / subrecord_modified date+user trios, each user column a SET NULL FK to users), maintained in-application by the storage logging middleware rather than by a database trigger.",
   up,
 };
 

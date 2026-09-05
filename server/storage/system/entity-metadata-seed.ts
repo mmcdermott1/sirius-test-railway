@@ -259,6 +259,7 @@ export function createEntityMetadataSeedStorage(): EntityMetadataSeedStorage {
             AND ${isRecordId}
             AND ${hasDate}
           ON CONFLICT (entity_id) DO UPDATE SET
+            rev = entity_metadata.rev + 1,
             created_date = LEAST(entity_metadata.created_date, EXCLUDED.created_date),
             created_by = COALESCE(entity_metadata.created_by, EXCLUDED.created_by),
             modified_date = GREATEST(entity_metadata.modified_date, EXCLUDED.modified_date),

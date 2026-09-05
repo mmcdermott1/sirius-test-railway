@@ -1113,6 +1113,8 @@ export type InsertEntityFile = z.infer<typeof insertEntityFileSchema>;
 export const entityMetadata = pgTable("entity_metadata", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   seq: bigserial("seq", { mode: "number" }).notNull(),
+  /** Number of successful application writes to this history row. */
+  rev: integer("rev").notNull().default(1),
   /** Raw database table the record lives in, e.g. `contact_phone`. */
   tableName: varchar("table_name", { length: 255 }).notNull(),
   entityId: varchar("entity_id").notNull(),
