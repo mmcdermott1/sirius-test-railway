@@ -1,6 +1,8 @@
 import { eventBus, EventType, type EventPayloadMap } from "../event-bus";
 import { storage } from "../../storage";
 import { logger } from "../../logger";
+import { entityMetadataStorage } from "../../storage/system/entity-metadata";
+import type { SnapshotNode, SnapshotRecordMetadata } from "@shared/snapshots";
 
 const SERVICE_NAME = "snapshot-capture";
 
@@ -28,7 +30,13 @@ interface SnapshotCaptureAdapter<E extends keyof EventPayloadMap> {
    * Produce the self-contained export bundle (a SnapshotNode). Runs inside the
    * saving transaction, so it reads the entity exactly as that save left it.
    */
-  exportEntity: (payload: EventPayloadMap[E]) => Promise<unknown | undefined>;
+  exportEntity: (payload: EventPayloadMap[E]) => Promise<SnapshotNode | undefined>;
+  /**
+   * Read the target record's metadata for this save. This is separate from
+   * exportEntity because record history is maintained by the logging layer and
+   * is intentionally not part of the entity export payload.
+   */
+  getMetadata: (payload: EventPayloadMap[E]) => Promise<SnapshotRecordMetadata | null>;
 }
 
 const adapters: SnapshotCaptureAdapter<any>[] = [
@@ -44,6 +52,8 @@ const adapters: SnapshotCaptureAdapter<any>[] = [
         ? `status: → ${payload.newStatus}`
         : `status: ${payload.previousStatus} → ${payload.newStatus}`,
     exportEntity: (payload) => storage.edlsSheets.export(payload.sheetId),
+    getMetadata: async (payload) =>
+      entityMetadataStorage.getSnapshotMetadata(payload.sheetId),
   },
 ];
 
@@ -118,6 +128,8 @@ export async function captureEntitySnapshot<E extends keyof EventPayloadMap>(
     return;
   }
 
+  const metadata = await adapter.getMetadata(payload);
+
   // The snapshot storage stamps its own capture time and effective actor (or
   // null for a system capture). This is deliberately separate from record
   // history because snapshots are process output.
@@ -125,7 +137,7 @@ export async function captureEntitySnapshot<E extends keyof EventPayloadMap>(
     entityType: adapter.entityType,
     entityId,
     label: adapter.getLabel(payload),
-    data: bundle,
+    data: { ...bundle, metadata },
   });
   logger.info(
     `Captured snapshot ${snapshot.id} of ${adapter.entityType} ${entityId} [${snapshot.label}]`,

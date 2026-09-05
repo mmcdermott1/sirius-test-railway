@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { getClient } from "../transaction-context";
 import { storageLogger } from "../../logger";
+import type { SnapshotRecordMetadata } from "@shared/snapshots";
 import {
   isPlainTableIdentifier,
   isRecordId,
@@ -129,6 +130,20 @@ export interface EntityMetadataStorage {
    * nothing recorded are simply absent from the map.
    */
   getMany(entityIds: string[]): Promise<Map<string, EntityMetadataView>>;
+
+  /**
+   * Project the metadata row as it will look after one save, without writing
+   * it. Metadata maintenance is deferred until commit, but snapshot capture
+   * runs inside that save's transaction. Returning the projected row keeps
+   * the snapshot aligned with the payload while preserving best-effort
+   * metadata maintenance.
+   *
+   * A missing row remains null: this method must not invent provenance for a
+   * record whose history has not been observed.
+   */
+  getSnapshotMetadata(
+    entityId: string,
+  ): Promise<SnapshotRecordMetadata | null>;
 
   /**
    * Record a mutation OF the record itself.
@@ -355,6 +370,30 @@ function viewFrom(row: Record<string, unknown>): EntityMetadataView {
   };
 }
 
+function snapshotStamp(stamp: EntityMetadataStamp): {
+  date: string | null;
+  personName: string | null;
+} {
+  return {
+    date: stamp.date?.toISOString() ?? null,
+    personName: stamp.personName,
+  };
+}
+
+export function snapshotMetadataFromView(
+  metadata: EntityMetadataView,
+): SnapshotRecordMetadata {
+  return {
+    seq: metadata.seq,
+    rev: metadata.rev,
+    contextId: metadata.contextId,
+    entityId: metadata.entityId,
+    created: snapshotStamp(metadata.created),
+    modified: snapshotStamp(metadata.modified),
+    subrecordModified: snapshotStamp(metadata.subrecordModified),
+  };
+}
+
 /** How many of a table's own ids the sweep looks at before trusting its key. */
 const SAMPLE_SIZE = 20;
 
@@ -477,6 +516,12 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
         if (await isKnownContext(view.contextId)) byId.set(view.entityId, view);
       }
       return byId;
+    },
+
+    async getSnapshotMetadata(entityId) {
+      const metadata = await this.get(entityId);
+      if (!metadata) return null;
+      return snapshotMetadataFromView(metadata);
     },
 
     async recordMutation({ tableName, entityId, at, actorId, created }) {

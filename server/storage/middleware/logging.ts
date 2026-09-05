@@ -39,7 +39,7 @@
 
 import { storageLogger } from "../../logger";
 import { getRequestContext, isFrameworkWrite } from "../../middleware/request-context";
-import { onAfterCommit, runOutsideTransaction } from "../transaction-context";
+import { isInTransaction, onAfterCommit, runOutsideTransaction } from "../transaction-context";
 import { entityMetadataStorage } from "../system/entity-metadata";
 
 /**
@@ -64,7 +64,11 @@ export type EntityTableResolver<T = any> =
  *   The default for the bulk family, whose log entry summarizes a batch rather
  *   than naming a record (see `withStorageLogging`).
  */
-export type EntityMetadataMode = 'created' | 'modified' | 'deleted' | 'none';
+export type EntityMetadataMode =
+  | 'created'
+  | 'modified'
+  | 'deleted'
+  | 'none';
 
 /**
  * What a method did to its record's provenance, when the answer is not the
@@ -82,6 +86,9 @@ export type EntityMetadataMode = 'created' | 'modified' | 'deleted' | 'none';
 export type EntityMetadataModeResolver =
   | EntityMetadataMode
   | ((args: any[], result?: any, beforeState?: any) => EntityMetadataMode | Promise<EntityMetadataMode>);
+
+/** When metadata maintenance runs; the default remains after commit. */
+export type EntityMetadataTiming = 'afterCommit' | 'transactional';
 /**
  * Which raw tables the logging configs wired into this process actually name.
  *
@@ -245,6 +252,18 @@ export interface MethodLoggingConfig<T = any> {
    * only the call can say — see {@link EntityMetadataModeResolver}.
    */
   metadataMode?: EntityMetadataModeResolver;
+
+  /**
+   * Run metadata maintenance in the caller's transaction when one is active.
+   * Outside a transaction, the normal after-commit path is retained.
+   */
+  metadataTiming?: EntityMetadataTiming;
+
+  /**
+   * For bulk operations whose synthetic log entity has no provenance row,
+   * still advance the host's subrecord metadata.
+   */
+  metadataHostTouch?: boolean;
 }
 
 /**
@@ -312,6 +331,9 @@ export interface StorageLoggingConfig<T> {
    * says the exemption belongs to the table.
    */
   metadataMode?: EntityMetadataMode;
+
+  /** Module-level default for when metadata maintenance runs. */
+  metadataTiming?: EntityMetadataTiming;
 
   /** Per-method logging configurations */
   methods: {
@@ -394,6 +416,10 @@ export interface DefineLoggingConfigOptions<T> {
   table: EntityTableResolver<T>;
   /** Raw database table the host entity lives in — see `MethodLoggingConfig.hostTable`. */
   hostTable?: EntityTableResolver<T>;
+  /** Module-level default for the metadata operation type. */
+  metadataMode?: EntityMetadataMode;
+  /** Module-level default for when metadata maintenance runs. */
+  metadataTiming?: EntityMetadataTiming;
   /** Module-level state descriptor. Only `state.key` is meaningful here. */
   state?: StateDescriptor;
   getter?: string;
@@ -417,6 +443,8 @@ export function defineLoggingConfig<T>(
     module: opts.module,
     table: opts.table,
     hostTable: opts.hostTable,
+    metadataMode: opts.metadataMode,
+    metadataTiming: opts.metadataTiming,
     useDefaults: true,
     state: opts.state,
     getter: opts.getter,
@@ -686,6 +714,13 @@ async function resolveMetadataMode(
   return 'modified';
 }
 
+function resolveMetadataTiming<T>(
+  methodConfig: MethodLoggingConfig<T>,
+  config: StorageLoggingConfig<T>,
+): EntityMetadataTiming {
+  return methodConfig.metadataTiming ?? config.metadataTiming ?? 'afterCommit';
+}
+
 async function resolveTable(
   resolver: EntityTableResolver | undefined,
   args: any[],
@@ -700,14 +735,13 @@ async function resolveTable(
  * Maintain the `entity_metadata` rows a logged mutation implies: the record's
  * own, and — when the log entry names a host — the host's subrecord pair.
  *
- * Runs deferred, off the caller's transaction. Stepping out of the ambient
- * transaction context is not optional: an async context propagates into
- * `setImmediate`, so without it these writes would reach for a client whose
- * transaction has already committed (or one marked read-only).
+ * Usually runs deferred, off the caller's transaction. Transactional logging
+ * configs call this from the active save transaction instead; that path is
+ * used when a consumer must capture the exact resulting metadata before the
+ * save returns.
  */
 async function maintainEntityMetadata(params: {
   config: StorageLoggingConfig<any>;
-  methodKey: string;
   methodConfig: MethodLoggingConfig<any>;
   args: any[];
   result: any;
@@ -716,26 +750,27 @@ async function maintainEntityMetadata(params: {
   hostEntityId: string | undefined;
   at: Date;
   actorId: string | null;
+  metadataMode: EntityMetadataMode;
 }): Promise<void> {
-  const { config, methodKey, methodConfig, args, result, beforeState, at, actorId } = params;
-
-  const mode = await resolveMetadataMode(
-    methodKey,
+  const {
+    config,
     methodConfig,
-    config.metadataMode,
     args,
     result,
     beforeState,
-  );
-  if (mode === 'none') return;
+    at,
+    actorId,
+    metadataMode,
+  } = params;
 
-  const tableName = await resolveTable(
-    methodConfig.table ?? config.table,
-    args,
-    result,
-    beforeState,
-  );
-  if (!tableName) return;
+  const tableName = metadataMode === 'none'
+    ? undefined
+    : await resolveTable(
+        methodConfig.table ?? config.table,
+        args,
+        result,
+        beforeState,
+      );
 
   // The log's entity id is only usually the record's own id, so a config may
   // name a different resolver for provenance purposes.
@@ -751,32 +786,40 @@ async function maintainEntityMetadata(params: {
   );
   const hostEntityId = params.hostEntityId;
 
-  await runOutsideTransaction(async () => {
-    if (entityId !== undefined && entityId !== null) {
-      if (mode === 'deleted') {
-        await entityMetadataStorage.recordDeletion({ tableName, entityId });
-      } else {
-        await entityMetadataStorage.recordMutation({
-          tableName,
-          entityId,
-          at,
-          actorId,
-          created: mode === 'created',
-        });
-      }
-    }
-
-    // Many configs name a record as its own host so that its log entries show
-    // up on its own page. That is not a subrecord change.
-    if (hostTable && hostEntityId && hostEntityId !== entityId) {
-      await entityMetadataStorage.recordSubrecordTouch({
-        tableName: hostTable,
-        entityId: hostEntityId,
+  if (
+    metadataMode !== 'none' &&
+    tableName &&
+    entityId !== undefined &&
+    entityId !== null
+  ) {
+    if (metadataMode === 'deleted') {
+      await entityMetadataStorage.recordDeletion({ tableName, entityId });
+    } else {
+      await entityMetadataStorage.recordMutation({
+        tableName,
+        entityId,
         at,
         actorId,
+        created: metadataMode === 'created',
       });
     }
-  });
+  }
+
+  // Many configs name a record as its own host so that its log entries show
+  // up on its own page. That is not a subrecord change.
+  if (
+    hostTable &&
+    hostEntityId &&
+    hostEntityId !== entityId &&
+    (metadataMode !== 'none' || methodConfig.metadataHostTouch)
+  ) {
+    await entityMetadataStorage.recordSubrecordTouch({
+      tableName: hostTable,
+      entityId: hostEntityId,
+      at,
+      actorId,
+    });
+  }
 }
 
 /**
@@ -887,34 +930,63 @@ export function withStorageLogging<T extends Record<string, any>>(
               : undefined,
           }))());
 
-        // Entity metadata is scheduled by the COMMIT, not by the call. A
+        // Entity metadata is normally scheduled by the COMMIT, not by the call. A
         // storage method can return and its enclosing transaction still roll
         // back, and this work runs on its own connection — a provenance row
         // written from here would outlive the mutation that claimed it.
         // `onAfterCommit` runs the callback straight away when there is no
         // transaction, and drops it when there is one that rolls back.
-        onAfterCommit(() => {
-          setImmediate(async () => {
+        const metadataMode = await resolveMetadataMode(
+          String(key),
+          methodConfig,
+          config.metadataMode,
+          args,
+          result,
+          beforeState,
+        );
+        const metadataTiming = resolveMetadataTiming(methodConfig, config);
+        const maintain = async () => {
+          const resolved = await resolveIds();
+          await maintainEntityMetadata({
+            config,
+            methodConfig,
+            args,
+            result,
+            beforeState,
+            loggedEntityId: resolved.entityId,
+            hostEntityId: resolved.hostEntityId,
+            at: completedAt,
+            actorId: actorAtCompletion,
+            metadataMode,
+          });
+        };
+
+        if (metadataTiming === 'transactional') {
+          if (isInTransaction()) {
+            await maintain();
+          } else {
             try {
-              const resolved = await runOutsideTransaction(() => resolveIds());
-              await maintainEntityMetadata({
-                config,
-                methodKey: String(key),
-                methodConfig,
-                args,
-                result,
-                beforeState,
-                loggedEntityId: resolved.entityId,
-                hostEntityId: resolved.hostEntityId,
-                at: completedAt,
-                actorId: actorAtCompletion,
-              });
+              // The wrapped storage call has already committed when there is
+              // no ambient transaction, so this can run immediately without
+              // risking metadata outliving a rolled-back business write.
+              await runOutsideTransaction(maintain);
             } catch (metadataError) {
-              // Best effort: metadata never costs the mutation or the log.
+              // Preserve best-effort metadata semantics for standalone calls.
               console.error('Error maintaining entity metadata:', metadataError);
             }
+          }
+        } else {
+          onAfterCommit(() => {
+            setImmediate(async () => {
+              try {
+                await runOutsideTransaction(maintain);
+              } catch (metadataError) {
+                // Best effort: metadata never costs the mutation or the log.
+                console.error('Error maintaining entity metadata:', metadataError);
+              }
+            });
           });
-        });
+        }
 
         // A write the framework performed on its own behalf (see
         // `withFrameworkWrite`) is provenance, not audit. The metadata row

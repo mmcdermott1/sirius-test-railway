@@ -1169,6 +1169,7 @@ export const edlsAssignmentsLoggingConfig = defineLoggingConfig<EdlsAssignmentsS
   module: 'edls-assignments',
   table: 'edls_assignments',
   hostTable: 'edls_sheets',
+  metadataTiming: 'transactional',
   // No module-level stateKey — `before` for delete/updateData augments the
   // raw assignment row with a `workerDesc` lookup, and `after` is suppressed
   // (set explicitly to undefined) so legacy logs stay byte-identical.

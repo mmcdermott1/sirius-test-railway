@@ -5,7 +5,8 @@
  * Exports are recursive for OWNED children (a sheet bundle contains crew
  * bundles, a crew bundle contains assignment bundles) and each nested node
  * carries its own version, so a newer parent bundle may legally contain
- * older child bundles. Stored snapshots are never migrated — decode
+ * older child bundles. New root nodes may also carry the record-history
+ * metadata that was current for the save. Stored snapshots are never migrated — decode
  * dispatches on the per-node version at read time.
  *
  * REFERENCED entities (worker, show status, employer, ...) are not recursed
@@ -16,6 +17,34 @@
 export interface SnapshotNode<T = unknown> {
   version: number;
   data: T;
+  /**
+   * The target record's history at the save represented by this node.
+   *
+   * This is optional for backwards compatibility with bundles written before
+   * snapshot metadata existed. New captures write either a value or `null`
+   * when the target has no eligible/history row.
+   */
+  metadata?: SnapshotRecordMetadata | null;
+}
+
+/** A JSON-safe date/person pair from a record-history row. */
+export interface SnapshotMetadataStamp {
+  date: string | null;
+  personName: string | null;
+}
+
+/**
+ * JSON-safe record-history metadata captured alongside a snapshot's payload.
+ * The dates are strings because stored JSON must not depend on Date revival.
+ */
+export interface SnapshotRecordMetadata {
+  seq: number;
+  rev: number;
+  contextId: string;
+  entityId: string;
+  created: SnapshotMetadataStamp;
+  modified: SnapshotMetadataStamp;
+  subrecordModified: SnapshotMetadataStamp;
 }
 
 /** A `{ id, name }` stub for a referenced (not owned) entity. */

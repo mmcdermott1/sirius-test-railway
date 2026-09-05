@@ -26,6 +26,8 @@ import { eventBus, EventType } from "../../services/event-bus";
 import { logger } from "../../logger";
 import { storage } from "../index";
 import { isComponentEnabledSync } from "../../services/component-cache";
+import { getRequestContext } from "../../middleware/request-context";
+import { entityMetadataStorage } from "../system/entity-metadata";
 import type { SnapshotNode } from "@shared/snapshots";
 import {
   getEdlsPassportExportPage,
@@ -192,6 +194,18 @@ export interface EdlsSheetsStorage {
  * they run, which only holds if the entry commits with the save.
  */
 async function emitSheetSaved(sheet: EdlsSheet, previousStatus: string | null): Promise<void> {
+  // Sheet history is part of the save transaction so the snapshot can read
+  // the exact revision that its export represents. The logging wrapper opts
+  // out for this root method; crew/assignment wrappers contribute their
+  // transactional subrecord touches before this final root mutation.
+  await entityMetadataStorage.recordMutation({
+    tableName: "edls_sheets",
+    entityId: sheet.id,
+    at: new Date(),
+    actorId: getRequestContext()?.userId ?? null,
+    created: previousStatus === null,
+  });
+
   const payload = {
     sheetId: sheet.id,
     previousStatus,
@@ -615,6 +629,8 @@ export const edlsSheetsLoggingConfig = defineLoggingConfig<EdlsSheetsStorage>({
   // log payloads.
   methods: {
     create: {
+      // emitSheetSaved records the root row before snapshot capture.
+      metadataMode: 'none',
       state: { fallbackId: 'new sheet' },
       getHostEntityId: (_args, result) => result?.id,
       getDescription: async (args, result) => {
@@ -634,6 +650,8 @@ export const edlsSheetsLoggingConfig = defineLoggingConfig<EdlsSheetsStorage>({
       }),
     },
     update: {
+      // emitSheetSaved records the root row after all child mutations.
+      metadataMode: 'none',
       getHostEntityId: (args) => args[0],
       getDescription: async (_args, result, beforeState) => {
         const title = result?.title || beforeState?.title || 'Untitled';
