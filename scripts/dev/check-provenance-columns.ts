@@ -142,8 +142,6 @@ const ALLOWLIST: Record<string, string> = {
   "users.created_at": "RETIRE — Retire User And Role Timestamps",
   "users.updated_at": "RETIRE — Retire User And Role Timestamps",
   "roles.created_at": "RETIRE — Retire User And Role Timestamps",
-  "auth_identities.created_at": "RETIRE — Retire Auth Identity Timestamps",
-  "auth_identities.updated_at": "RETIRE — Retire Auth Identity Timestamps",
   "bookmarks.created_at": "RETIRE — Retire Bookmark Created Column",
   "dispatch_jobs.created_at": "RETIRE — Retire Dispatch Job And Dispatch Timestamps",
   "dispatches.created_at": "RETIRE — Retire Dispatch Job And Dispatch Timestamps",

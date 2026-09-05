@@ -169,7 +169,6 @@ import { type EdlsSheetsStorage, createEdlsSheetsStorage, edlsSheetsLoggingConfi
 import { type EdlsCrewsStorage, createEdlsCrewsStorage, edlsCrewsLoggingConfig } from "./edls/crews";
 import { type EdlsAssignmentsStorage, createEdlsAssignmentsStorage, edlsAssignmentsLoggingConfig } from "./edls/assignments";
 import { type WorkerEdlsStorage, createWorkerEdlsStorage, workerEdlsLoggingConfig } from "./edls/workers";
-import { type AuthIdentitiesStorage, createAuthIdentitiesStorage } from "./auth-identities";
 import { type WorkerDispatchEligDenormStorage, createWorkerDispatchEligDenormStorage } from "./dispatch/worker-elig-denorm";
 import { type RawSqlStorage, createRawSqlStorage } from "./raw-sql";
 import { type ReadOnlyStorage, createReadOnlyStorage } from "./read-only";
@@ -214,6 +213,7 @@ import { employers, workers, contacts } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { type AdvisoryLockStorage, createAdvisoryLockStorage } from "./advisory-lock";
 import { type WsClientStorage, type WsClientGrantStorage, type WsClientCredentialStorage, type WsClientIpRuleStorage, createWsClientStorage, createWsClientGrantStorage, createWsClientCredentialStorage, createWsClientIpRuleStorage, wsClientLoggingConfig, wsClientGrantLoggingConfig, wsClientCredentialLoggingConfig, wsClientIpRuleLoggingConfig } from "./webservices";
+import { type AuthIdentitiesStorage, createAuthIdentitiesStorage, authIdentitiesLoggingConfig } from "./auth-identities";
 
 export interface IStorage {
   variables: VariableStorage;
@@ -679,7 +679,7 @@ export class DatabaseStorage implements IStorage {
     this.edlsAssignments = withStorageLogging(createEdlsAssignmentsStorage(), edlsAssignmentsLoggingConfig);
     this.workerEdls = withStorageLogging(createWorkerEdlsStorage(), workerEdlsLoggingConfig);
     this.snapshots = withStorageLogging(createSnapshotsStorage(), snapshotsLoggingConfig);
-    this.authIdentities = createAuthIdentitiesStorage();
+    this.authIdentities = withStorageLogging(createAuthIdentitiesStorage(), authIdentitiesLoggingConfig);
     this.workerDispatchEligDenorm = createWorkerDispatchEligDenormStorage();
     this.rawSql = createRawSqlStorage();
     this.advisoryLock = createAdvisoryLockStorage();

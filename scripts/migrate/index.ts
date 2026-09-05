@@ -91,6 +91,7 @@ import "./core/1086_seed_ws_client_provenance";
 import "./core/1087_drop_ws_client_timestamps";
 import "./core/1088_seed_contact_provenance";
 import "./core/1089_drop_contact_timestamps";
+import "./core/1090_retire_auth_identity_timestamps";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

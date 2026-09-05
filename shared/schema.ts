@@ -235,8 +235,10 @@ export const authIdentities = pgTable(
     passwordHash: varchar("password_hash"),
     refreshToken: text("refresh_token"),
     metadata: jsonb("metadata"),
-    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+    // No created_at/updated_at: when an identity was linked and when it was
+    // last changed live in entity_metadata, written by the storage logging
+    // config. last_used_at stays — it is an operational stamp about signing
+    // in, not a record of a change to the identity.
     lastUsedAt: timestamp("last_used_at"),
   },
   (table) => [

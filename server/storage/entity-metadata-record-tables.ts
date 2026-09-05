@@ -60,6 +60,7 @@ export interface MetadataRecordTable {
  * therefore means deciding, once, what to call it and whether it has a page.
  */
 export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
+  auth_identities: { label: "Sign-in Identities", hrefTemplate: null },
   bargaining_units: { label: "Bargaining Units", hrefTemplate: "/bargaining-units/{id}" },
   bulk_messages: { label: "Bulk Messages", hrefTemplate: "/bulk/{id}" },
   bulk_messages_email: { label: "Bulk Message Email Settings", hrefTemplate: null },
