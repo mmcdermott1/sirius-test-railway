@@ -115,6 +115,15 @@ export interface EntityMetadataStorage {
   get(entityId: string): Promise<EntityMetadataView | undefined>;
 
   /**
+   * The same read for a page of records at once, keyed by record id.
+   *
+   * A list that shows each row's creation date would otherwise ask for one
+   * record at a time, and the answer is the same shape either way. Ids with
+   * nothing recorded are simply absent from the map.
+   */
+  getMany(entityIds: string[]): Promise<Map<string, EntityMetadataView>>;
+
+  /**
    * Record a mutation OF the record itself.
    *
    * `created` marks the mutation as the record's creation, which is the only
@@ -283,6 +292,41 @@ function stampFrom(
   return { date, personName: personNameFrom(row, personPrefix) };
 }
 
+/**
+ * The one read of a provenance row for display, with the three people it can
+ * name resolved. Shared by the single-record and many-record reads so the two
+ * cannot drift into answering differently; each supplies its own WHERE.
+ */
+const VIEW_SELECT = sql`
+  SELECT
+    m.seq, m.table_name, m.entity_id,
+    m.created_date, m.modified_date, m.subrecord_modified_date,
+    cu.first_name AS created_first_name,
+    cu.last_name  AS created_last_name,
+    cu.email      AS created_email,
+    mu.first_name AS modified_first_name,
+    mu.last_name  AS modified_last_name,
+    mu.email      AS modified_email,
+    su.first_name AS subrecord_first_name,
+    su.last_name  AS subrecord_last_name,
+    su.email      AS subrecord_email
+  FROM entity_metadata m
+  LEFT JOIN users cu ON cu.id = m.created_by
+  LEFT JOIN users mu ON mu.id = m.modified_by
+  LEFT JOIN users su ON su.id = m.subrecord_modified_by
+`;
+
+function viewFrom(row: Record<string, unknown>): EntityMetadataView {
+  return {
+    seq: Number(row.seq),
+    tableName: String(row.table_name),
+    entityId: String(row.entity_id),
+    created: stampFrom(row, "created_date", "created"),
+    modified: stampFrom(row, "modified_date", "modified"),
+    subrecordModified: stampFrom(row, "subrecord_modified_date", "subrecord"),
+  };
+}
+
 /** How many of a table's own ids the sweep looks at before trusting its key. */
 const SAMPLE_SIZE = 20;
 
@@ -337,34 +381,29 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       if (!isRecordId(entityId)) return undefined;
       const client = getClient();
       const result = await client.execute(sql`
-        SELECT
-          m.seq, m.table_name, m.entity_id,
-          m.created_date, m.modified_date, m.subrecord_modified_date,
-          cu.first_name AS created_first_name,
-          cu.last_name  AS created_last_name,
-          cu.email      AS created_email,
-          mu.first_name AS modified_first_name,
-          mu.last_name  AS modified_last_name,
-          mu.email      AS modified_email,
-          su.first_name AS subrecord_first_name,
-          su.last_name  AS subrecord_last_name,
-          su.email      AS subrecord_email
-        FROM entity_metadata m
-        LEFT JOIN users cu ON cu.id = m.created_by
-        LEFT JOIN users mu ON mu.id = m.modified_by
-        LEFT JOIN users su ON su.id = m.subrecord_modified_by
-        WHERE m.entity_id = ${entityId}
+        ${VIEW_SELECT} WHERE m.entity_id = ${entityId}
       `);
       const row = result.rows?.[0] as Record<string, unknown> | undefined;
-      if (!row) return undefined;
-      return {
-        seq: Number(row.seq),
-        tableName: String(row.table_name),
-        entityId: String(row.entity_id),
-        created: stampFrom(row, "created_date", "created"),
-        modified: stampFrom(row, "modified_date", "modified"),
-        subrecordModified: stampFrom(row, "subrecord_modified_date", "subrecord"),
-      };
+      return row ? viewFrom(row) : undefined;
+    },
+
+    async getMany(entityIds) {
+      const byId = new Map<string, EntityMetadataView>();
+      const ids = Array.from(new Set(entityIds.filter(isRecordId)));
+      if (ids.length === 0) return byId;
+      const client = getClient();
+      // An IN list rather than `= ANY(array)`: the tagged template binds a JS
+      // array as one parameter, which Postgres will not take on the right of
+      // ANY.
+      const result = await client.execute(sql`
+        ${VIEW_SELECT}
+        WHERE m.entity_id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+      `);
+      for (const raw of result.rows ?? []) {
+        const view = viewFrom(raw as Record<string, unknown>);
+        byId.set(view.entityId, view);
+      }
+      return byId;
     },
 
     async recordMutation({ tableName, entityId, at, actorId, created }) {

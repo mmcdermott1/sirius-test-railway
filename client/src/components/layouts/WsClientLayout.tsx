@@ -8,7 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useWsClientTabAccess } from "@/hooks/useTabAccess";
 import { RecordTitleBar } from "@/components/shared/RecordTitleBar";
+import type { RecordMetadataStamp } from "@/components/shared/RecordHistoryDialog";
 import type { WsClient } from "@shared/schema";
+
+/**
+ * A web service client as the admin API answers with it: the row, plus when it
+ * was created and by whom. The client table keeps no timestamp of its own any
+ * more — that is the record's history, which the endpoint reads for us so the
+ * settings tab does not have to ask a second time.
+ */
+export type WsClientRecord = WsClient & { created: RecordMetadataStamp };
 
 interface WsClientLayoutProps {
   activeTab: string;
@@ -16,7 +25,7 @@ interface WsClientLayoutProps {
 }
 
 interface WsClientLayoutContextValue {
-  client: WsClient;
+  client: WsClientRecord;
 }
 
 const WsClientLayoutContext = createContext<WsClientLayoutContextValue | null>(null);
@@ -45,7 +54,7 @@ function StatusBadge({ status }: { status: string }) {
 export function WsClientLayout({ activeTab, children }: WsClientLayoutProps) {
   const { id } = useParams<{ id: string }>();
 
-  const { data: client, isLoading: clientLoading, error: clientError } = useQuery<WsClient>({
+  const { data: client, isLoading: clientLoading, error: clientError } = useQuery<WsClientRecord>({
     queryKey: ["/api/admin/ws-clients", id],
     enabled: !!id,
   });

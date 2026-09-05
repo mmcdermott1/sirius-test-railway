@@ -198,6 +198,10 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   worker_trust_elections: { label: "Trust Elections", hrefTemplate: "/trust/election/{id}" },
   worker_wsh: { label: "Worker Work Status History", hrefTemplate: null },
   workers: { label: "Workers", hrefTemplate: "/workers/{id}" },
+  ws_client_credentials: { label: "Web Service Credentials", hrefTemplate: null },
+  ws_client_grants: { label: "Web Service Access Grants", hrefTemplate: null },
+  ws_client_ip_rules: { label: "Web Service IP Rules", hrefTemplate: null },
+  ws_clients: { label: "Web Service Clients", hrefTemplate: "/admin/ws/clients/{id}" },
 };
 
 /**

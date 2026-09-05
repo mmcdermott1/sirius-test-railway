@@ -13,6 +13,8 @@ import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
 import { Loader2, Plus, Key, Copy, Check, Trash2, Ban, RotateCcw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WsClientLayout } from "@/components/layouts/WsClientLayout";
+import { RecordCreatedStamp } from "@/components/shared/RecordCreatedStamp";
+import type { RecordMetadataStamp } from "@/components/shared/RecordHistoryDialog";
 
 interface CredentialWithoutHash {
   id: string;
@@ -22,7 +24,8 @@ interface CredentialWithoutHash {
   isActive: boolean;
   expiresAt: string | null;
   lastUsedAt: string | null;
-  createdAt: string;
+  /** When the credential was issued and by whom, from its record history. */
+  created: RecordMetadataStamp;
 }
 
 interface NewCredentialResponse {
@@ -31,7 +34,6 @@ interface NewCredentialResponse {
   clientSecret: string;
   label: string | null;
   expiresAt: string | null;
-  createdAt: string;
   message: string;
 }
 
@@ -179,8 +181,8 @@ function CredentialsContent() {
                     <TableCell className="text-sm" data-testid={`text-cred-used-${cred.id}`}>
                       {formatDate(cred.lastUsedAt)}
                     </TableCell>
-                    <TableCell className="text-sm" data-testid={`text-cred-created-${cred.id}`}>
-                      {formatDate(cred.createdAt)}
+                    <TableCell className="text-sm">
+                      <RecordCreatedStamp stamp={cred.created} testId={`text-cred-created-${cred.id}`} />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

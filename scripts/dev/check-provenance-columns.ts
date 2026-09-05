@@ -91,6 +91,7 @@ const PERSON_COLUMNS = new Set([
  */
 const FRAMEWORK_TABLES = new Set(["entity_metadata"]);
 
+// hint: Logic changed on both sides. Requires understanding intent of each change.
 /**
  * Every bespoke provenance column the schema still carries, and why it is
  * allowed to. Keyed `table.column`.
@@ -156,11 +157,6 @@ const ALLOWLIST: Record<string, string> = {
   "wizard_report_data.created_at":
     "KEEP — bulk report output: the retention purge reads a row's age to decide " +
     "whether the run's output has expired, and it is the order the rows are read back in",
-  "ws_clients.created_at": "RETIRE — Retire Web Service Client Timestamps",
-  "ws_clients.updated_at": "RETIRE — Retire Web Service Client Timestamps",
-  "ws_client_grants.created_at": "RETIRE — Retire Web Service Client Timestamps",
-  "ws_client_credentials.created_at": "RETIRE — Retire Web Service Client Timestamps",
-  "ws_client_ip_rules.created_at": "RETIRE — Retire Web Service Client Timestamps",
   "sitespecific_btu_csg.created_at": "RETIRE — Retire BTU Table Timestamps",
   "sitespecific_btu_csg.updated_at": "RETIRE — Retire BTU Table Timestamps",
   "sitespecific_btu_political_officials.created_at": "RETIRE — Retire BTU Table Timestamps",

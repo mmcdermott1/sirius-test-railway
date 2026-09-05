@@ -3,3 +3,4 @@ export { default as EntityNameManagement, type EntityNameManagementConfig, type 
 export { ActivityLogView } from "./ActivityLogView";
 export { GenericOptionsPage } from "./GenericOptionsPage";
 export { RecordMetadataBadge } from "./RecordMetadataBadge";
+export { RecordCreatedStamp } from "./RecordCreatedStamp";

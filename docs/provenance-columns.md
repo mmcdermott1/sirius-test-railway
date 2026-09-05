@@ -93,10 +93,6 @@ its own rows from this table and from the allowlist.
 | `employer_policy_history` | `created_at` | Retire Policy History Created Column |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
 | `worker_msh` | `created_at` | Retire Worker History Created Columns |
-| `ws_clients` | `created_at`, `updated_at` | Retire Web Service Client Timestamps |
-| `ws_client_grants` | `created_at` | Retire Web Service Client Timestamps |
-| `ws_client_credentials` | `created_at` | Retire Web Service Client Timestamps |
-| `ws_client_ip_rules` | `created_at` | Retire Web Service Client Timestamps |
 | `sitespecific_btu_csg` | `created_at`, `updated_at` | Retire BTU Table Timestamps |
 | `sitespecific_btu_political_officials` | `created_at`, `updated_at` | Retire BTU Table Timestamps |
 | `sitespecific_btu_political_worker_reps` | `created_at` | Retire BTU Table Timestamps |

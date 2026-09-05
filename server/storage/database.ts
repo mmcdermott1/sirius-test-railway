@@ -46,6 +46,7 @@ import {
 import {
   type WizardFeedMappingStorage,
   createWizardFeedMappingStorage,
+  wizardFeedMappingLoggingConfig,
 } from "./wizard_feed_mappings";
 import {
   type WizardEmployerMonthlyStorage,
@@ -54,6 +55,7 @@ import {
 import {
   type WizardEmploymentStatusMappingStorage,
   createWizardEmploymentStatusMappingStorage,
+  wizardEmploymentStatusMappingLoggingConfig,
 } from "./wizard-employment-status-mappings";
 import {
   type FileStorage,
@@ -172,7 +174,6 @@ import { type WorkerDispatchEligDenormStorage, createWorkerDispatchEligDenormSto
 import { type RawSqlStorage, createRawSqlStorage } from "./raw-sql";
 import { type ReadOnlyStorage, createReadOnlyStorage } from "./read-only";
 import { type BtuPoliticalStorage, createBtuPoliticalStorage, btuPoliticalLoggingConfig } from "./sitespecific/btu/political";
-import { type WsClientStorage, type WsClientGrantStorage, type WsClientCredentialStorage, type WsClientIpRuleStorage, createWsClientStorage, createWsClientGrantStorage, createWsClientCredentialStorage, createWsClientIpRuleStorage } from "./webservices";
 import { type WcCacheStorage, createWcCacheStorage } from "./wc-cache";
 import { type WcStatsStorage, createWcStatsStorage } from "./wc-stats";
 import { type WsStatsStorage, createWsStatsStorage } from "./ws-stats";
@@ -212,6 +213,7 @@ import { db } from "./db";
 import { employers, workers, contacts } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { type AdvisoryLockStorage, createAdvisoryLockStorage } from "./advisory-lock";
+import { type WsClientStorage, type WsClientGrantStorage, type WsClientCredentialStorage, type WsClientIpRuleStorage, createWsClientStorage, createWsClientGrantStorage, createWsClientCredentialStorage, createWsClientIpRuleStorage, wsClientLoggingConfig, wsClientGrantLoggingConfig, wsClientCredentialLoggingConfig, wsClientIpRuleLoggingConfig } from "./webservices";
 
 export interface IStorage {
   variables: VariableStorage;
@@ -682,10 +684,13 @@ export class DatabaseStorage implements IStorage {
     this.rawSql = createRawSqlStorage();
     this.advisoryLock = createAdvisoryLockStorage();
     this.readOnly = createReadOnlyStorage();
-    this.wsClients = createWsClientStorage();
-    this.wsClientGrants = createWsClientGrantStorage();
-    this.wsClientCredentials = createWsClientCredentialStorage();
-    this.wsClientIpRules = createWsClientIpRuleStorage();
+    this.wsClients = withStorageLogging(createWsClientStorage(), wsClientLoggingConfig);
+    this.wsClientGrants = withStorageLogging(createWsClientGrantStorage(), wsClientGrantLoggingConfig);
+    this.wsClientCredentials = withStorageLogging(
+      createWsClientCredentialStorage(),
+      wsClientCredentialLoggingConfig
+    );
+    this.wsClientIpRules = withStorageLogging(createWsClientIpRuleStorage(), wsClientIpRuleLoggingConfig);
     this.wcCache = createWcCacheStorage();
     this.wcStats = createWcStatsStorage();
     this.wsStats = createWsStatsStorage();
