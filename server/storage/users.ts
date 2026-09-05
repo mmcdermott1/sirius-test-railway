@@ -5,6 +5,7 @@ import {
   roles,
   userRoles,
   rolePermissions,
+  entityMetadata,
   pluginConfigsDashboard,
   pluginConfigsQuicksearch,
   type User,
@@ -65,7 +66,12 @@ export interface UserStorage {
   deleteUser(id: string): Promise<boolean>;
   deleteUserAccount(id: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
-  getAllUsersWithRoles(): Promise<(User & { roles: Role[] })[]>;
+  /**
+   * Every user with their roles, and when the account was created as the
+   * record's history tells it (`createdDate`, null when nothing recorded it).
+   * The accounts themselves no longer carry that date.
+   */
+  getAllUsersWithRoles(): Promise<(User & { roles: Role[]; createdDate: Date | null })[]>;
   searchUsers(query: string, roleIds?: string[], limit?: number): Promise<(User & { roles: Role[] })[]>;
   userHasAnyRole(userId: string, roleIds: string[]): Promise<boolean>;
   hasAnyUsers(): Promise<boolean>;
@@ -138,7 +144,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
             firstName: userData.firstName,
             lastName: userData.lastName,
             profileImageUrl: userData.profileImageUrl,
-            updatedAt: new Date(),
           },
         })
         .returning();
@@ -242,7 +247,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
       return client.select().from(users);
     },
 
-    async getAllUsersWithRoles(): Promise<(User & { roles: Role[] })[]> {
+    async getAllUsersWithRoles(): Promise<(User & { roles: Role[]; createdDate: Date | null })[]> {
       const client = getClient();
       const allUsers = await client.select().from(users);
       
@@ -253,7 +258,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           roleName: roles.name,
           roleDescription: roles.description,
           roleSequence: roles.sequence,
-          roleCreatedAt: roles.createdAt,
         })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id));
@@ -267,14 +271,25 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           name: row.roleName,
           description: row.roleDescription,
           sequence: row.roleSequence,
-          createdAt: row.roleCreatedAt,
         });
         return acc;
       }, {} as Record<string, Role[]>);
-      
+
+      // When each account came into being, from the record's history — the
+      // accounts themselves no longer carry the date. Null for an account
+      // nothing has recorded, which the caller has to be able to show.
+      const createdRows = await client
+        .select({ entityId: entityMetadata.entityId, createdDate: entityMetadata.createdDate })
+        .from(entityMetadata)
+        .where(eq(entityMetadata.tableName, "users"));
+      const createdByUser = new Map(
+        createdRows.map((row) => [row.entityId, row.createdDate]),
+      );
+
       return allUsers.map(user => ({
         ...user,
-        roles: rolesByUser[user.id] || []
+        roles: rolesByUser[user.id] || [],
+        createdDate: createdByUser.get(user.id) ?? null,
       }));
     },
 
@@ -332,7 +347,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           roleName: roles.name,
           roleDescription: roles.description,
           roleSequence: roles.sequence,
-          roleCreatedAt: roles.createdAt,
         })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -345,7 +359,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           name: row.roleName,
           description: row.roleDescription,
           sequence: row.roleSequence,
-          createdAt: row.roleCreatedAt,
         });
         return acc;
       }, {} as Record<string, Role[]>);
@@ -394,7 +407,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
       const client = getClient();
       const [user] = await client
         .update(users)
-        .set({ data, updatedAt: new Date() })
+        .set({ data })
         .where(eq(users.id, id))
         .returning();
       return user || undefined;
@@ -523,7 +536,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           name: roles.name,
           description: roles.description,
           sequence: roles.sequence,
-          createdAt: roles.createdAt,
         })
         .from(userRoles)
         .innerJoin(roles, eq(userRoles.roleId, roles.id))
@@ -543,8 +555,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           profileImageUrl: users.profileImageUrl,
           accountStatus: users.accountStatus,
           isActive: users.isActive,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
           lastLogin: users.lastLogin,
           timezone: users.timezone,
           data: users.data,
@@ -637,7 +647,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           name: roles.name,
           description: roles.description,
           sequence: roles.sequence,
-          createdAt: roles.createdAt,
         })
         .from(rolePermissions)
         .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
@@ -658,7 +667,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
             name: roles.name,
             description: roles.description,
             sequence: roles.sequence,
-            createdAt: roles.createdAt,
           }
         })
         .from(rolePermissions)
@@ -716,8 +724,6 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
           profileImageUrl: users.profileImageUrl,
           accountStatus: users.accountStatus,
           isActive: users.isActive,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
           lastLogin: users.lastLogin,
           timezone: users.timezone,
           data: users.data,

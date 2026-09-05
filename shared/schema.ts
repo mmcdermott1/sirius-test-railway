@@ -194,8 +194,14 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   accountStatus: varchar("account_status").default("pending").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  /**
+   * When the account last signed in. Behaviour, not provenance: it is not a
+   * record of the account being changed, and nothing else records it.
+   *
+   * The account's own creation and last-changed stamps are NOT here — they
+   * live in `entity_metadata`, which also names the person responsible. See
+   * docs/provenance-columns.md.
+   */
   lastLogin: timestamp("last_login"),
   /**
    * The person's own IANA time zone, or null when they have not chosen one.
@@ -261,12 +267,12 @@ export type AuthIdentity = typeof authIdentities.$inferSelect;
 export type InsertAuthIdentity = typeof authIdentities.$inferInsert;
 export type AuthProviderType = (typeof authProviderTypeEnum.enumValues)[number];
 
+/** A role's own history lives in `entity_metadata`, not in a column here. */
 export const roles = pgTable("roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   description: text("description"),
   sequence: integer("sequence").notNull().default(0),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
 export const userRoles = pgTable("user_roles", {
@@ -1549,14 +1555,10 @@ export {
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 // For Replit Auth upsert operations
 export const upsertUserSchema = createInsertSchema(users).omit({
-  createdAt: true,
-  updatedAt: true,
   lastLogin: true,
   isActive: true,
 });
@@ -1571,7 +1573,6 @@ export const createUserSchema = z.object({
 
 export const insertRoleSchema = createInsertSchema(roles).omit({
   id: true,
-  createdAt: true,
 });
 
 export const insertContactSchema = createInsertSchema(contacts).omit({

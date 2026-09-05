@@ -27,7 +27,6 @@ interface UserDetails {
   lastName: string | null;
   profileImageUrl: string | null;
   isActive: boolean;
-  createdAt: string;
   lastLogin?: string;
 }
 

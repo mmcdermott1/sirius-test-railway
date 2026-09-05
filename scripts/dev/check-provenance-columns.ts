@@ -138,9 +138,6 @@ const ALLOWLIST: Record<string, string> = {
     "KEEP — join table with no record id to key provenance by",
 
   // ── RETIRE: not moved yet, one task per area ─────────────────────────────
-  "users.created_at": "RETIRE — Retire User And Role Timestamps",
-  "users.updated_at": "RETIRE — Retire User And Role Timestamps",
-  "roles.created_at": "RETIRE — Retire User And Role Timestamps",
   "bookmarks.created_at": "RETIRE — Retire Bookmark Created Column",
   "employer_policy_history.created_at": "RETIRE — Retire Policy History Created Column",
   "worker_wsh.created_at": "RETIRE — Retire Worker History Created Columns",

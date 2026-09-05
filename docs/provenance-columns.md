@@ -81,8 +81,6 @@ its own rows from this table and from the allowlist.
 
 | Table | Column(s) | Owning task |
 | --- | --- | --- |
-| `users` | `created_at`, `updated_at` | Retire User And Role Timestamps |
-| `roles` | `created_at` | Retire User And Role Timestamps |
 | `bookmarks` | `created_at` | Retire Bookmark Created Column |
 | `employer_policy_history` | `created_at` | Retire Policy History Created Column |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
@@ -96,7 +94,6 @@ person are done — `snapshots.author_id` and `edls_sheets.created_by` — and b
 had records with nobody recorded. "No author" is a real state, and the seeding
 routine preserved it rather than guessing. `snapshots` carried a third column,
 `author_name`, a frozen copy of a display name, which was not seeded at all:
-the framework resolves the name from `users` at read time, so a renamed user's
 snapshots show the current name.
 
 The BTU tables belong to an optional component and do not exist where it is

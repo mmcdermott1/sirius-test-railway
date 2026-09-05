@@ -7,6 +7,37 @@ Retiring a table's own `created_at` / `created_by` columns into `entity_metadata
 is the same shape every time. `docs/provenance-columns.md` is the inventory and
 the decision rule; this is what the doc does not say.
 
+**Why bother:** the columns duplicate an answer the framework already gives, and
+the framework's answer is strictly better — it can name the person, which a
+timestamp column never could.
+
+
+## The recipe
+
+1. **Two migrations, in this order and in separate files.** One seeds
+   provenance from the columns with the shared seeding routine
+   (`server/storage/system/entity-metadata-seed.ts`), one drops the columns
+   with `DROP COLUMN IF EXISTS`. Split so a failed drop still leaves the seed
+   applied, and both are re-runnable.
+2. **Seed BEFORE dropping, never after.** The column is the only record of when
+   the row was made; drop first and every row's creation date silently becomes
+   the date of the migration. The seed routine wraps its own transaction (the
+   migration runner does not) and reports rather than throws when the column is
+   already gone.
+3. **Repoint the reads**, then delete the columns from the schema *and* from
+   every derived shape — the `.omit()` keys in the insert/upsert zod schemas
+   name the column and stop compiling once it is gone.
+4. **A list that SORTS on the date needs it joined, not fetched per row.** Read
+   `entity_metadata` once for the whole table (`table_name = '<table>'`,
+   `entity_id = <row>.id`) and hand the list a `createdDate` alongside the rows.
+   A single record page can just ask `/api/entity-metadata/:id`.
+
+**Expect to renumber.** These tasks run as a swarm off one inventory, so the
+migration numbers you picked are usually taken by a sibling by the time your
+branch rebases. Both files must survive being renumbered and re-run against a
+database where they already applied — which is exactly what the IF EXISTS drop
+and the non-fatal seed buy.
+
 ## The reads are the hard part, not the drop
 
 A column that only DISPLAYS is easy. A column the queries ORDER BY becomes a
@@ -50,9 +81,37 @@ A denormalised NAME column (`author_name` and friends) is not seedable — the
 framework names a person and resolves their current name at read time, which is
 the point. Drop it; do not try to preserve the frozen string.
 
+
+## An upsert has to be asked which thing it did
+
+The storage logging middleware infers creation from the method NAME
+(`create*` / `delete*`, everything else "modified"). An `upsert` is invisible to
+that rule and a static override lies in one direction or the other: mark it
+`created` and every later repair restamps the record with whoever repaired it;
+leave it `modified` and the one moment the real author was observable is thrown
+away. `metadataMode` therefore accepts a FUNCTION, handed the same
+`(args, result, beforeState)` as every other logging hook — a config with a
+`before` hook answers `beforeState ? 'modified' : 'created'` and is right both
+times.
+
+**Why:** provenance fills a null creator with COALESCE, so a wrong `created`
+does not merely mislabel one event — it permanently names the wrong person as
+author of a record created long before.
+
 ## The change is not done until
 
-The three `<table>.<column>` rows leave the allowlist in
+The `<table>.<column>` rows leave the allowlist in
 `scripts/dev/check-provenance-columns.ts` AND the RETIRE table in
 `docs/provenance-columns.md` — the lint rule fails on an allowlist entry naming
-a column that no longer exists, so leaving them behind breaks the gate.
+a column that no longer exists, so leaving them behind breaks the gate either
+way.
+
+And grep raw SQL, not just the ORM: one-off scripts under `scripts/oneoffs/`
+insert with hand-written column lists that typecheck cannot see.
+
+## Renaming the field is the proof
+
+Name the joined list field something NEW (`createdDate`, not `createdAt`): the
+old name disappearing from API responses is how you know no response still
+promises the retired column. A detail page should reuse the record-history hook
+the history badge already uses rather than invent a second source.
