@@ -171,6 +171,11 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   user_roles: { label: "User Roles", hrefTemplate: null },
   users: { label: "Users", hrefTemplate: "/users/{id}" },
   variables: { label: "Configuration Variables", hrefTemplate: null },
+  wizard_employment_status_mappings: {
+    label: "Wizard Employment Status Mappings",
+    hrefTemplate: null,
+  },
+  wizard_feed_mappings: { label: "Wizard Feed Mappings", hrefTemplate: null },
   wizards: { label: "Wizards", hrefTemplate: "/wizards/{id}" },
   worker_aat: { label: "Worker Access Tokens", hrefTemplate: null },
   worker_bans: { label: "Worker Bans", hrefTemplate: null },

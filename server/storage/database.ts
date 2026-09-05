@@ -522,9 +522,15 @@ export class DatabaseStorage implements IStorage {
       createWizardStorage(),
       wizardLoggingConfig,
     );
-    this.wizardFeedMappings = createWizardFeedMappingStorage();
+    this.wizardFeedMappings = withStorageLogging(
+      createWizardFeedMappingStorage(),
+      wizardFeedMappingLoggingConfig,
+    );
     this.wizardEmployerMonthly = createWizardEmployerMonthlyStorage();
-    this.wizardEmploymentStatusMappings = createWizardEmploymentStatusMappingStorage();
+    this.wizardEmploymentStatusMappings = withStorageLogging(
+      createWizardEmploymentStatusMappingStorage(),
+      wizardEmploymentStatusMappingLoggingConfig,
+    );
     this.files = withStorageLogging(createFileStorage(), fileLoggingConfig);
     this.entityFiles = withStorageLogging(
       createEntityFilesStorage(),

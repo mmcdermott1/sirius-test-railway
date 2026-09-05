@@ -959,8 +959,6 @@ export const wizardFeedMappings = pgTable("wizard_feed_mappings", {
   type: varchar("type").notNull(),
   firstRowHash: varchar("first_row_hash").notNull(),
   mapping: jsonb("mapping").notNull(),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 }, (table) => [
   index("idx_wizard_feed_mappings_user_type_hash").on(table.userId, table.type, table.firstRowHash),
 ]);
@@ -970,8 +968,6 @@ export const wizardEmploymentStatusMappings = pgTable("wizard_employment_status_
   employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
   sourceStatus: text("source_status").notNull(),
   targetStatusId: varchar("target_status_id").notNull(),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 }, (table) => [
   unique("idx_wizard_esm_employer_source").on(table.employerId, table.sourceStatus),
   index("idx_wizard_esm_employer").on(table.employerId),
@@ -1746,14 +1742,10 @@ export const insertWizardEmployerMonthlySchema = createInsertSchema(wizardEmploy
 
 export const insertWizardFeedMappingSchema = createInsertSchema(wizardFeedMappings).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 export const insertWizardEmploymentStatusMappingSchema = createInsertSchema(wizardEmploymentStatusMappings).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 export const insertWizardReportDataSchema = createInsertSchema(wizardReportData).omit({

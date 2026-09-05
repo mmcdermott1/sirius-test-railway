@@ -159,13 +159,9 @@ const ALLOWLIST: Record<string, string> = {
   "snapshots.author_name": "RETIRE — Retire Snapshot Author Columns",
   "worker_wsh.created_at": "RETIRE — Retire Worker History Created Columns",
   "worker_msh.created_at": "RETIRE — Retire Worker History Created Columns",
-  "wizard_feed_mappings.created_at": "RETIRE — Retire Wizard Support Table Timestamps",
-  "wizard_feed_mappings.updated_at": "RETIRE — Retire Wizard Support Table Timestamps",
-  "wizard_employment_status_mappings.created_at":
-    "RETIRE — Retire Wizard Support Table Timestamps",
-  "wizard_employment_status_mappings.updated_at":
-    "RETIRE — Retire Wizard Support Table Timestamps",
-  "wizard_report_data.created_at": "RETIRE — Retire Wizard Support Table Timestamps",
+  "wizard_report_data.created_at":
+    "KEEP — bulk report output: the retention purge reads a row's age to decide " +
+    "whether the run's output has expired, and it is the order the rows are read back in",
   "ws_clients.created_at": "RETIRE — Retire Web Service Client Timestamps",
   "ws_clients.updated_at": "RETIRE — Retire Web Service Client Timestamps",
   "ws_client_grants.created_at": "RETIRE — Retire Web Service Client Timestamps",

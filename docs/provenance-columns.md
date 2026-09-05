@@ -97,9 +97,6 @@ its own rows from this table and from the allowlist.
 | `snapshots` | `created_at`, `author_id`, `author_name` | Retire Snapshot Author Columns |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
 | `worker_msh` | `created_at` | Retire Worker History Created Columns |
-| `wizard_feed_mappings` | `created_at`, `updated_at` | Retire Wizard Support Table Timestamps |
-| `wizard_employment_status_mappings` | `created_at`, `updated_at` | Retire Wizard Support Table Timestamps |
-| `wizard_report_data` | `created_at` | Retire Wizard Support Table Timestamps |
 | `ws_clients` | `created_at`, `updated_at` | Retire Web Service Client Timestamps |
 | `ws_client_grants` | `created_at` | Retire Web Service Client Timestamps |
 | `ws_client_credentials` | `created_at` | Retire Web Service Client Timestamps |
@@ -142,6 +139,7 @@ are listed here so the inventory is complete.
 | `worker_wsh`, `worker_msh` | `date` | The status's EFFECTIVE date — which day the worker held that status — not when the row was written. | no |
 | `employer_policy_history` | `date` | The policy assignment's effective date. | no |
 | `wizards` | `date` | The run's business date. | no |
+| `wizard_report_data` | `created_at` | Bulk output of a report run, one row per result row. The data-retention purge reads a row's age to decide whether the run's output has outlived its wizard's retention setting, and it is the order the rows are read back in (the results table and the EDI file both). Same call as `ebs_status`. | yes |
 | `ledger` and payment batches | `date` | Accounting dates. | no |
 | `winston_logs` | `timestamp` | The log entry's own time; the entry IS the event. | no |
 | `entity_notes` | `timestamp` | A note's posted time, shown on the note. | no |

@@ -82,6 +82,8 @@ import "./core/1077_create_entity_metadata";
 import "./core/1078_rename_orphan_sweep_cron_ids";
 import "./core/1079_seed_plugin_config_provenance";
 import "./core/1080_drop_plugin_config_timestamps";
+import "./core/1081_seed_wizard_mapping_provenance";
+import "./core/1082_drop_wizard_mapping_timestamps";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the
