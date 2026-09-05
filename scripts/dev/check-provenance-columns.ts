@@ -145,7 +145,6 @@ const ALLOWLIST: Record<string, string> = {
   "bookmarks.created_at": "RETIRE — Retire Bookmark Created Column",
   "dispatch_jobs.created_at": "RETIRE — Retire Dispatch Job And Dispatch Timestamps",
   "dispatches.created_at": "RETIRE — Retire Dispatch Job And Dispatch Timestamps",
-  "edls_sheets.created_by": "RETIRE — Retire EDLS Sheet Creator Column",
   "employer_policy_history.created_at": "RETIRE — Retire Policy History Created Column",
   "worker_wsh.created_at": "RETIRE — Retire Worker History Created Columns",
   "worker_msh.created_at": "RETIRE — Retire Worker History Created Columns",

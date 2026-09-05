@@ -26,7 +26,6 @@ import { eventBus, EventType } from "../../services/event-bus";
 import { logger } from "../../logger";
 import { storage } from "../index";
 import { isComponentEnabledSync } from "../../services/component-cache";
-import { getRequestContext } from "../../middleware/request-context";
 import type { SnapshotNode } from "@shared/snapshots";
 import {
   getEdlsPassportExportPage,
@@ -41,16 +40,6 @@ import {
  */
 function jobGroupsEnabled(): boolean {
   return isComponentEnabledSync("dispatch.job_group");
-}
-
-/**
- * The effective acting user for the current request, or null when there is no
- * request context at all (background jobs, scripts, tests). Masquerading is
- * already resolved by the context middleware, so a masqueraded user is
- * attributed as the actor — the house convention everywhere else.
- */
-function getActingUserId(): string | null {
-  return getRequestContext()?.userId ?? null;
 }
 
 export interface EdlsSheetWithCrews extends EdlsSheet {
@@ -493,17 +482,17 @@ export function createEdlsSheetsStorage(): EdlsSheetsStorage {
       
       return runInTransaction(async () => {
         const client = getClient();
-        // `createdBy` / `changed` are storage-owned: the creator is stamped
-        // once here from the acting user (null when there is no request
-        // context, e.g. a background job or script) and `changed` is
-        // refreshed on every save so no caller can forget it.
+        // `changed` is storage-owned: refreshed on every save so no caller can
+        // forget it, and stamped by the DATABASE rather than by `new Date()`.
+        // See the note on `update` below: consumers order it against
+        // timestamps the database wrote, and two clocks would order wrongly.
         //
-        // `changed` is stamped by the DATABASE, not by `new Date()`. See the
-        // note on `update` below: consumers order it against timestamps the
-        // database wrote, and two clocks would order wrongly.
+        // Who created the sheet is NOT recorded here. That is provenance, and
+        // this table is logged, so the framework stamps it in
+        // `entity_metadata` from the acting user.
         const [sheet] = await client
           .insert(edlsSheets)
-          .values({ ...insertSheet, createdBy: getActingUserId(), changed: sql`now()` })
+          .values({ ...insertSheet, changed: sql`now()` })
           .returning();
         
         const crewsWithSheetId = crews.map((c, index) => {
@@ -539,7 +528,7 @@ export function createEdlsSheetsStorage(): EdlsSheetsStorage {
         
         // Update the sheet. `changed` is refreshed on every save — including a
         // crews-only save, where no sheet column changes — so no caller can
-        // forget it. The creator is stamped once at create and never rewritten.
+        // forget it.
         //
         // The stamp comes from the DATABASE (`now()`), deliberately not from
         // `new Date()` on the app host. It is not just a display value: it is

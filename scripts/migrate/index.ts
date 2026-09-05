@@ -92,6 +92,7 @@ import "./core/1087_drop_ws_client_timestamps";
 import "./core/1088_seed_contact_provenance";
 import "./core/1089_drop_contact_timestamps";
 import "./core/1090_retire_auth_identity_timestamps";
+import "./core/1091_seed_edls_sheet_provenance";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the
@@ -152,6 +153,7 @@ import "./components/edls/002_add_sheet_notes_and_change_tracking";
 import "./components/edls/003_add_assignment_comm_id";
 import "./components/edls/004_add_assignment_accepted";
 import "./components/edls/005_add_sheet_notifications_enabled";
+import "./components/edls/006_drop_sheet_created_by";
 import "./components/worker.ratings/001_add_sirius_id_to_options_worker_ratings";
 import "./components/worker.aat/001_create_worker_aat";
 

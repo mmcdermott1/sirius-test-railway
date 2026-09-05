@@ -86,7 +86,6 @@ its own rows from this table and from the allowlist.
 | `bookmarks` | `created_at` | Retire Bookmark Created Column |
 | `dispatch_jobs` | `created_at` | Retire Dispatch Job And Dispatch Timestamps |
 | `dispatches` | `created_at` | Retire Dispatch Job And Dispatch Timestamps |
-| `edls_sheets` | `created_by` | Retire EDLS Sheet Creator Column |
 | `employer_policy_history` | `created_at` | Retire Policy History Created Column |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
 | `worker_msh` | `created_at` | Retire Worker History Created Columns |
@@ -94,14 +93,12 @@ its own rows from this table and from the allowlist.
 | `sitespecific_btu_political_officials` | `created_at`, `updated_at` | Retire BTU Table Timestamps |
 | `sitespecific_btu_political_worker_reps` | `created_at` | Retire BTU Table Timestamps |
 
-One of these carries a person as well as a date — `edls_sheets.created_by` —
-and it has records with nobody recorded. "No author" is a real state, and the
-seeding routine preserves it rather than guessing.
-
-`snapshots` was the same shape and is done: its `created_at`/`author_id` pair
-was seeded by a core migration and dropped, and the third column it carried —
-`author_name`, a frozen copy of a display name — was not seeded at all. The
-framework resolves the name from `users` at read time, so a renamed user's
+Every column left here is a date and nothing else. The two that also carried a
+person are done — `snapshots.author_id` and `edls_sheets.created_by` — and both
+had records with nobody recorded. "No author" is a real state, and the seeding
+routine preserved it rather than guessing. `snapshots` carried a third column,
+`author_name`, a frozen copy of a display name, which was not seeded at all:
+the framework resolves the name from `users` at read time, so a renamed user's
 snapshots show the current name.
 
 The BTU tables belong to an optional component and do not exist where it is
