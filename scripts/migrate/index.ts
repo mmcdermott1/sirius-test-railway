@@ -97,6 +97,8 @@ import "./core/1092_seed_dispatch_provenance";
 import "./core/1093_drop_dispatch_created_at";
 import "./core/1094_seed_users_roles_provenance";
 import "./core/1095_drop_users_roles_timestamps";
+import "./core/1096_seed_policy_history_provenance";
+import "./core/1097_drop_policy_history_created_at";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

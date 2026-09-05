@@ -82,7 +82,6 @@ its own rows from this table and from the allowlist.
 | Table | Column(s) | Owning task |
 | --- | --- | --- |
 | `bookmarks` | `created_at` | Retire Bookmark Created Column |
-| `employer_policy_history` | `created_at` | Retire Policy History Created Column |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
 | `worker_msh` | `created_at` | Retire Worker History Created Columns |
 | `sitespecific_btu_csg` | `created_at`, `updated_at` | Retire BTU Table Timestamps |

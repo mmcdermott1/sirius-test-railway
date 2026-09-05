@@ -426,13 +426,22 @@ export const bargainingUnits = pgTable("bargaining_units", {
   data: jsonb("data"),
 });
 
+/**
+ * An employer's policy as of a date. `date` is the assignment's EFFECTIVE
+ * date — business data, and the only date this table keeps.
+ *
+ * When an entry was recorded, and by whom, is provenance and lives in
+ * `entity_metadata` like every other logged table's (the bespoke `created_at`
+ * this table used to carry was retired by migrations 1096/1097). The history
+ * page reads it from there, and so does the tiebreak that decides which of
+ * two entries sharing an effective date is the employer's current policy.
+ */
 export const employerPolicyHistory = pgTable("employer_policy_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   date: date("date").notNull(),
   employerId: varchar("employer_id").notNull().references(() => employers.id, { onDelete: 'cascade' }),
   policyId: varchar("policy_id").notNull().references(() => policies.id, { onDelete: 'cascade' }),
   data: jsonb("data"),
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 
 export const employerContacts = pgTable("employer_contacts", {

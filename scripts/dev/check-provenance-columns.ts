@@ -139,7 +139,6 @@ const ALLOWLIST: Record<string, string> = {
 
   // ── RETIRE: not moved yet, one task per area ─────────────────────────────
   "bookmarks.created_at": "RETIRE — Retire Bookmark Created Column",
-  "employer_policy_history.created_at": "RETIRE — Retire Policy History Created Column",
   "worker_wsh.created_at": "RETIRE — Retire Worker History Created Columns",
   "worker_msh.created_at": "RETIRE — Retire Worker History Created Columns",
   "wizard_report_data.created_at":
