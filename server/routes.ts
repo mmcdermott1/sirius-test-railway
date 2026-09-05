@@ -18,6 +18,7 @@ import { registerCommRoutes } from "./modules/comm";
 import { registerGrievanceRoutes } from "./modules/grievances/grievances";
 import { registerEntityFileContexts } from "./modules/entity-files-contexts";
 import { registerEntityFileRoutes } from "./modules/entity-files";
+import { registerEntityMetadataRoutes } from "./modules/entity-metadata";
 import { wireEntityFilesFileReadAccess } from "./services/entity-files/file-read-access";
 import { initEntityFilesDeleteCleanup } from "./services/entity-files/delete-cleanup";
 import { assertFileContextTablesComplete } from "./storage/entity-files-context-tables";
@@ -333,6 +334,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   initEntityFilesDeleteCleanup();
   wireEntityFilesFileReadAccess();
   registerEntityFileRoutes(app, requireAuth);
+  registerEntityMetadataRoutes(app, requireAuth);
 
   // Register grievance timeline template routes
   registerGrievanceTimelineTemplateRoutes(app, requireAuth, requireAccess);

@@ -8,6 +8,7 @@ import type { BargainingUnit } from "@shared/schema";
 import { createContext, useContext } from "react";
 import { useBargainingUnitTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface BargainingUnitLayoutContextValue {
   bargainingUnit: BargainingUnit;
@@ -144,6 +145,7 @@ export default function BargainingUnitLayout({ children, activeTab }: Bargaining
                     Back to Bargaining Units
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={bargainingUnit.id} />
               </div>
             </div>
           </div>

@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useTrustElectionTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { formatYmd } from "@shared/utils";
 
 interface WorkerWithName {
@@ -193,6 +194,7 @@ export function TrustElectionLayout({ activeTab, children }: TrustElectionLayout
                     Back to worker elections
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={election.id} />
               </div>
             </div>
           </div>

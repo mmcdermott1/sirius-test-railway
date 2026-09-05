@@ -12,6 +12,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { useBusinessCalendarTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 export interface CalendarWithRules {
   calendar: BusinessCalendar;
@@ -109,6 +110,9 @@ export function BusinessCalendarLayout({ activeTab, children }: BusinessCalendar
           >
             {calendar.name}
           </h1>
+          <div className="ml-auto">
+            <RecordMetadataBadge entityId={calendar.id} />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">

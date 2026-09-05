@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmploymentStatus } from "@/lib/entity-types";
 import { useWorkerHoursTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface WorkerHoursEntry {
   id: string;
@@ -166,12 +167,15 @@ export function WorkerHoursLayout({ children, activeTab }: WorkerHoursLayoutProp
                   {hoursHeaderTitle}
                 </h1>
               </div>
-              <Link href={`/workers/${hoursEntry.workerId}/employment/daily`}>
-                <Button variant="ghost" size="sm" data-testid="link-back-hours-list">
-                  <ArrowLeft size={16} className="mr-2" />
-                  Back to hours list
-                </Button>
-              </Link>
+              <div className="flex items-center space-x-4">
+                <Link href={`/workers/${hoursEntry.workerId}/employment/daily`}>
+                  <Button variant="ghost" size="sm" data-testid="link-back-hours-list">
+                    <ArrowLeft size={16} className="mr-2" />
+                    Back to hours list
+                  </Button>
+                </Link>
+                <RecordMetadataBadge entityId={hoursEntry.id} />
+              </div>
             </div>
           </div>
         </header>

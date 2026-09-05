@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, Building, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useFacilityTabAccess } from "@/hooks/useTabAccess";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import type { Facility, Contact } from "@shared/schema";
 
 export type FacilityWithContact = Facility & { contact: Contact };
@@ -98,6 +99,7 @@ export function FacilityLayout({ activeTab, children }: FacilityLayoutProps) {
             </p>
           )}
         </div>
+        <RecordMetadataBadge entityId={facility.id} />
       </div>
 
       <div className="border-b border-border mb-2">

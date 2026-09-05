@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEmployerContactTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface EmployerContactDetail {
   id: string;
@@ -147,6 +148,7 @@ export function EmployerContactLayout({ activeTab, children }: EmployerContactLa
                   Back to Employer
                 </Button>
               </Link>
+              <RecordMetadataBadge entityId={employerContact.id} />
             </div>
           </div>
         </div>

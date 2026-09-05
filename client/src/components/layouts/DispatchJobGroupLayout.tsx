@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useDispatchJobGroupTabAccess } from "@/hooks/useTabAccess";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import type { DispatchJobGroup } from "@shared/schema";
 
 interface DispatchJobGroupLayoutProps {
@@ -110,6 +111,7 @@ export function DispatchJobGroupLayout({ activeTab, children }: DispatchJobGroup
             {group.startYmd} to {group.endYmd}
           </p>
         </div>
+        <RecordMetadataBadge entityId={group.id} />
       </div>
 
       <div className="border-b border-border mb-6">

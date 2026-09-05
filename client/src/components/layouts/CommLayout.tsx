@@ -10,6 +10,7 @@ import { useCommTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { CommWithDetails } from "@/lib/comm-types";
 import { formatPhoneNumberForDisplay } from "@/lib/phone-utils";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface CommLayoutContextValue {
   comm: CommWithDetails;
@@ -195,6 +196,7 @@ export function CommLayout({ activeTab, children }: CommLayoutProps) {
                   )}
                 </div>
               </div>
+              <RecordMetadataBadge entityId={comm.id} />
             </div>
           </div>
         </header>

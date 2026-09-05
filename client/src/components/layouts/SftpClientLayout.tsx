@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, Server } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useSftpClientDestinationTabAccess } from "@/hooks/useTabAccess";
 import type { SftpClientDestination } from "@shared/schema/system/sftp-client-schema";
@@ -110,6 +111,7 @@ export function SftpClientLayout({ activeTab, children }: SftpClientLayoutProps)
             </p>
           )}
         </div>
+        <RecordMetadataBadge entityId={destination.id} />
       </div>
 
       <div className="border-b border-border mb-6">

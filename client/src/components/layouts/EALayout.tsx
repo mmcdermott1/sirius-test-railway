@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, FileText } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface EALayoutProps {
   activeTab: string;
@@ -156,6 +157,7 @@ export function EALayout({ activeTab, children }: EALayoutProps) {
             </p>
           )}
         </div>
+        <RecordMetadataBadge entityId={ea.id} />
       </div>
 
       <div className="border-b border-border mb-6">

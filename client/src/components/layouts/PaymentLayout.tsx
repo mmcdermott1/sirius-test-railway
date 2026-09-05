@@ -6,6 +6,7 @@ import type { LedgerPayment, LedgerPaymentType } from "@shared/schema";
 import { ArrowLeft, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { getPaymentTitle } from "@/lib/payment-utils";
 import { useLedgerPaymentTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
@@ -149,6 +150,7 @@ export function PaymentLayout({ children, activeTab }: PaymentLayoutProps) {
                   </Button>
                 </Link>
               )}
+              <RecordMetadataBadge entityId={payment.id} />
             </div>
           </div>
         </header>

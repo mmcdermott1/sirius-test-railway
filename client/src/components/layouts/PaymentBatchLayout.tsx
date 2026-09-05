@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ChevronRight, Package } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useLedgerPaymentBatchTabAccess } from "@/hooks/useTabAccess";
 import type { LedgerPaymentBatch } from "@shared/schema/ledger/payment-batch/schema";
@@ -98,6 +99,7 @@ export function PaymentBatchLayout({ activeTab, children }: PaymentBatchLayoutPr
             {batch.name}
           </h1>
         </div>
+        <RecordMetadataBadge entityId={batch.id} />
       </div>
 
       <div className="border-b border-border mb-6">

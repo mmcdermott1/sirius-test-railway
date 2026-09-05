@@ -8,6 +8,7 @@ import { ArrowLeft, Users } from "lucide-react";
 import { createContext, useContext } from "react";
 import { useProviderContactTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface Contact {
   id: string;
@@ -155,6 +156,7 @@ export function TrustProviderContactLayout({ children, activeTab }: TrustProvide
                   Back to {provider ? "Provider" : "Providers"}
                 </Button>
               </Link>
+              <RecordMetadataBadge entityId={trustProviderContact.id} />
             </div>
           </div>
         </div>

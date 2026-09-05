@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useBtuCsgTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface BtuCsgRecord {
   id: string;
@@ -199,6 +200,7 @@ export function BtuCsgLayout({ activeTab, children }: BtuCsgLayoutProps) {
                     Back to List
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={record.id} />
               </div>
             </div>
           </div>

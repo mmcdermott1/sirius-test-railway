@@ -16,6 +16,7 @@ import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useAccessCheck } from "@/hooks/use-access-check";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface WorkerLayoutContextValue {
   worker: Worker;
@@ -325,6 +326,7 @@ export function WorkerLayout({ activeTab, children }: WorkerLayoutProps) {
                     Back to Workers
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={worker.id} />
               </div>
             </div>
           </div>

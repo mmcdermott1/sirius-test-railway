@@ -10,6 +10,7 @@ import { BookmarkButton } from "@/components/ui/bookmark-button";
 import { DebugRecordViewer } from "@/components/debug/DebugRecordViewer";
 import { useEmployerTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface EmployerLayoutContextValue {
   employer: Employer;
@@ -133,6 +134,7 @@ export function EmployerLayout({ activeTab, children }: EmployerLayoutProps) {
                   Back to Employers
                 </Button>
               </Link>
+              <RecordMetadataBadge entityId={employer.id} />
             </div>
           </div>
         </div>

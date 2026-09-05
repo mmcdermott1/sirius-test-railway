@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import type { WorkerCertification, OptionsCertification, Worker, Contact } from "@shared/schema";
 
 interface WorkerCertificationWithDetails extends WorkerCertification {
@@ -187,6 +188,7 @@ export function WorkerCertificationLayout({ activeTab, children }: WorkerCertifi
                     Back to Certifications
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={certification.id} />
               </div>
             </div>
           </div>

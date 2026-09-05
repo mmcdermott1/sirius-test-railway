@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { LedgerAccountWithDetails } from "@/lib/ledger-types";
 import { useLedgerAccountTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
@@ -166,6 +167,7 @@ export function LedgerAccountLayout({ activeTab, children }: LedgerAccountLayout
                     Back to Accounts
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={account.id} />
               </div>
             </div>
           </div>

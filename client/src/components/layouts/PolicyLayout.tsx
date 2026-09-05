@@ -6,6 +6,7 @@ import { Policy } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { usePolicyTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 
@@ -164,6 +165,7 @@ export function PolicyLayout({ activeTab, children }: PolicyLayoutProps) {
                     Back to Policies
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={policy.id} />
               </div>
             </div>
           </div>

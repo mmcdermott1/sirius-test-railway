@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface UserDetails {
   id: string;
@@ -211,6 +212,7 @@ export function UserLayout({ activeTab, children }: UserLayoutProps) {
                     Back to Users
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={user.id} />
               </div>
             </div>
           </div>

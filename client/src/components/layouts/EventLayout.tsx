@@ -8,6 +8,7 @@ import type { Event, EventType, EventOccurrence } from "@shared/schema";
 import { createContext, useContext } from "react";
 import { useEventTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 const iconMap: Record<string, LucideIcon> = {
   Calendar, Users, MapPin, Video, Presentation, Mic, Ticket, Star, Heart, Clock,
@@ -184,6 +185,7 @@ export default function EventLayout({ children, activeTab }: EventLayoutProps) {
                     Back to Events
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={event.id} />
               </div>
             </div>
           </div>

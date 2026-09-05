@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import type { DispatchWithRelations } from "../../../../server/storage/dispatch/dispatches";
 import { useDispatchTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface DispatchLayoutContextValue {
   dispatch: DispatchWithRelations;
@@ -139,6 +140,7 @@ export function DispatchLayout({ activeTab, children }: DispatchLayoutProps) {
                 {dispatch.job?.title || 'Unknown Job'}
               </p>
             </div>
+            <RecordMetadataBadge entityId={dispatch.id} />
           </div>
         </div>
       </section>

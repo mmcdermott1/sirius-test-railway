@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { useGrievanceTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { type GrievanceCardinality } from "@shared/schema";
@@ -294,6 +295,7 @@ export function GrievanceLayout({ activeTab, children }: GrievanceLayoutProps) {
                     Back to Grievances
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={grievance.id} />
               </div>
             </div>
           </div>

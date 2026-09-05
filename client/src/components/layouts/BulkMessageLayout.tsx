@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useBulkMessageTabAccess } from "@/hooks/useTabAccess";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import type { BulkMessage } from "@shared/schema/bulk/schema";
 
 interface BulkMessageLayoutProps {
@@ -130,6 +131,7 @@ export function BulkMessageLayout({ activeTab, children }: BulkMessageLayoutProp
             )}
           </div>
         </div>
+        <RecordMetadataBadge entityId={bulkMessage.id} />
       </div>
 
       <div className="border-b border-border mb-6">

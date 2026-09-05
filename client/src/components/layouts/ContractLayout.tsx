@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContractTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 export interface ContractWithCounts extends Contract {
   articleCount?: number;
@@ -177,6 +178,7 @@ export function ContractLayout({ activeTab, children }: ContractLayoutProps) {
                     Back to Contracts
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={contract.id} />
               </div>
             </div>
           </div>

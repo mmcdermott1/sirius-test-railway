@@ -8,6 +8,7 @@ import type { DispatchJobType, JobTypeData } from "@shared/schema";
 import { createContext, useContext } from "react";
 import { useDispatchJobTypeTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 const iconMap: Record<string, LucideIcon> = {
   Briefcase, Truck, HardHat, Wrench, Clock, Calendar, ClipboardList, Package, MapPin, Users,
@@ -151,6 +152,7 @@ export default function DispatchJobTypeLayout({ children, activeTab }: DispatchJ
                     Back to Job Types
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={jobType.id} />
               </div>
             </div>
           </div>

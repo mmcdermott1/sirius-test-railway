@@ -6,6 +6,7 @@ import { TrustBenefit } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import { useTrustBenefitTabAccess } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 
@@ -167,6 +168,7 @@ export function TrustBenefitLayout({ activeTab, children }: TrustBenefitLayoutPr
                     Back to Trust Benefits
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={benefit.id} />
               </div>
             </div>
           </div>

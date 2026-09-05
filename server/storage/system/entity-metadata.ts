@@ -75,7 +75,35 @@ export interface EntityMetadataTouch {
   actorId?: string | null;
 }
 
+/** One date/person pair, as read back for display. */
+export interface EntityMetadataStamp {
+  date: Date | null;
+  /** Display name of the person, or null when nobody was recorded. */
+  personName: string | null;
+}
+
+/** A record's provenance, with the people it names resolved to display names. */
+export interface EntityMetadataView {
+  seq: number;
+  tableName: string;
+  entityId: string;
+  created: EntityMetadataStamp;
+  modified: EntityMetadataStamp;
+  subrecordModified: EntityMetadataStamp;
+}
+
 export interface EntityMetadataStorage {
+  /**
+   * One record's provenance, or undefined when nothing has been recorded for
+   * it — which is the normal state for every record that predates this
+   * framework and has not been touched since.
+   *
+   * This is the module's ONLY read, and it has no write counterpart beyond
+   * the system-maintained ones below: provenance is written by the mutation
+   * that caused it and by nothing else.
+   */
+  get(entityId: string): Promise<EntityMetadataView | undefined>;
+
   /**
    * Record a mutation OF the record itself.
    *
@@ -168,6 +196,36 @@ function serialize(
   });
 }
 
+/**
+ * Display name from a joined user row: "First Last", falling back to whichever
+ * half exists, then the email.
+ *
+ * The notes module states the same rule, and this one deliberately restates it
+ * rather than importing it: everything in this file has to stay a leaf, since
+ * the logging middleware imports it and the notes module imports the logging
+ * middleware.
+ */
+function personNameFrom(row: Record<string, unknown>, prefix: string): string | null {
+  const part = (key: string) => {
+    const value = row[`${prefix}_${key}`];
+    return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+  };
+  const full = [part("first_name"), part("last_name")].filter(Boolean).join(" ");
+  if (full) return full;
+  return part("email");
+}
+
+function stampFrom(
+  row: Record<string, unknown>,
+  dateColumn: string,
+  personPrefix: string,
+): EntityMetadataStamp {
+  const raw = row[dateColumn];
+  const date =
+    raw instanceof Date ? raw : typeof raw === "string" ? new Date(raw) : null;
+  return { date, personName: personNameFrom(row, personPrefix) };
+}
+
 export function createEntityMetadataStorage(): EntityMetadataStorage {
   /**
    * Report the table disagreement behind a no-op upsert. Only reached when the
@@ -191,6 +249,40 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
   }
 
   return {
+    async get(entityId) {
+      if (!isRecordId(entityId)) return undefined;
+      const client = getClient();
+      const result = await client.execute(sql`
+        SELECT
+          m.seq, m.table_name, m.entity_id,
+          m.created_date, m.modified_date, m.subrecord_modified_date,
+          cu.first_name AS created_first_name,
+          cu.last_name  AS created_last_name,
+          cu.email      AS created_email,
+          mu.first_name AS modified_first_name,
+          mu.last_name  AS modified_last_name,
+          mu.email      AS modified_email,
+          su.first_name AS subrecord_first_name,
+          su.last_name  AS subrecord_last_name,
+          su.email      AS subrecord_email
+        FROM entity_metadata m
+        LEFT JOIN users cu ON cu.id = m.created_by
+        LEFT JOIN users mu ON mu.id = m.modified_by
+        LEFT JOIN users su ON su.id = m.subrecord_modified_by
+        WHERE m.entity_id = ${entityId}
+      `);
+      const row = result.rows?.[0] as Record<string, unknown> | undefined;
+      if (!row) return undefined;
+      return {
+        seq: Number(row.seq),
+        tableName: String(row.table_name),
+        entityId: String(row.entity_id),
+        created: stampFrom(row, "created_date", "created"),
+        modified: stampFrom(row, "modified_date", "modified"),
+        subrecordModified: stampFrom(row, "subrecord_modified_date", "subrecord"),
+      };
+    },
+
     async recordMutation({ tableName, entityId, at, actorId, created }) {
       if (!acceptsId(entityId, tableName, "mutation")) return;
       return serialize(entityId, async (queue) => {

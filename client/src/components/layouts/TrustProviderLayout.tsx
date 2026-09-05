@@ -8,6 +8,7 @@ import type { TrustProvider } from "@shared/schema";
 import { createContext, useContext, useMemo } from "react";
 import { useProviderTabAccess, ResolvedTab } from "@/hooks/useTabAccess";
 import { usePageTitle } from "@/contexts/PageTitleContext";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 
 interface TrustProviderLayoutContextValue {
   provider: TrustProvider | undefined;
@@ -166,6 +167,7 @@ export default function TrustProviderLayout({ children, activeTab }: TrustProvid
                     Back to Providers
                   </Button>
                 </Link>
+                <RecordMetadataBadge entityId={provider.id} />
               </div>
             </div>
           </div>

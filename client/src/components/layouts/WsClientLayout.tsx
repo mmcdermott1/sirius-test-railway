@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { useWsClientTabAccess } from "@/hooks/useTabAccess";
+import { RecordMetadataBadge } from "@/components/shared/RecordMetadataBadge";
 import type { WsClient } from "@shared/schema";
 
 interface WsClientLayoutProps {
@@ -116,6 +117,7 @@ export function WsClientLayout({ activeTab, children }: WsClientLayoutProps) {
             </p>
           )}
         </div>
+        <RecordMetadataBadge entityId={client.id} />
       </div>
 
       <div className="border-b border-border mb-6">
