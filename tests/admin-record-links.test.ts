@@ -23,5 +23,9 @@ describe("admin record navigation links", () => {
     expect(logsSource).toContain("selectedLog.entityId?.trim()");
     expect(logsSource).toContain('>N/A</p>');
     expect(logsSource).toContain("recordGoHref(selectedLog.entityId)");
+    expect(logsSource).toContain('data-testid={`link-log-record-${log.id}`}');
+    expect(logsSource).toContain("log.entityId?.trim()");
+    expect(logsSource).toContain("recordGoHref(log.entityId)");
+    expect(logsSource).toContain("View record");
   });
 });

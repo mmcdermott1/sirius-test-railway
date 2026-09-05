@@ -247,6 +247,15 @@ export default function LogsPage() {
                         {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                       </TableCell>
                       <TableCell className="max-w-md truncate" data-testid={`text-description-${log.id}`}>
+                        {log.entityId?.trim() && (
+                          <a
+                            href={recordGoHref(log.entityId)}
+                            className="mr-2 text-primary underline-offset-4 hover:underline"
+                            data-testid={`link-log-record-${log.id}`}
+                          >
+                            View record
+                          </a>
+                        )}
                         {log.description || log.message}
                       </TableCell>
                       <TableCell className="text-sm" data-testid={`text-module-${log.id}`}>
