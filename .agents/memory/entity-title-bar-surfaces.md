@@ -1,27 +1,31 @@
 ---
 name: Entity page title bars
-description: Record pages share no header component, so "on every entity page" is a per-wrapper sweep — and each wrapper hides three near-identical headers.
+description: Record pages now share one title-bar component with not-found and loading variants; the three-headers-per-wrapper trap is what it exists to prevent.
 ---
 
 # Entity page title bars
 
-Record pages share no header. Each kind of record has its own layout wrapper
-that hand-rolls its title bar; the generic `PageHeader` with its right-hand
-slot belongs to list and section pages. "Put X on every page that shows a
-record" is therefore a sweep of every wrapper, not one edit.
+Every record page's title bar comes from one shared component in
+`client/src/components/shared/`, not from the layout wrapper. The wrapper
+supplies slots (icon, title, badges, subtitle, actions, back link, record id)
+and the component owns the markup, including the *not found* and *loading*
+spellings. The generic `PageHeader` still belongs to list and section pages.
 
-**Why:** the wrappers grew one per entity, each with its own back link, badges
-and subtitle line, and nothing ever forced them through a common component.
+**Why:** the wrappers grew one per entity, each hand-rolling three
+near-identical headers (record not found / loading skeleton / the real one).
+Adding one cross-cutting element cost a ~33-file sweep, and a sweep lands
+edits in the wrong header of the three without ever failing to compile.
 
 **How to apply:**
 
-- **The trap:** a wrapper typically holds THREE near-identical headers — record
-  not found, loading skeleton, and the real one — differing by a few words. A
-  sweep (especially a delegated one) lands the new element in the not-found
-  header, where the record is undefined. Typecheck catches that only where the
-  record's type is still nullable at that point; elsewhere it compiles and
-  ships. Check every header in the file, not the first one that matches.
-- Not everything in that directory is a record page: section wrappers and ones
-  keyed by a type name or a job name have no record id.
-- A cross-cutting element should take only the record id and fetch its own
-  data, so the sweep stays one line per file and no wrapper learns the feature.
+- Anything that must appear on every record page goes in the shared component,
+  behind the record id — one edit, not a sweep. Take the record id and fetch
+  your own data so no wrapper learns the feature.
+- The not-found and loading variants deliberately accept **no** record id,
+  badges, subtitle or actions. That is the guardrail against the old trap;
+  don't widen them.
+- Wrappers keep their own page chrome. The bar variant owns its header element
+  and container; the page and compact variants render inside the caller's
+  container, because their surrounding layouts differ.
+- Not everything in the layouts directory is a record page: section wrappers
+  and ones keyed by a type name or a job name have no record id.

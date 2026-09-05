@@ -149,7 +149,7 @@
 - [Context-framework gating](context-framework-gating.md) — presence in the config var = on; a hidden tab needs a route guard reading the same server answer; a context id rename also moves discriminators + config KEYS.
 - [Server-fed nav sections](nav-section-fed-by-server-registry.md) — a nav group whose items come from a server registry must feed the path helpers too, and say "loading/couldn't load" rather than render empty.
 - [Polymorphic child cleanup](polymorphic-child-cleanup.md) — FK-less children of a deleted record: after-commit per-entity event + daily sweep calling ONE routine; per-record deletes only (bulk logs nothing).
-- [Entity page title bars](entity-title-bar-surfaces.md) — no shared record header: "on every entity page" = ~33 layout wrappers, each holding THREE near-identical headers (not-found/loading/real).
+- [Entity page title bars](entity-title-bar-surfaces.md) — ONE shared record title bar owns every record page's header; its not-found/loading variants take no record id, guarding the old three-headers-per-wrapper trap.
 - [Record-history admin surface](provenance-admin-surface.md) — boot assertion keeps the "tables we may name in SQL" registry honest; availability asked of the DB, never a `component:` field; a backfill's count and write need ONE predicate or it never terminates.
 - [Entity metadata maintenance](entity-metadata-maintenance.md) — provenance rides the storage logging middleware (required `table` per config), best effort off the caller's tx; per-record in-process ordering, deletes forget the window.
 - [Context-filtered picker resend](context-filtered-picker-resend.md) — seed a scoped picker from the OFFERED set and omit the field when the control isn't rendered; resending a de-scoped id 400s unrelated edits.
