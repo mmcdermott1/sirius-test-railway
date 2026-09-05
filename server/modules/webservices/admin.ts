@@ -44,7 +44,26 @@ interface CreatedStamp {
 const NO_STAMP: CreatedStamp = { date: null, personName: null };
 
 /** One read of the history of every record a list is about to return. */
-async function createdStamps(ids: string[]): Promise<Map<string, CreatedStamp>> {
+async function canViewMetadata(req: Request): Promise<boolean> {
+  const user = req.user as any;
+  if (!user?.claims) return false;
+
+  const session = req.session as any;
+  const { getEffectiveUser } = await import("../masquerade");
+  const { dbUser } = await getEffectiveUser(session, user);
+  if (!dbUser) return false;
+
+  // Web-service pages are already admin-only. Keep that established admin
+  // access while also allowing the dedicated permission for non-admin staff.
+  const [canView, isAdmin] = await Promise.all([
+    storage.users.userHasPermission(dbUser.id, "metadata.view"),
+    storage.users.userHasPermission(dbUser.id, "admin"),
+  ]);
+  return canView || isAdmin;
+}
+
+async function createdStamps(ids: string[], req: Request): Promise<Map<string, CreatedStamp>> {
+  if (!(await canViewMetadata(req))) return new Map();
   const views = await entityMetadataStorage.getMany(ids);
   const stamps = new Map<string, CreatedStamp>();
   for (const [id, view] of views) stamps.set(id, view.created);
@@ -52,7 +71,8 @@ async function createdStamps(ids: string[]): Promise<Map<string, CreatedStamp>> 
 }
 
 /** The same, for a single record. */
-async function createdStamp(id: string): Promise<CreatedStamp> {
+async function createdStamp(id: string, req: Request): Promise<CreatedStamp> {
+  if (!(await canViewMetadata(req))) return NO_STAMP;
   return (await entityMetadataStorage.get(id))?.created ?? NO_STAMP;
 }
 
@@ -79,7 +99,7 @@ export function registerWebServiceAdminRoutes(
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      res.json({ ...client, created: await createdStamp(client.id) });
+      res.json({ ...client, created: await createdStamp(client.id, req) });
     } catch (error) {
       console.error("Failed to fetch WS client:", error);
       res.status(500).json({ message: "Failed to fetch client" });
@@ -137,7 +157,7 @@ export function registerWebServiceAdminRoutes(
   app.get("/api/admin/ws-clients/:clientId/credentials", requireAuth, requirePermission("admin"), async (req, res) => {
     try {
       const credentials = await storage.wsClientCredentials.getByClient(req.params.clientId);
-      const stamps = await createdStamps(credentials.map((c) => c.id));
+       const stamps = await createdStamps(credentials.map((c) => c.id), req);
       res.json(credentials.map(c => ({
         id: c.id,
         clientId: c.clientId,
@@ -315,7 +335,7 @@ export function registerWebServiceAdminRoutes(
   app.get("/api/admin/ws-clients/:clientId/ip-rules", requireAuth, requirePermission("admin"), async (req, res) => {
     try {
       const rules = await storage.wsClientIpRules.getByClient(req.params.clientId);
-      const stamps = await createdStamps(rules.map((r) => r.id));
+       const stamps = await createdStamps(rules.map((r) => r.id), req);
       res.json(rules.map((rule) => ({ ...rule, created: stamps.get(rule.id) ?? NO_STAMP })));
     } catch (error) {
       console.error("Failed to fetch WS IP rules:", error);

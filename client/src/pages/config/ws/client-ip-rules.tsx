@@ -15,6 +15,7 @@ import { Loader2, Plus, Shield, Trash2, Network } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WsClientLayout, useWsClientLayout } from "@/components/layouts/WsClientLayout";
 import { RecordCreatedStamp } from "@/components/shared/RecordCreatedStamp";
+import { RecordMetadataAccess } from "@/components/shared/RecordMetadataAccess";
 import type { RecordMetadataStamp } from "@/components/shared/RecordHistoryDialog";
 import type { WsClientIpRule } from "@shared/schema";
 
@@ -108,7 +109,9 @@ function IpRulesContent() {
                   <TableHead>IP Address</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Added</TableHead>
+                  <RecordMetadataAccess adminBypass>
+                    <TableHead>Added</TableHead>
+                  </RecordMetadataAccess>
                   <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -130,9 +133,11 @@ function IpRulesContent() {
                         <Badge variant="secondary">Inactive</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      <RecordCreatedStamp stamp={rule.created} testId={`text-ip-created-${rule.id}`} />
-                    </TableCell>
+                    <RecordMetadataAccess adminBypass>
+                      <TableCell className="text-sm">
+                        <RecordCreatedStamp stamp={rule.created} testId={`text-ip-created-${rule.id}`} />
+                      </TableCell>
+                    </RecordMetadataAccess>
                     <TableCell>
                       <Button
                         variant="ghost"

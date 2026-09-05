@@ -36,7 +36,7 @@ interface RecordMetadataBadgeProps {
  */
 export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
   const [open, setOpen] = useState(false);
-  const { isRecordId, metadata, state, refetch } = useRecordMetadata(entityId);
+  const { isRecordId, metadata, state, refetch, canViewMetadata } = useRecordMetadata(entityId);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
@@ -47,7 +47,7 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
 
   // A page whose record is still loading, or whose id is not a record id at
   // all, has nothing to ask about.
-  if (!isRecordId) return null;
+  if (!canViewMetadata || !isRecordId) return null;
 
   const label = metadata
     ? `${formatRecordSequence(metadata.seq)}::${formatRecordRevision(metadata.rev)}`

@@ -34,7 +34,7 @@ function PaymentViewContent() {
   // payment: the other two dates below are accounting facts someone entered,
   // this one is a fact about the row. It is the same reading the record-history
   // badge in this page's title bar shows.
-  const { metadata: recordMetadata } = useRecordMetadata(id);
+  const { metadata: recordMetadata, canViewMetadata } = useRecordMetadata(id);
 
   const details = (payment?.details || {}) as Record<string, unknown>;
   const proposedAllocation = (details.proposedAllocation || []) as ProposedAllocationEntry[];
@@ -152,14 +152,16 @@ function PaymentViewContent() {
           <div>
             <label className="text-sm font-medium text-muted-foreground">Dates</label>
             <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Created</p>
-                <p className="mt-1" data-testid="text-date-created">
-                  {recordMetadata?.created.date
-                    ? new Date(recordMetadata.created.date).toLocaleDateString()
-                    : 'N/A'}
-                </p>
-              </div>
+              {canViewMetadata && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Created</p>
+                  <p className="mt-1" data-testid="text-date-created">
+                    {recordMetadata?.created.date
+                      ? new Date(recordMetadata.created.date).toLocaleDateString()
+                      : 'N/A'}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-muted-foreground">Received</p>
                 <p className="mt-1" data-testid="text-date-received">

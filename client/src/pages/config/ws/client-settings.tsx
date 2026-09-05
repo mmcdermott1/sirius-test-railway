@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Shield, Network } from "lucide-react";
 import { WsClientLayout, useWsClientLayout } from "@/components/layouts/WsClientLayout";
 import { RecordCreatedStamp } from "@/components/shared/RecordCreatedStamp";
+import { RecordMetadataAccess } from "@/components/shared/RecordMetadataAccess";
 import {
   useWsServiceConfigs,
   useWsClientGrants,
@@ -263,12 +264,14 @@ function SettingsContent() {
                 )}
               </p>
             </div>
-            <div>
-              <Label className="text-muted-foreground">Created</Label>
-              <p className="text-sm">
-                <RecordCreatedStamp stamp={client.created} testId="text-created" />
-              </p>
-            </div>
+            <RecordMetadataAccess adminBypass>
+              <div>
+                <Label className="text-muted-foreground">Created</Label>
+                <p className="text-sm">
+                  <RecordCreatedStamp stamp={client.created} testId="text-created" />
+                </p>
+              </div>
+            </RecordMetadataAccess>
           </div>
         </CardContent>
       </Card>

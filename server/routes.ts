@@ -335,7 +335,7 @@ export async function registerRoutes(app: Express, existingServer?: Server): Pro
   initEntityFilesDeleteCleanup();
   wireEntityFilesFileReadAccess();
   registerEntityFileRoutes(app, requireAuth);
-  registerEntityMetadataRoutes(app, requireAuth);
+  registerEntityMetadataRoutes(app, requireAuth, requirePermission);
 
   // Register grievance timeline template routes
   registerGrievanceTimelineTemplateRoutes(app, requireAuth, requireAccess);

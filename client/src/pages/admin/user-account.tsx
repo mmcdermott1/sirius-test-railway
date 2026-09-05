@@ -22,10 +22,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Loader2, UserCheck, UserX, Shield, KeyRound, Trash2 } from 'lucide-react';
 import { UserLayout, useUserLayout } from '@/components/layouts/UserLayout';
+import { useRecordMetadata } from '@/hooks/useRecordMetadata';
 import { Role } from '@/lib/entity-types';
 import { format } from '@/lib/date-format';
 import type {
-  RecordMetadata,
   RecordMetadataStamp,
 } from '@/components/shared/RecordHistoryDialog';
 
@@ -86,20 +86,11 @@ function UserAccountContent() {
     queryKey: ['/api/auth/providers'],
   });
 
-  // The account's own history. Written by whatever mutation caused it, moments
-  // after that mutation answered, so it is never treated as settled.
   const {
-    data: historyData,
-    isFetching: historyFetching,
-    isError: historyIsError,
-  } = useQuery<{ metadata: RecordMetadata | null }>({
-    queryKey: ['/api/entity-metadata', user.id],
-    retry: false,
-    staleTime: 0,
-  });
-  const historyState: 'loading' | 'error' | 'ready' =
-    historyFetching && !historyData ? 'loading' : historyIsError ? 'error' : 'ready';
-  const history = historyData?.metadata ?? null;
+    metadata: history,
+    state: historyState,
+    canViewMetadata,
+  } = useRecordMetadata(user.id);
   const localEnabled = !!providersData?.providers?.some((p) => p.type === 'local');
 
   const [newPassword, setNewPassword] = useState('');
@@ -311,18 +302,22 @@ function UserAccountContent() {
                 {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || user.lastName || 'Not provided'}
               </p>
             </div>
-            <AccountStamp
-              label="Created"
-              stamp={history?.created ?? null}
-              state={historyState}
-              testId="text-created"
-            />
-            <AccountStamp
-              label="Last Changed"
-              stamp={history?.modified ?? null}
-              state={historyState}
-              testId="text-updated"
-            />
+            {canViewMetadata && (
+              <>
+                <AccountStamp
+                  label="Created"
+                  stamp={history?.created ?? null}
+                  state={historyState.status}
+                  testId="text-created"
+                />
+                <AccountStamp
+                  label="Last Changed"
+                  stamp={history?.modified ?? null}
+                  state={historyState.status}
+                  testId="text-updated"
+                />
+              </>
+            )}
             <div>
               <Label className="text-sm font-medium text-muted-foreground">Last Login</Label>
               <p data-testid="text-lastlogin">

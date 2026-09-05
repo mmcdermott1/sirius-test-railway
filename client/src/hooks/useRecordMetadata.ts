@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import type {
   RecordMetadata,
   RecordHistoryState,
@@ -6,6 +7,11 @@ import type {
 
 const RECORD_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const RECORD_METADATA_PERMISSION = "metadata.view";
+
+export function hasRecordMetadataPermission(permissions: readonly string[]): boolean {
+  return permissions.includes(RECORD_METADATA_PERMISSION);
+}
 
 export interface UseRecordMetadataResult {
   /** False when there is no record id to ask about; nothing was asked. */
@@ -14,6 +20,8 @@ export interface UseRecordMetadataResult {
   metadata: RecordMetadata | null;
   /** The same three states {@link RecordHistoryDialog} is handed. */
   state: RecordHistoryState;
+  /** Whether this user may view record metadata. */
+  canViewMetadata: boolean;
   /** Ask again — for the moment someone actually looks. */
   refetch: () => void;
 }
@@ -49,7 +57,9 @@ export function isRecordId(entityId: string | null | undefined): entityId is str
 export function useRecordMetadata(
   entityId: string | null | undefined,
 ): UseRecordMetadataResult {
-  const enabled = isRecordId(entityId);
+  const { hasPermission } = useAuth();
+  const canViewMetadata = hasPermission(RECORD_METADATA_PERMISSION);
+  const enabled = canViewMetadata && isRecordId(entityId);
 
   const { data, isFetching, isError, refetch } = useQuery<{
     metadata: RecordMetadata | null;
@@ -74,6 +84,7 @@ export function useRecordMetadata(
     isRecordId: enabled,
     metadata,
     state,
+    canViewMetadata,
     refetch: () => {
       void refetch();
     },

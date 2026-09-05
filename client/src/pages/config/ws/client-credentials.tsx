@@ -14,6 +14,7 @@ import { Loader2, Plus, Key, Copy, Check, Trash2, Ban, RotateCcw } from "lucide-
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WsClientLayout } from "@/components/layouts/WsClientLayout";
 import { RecordCreatedStamp } from "@/components/shared/RecordCreatedStamp";
+import { RecordMetadataAccess } from "@/components/shared/RecordMetadataAccess";
 import type { RecordMetadataStamp } from "@/components/shared/RecordHistoryDialog";
 
 interface CredentialWithoutHash {
@@ -156,7 +157,9 @@ function CredentialsContent() {
                   <TableHead>Client Key</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Used</TableHead>
-                  <TableHead>Created</TableHead>
+                    <RecordMetadataAccess adminBypass>
+                      <TableHead>Created</TableHead>
+                    </RecordMetadataAccess>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -181,9 +184,11 @@ function CredentialsContent() {
                     <TableCell className="text-sm" data-testid={`text-cred-used-${cred.id}`}>
                       {formatDate(cred.lastUsedAt)}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      <RecordCreatedStamp stamp={cred.created} testId={`text-cred-created-${cred.id}`} />
-                    </TableCell>
+                    <RecordMetadataAccess adminBypass>
+                      <TableCell className="text-sm">
+                        <RecordCreatedStamp stamp={cred.created} testId={`text-cred-created-${cred.id}`} />
+                      </TableCell>
+                    </RecordMetadataAccess>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         {cred.isActive ? (

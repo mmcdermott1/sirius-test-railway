@@ -17,6 +17,7 @@ import { requireAccess } from "../services/access-policy-evaluator";
 import { logger } from "../logger";
 
 type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void | Promise<any>;
+type PermissionMiddleware = (permissionKey: string) => AuthMiddleware;
 
 /**
  * Reading a record's provenance.
@@ -27,11 +28,10 @@ type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void 
  * route belongs in this file. Anything that wants a record's history changed
  * has to change the record.
  *
- * Access is deliberately shallow: any signed-in person may ask about any
- * record whose id they hold. What comes back says when a record was touched
- * and by whom, never what it says, so there is nothing here to gate on the
- * record's own permissions — and gating it would mean teaching this endpoint
- * every kind of record in the system.
+ * Access requires the dedicated metadata.view permission. It is deliberately
+ * shallow after that: the caller may ask about any record whose id they hold.
+ * What comes back says when a record was touched and by whom, never what it
+ * says, so there is nothing here to gate on the record's own permissions.
  *
  * The administrative endpoints below are a different matter and are gated as
  * such. Asking about one record you already hold the id of is not the same as
@@ -39,8 +39,16 @@ type AuthMiddleware = (req: Request, res: Response, next: NextFunction) => void 
  * it changed and who touched it, which is exactly the shape of an audit trail
  * and is administrators only.
  */
-export function registerEntityMetadataRoutes(app: Express, requireAuth: AuthMiddleware) {
-  app.get("/api/entity-metadata/:entityId", requireAuth, async (req: Request, res: Response) => {
+export function registerEntityMetadataRoutes(
+  app: Express,
+  requireAuth: AuthMiddleware,
+  requirePermission: PermissionMiddleware,
+) {
+  app.get(
+    "/api/entity-metadata/:entityId",
+    requireAuth,
+    requirePermission("metadata.view"),
+    async (req: Request, res: Response) => {
     const { entityId } = req.params;
     if (!isRecordId(entityId)) {
       return res.status(400).json({ message: "Not a record id" });
@@ -60,7 +68,8 @@ export function registerEntityMetadataRoutes(app: Express, requireAuth: AuthMidd
       });
       res.status(500).json({ message: "Failed to read record metadata" });
     }
-  });
+    },
+  );
 
   registerEntityMetadataAdminRoutes(app, requireAuth);
 }
