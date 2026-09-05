@@ -18,7 +18,11 @@ import {
   type AssignRole,
   type AssignPermission,
 } from "@shared/schema";
-import { permissionRegistry, type PermissionDefinition } from "@shared/permissions";
+import {
+  initializePermissions,
+  permissionRegistry,
+  type PermissionDefinition,
+} from "@shared/permissions";
 import { eq, and, sql, inArray, ilike, exists, count, arrayContains } from "drizzle-orm";
 import { esigs } from "@shared/schema";
 import { runInTransaction } from './transaction-context';
@@ -496,16 +500,22 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
       return role || undefined;
     },
 
-    // Permission operations (using registry)
+    // Permission operations (using registry). Core permissions are initialized
+    // here as a defensive boundary for callers that read the catalog before
+    // the full application bootstrap has completed. Component permissions are
+    // still added by the shared bootstrap after its component cache is ready.
     async getAllPermissions(): Promise<PermissionDefinition[]> {
+      initializePermissions();
       return permissionRegistry.getAll();
     },
 
     async getPermissionByKey(key: string): Promise<PermissionDefinition | undefined> {
+      initializePermissions();
       return permissionRegistry.getByKey(key);
     },
 
     permissionExists(key: string): boolean {
+      initializePermissions();
       return permissionRegistry.exists(key);
     },
 
@@ -568,6 +578,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
     // Role-Permission assignment operations
     async assignPermissionToRole(assignment: AssignPermission): Promise<RolePermission> {
       const client = getClient();
+      initializePermissions();
       if (!permissionRegistry.exists(assignment.permissionKey)) {
         throw new Error(`Permission '${assignment.permissionKey}' does not exist in the registry`);
       }
@@ -581,6 +592,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
 
     async assignPermissionsToRoleBulk(roleId: string, permissionKeys: string[]): Promise<RolePermission[]> {
       const client = getClient();
+      initializePermissions();
       if (permissionKeys.length === 0) {
         return [];
       }
@@ -627,6 +639,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
 
     async getRolePermissions(roleId: string): Promise<PermissionDefinition[]> {
       const client = getClient();
+      initializePermissions();
       const result = await client
         .select({
           permissionKey: rolePermissions.permissionKey,
@@ -684,6 +697,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
     // Authorization helpers
     async getUserPermissions(userId: string): Promise<PermissionDefinition[]> {
       const client = getClient();
+      initializePermissions();
       const result = await client
         .select({
           permissionKey: rolePermissions.permissionKey,
