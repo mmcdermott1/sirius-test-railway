@@ -44,11 +44,9 @@ export function isRecordId(value: unknown): value is string {
  * A plain lowercase table identifier: the only spelling the orphan sweep will
  * put into SQL text.
  *
- * `entity_metadata.table_name` is DATA — written by whatever a storage logging
- * config declared — and an anti-join has to name the table, which no
- * parameter can do. So the name is admitted only if it looks exactly like the
- * unquoted identifiers this schema uses, and is rejected (never escaped,
- * never quoted-and-hoped) otherwise.
+ * The registry context id is DATA. Physical table names used in SQL are
+ * admitted only after the context registry has resolved them and they look
+ * exactly like the unquoted identifiers this schema uses.
  */
 export function isPlainTableIdentifier(name: string): boolean {
   return /^[a-z][a-z0-9_]*$/.test(name) && name.length <= 63;

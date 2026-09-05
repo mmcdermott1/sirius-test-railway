@@ -16,7 +16,7 @@ const BATCH_LIMIT = 500;
  * flag, so folding sweeps under one id retires the operator's ability to
  * schedule and disable them independently.
  *
- * `entity_metadata.entity_id` names a record in `table_name` with no FK to it,
+ * `entity_metadata.entity_id` names a record in `context_id` with no FK to it,
  * so nothing in the database removes a deleted record's provenance. The first
  * cleanup layer is the storage logging middleware, which forgets a record when
  * it observes a LOGGED single-record delete. That leaves behind everything it
@@ -46,38 +46,38 @@ registerCronPlugin({
   defaultEnabled: true,
 
   async execute(context: CronJobContext): Promise<CronJobResult> {
-    const perTable: Array<{ tableName: string; orphans: number; removed: number }> = [];
-    const skipped: Array<{ tableName: string; reason: string }> = [];
+    const perContext: Array<{ contextId: string; orphans: number; removed: number }> = [];
+    const skipped: Array<{ contextId: string; reason: string }> = [];
     let totalFound = 0;
     let totalRemoved = 0;
 
-    for (const tableName of await entityMetadataStorage.listTables()) {
-      const verdict = await entityMetadataStorage.checkTable(tableName);
+    for (const contextId of await entityMetadataStorage.listContexts()) {
+      const verdict = await entityMetadataStorage.checkContext(contextId);
       if (!verdict.sweepable) {
-        skipped.push({ tableName, reason: verdict.reason });
+        skipped.push({ contextId, reason: verdict.reason });
         continue;
       }
 
-      const orphans = await entityMetadataStorage.findOrphans(tableName, BATCH_LIMIT);
+      const orphans = await entityMetadataStorage.findOrphans(contextId, BATCH_LIMIT);
       totalFound += orphans.length;
 
       let removed = 0;
       if (context.mode === "live" && orphans.length > 0) {
-        removed = await entityMetadataStorage.removeOrphans(tableName, orphans);
+        removed = await entityMetadataStorage.removeOrphans(contextId, orphans);
         totalRemoved += removed;
       }
-      perTable.push({ tableName, orphans: orphans.length, removed });
+      perContext.push({ contextId, orphans: orphans.length, removed });
     }
 
     const verb = context.mode === "live" ? "Removed" : "Would remove";
     const count = context.mode === "live" ? totalRemoved : totalFound;
     const skipNote =
       skipped.length > 0
-        ? `; skipped ${skipped.map((s) => `${s.tableName} (${s.reason})`).join(", ")}`
+        ? `; skipped ${skipped.map((s) => `${s.contextId} (${s.reason})`).join(", ")}`
         : "";
     return {
-      message: `${verb} ${count} orphaned provenance row${count === 1 ? "" : "s"} across ${perTable.length} table${perTable.length === 1 ? "" : "s"}${skipNote}`,
-      metadata: { totalFound, totalRemoved, perTable, skipped },
+      message: `${verb} ${count} orphaned provenance row${count === 1 ? "" : "s"} across ${perContext.length} context${perContext.length === 1 ? "" : "s"}${skipNote}`,
+      metadata: { totalFound, totalRemoved, perContext, skipped },
     };
   },
 });

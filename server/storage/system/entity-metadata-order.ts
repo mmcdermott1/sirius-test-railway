@@ -1,5 +1,6 @@
 import { sql, type SQL, type AnyColumn } from "drizzle-orm";
 import { isPlainTableIdentifier } from "./entity-metadata-tables";
+import { getMetadataContextForTable } from "../entity-metadata-record-tables";
 
 /**
  * Ordering a table's records by WHEN they were made or last changed, now that
@@ -37,6 +38,14 @@ function tableLiteral(tableName: string): string {
   return tableName;
 }
 
+function contextLiteral(tableName: string): string {
+  const context = getMetadataContextForTable(tableName);
+  if (!context) {
+    throw new Error(`Refusing to order by provenance: "${tableName}" has no metadata context`);
+  }
+  return context.contextId;
+}
+
 /**
  * When each record was created, per its provenance row.
  *
@@ -48,10 +57,11 @@ export function provenanceCreatedDate(
   tableName: string,
   recordId: SQL | AnyColumn,
 ): SQL {
-  const table = tableLiteral(tableName);
+  tableLiteral(tableName);
+  const context = contextLiteral(tableName);
   return sql`(
     SELECT em.created_date FROM entity_metadata em
-    WHERE em.table_name = ${table} AND em.entity_id = (${recordId})::text
+    WHERE em.context_id = ${context} AND em.entity_id = (${recordId})::text
   )`;
 }
 
@@ -68,9 +78,10 @@ export function provenanceModifiedDate(
   tableName: string,
   recordId: SQL | AnyColumn,
 ): SQL {
-  const table = tableLiteral(tableName);
+  tableLiteral(tableName);
+  const context = contextLiteral(tableName);
   return sql`(
     SELECT em.modified_date FROM entity_metadata em
-    WHERE em.table_name = ${table} AND em.entity_id = (${recordId})::text
+    WHERE em.context_id = ${context} AND em.entity_id = (${recordId})::text
   )`;
 }

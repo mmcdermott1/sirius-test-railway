@@ -263,7 +263,7 @@ export async function getEdlsPassportExportPage(
       entityMetadata,
       and(
         eq(entityMetadata.entityId, edlsSheets.id),
-        eq(entityMetadata.tableName, SHEET_TABLE_NAME),
+        eq(entityMetadata.contextId, SHEET_TABLE_NAME),
       ),
     )
     .leftJoin(creatorUsers, eq(entityMetadata.createdBy, creatorUsers.id))

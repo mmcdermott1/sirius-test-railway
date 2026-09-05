@@ -53,7 +53,7 @@ export async function resolveRecordGoIdentifier(
 
   if (!metadata) return { kind: "not_found", reason: "unknown" };
 
-  const href = metadataRecordHref(metadata.tableName, metadata.entityId);
+  const href = metadataRecordHref(metadata.contextId, metadata.entityId);
   if (!href) return { kind: "not_found", reason: "no_page" };
   return { kind: "resolved", metadata, href };
 }

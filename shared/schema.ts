@@ -1116,8 +1116,8 @@ export const entityMetadata = pgTable("entity_metadata", {
   seq: bigserial("seq", { mode: "number" }).notNull(),
   /** Number of successful application writes to this history row. */
   rev: integer("rev").notNull().default(1),
-  /** Raw database table the record lives in, e.g. `contact_phone`. */
-  tableName: varchar("table_name", { length: 255 }).notNull(),
+  /** Stable metadata context id whose registry declaration names the table. */
+  contextId: varchar("context_id", { length: 255 }).notNull(),
   entityId: varchar("entity_id").notNull(),
   /** When the record was created, or when it was first observed. */
   createdDate: timestamp("created_date"),
@@ -1145,7 +1145,7 @@ export const entityMetadata = pgTable("entity_metadata", {
   }).onDelete("set null"),
   unique("entity_metadata_seq_unique").on(table.seq),
   unique("entity_metadata_entity_id_unique").on(table.entityId),
-  index("idx_entity_metadata_table_name").on(table.tableName),
+  index("idx_entity_metadata_context_id").on(table.contextId),
 ]);
 
 export type EntityMetadata = typeof entityMetadata.$inferSelect;

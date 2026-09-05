@@ -138,7 +138,7 @@ export function createWizardFeedMappingStorage(): WizardFeedMappingStorage {
           entityMetadata,
           and(
             eq(entityMetadata.entityId, wizardFeedMappings.id),
-            eq(entityMetadata.tableName, 'wizard_feed_mappings'),
+            eq(entityMetadata.contextId, 'wizard_feed_mappings'),
           ),
         )
         .where(and(...conditions))

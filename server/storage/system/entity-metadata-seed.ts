@@ -2,6 +2,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { getClient, runInTransaction } from "../transaction-context";
 import { storageLogger } from "../../logger";
 import { isPlainTableIdentifier, RECORD_ID_SQL_PATTERN } from "./entity-metadata-tables";
+import { getMetadataContextForTable } from "../entity-metadata-record-tables";
 
 /**
  * Moving a table's OWN creation/modification columns into `entity_metadata`,
@@ -147,6 +148,11 @@ export function createEntityMetadataSeedStorage(): EntityMetadataSeedStorage {
         modifiedDateColumn,
         modifiedByColumn,
       } = spec;
+      const metadataContext = getMetadataContextForTable(table);
+      if (!metadataContext) {
+        throw new Error(`Refusing to seed provenance for "${table}": no eligible metadata context`);
+      }
+      const contextId = metadataContext.contextId;
 
       if (createdDateColumn === undefined && modifiedDateColumn === undefined) {
         throw new Error(
@@ -229,7 +235,7 @@ export function createEntityMetadataSeedStorage(): EntityMetadataSeedStorage {
             count(*) FILTER (
               WHERE ${isRecordId} AND EXISTS (
                 SELECT 1 FROM entity_metadata m
-                WHERE m.entity_id = t."id"::text AND m.table_name <> ${table}
+                WHERE m.entity_id = t."id"::text AND m.context_id <> ${contextId}
               )
             ) AS held_elsewhere
           FROM ${tableSql} t
@@ -244,12 +250,12 @@ export function createEntityMetadataSeedStorage(): EntityMetadataSeedStorage {
         // the FK's ON DELETE SET NULL would have made of it anyway.
         const written = await client.execute(sql`
           INSERT INTO entity_metadata (
-            table_name, entity_id,
+            context_id, entity_id,
             created_date, created_by,
             modified_date, modified_by
           )
           SELECT
-            ${table}, t."id"::text,
+            ${contextId}, t."id"::text,
             ${createdDate}, cu.id,
             ${modifiedDate}, mu.id
           FROM ${tableSql} t
@@ -275,7 +281,7 @@ export function createEntityMetadataSeedStorage(): EntityMetadataSeedStorage {
               THEN EXCLUDED.modified_by
               ELSE entity_metadata.modified_by
             END
-          WHERE entity_metadata.table_name = EXCLUDED.table_name
+          WHERE entity_metadata.context_id = EXCLUDED.context_id
             -- Update only where one of the four improvements actually applies.
             -- Without this the statement would rewrite every row with the
             -- values it already holds, and a second run would report the whole

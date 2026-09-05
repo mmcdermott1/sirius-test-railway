@@ -9,7 +9,7 @@ import {
   type MetadataSortColumn,
 } from "../storage/system/entity-metadata-admin";
 import {
-  listMetadataRecordTables,
+  listMetadataRecordContexts,
   metadataRecordHref,
 } from "../storage/entity-metadata-record-tables";
 import { storage } from "../storage";
@@ -82,7 +82,7 @@ const personParam = z.string().min(1).optional();
 
 const SORT_COLUMNS = [
   "seq",
-  "tableName",
+  "contextId",
   "createdDate",
   "modifiedDate",
   "subrecordModifiedDate",
@@ -95,7 +95,7 @@ const listQuerySchema = z.object({
   // is "what happened recently", not "what exists".
   sort: z.enum(SORT_COLUMNS).default("modifiedDate"),
   sortDir: z.enum(["asc", "desc"]).default("desc"),
-  tableName: z.string().min(1).optional(),
+  contextId: z.string().min(1).optional(),
   createdFrom: dateParam,
   createdTo: dateParam,
   createdBy: personParam,
@@ -108,7 +108,7 @@ const listQuerySchema = z.object({
 });
 
 const backfillSchema = z.object({
-  tableName: z.string().min(1),
+  contextId: z.string().min(1),
   limit: z.coerce.number().int().min(1).max(BACKFILL_BATCH_LIMIT).default(BACKFILL_BATCH_LIMIT),
 });
 
@@ -137,8 +137,14 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
    * for ninety-odd tables in one request would make the page wait on the
    * slowest of them. Each table's own count is asked for separately.
    */
-  app.get("/api/admin/entity-metadata/tables", ...adminOnly, (_req: Request, res: Response) => {
-    res.json({ tables: listMetadataRecordTables() });
+  app.get("/api/admin/entity-metadata/contexts", ...adminOnly, (_req: Request, res: Response) => {
+    res.json({
+      contexts: listMetadataRecordContexts().map(({ contextId, label, hrefTemplate }) => ({
+        contextId,
+        label,
+        hrefTemplate,
+      })),
+    });
   });
 
   /** Everyone named by a provenance row, for the person filters. */
@@ -168,7 +174,7 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
         limit: q.limit,
         sort: q.sort,
         sortDir: q.sortDir,
-        tableName: q.tableName,
+        contextId: q.contextId,
         created: { from: q.createdFrom, to: q.createdTo, personId: q.createdBy },
         modified: { from: q.modifiedFrom, to: q.modifiedTo, personId: q.modifiedBy },
         subrecordModified: {
@@ -182,14 +188,14 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
       // come from the record table registry, which knows about pages, and
       // storage does not get to know about pages.
       const labels = new Map(
-        listMetadataRecordTables().map((table) => [table.tableName, table.label]),
+        listMetadataRecordContexts().map((entry) => [entry.contextId, entry.label]),
       );
       res.json({
         ...result,
         data: result.data.map((row) => ({
           ...row,
-          tableLabel: labels.get(row.tableName) ?? row.tableName,
-          href: metadataRecordHref(row.tableName, row.entityId),
+          contextLabel: labels.get(row.contextId) ?? row.contextId,
+          href: metadataRecordHref(row.contextId, row.entityId),
         })),
       });
     } catch (error) {
@@ -203,15 +209,15 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
 
   /** How many of one table's records have no history row yet. */
   app.get(
-    "/api/admin/entity-metadata/tables/:tableName/missing",
+    "/api/admin/entity-metadata/contexts/:contextId/missing",
     ...adminOnly,
     async (req: Request, res: Response) => {
       try {
-        res.json(await storage.entityMetadataAdmin.countMissing(req.params.tableName));
+        res.json(await storage.entityMetadataAdmin.countMissing(req.params.contextId));
       } catch (error) {
         logger.error("Failed to count records without history", {
           service: "entityMetadata",
-          tableName: req.params.tableName,
+          contextId: req.params.contextId,
           error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({ message: "Failed to count records without history" });
@@ -225,10 +231,10 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
     if (!parsed.success) {
       return res.status(400).json({ message: "Invalid request", errors: parsed.error.errors });
     }
-    const { tableName, limit } = parsed.data;
+    const { contextId, limit } = parsed.data;
 
     try {
-      const result = await storage.entityMetadataAdmin.backfill(tableName, limit);
+      const result = await storage.entityMetadataAdmin.backfill(contextId, limit);
       logger.info("Filled in record history", { service: "entityMetadata", ...result });
       res.json(result);
     } catch (error) {
@@ -237,7 +243,7 @@ function registerEntityMetadataAdminRoutes(app: Express, requireAuth: AuthMiddle
       // where this one reached.
       logger.error("Failed to fill in record history", {
         service: "entityMetadata",
-        tableName,
+        contextId,
         error: error instanceof Error ? error.message : String(error),
       });
       res.status(500).json({

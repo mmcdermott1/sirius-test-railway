@@ -64,7 +64,7 @@ async function listUserBookmarks(userId: string): Promise<BookmarkWithCreated[]>
       entityMetadata,
       and(
         eq(entityMetadata.entityId, bookmarks.id),
-        eq(entityMetadata.tableName, BOOKMARKS_TABLE),
+        eq(entityMetadata.contextId, BOOKMARKS_TABLE),
       ),
     )
     .where(eq(bookmarks.userId, userId))

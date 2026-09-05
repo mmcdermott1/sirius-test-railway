@@ -8,7 +8,6 @@ const { getByMetadataId, getBySequence, getByEntityId } = vi.hoisted(() => ({
   getBySequence: vi.fn(),
   getByEntityId: vi.fn(),
 }));
-
 vi.mock("../server/storage/system/entity-metadata", () => ({
   entityMetadataStorage: {
     getByMetadataId,
@@ -18,11 +17,10 @@ vi.mock("../server/storage/system/entity-metadata", () => ({
 }));
 
 vi.mock("../server/storage/entity-metadata-record-tables", () => ({
-  metadataRecordHref: vi.fn((tableName: string, entityId: string) =>
-    tableName === "workers" ? `/workers/${entityId}` : null,
+  metadataRecordHref: vi.fn((contextId: string, entityId: string) =>
+    contextId === "workers" ? `/workers/${entityId}` : null,
   ),
 }));
-
 const {
   parseRecordGoIdentifier,
   resolveRecordGoIdentifier,
@@ -35,7 +33,7 @@ const ENTITY_ID = "22222222-2222-4222-8222-222222222222";
 const metadata = {
   seq: 123,
   rev: 4,
-  tableName: "workers",
+  contextId: "workers",
   entityId: ENTITY_ID,
   created: { date: null, personName: null },
   modified: { date: null, personName: null },
@@ -96,7 +94,7 @@ describe("record go identifier parsing and resolution", () => {
       reason: "unknown",
     });
 
-    getBySequence.mockResolvedValue({ ...metadata, tableName: "contact_phone" });
+    getBySequence.mockResolvedValue({ ...metadata, contextId: "contact_phone" });
     await expect(resolveRecordGoIdentifier("000.0123")).resolves.toEqual({
       kind: "not_found",
       reason: "no_page",
@@ -160,7 +158,7 @@ describe("record go route", () => {
     expect(unknown.status).toBe(404);
     expect(await unknown.text()).toContain("Record not found");
 
-    getByMetadataId.mockResolvedValue({ ...metadata, tableName: "contact_phone" });
+    getByMetadataId.mockResolvedValue({ ...metadata, contextId: "contact_phone" });
     const noPage = await fetch(`${baseUrl}/go/${ENTITY_ID}`, {
       headers: { "x-authenticated": "yes" },
     });

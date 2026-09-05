@@ -106,6 +106,7 @@ import "./core/1101_drop_bookmarks_created_at";
 import "./core/1102_add_entity_metadata_rev";
 import "./core/1103_remove_process_entity_metadata";
 import "./core/1104_own_process_capture_provenance";
+import "./core/1105_rename_entity_metadata_table_name_to_context_id";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

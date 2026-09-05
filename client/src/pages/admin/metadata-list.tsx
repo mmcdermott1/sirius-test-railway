@@ -46,13 +46,13 @@ const PAGE_SIZE = 50;
 /** Which column the list is ordered by. Mirrors the server's allowed set. */
 type SortColumn =
   | "seq"
-  | "tableName"
+  | "contextId"
   | "createdDate"
   | "modifiedDate"
   | "subrecordModifiedDate";
 
 interface MetadataRow extends RecordMetadata {
-  tableLabel: string;
+  contextLabel: string;
   /** Where the record lives, or null when its kind has no page. */
   href: string | null;
 }
@@ -64,8 +64,8 @@ interface ListResponse {
   limit: number;
 }
 
-interface TableChoice {
-  tableName: string;
+interface ContextChoice {
+  contextId: string;
   label: string;
 }
 
@@ -84,14 +84,14 @@ interface StampFilter {
 const EMPTY_STAMP: StampFilter = { from: "", to: "", personId: "" };
 
 interface Filters {
-  tableName: string;
+  contextId: string;
   created: StampFilter;
   modified: StampFilter;
   subrecord: StampFilter;
 }
 
 const EMPTY_FILTERS: Filters = {
-  tableName: "",
+  contextId: "",
   created: { ...EMPTY_STAMP },
   modified: { ...EMPTY_STAMP },
   subrecord: { ...EMPTY_STAMP },
@@ -124,7 +124,7 @@ export default function MetadataListPage() {
     params.set("limit", String(PAGE_SIZE));
     params.set("sort", sort);
     params.set("sortDir", sortDir);
-    if (filters.tableName) params.set("tableName", filters.tableName);
+    if (filters.contextId) params.set("contextId", filters.contextId);
     stampParams(params, "created", filters.created);
     stampParams(params, "modified", filters.modified);
     stampParams(params, "subrecord", filters.subrecord);
@@ -135,15 +135,15 @@ export default function MetadataListPage() {
     queryKey: [`/api/admin/entity-metadata/list?${queryString}`],
   });
 
-  const { data: tableData } = useQuery<{ tables: TableChoice[] }>({
-    queryKey: ["/api/admin/entity-metadata/tables"],
+  const { data: contextData } = useQuery<{ contexts: ContextChoice[] }>({
+    queryKey: ["/api/admin/entity-metadata/contexts"],
   });
 
   const { data: peopleData } = useQuery<{ people: Person[] }>({
     queryKey: ["/api/admin/entity-metadata/people"],
   });
 
-  const tables = tableData?.tables ?? [];
+  const contexts = contextData?.contexts ?? [];
   const people = peopleData?.people ?? [];
   const rows = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -180,9 +180,9 @@ export default function MetadataListPage() {
           <div className="max-w-sm space-y-1">
             <Label className="text-xs">Kind of record</Label>
             <Select
-              value={filters.tableName || ANY}
+              value={filters.contextId || ANY}
               onValueChange={(next) =>
-                updateFilters({ ...filters, tableName: next === ANY ? "" : next })
+                updateFilters({ ...filters, contextId: next === ANY ? "" : next })
               }
             >
               <SelectTrigger data-testid="select-table">
@@ -190,9 +190,9 @@ export default function MetadataListPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ANY}>All kinds</SelectItem>
-                {tables.map((table) => (
-                  <SelectItem key={table.tableName} value={table.tableName}>
-                    {table.label}
+                {contexts.map((context) => (
+                  <SelectItem key={context.contextId} value={context.contextId}>
+                    {context.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -262,7 +262,7 @@ export default function MetadataListPage() {
                       Sequence
                     </SortableHead>
                     <SortableHead
-                      column="tableName"
+                      column="contextId"
                       sort={sort}
                       sortDir={sortDir}
                       onSort={toggleSort}
@@ -302,7 +302,7 @@ export default function MetadataListPage() {
                       <TableCell className="font-mono text-xs">
                         {formatRecordSequence(row.seq)}
                       </TableCell>
-                      <TableCell>{row.tableLabel}</TableCell>
+                      <TableCell>{row.contextLabel}</TableCell>
                       <TableCell>
                         <StampCell stamp={row.created} />
                       </TableCell>

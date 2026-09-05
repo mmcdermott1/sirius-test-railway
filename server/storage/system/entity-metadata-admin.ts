@@ -7,8 +7,8 @@ import {
 } from "./entity-metadata";
 import { isPlainTableIdentifier, RECORD_ID_SQL_PATTERN } from "./entity-metadata-tables";
 import {
-  entityMetadataRecordTables,
-  isMetadataRecordTable,
+  listMetadataRecordContexts,
+  getMetadataRecordContext,
 } from "../entity-metadata-record-tables";
 
 /**
@@ -38,7 +38,7 @@ export interface MetadataStampRow {
 export interface MetadataListRow {
   seq: number;
   rev: number;
-  tableName: string;
+  contextId: string;
   entityId: string;
   created: MetadataStampRow;
   modified: MetadataStampRow;
@@ -48,7 +48,7 @@ export interface MetadataListRow {
 /** Which column a list is ordered by. Anything else is refused. */
 export type MetadataSortColumn =
   | "seq"
-  | "tableName"
+  | "contextId"
   | "createdDate"
   | "modifiedDate"
   | "subrecordModifiedDate";
@@ -61,7 +61,7 @@ export interface MetadataStampFilter {
 }
 
 export interface MetadataListFilters {
-  tableName?: string;
+  contextId?: string;
   created?: MetadataStampFilter;
   modified?: MetadataStampFilter;
   subrecordModified?: MetadataStampFilter;
@@ -89,13 +89,13 @@ export interface MetadataPerson {
 }
 
 /** How many of one table's records have no provenance row. */
-export type MetadataTableCount =
-  | { tableName: string; countable: true; missing: number }
-  | { tableName: string; countable: false; reason: string };
+export type MetadataContextCount =
+  | { contextId: string; countable: true; missing: number }
+  | { contextId: string; countable: false; reason: string };
 
 /** What one backfill run did. */
 export interface MetadataBackfillResult {
-  tableName: string;
+  contextId: string;
   /** Rows this run created. */
   written: number;
   /**
@@ -121,7 +121,7 @@ export const BACKFILL_BATCH_LIMIT = 1000;
 /** The columns a list may be ordered by, and what they are called in SQL. */
 const SORT_COLUMNS: Record<MetadataSortColumn, string> = {
   seq: "m.seq",
-  tableName: "m.table_name",
+  contextId: "m.context_id",
   createdDate: "m.created_date",
   modifiedDate: "m.modified_date",
   subrecordModifiedDate: "m.subrecord_modified_date",
@@ -153,7 +153,7 @@ export interface EntityMetadataAdminStorage {
    * a table this cannot count is exactly a table that cannot be swept, and
    * both say why in the same words.
    */
-  countMissing(tableName: string): Promise<MetadataTableCount>;
+  countMissing(contextId: string): Promise<MetadataContextCount>;
 
   /**
    * Create up to `limit` provenance rows for one table's records that have
@@ -164,7 +164,7 @@ export interface EntityMetadataAdminStorage {
    * again continues from wherever it stopped. Nothing here can overwrite an
    * existing row.
    */
-  backfill(tableName: string, limit: number): Promise<MetadataBackfillResult>;
+  backfill(contextId: string, limit: number): Promise<MetadataBackfillResult>;
 }
 
 /**
@@ -191,17 +191,17 @@ const missingHistory = sql`
  * name is checked three ways before it is interpolated: it is declared in the
  * registry, it is shaped like an identifier, and the database agrees it is a
  * table whose `id` column holds record ids. The third check is the sweep's own
- * (`checkTable`), reused so that "can be counted" and "can be swept" cannot
+ * (`checkContext`), reused so that "can be counted" and "can be swept" cannot
  * come apart.
  */
-async function admitTable(tableName: string): Promise<TableVerdict> {
-  if (!isMetadataRecordTable(tableName)) {
-    return { sweepable: false, reason: "not a table that carries record history" };
-  }
-  if (!isPlainTableIdentifier(tableName)) {
+async function admitContext(contextId: string): Promise<TableVerdict & { tableName?: string }> {
+  const context = getMetadataRecordContext(contextId);
+  if (!context) return { sweepable: false, reason: "not a registered metadata context" };
+  if (!isPlainTableIdentifier(context.tableName)) {
     return { sweepable: false, reason: "not a plain table name" };
   }
-  return entityMetadataStorage.checkTable(tableName);
+  const verdict = await entityMetadataStorage.checkContext(contextId);
+  return verdict.sweepable ? { sweepable: true, tableName: context.tableName } : verdict;
 }
 
 /** Display name from a joined user row, or null when nobody was recorded. */
@@ -252,14 +252,14 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
       const client = getClient();
       const conditions: SQL[] = [];
 
-      const eligibleTableNames = Object.keys(entityMetadataRecordTables);
+      const eligibleContextIds = listMetadataRecordContexts().map((entry) => entry.contextId);
       conditions.push(
-        sql`m.table_name IN (${sql.join(
-          eligibleTableNames.map((tableName) => sql`${tableName}`),
+        sql`m.context_id IN (${sql.join(
+          eligibleContextIds.map((contextId) => sql`${contextId}`),
           sql`, `,
         )})`,
       );
-      if (query.tableName) conditions.push(sql`m.table_name = ${query.tableName}`);
+      if (query.contextId) conditions.push(sql`m.context_id = ${query.contextId}`);
       conditions.push(
         ...stampConditions("m.created_date", "m.created_by", query.created),
         ...stampConditions("m.modified_date", "m.modified_by", query.modified),
@@ -289,7 +289,7 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
 
       const result = await client.execute(sql`
         SELECT
-          m.seq, m.rev, m.table_name, m.entity_id,
+          m.seq, m.rev, m.context_id, m.entity_id,
           m.created_date, m.created_by,
           m.modified_date, m.modified_by,
           m.subrecord_modified_date, m.subrecord_modified_by,
@@ -316,7 +316,7 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
         return {
           seq: Number(row.seq),
           rev: Number(row.rev),
-          tableName: String(row.table_name),
+          contextId: String(row.context_id),
           entityId: String(row.entity_id),
           created: stampFrom(row, "created_date", "created_by", "created"),
           modified: stampFrom(row, "modified_date", "modified_by", "modified"),
@@ -339,8 +339,8 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
         FROM users u
         WHERE EXISTS (
           SELECT 1 FROM entity_metadata m
-            WHERE m.table_name IN (${sql.join(
-              Object.keys(entityMetadataRecordTables).map((tableName) => sql`${tableName}`),
+            WHERE m.context_id IN (${sql.join(
+              listMetadataRecordContexts().map((entry) => sql`${entry.contextId}`),
               sql`, `,
             )})
               AND (m.created_by = u.id
@@ -361,11 +361,12 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
       });
     },
 
-    async countMissing(tableName) {
-      const verdict = await admitTable(tableName);
+    async countMissing(contextId) {
+      const verdict = await admitContext(contextId);
       if (!verdict.sweepable) {
-        return { tableName, countable: false, reason: verdict.reason };
+        return { contextId, countable: false, reason: verdict.reason };
       }
+      const tableName = verdict.tableName!;
 
       const client = getClient();
       // `id::text` because a record id column is varchar in most of this
@@ -379,16 +380,17 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
         WHERE ${missingHistory}
       `);
       const missing = Number((result.rows?.[0] as Record<string, unknown>)?.missing ?? 0);
-      return { tableName, countable: true, missing };
+      return { contextId, countable: true, missing };
     },
 
-    async backfill(tableName, limit) {
-      const verdict = await admitTable(tableName);
+    async backfill(contextId, limit) {
+      const verdict = await admitContext(contextId);
       if (!verdict.sweepable) {
         throw new Error(
-          `Cannot fill in record history for "${tableName}": ${verdict.reason}`,
+          `Cannot fill in record history for "${contextId}": ${verdict.reason}`,
         );
       }
+      const tableName = verdict.tableName!;
 
       const capped = Math.max(1, Math.min(limit, BACKFILL_BATCH_LIMIT));
       const client = getClient();
@@ -428,9 +430,9 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
         else alreadyPresent += 1;
       }
 
-      const after = await this.countMissing(tableName);
+      const after = await this.countMissing(contextId);
       return {
-        tableName,
+        contextId,
         written,
         alreadyPresent,
         skipped,

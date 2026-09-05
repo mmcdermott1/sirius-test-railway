@@ -3,7 +3,6 @@ import { getClient } from "../transaction-context";
 import { storageLogger } from "../../logger";
 import {
   isPlainTableIdentifier,
-  isMetadataTableEligible,
   isRecordId,
   judgeSweepTable,
   type TableFacts,
@@ -21,7 +20,7 @@ import {
  *
  * Two properties this module protects, because nothing else can:
  *
- *  - **`seq` permanently names one record.** `table_name` is written once, at
+ *  - **`seq` permanently names one record.** `context_id` is written once, at
  *    insert, and never rewritten. A write naming a different table for an id
  *    we already know is refused and reported rather than applied.
  *  - **Stamps only move forward.** Callers are deferred and unordered, so a
@@ -96,7 +95,7 @@ export interface EntityMetadataStamp {
 export interface EntityMetadataView {
   seq: number;
   rev: number;
-  tableName: string;
+  contextId: string;
   entityId: string;
   created: EntityMetadataStamp;
   modified: EntityMetadataStamp;
@@ -172,23 +171,23 @@ export interface EntityMetadataStorage {
    * Read from the rows themselves rather than from the logging configs: a row
    * can outlive the config that wrote it, and it is the row that has to go.
    */
-  listTables(): Promise<string[]>;
+  listContexts(): Promise<string[]>;
 
   /**
    * Whether provenance rows naming this table may be swept against it. See
    * `./entity-metadata-tables.ts` for the rule; this only gathers the facts
    * the rule is decided on.
    */
-  checkTable(tableName: string): Promise<TableVerdict>;
+  checkContext(contextId: string): Promise<TableVerdict>;
 
   /**
    * Ids of the provenance rows in one table whose record is gone, capped at
    * `limit` so one sweep cannot run long.
    *
-   * Only for a table `checkTable` has approved — it refuses anything else
+   * Only for a registered context `checkContext` has approved — it refuses anything else
    * rather than trusting its caller, because the name goes into SQL text.
    */
-  findOrphans(tableName: string, limit: number): Promise<string[]>;
+  findOrphans(contextId: string, limit: number): Promise<string[]>;
 
   /**
    * Forget provenance rows the sweep found orphaned, returning how many rows
@@ -198,7 +197,7 @@ export interface EntityMetadataStorage {
    * `recordDeletion`: a sweep delete must not overtake — or be overtaken by —
    * a write still queued for that id in this process.
    */
-  removeOrphans(tableName: string, entityIds: string[]): Promise<number>;
+  removeOrphans(contextId: string, entityIds: string[]): Promise<number>;
 }
 
 /**
@@ -214,6 +213,26 @@ function reportRefusal(reason: string, detail: Record<string, unknown>): void {
     description: reason,
     meta: detail,
   });
+}
+
+async function resolveContextForTable(
+  tableName: string,
+  operation: string,
+): Promise<{ contextId: string; tableName: string } | undefined> {
+  // Lazy import avoids a cycle: the registry inspects storage logging configs,
+  // while the logging middleware calls this storage module.
+  const { getMetadataContextForTable } = await import("../entity-metadata-record-tables");
+  const context = getMetadataContextForTable(tableName);
+  if (!context) {
+    reportRefusal("logged table has no eligible metadata context", { tableName, operation });
+    return undefined;
+  }
+  return { contextId: context.contextId, tableName: context.tableName };
+}
+
+async function isKnownContext(contextId: string): Promise<boolean> {
+  const { isMetadataRecordContext } = await import("../entity-metadata-record-tables");
+  return isMetadataRecordContext(contextId);
 }
 
 /**
@@ -307,7 +326,7 @@ function stampFrom(
  */
 const VIEW_SELECT = sql`
   SELECT
-    m.seq, m.rev, m.table_name, m.entity_id,
+    m.seq, m.rev, m.context_id, m.entity_id,
     m.created_date, m.modified_date, m.subrecord_modified_date,
     cu.first_name AS created_first_name,
     cu.last_name  AS created_last_name,
@@ -328,7 +347,7 @@ function viewFrom(row: Record<string, unknown>): EntityMetadataView {
   return {
     seq: Number(row.seq),
     rev: Number(row.rev),
-    tableName: String(row.table_name),
+    contextId: String(row.context_id),
     entityId: String(row.entity_id),
     created: stampFrom(row, "created_date", "created"),
     modified: stampFrom(row, "modified_date", "modified"),
@@ -340,6 +359,30 @@ function viewFrom(row: Record<string, unknown>): EntityMetadataView {
 const SAMPLE_SIZE = 20;
 
 /**
+ * Core migration 1105 runs after 1104, while the application may already
+ * have deferred storage-log callbacks queued from bring-up. Do not let one
+ * of those callbacks issue a new-column write into the old schema. A false
+ * result is deliberately not cached: the next callback rechecks after the
+ * rename, while the successful state is cached for the normal hot path.
+ */
+let contextIdColumnAvailable: boolean | undefined;
+
+async function hasContextIdColumn(): Promise<boolean> {
+  if (contextIdColumnAvailable === true) return true;
+  const client = getClient();
+  const result = await client.execute(sql`
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'entity_metadata'
+      AND column_name = 'context_id'
+    LIMIT 1
+  `);
+  contextIdColumnAvailable = (result.rows?.length ?? 0) > 0;
+  return contextIdColumnAvailable;
+}
+
+/**
  * Forget one record's provenance, reporting whether a row went.
  *
  * The ONE definition of "forget this record", shared by the logged delete the
@@ -347,7 +390,8 @@ const SAMPLE_SIZE = 20;
  * marking the queue forgotten drops writes still queued for this id, which is
  * what stops a deferred edit from resurrecting a row the sweep just removed.
  */
-async function forget(tableName: string, entityId: string): Promise<boolean> {
+async function forget(contextId: string, entityId: string): Promise<boolean> {
+  if (!(await hasContextIdColumn())) return false;
   let removed = false;
   await serialize(entityId, async (queue) => {
     // Anything still queued for this id is a write about a record that no
@@ -356,7 +400,7 @@ async function forget(tableName: string, entityId: string): Promise<boolean> {
     const client = getClient();
     const result = await client.execute(sql`
       DELETE FROM entity_metadata
-      WHERE entity_id = ${entityId} AND table_name = ${tableName}
+      WHERE entity_id = ${entityId} AND context_id = ${contextId}
     `);
     removed = (result.rowCount ?? result.rows?.length ?? 0) > 0;
   });
@@ -370,18 +414,18 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
    * on the normal path.
    */
   async function reportTableMismatch(
-    tableName: string,
+    contextId: string,
     entityId: string,
   ): Promise<void> {
     const client = getClient();
     const existing = await client.execute(
-      sql`SELECT table_name FROM entity_metadata WHERE entity_id = ${entityId}`,
+      sql`SELECT context_id FROM entity_metadata WHERE entity_id = ${entityId}`,
     );
-    const held = existing.rows?.[0]?.table_name;
-    reportRefusal("record id already belongs to another table", {
+    const held = existing.rows?.[0]?.context_id;
+    reportRefusal("record id already belongs to another metadata context", {
       entityId,
-      declaredTable: tableName,
-      storedTable: held ?? null,
+      declaredContext: contextId,
+      storedContext: held ?? null,
     });
   }
 
@@ -393,7 +437,7 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
         ${VIEW_SELECT} WHERE m.entity_id = ${entityId}
       `);
       const row = result.rows?.[0] as Record<string, unknown> | undefined;
-      return row && isMetadataTableEligible(String(row.table_name)) ? viewFrom(row) : undefined;
+      return row && (await isKnownContext(String(row.context_id))) ? viewFrom(row) : undefined;
     },
 
     async getByMetadataId(metadataId) {
@@ -403,7 +447,7 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
         ${VIEW_SELECT} WHERE m.id = ${metadataId}
       `);
       const row = result.rows?.[0] as Record<string, unknown> | undefined;
-      return row && isMetadataTableEligible(String(row.table_name)) ? viewFrom(row) : undefined;
+      return row && (await isKnownContext(String(row.context_id))) ? viewFrom(row) : undefined;
     },
 
     async getBySequence(seq) {
@@ -413,7 +457,7 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
         ${VIEW_SELECT} WHERE m.seq = ${seq}
       `);
       const row = result.rows?.[0] as Record<string, unknown> | undefined;
-      return row && isMetadataTableEligible(String(row.table_name)) ? viewFrom(row) : undefined;
+      return row && (await isKnownContext(String(row.context_id))) ? viewFrom(row) : undefined;
     },
 
     async getMany(entityIds) {
@@ -430,13 +474,16 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       `);
       for (const raw of result.rows ?? []) {
         const view = viewFrom(raw as Record<string, unknown>);
-        if (isMetadataTableEligible(view.tableName)) byId.set(view.entityId, view);
+        if (await isKnownContext(view.contextId)) byId.set(view.entityId, view);
       }
       return byId;
     },
 
     async recordMutation({ tableName, entityId, at, actorId, created }) {
-      if (!isMetadataTableEligible(tableName)) return;
+      if (!(await hasContextIdColumn())) return;
+      const context = await resolveContextForTable(tableName, "mutation");
+      if (!context) return;
+      const contextId = context.contextId;
       if (!acceptsId(entityId, tableName, "mutation")) return;
       return serialize(entityId, async (queue) => {
         if (queue.forgotten) return;
@@ -444,12 +491,12 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
         const createdBy = created ? (actorId ?? null) : null;
         const result = await client.execute(sql`
           INSERT INTO entity_metadata (
-            table_name, entity_id,
+            context_id, entity_id,
             created_date, created_by,
             modified_date, modified_by
           )
           VALUES (
-            ${tableName}, ${entityId},
+            ${contextId}, ${entityId},
             ${at}, ${createdBy},
             ${at}, ${actorId ?? null}
           )
@@ -464,30 +511,33 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
               THEN EXCLUDED.modified_by
               ELSE entity_metadata.modified_by
             END
-          WHERE entity_metadata.table_name = EXCLUDED.table_name
+          WHERE entity_metadata.context_id = EXCLUDED.context_id
           RETURNING id
         `);
         if ((result.rowCount ?? result.rows?.length ?? 0) === 0) {
-          await reportTableMismatch(tableName, entityId);
+          await reportTableMismatch(contextId, entityId);
         }
       });
     },
 
     async recordSubrecordTouch({ tableName, entityId, at, actorId }) {
-      if (!isMetadataTableEligible(tableName)) return;
+      if (!(await hasContextIdColumn())) return;
+      const context = await resolveContextForTable(tableName, "subrecord touch");
+      if (!context) return;
+      const contextId = context.contextId;
       if (!acceptsId(entityId, tableName, "subrecord touch")) return;
       return serialize(entityId, async (queue) => {
         if (queue.forgotten) return;
         const client = getClient();
         const result = await client.execute(sql`
           INSERT INTO entity_metadata (
-            table_name, entity_id,
+            context_id, entity_id,
             created_date,
             modified_date,
             subrecord_modified_date, subrecord_modified_by
           )
           VALUES (
-            ${tableName}, ${entityId},
+            ${contextId}, ${entityId},
             ${at},
             ${at},
             ${at}, ${actorId ?? null}
@@ -511,17 +561,20 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
               THEN EXCLUDED.subrecord_modified_by
               ELSE entity_metadata.subrecord_modified_by
             END
-          WHERE entity_metadata.table_name = EXCLUDED.table_name
+          WHERE entity_metadata.context_id = EXCLUDED.context_id
           RETURNING id
         `);
         if ((result.rowCount ?? result.rows?.length ?? 0) === 0) {
-          await reportTableMismatch(tableName, entityId);
+          await reportTableMismatch(contextId, entityId);
         }
       });
     },
 
     async recordFirstObservation({ tableName, entityId, at }) {
-      if (!isMetadataTableEligible(tableName)) return false;
+      if (!(await hasContextIdColumn())) return false;
+      const context = await resolveContextForTable(tableName, "first observation");
+      if (!context) return false;
+      const contextId = context.contextId;
       if (!acceptsId(entityId, tableName, "first observation")) return false;
       let written = false;
       await serialize(entityId, async (queue) => {
@@ -533,11 +586,11 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
         // never displace something better.
         const result = await client.execute(sql`
           INSERT INTO entity_metadata (
-            table_name, entity_id,
+            context_id, entity_id,
             created_date, modified_date
           )
           VALUES (
-            ${tableName}, ${entityId},
+            ${contextId}, ${entityId},
             ${at}, ${at}
           )
           ON CONFLICT (entity_id) DO NOTHING
@@ -549,24 +602,31 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
     },
 
     async recordDeletion({ tableName, entityId }) {
+      if (!(await hasContextIdColumn())) return;
+      const context = await resolveContextForTable(tableName, "deletion");
+      if (!context) return;
       if (!acceptsId(entityId, tableName, "deletion")) return;
-      await forget(tableName, entityId);
+      await forget(context.contextId, entityId);
     },
 
-    async listTables() {
+    async listContexts() {
       const client = getClient();
       const result = await client.execute(sql`
-        SELECT DISTINCT table_name FROM entity_metadata ORDER BY table_name
+        SELECT DISTINCT context_id FROM entity_metadata ORDER BY context_id
       `);
-      return (result.rows ?? [])
-        .map((row) => String((row as Record<string, unknown>).table_name))
-        .filter(isMetadataTableEligible);
+      const contextIds = (result.rows ?? []).map((row) =>
+        String((row as Record<string, unknown>).context_id),
+      );
+      const known = await Promise.all(contextIds.map(async (contextId) => [contextId, await isKnownContext(contextId)] as const));
+      return known.filter(([, present]) => present).map(([contextId]) => contextId);
     },
 
-    async checkTable(tableName) {
-      if (!isMetadataTableEligible(tableName)) {
-        return { sweepable: false, reason: "not a table that carries record history" };
-      }
+    async checkContext(contextId) {
+      const context = await import("../entity-metadata-record-tables").then(({ getMetadataRecordContext }) =>
+        getMetadataRecordContext(contextId),
+      );
+      if (!context) return { sweepable: false, reason: "not a registered metadata context" };
+      const tableName = context.tableName;
       // The name is data, so nothing may be built from it until it has been
       // admitted as an identifier — including the fact-gathering queries.
       if (!isPlainTableIdentifier(tableName)) {
@@ -607,10 +667,14 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       return judgeSweepTable(tableName, facts);
     },
 
-    async findOrphans(tableName, limit) {
-      if (!isMetadataTableEligible(tableName)) {
-        throw new Error(`Refusing to sweep entity_metadata against "${tableName}": not a table that carries record history`);
+    async findOrphans(contextId, limit) {
+      const context = await import("../entity-metadata-record-tables").then(({ getMetadataRecordContext }) =>
+        getMetadataRecordContext(contextId),
+      );
+      if (!context) {
+        throw new Error(`Refusing to sweep entity_metadata against "${contextId}": not a registered metadata context`);
       }
+      const tableName = context.tableName;
       if (!isPlainTableIdentifier(tableName)) {
         throw new Error(`Refusing to sweep entity_metadata against "${tableName}": not a table name`);
       }
@@ -620,7 +684,7 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       const result = await client.execute(sql`
         SELECT m.entity_id
         FROM entity_metadata m
-        WHERE m.table_name = ${tableName}
+        WHERE m.context_id = ${contextId}
           AND NOT EXISTS (
             SELECT 1 FROM ${sql.raw(`"${tableName}"`)} t WHERE t.id::text = m.entity_id
           )
@@ -631,11 +695,11 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       );
     },
 
-    async removeOrphans(tableName, entityIds) {
+    async removeOrphans(contextId, entityIds) {
       let removed = 0;
       for (const entityId of entityIds) {
         if (!isRecordId(entityId)) continue;
-        if (await forget(tableName, entityId)) removed += 1;
+        if (await forget(contextId, entityId)) removed += 1;
       }
       return removed;
     },

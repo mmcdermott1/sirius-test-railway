@@ -29,7 +29,7 @@ const TABLE_NAME = 'employer_policy_history';
  */
 const provenanceJoin = and(
   eq(entityMetadata.entityId, employerPolicyHistory.id),
-  eq(entityMetadata.tableName, TABLE_NAME),
+  eq(entityMetadata.contextId, TABLE_NAME),
 );
 /**
  * Display name of the person a provenance row names: "First Last", falling

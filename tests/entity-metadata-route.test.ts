@@ -78,7 +78,7 @@ describe("per-record metadata access", () => {
     const metadata = {
       seq: 17,
       rev: 2,
-      tableName: "workers",
+      contextId: "workers",
       entityId: RECORD_ID,
       created: { date: null, personName: null },
       modified: { date: null, personName: null },

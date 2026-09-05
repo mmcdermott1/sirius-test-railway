@@ -8,6 +8,13 @@ badge and the admin metadata viewer. It covers every logged table at once,
 names a person as well as a date, keeps a modified stamp, and keeps a
 subrecord-modified stamp the tables never had.
 
+The owner is stored in `entity_metadata.context_id`, using the stable context
+ids declared by `server/storage/entity-metadata-record-tables.ts`. Logging
+configs remain table-oriented, but the write boundary reverse-resolves their
+physical table through that registry. This keeps storage and joins correct if
+a future context id differs from its physical table name; callers should use
+the context registry rather than treating the stored value as a SQL identifier.
+
 Roughly two dozen tables predate that framework and carry their own
 `created_at` / `updated_at` / `created_by` / `date_created` column. Each one is
 a second, partial answer to the same question — usually date-only, never with a

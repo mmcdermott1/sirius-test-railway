@@ -32,17 +32,17 @@ import { apiRequest } from "@/lib/queryClient";
 /** Kept in step with the server's own cap on one run. */
 const BATCH_LIMIT = 1000;
 
-interface TableChoice {
-  tableName: string;
+interface ContextChoice {
+  contextId: string;
   label: string;
 }
 
 type MissingCount =
-  | { tableName: string; countable: true; missing: number }
-  | { tableName: string; countable: false; reason: string };
+  | { contextId: string; countable: true; missing: number }
+  | { contextId: string; countable: false; reason: string };
 
 interface BackfillResult {
-  tableName: string;
+  contextId: string;
   written: number;
   alreadyPresent: number;
   skipped: number;
@@ -52,11 +52,11 @@ interface BackfillResult {
 export default function MetadataBackfillPage() {
   usePageTitle("Fill In Record History");
 
-  const { data, isLoading, isError } = useQuery<{ tables: TableChoice[] }>({
-    queryKey: ["/api/admin/entity-metadata/tables"],
+  const { data, isLoading, isError } = useQuery<{ contexts: ContextChoice[] }>({
+    queryKey: ["/api/admin/entity-metadata/contexts"],
   });
 
-  const tables = data?.tables ?? [];
+  const contexts = data?.contexts ?? [];
 
   return (
     <RecordHistoryLayout activeTab="record-metadata-backfill">
@@ -93,8 +93,8 @@ export default function MetadataBackfillPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tables.map((table) => (
-                    <TableRowForTable key={table.tableName} table={table} />
+                  {contexts.map((context) => (
+                    <TableRowForContext key={context.contextId} context={context} />
                   ))}
                 </TableBody>
               </Table>
@@ -114,10 +114,10 @@ export default function MetadataBackfillPage() {
  * the page wait on the slowest. A kind that cannot be counted says why in its
  * own row instead of being left out of the list.
  */
-function TableRowForTable({ table }: { table: TableChoice }) {
+function TableRowForContext({ context }: { context: ContextChoice }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const countKey = `/api/admin/entity-metadata/tables/${table.tableName}/missing`;
+  const countKey = `/api/admin/entity-metadata/contexts/${context.contextId}/missing`;
 
   const { data: count, isLoading, isError } = useQuery<MissingCount>({
     queryKey: [countKey],
@@ -126,7 +126,7 @@ function TableRowForTable({ table }: { table: TableChoice }) {
   const backfill = useMutation<BackfillResult>({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/admin/entity-metadata/backfill", {
-        tableName: table.tableName,
+        contextId: context.contextId,
         limit: BATCH_LIMIT,
       });
       return response.json();
@@ -134,7 +134,7 @@ function TableRowForTable({ table }: { table: TableChoice }) {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: [countKey] });
       toast({
-        title: `${table.label}: ${result.written.toLocaleString()} filled in`,
+        title: `${context.label}: ${result.written.toLocaleString()} filled in`,
         description:
           result.missing > 0
             ? `${result.missing.toLocaleString()} still without history. Run again to continue.`
@@ -146,7 +146,7 @@ function TableRowForTable({ table }: { table: TableChoice }) {
       // either way and the message says so.
       queryClient.invalidateQueries({ queryKey: [countKey] });
       toast({
-        title: `${table.label}: could not finish`,
+        title: `${context.label}: could not finish`,
         description: `${error.message} Anything already written was kept — running again continues from there.`,
         variant: "destructive",
       });
@@ -157,12 +157,12 @@ function TableRowForTable({ table }: { table: TableChoice }) {
   const missing = countable ? count.missing : 0;
 
   return (
-    <TableRow data-testid={`row-backfill-${table.tableName}`}>
+    <TableRow data-testid={`row-backfill-${context.contextId}`}>
       <TableCell>
-        <div>{table.label}</div>
-        <div className="font-mono text-xs text-muted-foreground">{table.tableName}</div>
+        <div>{context.label}</div>
+        <div className="font-mono text-xs text-muted-foreground">{context.contextId}</div>
       </TableCell>
-      <TableCell data-testid={`text-missing-${table.tableName}`}>
+      <TableCell data-testid={`text-missing-${context.contextId}`}>
         {isLoading ? (
           <span className="text-muted-foreground">Counting…</span>
         ) : isError ? (
@@ -182,7 +182,7 @@ function TableRowForTable({ table }: { table: TableChoice }) {
             variant="outline"
             disabled={backfill.isPending}
             onClick={() => backfill.mutate()}
-            data-testid={`button-backfill-${table.tableName}`}
+            data-testid={`button-backfill-${context.contextId}`}
           >
             {backfill.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Fill in {Math.min(missing, BATCH_LIMIT).toLocaleString()}

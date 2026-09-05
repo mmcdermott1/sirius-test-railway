@@ -18,7 +18,7 @@ export {
   type MetadataListQuery,
   type MetadataListResult,
   type MetadataSortColumn,
-  type MetadataTableCount,
+  type MetadataContextCount,
   type MetadataBackfillResult,
   createEntityMetadataAdminStorage,
 } from "./system/entity-metadata-admin";

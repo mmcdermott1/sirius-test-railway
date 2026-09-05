@@ -20,7 +20,7 @@ export interface RecordMetadataStamp {
 export interface RecordMetadata {
   seq: number;
   rev: number;
-  tableName: string;
+  contextId: string;
   entityId: string;
   created: RecordMetadataStamp;
   modified: RecordMetadataStamp;

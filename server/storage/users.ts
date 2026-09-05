@@ -281,7 +281,7 @@ export function createUserStorage(contactsStorage?: ContactsStorage): UserStorag
       const createdRows = await client
         .select({ entityId: entityMetadata.entityId, createdDate: entityMetadata.createdDate })
         .from(entityMetadata)
-        .where(eq(entityMetadata.tableName, "users"));
+        .where(eq(entityMetadata.contextId, "users"));
       const createdByUser = new Map(
         createdRows.map((row) => [row.entityId, row.createdDate]),
       );
