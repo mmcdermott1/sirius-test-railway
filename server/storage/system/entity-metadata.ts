@@ -94,6 +94,7 @@ export interface EntityMetadataStamp {
 /** A record's provenance, with the people it names resolved to display names. */
 export interface EntityMetadataView {
   seq: number;
+  rev: number;
   tableName: string;
   entityId: string;
   created: EntityMetadataStamp;
@@ -299,7 +300,7 @@ function stampFrom(
  */
 const VIEW_SELECT = sql`
   SELECT
-    m.seq, m.table_name, m.entity_id,
+    m.seq, m.rev, m.table_name, m.entity_id,
     m.created_date, m.modified_date, m.subrecord_modified_date,
     cu.first_name AS created_first_name,
     cu.last_name  AS created_last_name,
@@ -319,6 +320,7 @@ const VIEW_SELECT = sql`
 function viewFrom(row: Record<string, unknown>): EntityMetadataView {
   return {
     seq: Number(row.seq),
+    rev: Number(row.rev),
     tableName: String(row.table_name),
     entityId: String(row.entity_id),
     created: stampFrom(row, "created_date", "created"),

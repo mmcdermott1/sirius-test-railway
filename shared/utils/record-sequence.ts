@@ -35,3 +35,28 @@ export function formatRecordSequence(seq: number): string {
   if (groups.length === 2) return `${groups[0].padStart(3, "0")}.${groups[1]}`;
   return groups.join(".");
 }
+
+/**
+ * How a record's current provenance revision number is written for people.
+ *
+ * Revisions are grouped four digits at a time from the right. Unlike the
+ * database-wide sequence, a single revision group is simply padded to four
+ * digits and is not given an extra leading group.
+ *
+ *   97      → 0097
+ *   254567  → 25.4567
+ */
+export function formatRecordRevision(rev: number): string {
+  const digits = Math.trunc(Math.abs(rev)).toString();
+
+  const groups: string[] = [];
+  let rest = digits;
+  while (rest.length > 4) {
+    groups.unshift(rest.slice(-4));
+    rest = rest.slice(0, -4);
+  }
+  groups.unshift(rest);
+
+  if (groups.length === 1) return groups[0].padStart(4, "0");
+  return groups.join(".");
+}

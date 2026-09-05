@@ -5,7 +5,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { format } from "@/lib/date-format";
-import { formatRecordSequence } from "@shared/utils/record-sequence";
+import {
+  formatRecordRevision,
+  formatRecordSequence,
+} from "@shared/utils/record-sequence";
 
 /** One date/person pair as a record's history reports it. */
 export interface RecordMetadataStamp {
@@ -16,6 +19,7 @@ export interface RecordMetadataStamp {
 /** What the system knows about how one record came to be as it is. */
 export interface RecordMetadata {
   seq: number;
+  rev: number;
   tableName: string;
   entityId: string;
   created: RecordMetadataStamp;
@@ -99,6 +103,12 @@ export function RecordHistoryDialog({
               <dt className="text-muted-foreground">Sequence</dt>
               <dd className="font-mono" data-testid="text-record-metadata-seq">
                 {formatRecordSequence(state.metadata.seq)}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-muted-foreground">Revision</dt>
+              <dd className="font-mono" data-testid="text-record-metadata-rev">
+                {formatRecordRevision(state.metadata.rev)}
               </dd>
             </div>
           </dl>

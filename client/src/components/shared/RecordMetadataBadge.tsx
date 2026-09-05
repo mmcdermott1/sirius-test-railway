@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { History } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatRecordSequence } from "@shared/utils/record-sequence";
+import {
+  formatRecordRevision,
+  formatRecordSequence,
+} from "@shared/utils/record-sequence";
 import { useRecordMetadata } from "@/hooks/useRecordMetadata";
 import { RecordHistoryDialog } from "./RecordHistoryDialog";
 
@@ -46,7 +49,9 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
   // all, has nothing to ask about.
   if (!isRecordId) return null;
 
-  const label = metadata ? formatRecordSequence(metadata.seq) : "—";
+  const label = metadata
+    ? `${formatRecordSequence(metadata.seq)}::${formatRecordRevision(metadata.rev)}`
+    : "—";
 
   return (
     <>

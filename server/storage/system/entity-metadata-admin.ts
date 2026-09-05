@@ -34,6 +34,7 @@ export interface MetadataStampRow {
 /** One provenance row, with the people it names resolved. */
 export interface MetadataListRow {
   seq: number;
+  rev: number;
   tableName: string;
   entityId: string;
   created: MetadataStampRow;
@@ -278,7 +279,7 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
 
       const result = await client.execute(sql`
         SELECT
-          m.seq, m.table_name, m.entity_id,
+          m.seq, m.rev, m.table_name, m.entity_id,
           m.created_date, m.created_by,
           m.modified_date, m.modified_by,
           m.subrecord_modified_date, m.subrecord_modified_by,
@@ -304,6 +305,7 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
         const row = raw as Record<string, unknown>;
         return {
           seq: Number(row.seq),
+          rev: Number(row.rev),
           tableName: String(row.table_name),
           entityId: String(row.entity_id),
           created: stampFrom(row, "created_date", "created_by", "created"),
