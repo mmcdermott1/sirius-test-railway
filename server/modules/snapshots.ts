@@ -93,9 +93,11 @@ export function registerSnapshotsRoutes(app: Express, requireAuth: any) {
           id: snapshot.id,
           entityType: snapshot.entityType,
           entityId: snapshot.entityId,
-          createdAt: snapshot.createdAt,
-          authorId: snapshot.authorId,
-          authorName: snapshot.authorName,
+          // From the record's history, not the row: null date = no history
+          // written for this capture, null name = a system capture or a
+          // deleted account (see `SnapshotMeta`).
+          capturedAt: snapshot.capturedAt ? snapshot.capturedAt.toISOString() : null,
+          capturedByName: snapshot.capturedByName,
           label: snapshot.label,
           decoded,
         });

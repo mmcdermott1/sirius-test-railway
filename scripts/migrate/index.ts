@@ -85,6 +85,8 @@ import "./core/1080_drop_plugin_config_timestamps";
 import "./core/1081_seed_wizard_mapping_provenance";
 import "./core/1082_drop_wizard_mapping_timestamps";
 import "./core/1083_retire_ledger_provenance_columns";
+import "./core/1084_seed_snapshot_provenance";
+import "./core/1085_drop_snapshot_author_columns";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

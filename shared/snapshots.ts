@@ -36,13 +36,25 @@ export function snapshotRef(
   return { id, name: name ?? "" };
 }
 
-/** Snapshot row metadata as returned by the list API (no data payload). */
+/**
+ * Snapshot row metadata as returned by the list API (no data payload).
+ *
+ * When the snapshot was captured, and by whom, comes from the record's
+ * history (`entity_metadata`), not from the snapshot row itself:
+ *
+ *  - `capturedAt` is null for a snapshot the framework holds no history for.
+ *    That is not an error — history is written best effort, just after the
+ *    save that captured the snapshot commits.
+ *  - `capturedByName` is resolved from the person's account at READ time, so a
+ *    renamed user's snapshots show the current name. It is null for a capture
+ *    with no signed-in user behind it (a system path), which is a real and
+ *    expected state, and for a snapshot whose history names nobody.
+ */
 export interface SnapshotMeta {
   id: string;
   entityType: string;
   entityId: string;
-  createdAt: string;
-  authorId: string | null;
-  authorName: string | null;
+  capturedAt: string | null;
+  capturedByName: string | null;
   label: string | null;
 }
