@@ -84,8 +84,6 @@ its own rows from this table and from the allowlist.
 | `users` | `created_at`, `updated_at` | Retire User And Role Timestamps |
 | `roles` | `created_at` | Retire User And Role Timestamps |
 | `bookmarks` | `created_at` | Retire Bookmark Created Column |
-| `dispatch_jobs` | `created_at` | Retire Dispatch Job And Dispatch Timestamps |
-| `dispatches` | `created_at` | Retire Dispatch Job And Dispatch Timestamps |
 | `employer_policy_history` | `created_at` | Retire Policy History Created Column |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
 | `worker_msh` | `created_at` | Retire Worker History Created Columns |

@@ -91,7 +91,6 @@ const PERSON_COLUMNS = new Set([
  */
 const FRAMEWORK_TABLES = new Set(["entity_metadata"]);
 
-// hint: Logic changed on both sides. Requires understanding intent of each change.
 /**
  * Every bespoke provenance column the schema still carries, and why it is
  * allowed to. Keyed `table.column`.
@@ -143,8 +142,6 @@ const ALLOWLIST: Record<string, string> = {
   "users.updated_at": "RETIRE — Retire User And Role Timestamps",
   "roles.created_at": "RETIRE — Retire User And Role Timestamps",
   "bookmarks.created_at": "RETIRE — Retire Bookmark Created Column",
-  "dispatch_jobs.created_at": "RETIRE — Retire Dispatch Job And Dispatch Timestamps",
-  "dispatches.created_at": "RETIRE — Retire Dispatch Job And Dispatch Timestamps",
   "employer_policy_history.created_at": "RETIRE — Retire Policy History Created Column",
   "worker_wsh.created_at": "RETIRE — Retire Worker History Created Columns",
   "worker_msh.created_at": "RETIRE — Retire Worker History Created Columns",

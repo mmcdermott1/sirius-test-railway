@@ -3,10 +3,7 @@ import { History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatRecordSequence } from "@shared/utils/record-sequence";
 import { useRecordMetadata } from "@/hooks/useRecordMetadata";
-import {
-  RecordHistoryDialog,
-  type RecordHistoryState,
-} from "./RecordHistoryDialog";
+import { RecordHistoryDialog } from "./RecordHistoryDialog";
 
 interface RecordMetadataBadgeProps {
   /** The record's own id. Anything else renders nothing. */
@@ -22,10 +19,9 @@ interface RecordMetadataBadgeProps {
  * changed, each with the person responsible.
  *
  * The dialog itself is {@link RecordHistoryDialog}, shared with the
- * administrator's list of every record's history, and the lookup is
- * {@link useRecordMetadata}, shared with the screens that show one of these
- * dates in their own layout — so neither the facts nor the way they are read
- * can drift apart. What this component owns is the badge.
+ * administrator's list of every record's history, so the two cannot drift into
+ * showing the same facts differently. What this component owns is the badge
+ * and the lookup behind it.
  *
  * None of it is editable, here or anywhere. The system writes a record's
  * history as it writes the record; there is no form behind this dialog and no
@@ -37,20 +33,13 @@ interface RecordMetadataBadgeProps {
  */
 export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
   const [open, setOpen] = useState(false);
-  const {
-    data,
-    metadata,
-    enabled: isRecordId,
-    isFetching,
-    isError,
-    refetch,
-  } = useRecordMetadata(entityId);
+  const { isRecordId, metadata, state, refetch } = useRecordMetadata(entityId);
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
     // Read again every time someone actually looks. This is the moment the
     // answer has to be current, and the only moment we know it is wanted.
-    if (next) void refetch();
+    if (next) refetch();
   }
 
   // A page whose record is still loading, or whose id is not a record id at
@@ -58,13 +47,6 @@ export function RecordMetadataBadge({ entityId }: RecordMetadataBadgeProps) {
   if (!isRecordId) return null;
 
   const label = metadata ? formatRecordSequence(metadata.seq) : "—";
-
-  const state: RecordHistoryState =
-    isFetching && !data
-      ? { status: "loading" }
-      : isError
-        ? { status: "error" }
-        : { status: "ready", metadata };
 
   return (
     <>

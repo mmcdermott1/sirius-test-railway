@@ -93,6 +93,8 @@ import "./core/1088_seed_contact_provenance";
 import "./core/1089_drop_contact_timestamps";
 import "./core/1090_retire_auth_identity_timestamps";
 import "./core/1091_seed_edls_sheet_provenance";
+import "./core/1092_seed_dispatch_provenance";
+import "./core/1093_drop_dispatch_created_at";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

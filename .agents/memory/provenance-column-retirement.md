@@ -21,6 +21,12 @@ no stamp yet is the one that was just written. Keep a `desc(id)` tiebreak so a
 page boundary is stable. Paging over provenance-ordered rows is not stable
 against a stamp landing mid-walk; say so where the pager lives.
 
+**Check which method the live route actually calls before moving a sort.** A
+storage method that orders by the column may have no caller at all, while the
+list a user sees is ordered by a business date (a job's start date) and must
+not change. Porting the provenance join into an uncalled method is worse than
+useless — delete the dead method instead, and leave the visible ordering alone.
+
 ## Two different nulls, and neither is an error
 
 - **No date** — the framework never wrote history for that record (best
