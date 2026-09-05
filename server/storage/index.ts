@@ -22,6 +22,12 @@ export {
   type MetadataBackfillResult,
   createEntityMetadataAdminStorage,
 } from "./system/entity-metadata-admin";
+export {
+  type EntityMetadataSeedStorage,
+  type ProvenanceSeedSpec,
+  type ProvenanceSeedResult,
+  createEntityMetadataSeedStorage,
+} from "./system/entity-metadata-seed";
 export { type WorkerBanStorage, createWorkerBanStorage } from "./worker-bans";
 export { type EntityNotesStorage, type EntityNoteWithDetails, createEntityNotesStorage, entityNotesLoggingConfig } from "./entity-notes";
 export { type WsClientStorage, type WsClientGrantStorage, type WsClientCredentialStorage, type CredentialCreateResult, type WsClientIpRuleStorage, createWsClientStorage, createWsClientGrantStorage, createWsClientCredentialStorage, createWsClientIpRuleStorage } from "./webservices";
