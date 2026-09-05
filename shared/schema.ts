@@ -2245,8 +2245,6 @@ export type ChargePluginConfig = {
   employerId: string | null;
   account: string | null;
   settings: unknown;
-  createdAt: Date;
-  updatedAt: Date;
 };
 
 // ---------------------------------------------------------------------------
@@ -2286,8 +2284,10 @@ export const pluginConfigs = pgTable("plugin_configs", {
   // with no schema/migration change.
   isSingleton: boolean("is_singleton").default(false).notNull(),
   data: jsonb("data").default(sql`'{}'::jsonb`), // kind-specific opaque settings blob
-  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  // No created_at / updated_at: a configuration's provenance and change
+  // history live in `entity_metadata` and the audit log, written by the
+  // storage logging middleware (see `pluginConfigLoggingConfig`), which record
+  // who changed the row and what changed as well as when.
 }, (table) => [
   // Singleton plugin types permit exactly one config row per plugin id.
   // Non-singleton types (charge, trust-eligibility, …) legitimately have many
@@ -2306,8 +2306,6 @@ export const pluginConfigs = pgTable("plugin_configs", {
 export const insertPluginConfigSchema = createInsertSchema(pluginConfigs)
   .omit({
     id: true,
-    createdAt: true,
-    updatedAt: true,
     // Derived by the storage layer from the plugin type's manifest singleton
     // flag — never accepted from request input.
     isSingleton: true,

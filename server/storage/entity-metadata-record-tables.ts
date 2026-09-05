@@ -130,6 +130,9 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   },
   ledger_paymentmethods: { label: "Payment Methods", hrefTemplate: null },
   ledger_payments: { label: "Payments", hrefTemplate: "/ledger/payment/{id}" },
+  // A configuration is read and edited on its kind's admin page
+  // (/admin/plugin-configs/<kind>), which is a list, not a page per row.
+  plugin_configs: { label: "Plugin Configurations", hrefTemplate: null },
   policies: { label: "Access Policies", hrefTemplate: "/policies/{id}" },
   role_permissions: { label: "Role Permissions", hrefTemplate: null },
   roles: { label: "Roles", hrefTemplate: null },

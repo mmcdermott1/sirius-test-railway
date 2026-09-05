@@ -80,6 +80,8 @@ import "./core/1075_create_options_file_type";
 import "./core/1076_rename_note_type_entity_types_key";
 import "./core/1077_create_entity_metadata";
 import "./core/1078_rename_orphan_sweep_cron_ids";
+import "./core/1079_seed_plugin_config_provenance";
+import "./core/1080_drop_plugin_config_timestamps";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the

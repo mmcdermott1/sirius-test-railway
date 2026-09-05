@@ -67,6 +67,7 @@ import {
 import {
   type PluginConfigStorage,
   createPluginConfigStorage,
+  pluginConfigLoggingConfig,
 } from "./system/plugin-configs";
 import {
   type DenormStorage,
@@ -530,7 +531,10 @@ export class DatabaseStorage implements IStorage {
       entityFilesLoggingConfig,
     );
     this.cronJobRuns = createCronJobRunStorage();
-    this.pluginConfigs = createPluginConfigStorage();
+    this.pluginConfigs = withStorageLogging(
+      createPluginConfigStorage(),
+      pluginConfigLoggingConfig,
+    );
     // No logging for denorm - high-volume internal workflow state churn.
     this.denorm = createDenormStorage();
     this.workerMshDenorm = createWorkerMshDenormStorage();

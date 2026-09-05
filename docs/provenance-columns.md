@@ -94,7 +94,6 @@ its own rows from this table and from the allowlist.
 | `ledger_payments` | `date_created` | Retire Ledger Metadata Timestamps |
 | `ledger_paymentmethods` | `created_at` | Retire Ledger Metadata Timestamps |
 | `ledger_gateway_customers` | `created_at` | Retire Ledger Metadata Timestamps |
-| `plugin_configs` | `created_at`, `updated_at` | Retire Plugin Config Timestamps |
 | `snapshots` | `created_at`, `author_id`, `author_name` | Retire Snapshot Author Columns |
 | `worker_wsh` | `created_at` | Retire Worker History Created Columns |
 | `worker_msh` | `created_at` | Retire Worker History Created Columns |

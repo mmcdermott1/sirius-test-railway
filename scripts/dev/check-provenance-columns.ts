@@ -154,8 +154,6 @@ const ALLOWLIST: Record<string, string> = {
   "ledger_payments.date_created": "RETIRE — Retire Ledger Metadata Timestamps",
   "ledger_paymentmethods.created_at": "RETIRE — Retire Ledger Metadata Timestamps",
   "ledger_gateway_customers.created_at": "RETIRE — Retire Ledger Metadata Timestamps",
-  "plugin_configs.created_at": "RETIRE — Retire Plugin Config Timestamps",
-  "plugin_configs.updated_at": "RETIRE — Retire Plugin Config Timestamps",
   "snapshots.created_at": "RETIRE — Retire Snapshot Author Columns",
   "snapshots.author_id": "RETIRE — Retire Snapshot Author Columns",
   "snapshots.author_name": "RETIRE — Retire Snapshot Author Columns",

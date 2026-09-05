@@ -38,7 +38,7 @@
  */
 
 import { storageLogger } from "../../logger";
-import { getRequestContext } from "../../middleware/request-context";
+import { getRequestContext, isFrameworkWrite } from "../../middleware/request-context";
 import { onAfterCommit, runOutsideTransaction } from "../transaction-context";
 import { entityMetadataStorage } from "../system/entity-metadata";
 
@@ -883,6 +883,14 @@ export function withStorageLogging<T extends Record<string, any>>(
             }
           });
         });
+
+        // A write the framework performed on its own behalf (see
+        // `withFrameworkWrite`) is provenance, not audit. The metadata row
+        // scheduled above still records that the record changed, and records
+        // it against nobody because the scope cleared the actor; the log
+        // viewer is spared an entry per boot for a self-heal no operator did
+        // or can act on. Failures still log — that path is below.
+        if (isFrameworkWrite()) return result;
 
         // Defer all logging work (including potentially expensive async lookups) to avoid blocking the main operation
         setImmediate(async () => {

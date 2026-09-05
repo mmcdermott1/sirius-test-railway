@@ -353,12 +353,19 @@ export async function bootstrapApp(app: Express, server: Server): Promise<void> 
     const { reconcileComponentPluginConfigs } = await import(
       "./services/component-lifecycle"
     );
-    for (const component of getAllComponents()) {
-      if (!component.pluginConfigs?.length) continue;
-      if (await isComponentEnabled(component.id)) {
-        await reconcileComponentPluginConfigs(component.id, true);
+    // Self-heal, so the writes are the framework's own: stamped with no
+    // person and kept out of the audit log, unlike the same reconcile run
+    // from an administrator's enable/disable request (see the components
+    // module), which is genuinely that administrator's doing.
+    const { withFrameworkWrite } = await import("./middleware/request-context");
+    await withFrameworkWrite(async () => {
+      for (const component of getAllComponents()) {
+        if (!component.pluginConfigs?.length) continue;
+        if (await isComponentEnabled(component.id)) {
+          await reconcileComponentPluginConfigs(component.id, true);
+        }
       }
-    }
+    });
   }
   logger.info("Component-owned plugin configs reconciled", { source: "startup" });
 
