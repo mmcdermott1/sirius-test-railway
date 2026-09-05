@@ -118,11 +118,9 @@ export async function captureEntitySnapshot<E extends keyof EventPayloadMap>(
     return;
   }
 
-  // Who captured this, and when, is not written here: the storage logging
-  // middleware files it as the record's provenance, stamping the effective
-  // user behind the request (the masquerade target while masquerading) — or
-  // nobody at all when a system path with no signed-in user captures, which is
-  // an expected state and not a failure.
+  // The snapshot storage stamps its own capture time and effective actor (or
+  // null for a system capture). This is deliberately separate from record
+  // history because snapshots are process output.
   const snapshot = await storage.snapshots.create({
     entityType: adapter.entityType,
     entityId,

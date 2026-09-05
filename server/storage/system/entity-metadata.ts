@@ -3,6 +3,7 @@ import { getClient } from "../transaction-context";
 import { storageLogger } from "../../logger";
 import {
   isPlainTableIdentifier,
+  isMetadataTableEligible,
   isRecordId,
   judgeSweepTable,
   type TableFacts,
@@ -386,7 +387,7 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
         ${VIEW_SELECT} WHERE m.entity_id = ${entityId}
       `);
       const row = result.rows?.[0] as Record<string, unknown> | undefined;
-      return row ? viewFrom(row) : undefined;
+      return row && isMetadataTableEligible(String(row.table_name)) ? viewFrom(row) : undefined;
     },
 
     async getMany(entityIds) {
@@ -403,12 +404,13 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       `);
       for (const raw of result.rows ?? []) {
         const view = viewFrom(raw as Record<string, unknown>);
-        byId.set(view.entityId, view);
+        if (isMetadataTableEligible(view.tableName)) byId.set(view.entityId, view);
       }
       return byId;
     },
 
     async recordMutation({ tableName, entityId, at, actorId, created }) {
+      if (!isMetadataTableEligible(tableName)) return;
       if (!acceptsId(entityId, tableName, "mutation")) return;
       return serialize(entityId, async (queue) => {
         if (queue.forgotten) return;
@@ -446,6 +448,7 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
     },
 
     async recordSubrecordTouch({ tableName, entityId, at, actorId }) {
+      if (!isMetadataTableEligible(tableName)) return;
       if (!acceptsId(entityId, tableName, "subrecord touch")) return;
       return serialize(entityId, async (queue) => {
         if (queue.forgotten) return;
@@ -492,6 +495,7 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
     },
 
     async recordFirstObservation({ tableName, entityId, at }) {
+      if (!isMetadataTableEligible(tableName)) return false;
       if (!acceptsId(entityId, tableName, "first observation")) return false;
       let written = false;
       await serialize(entityId, async (queue) => {
@@ -528,12 +532,15 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
       const result = await client.execute(sql`
         SELECT DISTINCT table_name FROM entity_metadata ORDER BY table_name
       `);
-      return (result.rows ?? []).map((row) =>
-        String((row as Record<string, unknown>).table_name),
-      );
+      return (result.rows ?? [])
+        .map((row) => String((row as Record<string, unknown>).table_name))
+        .filter(isMetadataTableEligible);
     },
 
     async checkTable(tableName) {
+      if (!isMetadataTableEligible(tableName)) {
+        return { sweepable: false, reason: "not a table that carries record history" };
+      }
       // The name is data, so nothing may be built from it until it has been
       // admitted as an identifier — including the fact-gathering queries.
       if (!isPlainTableIdentifier(tableName)) {
@@ -575,6 +582,9 @@ export function createEntityMetadataStorage(): EntityMetadataStorage {
     },
 
     async findOrphans(tableName, limit) {
+      if (!isMetadataTableEligible(tableName)) {
+        throw new Error(`Refusing to sweep entity_metadata against "${tableName}": not a table that carries record history`);
+      }
       if (!isPlainTableIdentifier(tableName)) {
         throw new Error(`Refusing to sweep entity_metadata against "${tableName}": not a table name`);
       }

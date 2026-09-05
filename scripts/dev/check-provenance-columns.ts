@@ -143,6 +143,9 @@ const ALLOWLIST: Record<string, string> = {
   // table's unique (worker_id, industry_id, date) made the same tie-break
   // unreachable. See the inventory's KEEP table.
   "worker_wsh.created_at": "KEEP — tie-break ordering key for same-date work statuses",
+  "ledger_payments.created_at": "KEEP — payment creation time displayed and ordered by ledger lists",
+  "ledger_paymentmethods.created_at":
+    "KEEP — payment-method creation time displayed and ordered by payment-method lists",
 
   // ── RETIRE: not moved yet, one task per area ─────────────────────────────
   "wizard_report_data.created_at":

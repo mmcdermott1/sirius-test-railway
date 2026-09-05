@@ -241,10 +241,9 @@ export const authIdentities = pgTable(
     passwordHash: varchar("password_hash"),
     refreshToken: text("refresh_token"),
     metadata: jsonb("metadata"),
-    // No created_at/updated_at: when an identity was linked and when it was
-    // last changed live in entity_metadata, written by the storage logging
-    // config. last_used_at stays — it is an operational stamp about signing
-    // in, not a record of a change to the identity.
+    // No created_at/updated_at: this provider-managed row is operational
+    // state, not a directly maintained record-history subject. last_used_at
+    // stays as an operational stamp about signing in.
     lastUsedAt: timestamp("last_used_at"),
   },
   (table) => [
@@ -845,6 +844,7 @@ export const bookmarks = pgTable("bookmarks", {
 
 export const ledgerPaymentMethods = pgTable("ledger_paymentmethods", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
   entityType: text("entity_type").notNull(),
   entityId: varchar("entity_id").notNull(),
   paymentMethod: text("payment_method").notNull(),
@@ -924,6 +924,7 @@ export const ledgerAccounts = pgTable("ledger_accounts", {
 
 export const ledgerPayments = pgTable("ledger_payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
   status: text("status").notNull().$type<'draft' | 'canceled' | 'cleared' | 'error'>(),
   allocated: boolean("allocated").notNull().default(false),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
@@ -1983,13 +1984,11 @@ export type LedgerPayment = typeof ledgerPayments.$inferSelect;
 
 /**
  * A payment as the payment LISTS read it: the stored row plus the date the
- * record was created.
+ * record was created. Ledger tables are process-owned and do not receive
+ * entity-metadata rows, so this compatibility field is now nullable.
  *
- * The payment table no longer keeps its own creation column — a payment's
- * creation date is provenance, held in `entity_metadata` and joined on the
- * payment's id. Null for a payment the provenance framework has never seen,
- * which is also the state of a payment for the moment between its insert
- * committing and the deferred provenance write landing.
+ * The payment table no longer keeps its own creation column. Existing callers
+ * may still use this field, but it is null unless another source supplies it.
  */
 export type LedgerPaymentWithCreatedDate = LedgerPayment & {
   createdDate: Date | null;
@@ -2966,14 +2965,12 @@ export type Flood = typeof flood.$inferSelect;
 
 // Snapshots — generic point-in-time entity copies (self-contained JSON
 // export bundles). Core table: entity types from any domain may participate.
-//
-// When a snapshot was captured, and by whom, is NOT here: it is provenance,
-// and `entity_metadata` answers it for every logged table at once (the row is
-// keyed by the snapshot's own id, written by the storage logging middleware).
-// A capture with no signed-in user behind it records no person, which is the
-// same "nobody" the framework records everywhere else.
+// Snapshots are process output and intentionally do not receive
+// entity_metadata record-history rows; capture provenance belongs here.
 export const snapshots = pgTable("snapshots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  capturedAt: timestamp("captured_at").notNull().defaultNow(),
+  capturedBy: varchar("captured_by").references(() => users.id, { onDelete: "set null" }),
   entityType: varchar("entity_type", { length: 100 }).notNull(),
   entityId: varchar("entity_id").notNull(),
   label: text("label"),

@@ -1,6 +1,6 @@
 import { createNoopValidator } from '../utils/validation';
 import { getClient } from '../transaction-context';
-import { ledgerPaymentMethods, entityMetadata } from "@shared/schema";
+import { ledgerPaymentMethods } from "@shared/schema";
 import type {
   LedgerPaymentMethod,
   LedgerPaymentMethodWithCreatedDate,
@@ -39,26 +39,20 @@ export interface PaymentMethodStorage {
  * part of the condition even though `entity_id` is unique: a row naming
  * another table is not this method's history.
  */
-const methodCreatedDateJoin = and(
-  eq(entityMetadata.entityId, ledgerPaymentMethods.id),
-  eq(entityMetadata.tableName, "ledger_paymentmethods"),
-);
-
 /**
  * Newest first, and a method whose provenance has not landed yet counts as the
  * newest thing there is: the stamp is written moments after the insert
  * commits, so the only rows without one are the ones just added.
  */
-const newestFirst = sql`${entityMetadata.createdDate} DESC NULLS FIRST`;
+const newestFirst = sql`${ledgerPaymentMethods.createdAt} DESC NULLS LAST`;
 
 export function createPaymentMethodStorage(): PaymentMethodStorage {
   return {
     async getAll(): Promise<LedgerPaymentMethodWithCreatedDate[]> {
       const client = getClient();
       const rows = await client
-        .select({ method: ledgerPaymentMethods, createdDate: entityMetadata.createdDate })
+        .select({ method: ledgerPaymentMethods, createdDate: ledgerPaymentMethods.createdAt })
         .from(ledgerPaymentMethods)
-        .leftJoin(entityMetadata, methodCreatedDateJoin)
         .orderBy(newestFirst);
       return rows.map(row => ({ ...row.method, createdDate: row.createdDate }));
     },
@@ -73,9 +67,8 @@ export function createPaymentMethodStorage(): PaymentMethodStorage {
     async getByEntity(entityType: string, entityId: string): Promise<LedgerPaymentMethodWithCreatedDate[]> {
       const client = getClient();
       const rows = await client
-        .select({ method: ledgerPaymentMethods, createdDate: entityMetadata.createdDate })
+        .select({ method: ledgerPaymentMethods, createdDate: ledgerPaymentMethods.createdAt })
         .from(ledgerPaymentMethods)
-        .leftJoin(entityMetadata, methodCreatedDateJoin)
         .where(and(
           eq(ledgerPaymentMethods.entityType, entityType),
           eq(ledgerPaymentMethods.entityId, entityId)

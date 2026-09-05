@@ -1,7 +1,7 @@
 import { createNoopValidator } from './utils/validation';
 import { getClient } from './transaction-context';
 import { logger } from "../logger";
-import { ledgerAccounts, ledgerEa, ledgerPayments, ledger, employers, workers, contacts, trustProviders, optionsLedgerPaymentType, entityMetadata } from "@shared/schema";
+import { ledgerAccounts, ledgerEa, ledgerPayments, ledger, employers, workers, contacts, trustProviders, optionsLedgerPaymentType } from "@shared/schema";
 import { ledgerPaymentBatches, ledgerPaymentBatchAssignments } from "@shared/schema/ledger/payment-batch/schema";
 import type { LedgerPaymentBatch, InsertLedgerPaymentBatch, LedgerPaymentBatchAssignment } from "@shared/schema/ledger/payment-batch/schema";
 import type { 
@@ -37,11 +37,6 @@ export const validate = createNoopValidator();
  * column. The table name is part of the condition even though `entity_id` is
  * unique: a row naming another table is not this payment's history.
  */
-const paymentCreatedDateJoin = and(
-  eq(entityMetadata.entityId, ledgerPayments.id),
-  eq(entityMetadata.tableName, "ledger_payments"),
-);
-
 export type LedgerEaWithBalance = SelectLedgerEa & { balance: string };
 
 export interface LedgerEaWithAccount {
@@ -82,7 +77,7 @@ export interface LedgerPaymentStorage {
   /**
    * Payments for one EA, as the EA payments list reads them: each row carries
    * the creation date the list shows, sorts and date-filters on, joined from
-   * provenance (see {@link paymentCreatedDateJoin}).
+   * the ledger-owned created_at column.
    */
   getByLedgerEaId(ledgerEaId: string): Promise<LedgerPaymentWithCreatedDate[]>;
   getByAccountIdWithEntity(accountId: string): Promise<LedgerPaymentWithEntity[]>;
@@ -612,9 +607,8 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
     async getByLedgerEaId(ledgerEaId: string): Promise<LedgerPaymentWithCreatedDate[]> {
       const client = getClient();
       const results = await client
-        .select({ payment: ledgerPayments, createdDate: entityMetadata.createdDate })
+        .select({ payment: ledgerPayments, createdDate: ledgerPayments.createdAt })
         .from(ledgerPayments)
-        .leftJoin(entityMetadata, paymentCreatedDateJoin)
         .where(eq(ledgerPayments.ledgerEaId, ledgerEaId))
         .orderBy(desc(ledgerPayments.id));
 
@@ -628,7 +622,7 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
           payment: ledgerPayments,
           ea: ledgerEa,
           employer: employers,
-          createdDate: entityMetadata.createdDate
+          createdDate: ledgerPayments.createdAt
         })
         .from(ledgerPayments)
         .innerJoin(ledgerEa, eq(ledgerPayments.ledgerEaId, ledgerEa.id))
@@ -639,7 +633,6 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
             eq(ledgerEa.entityId, employers.id)
           )
         )
-        .leftJoin(entityMetadata, paymentCreatedDateJoin)
         .where(eq(ledgerEa.accountId, accountId))
         .orderBy(desc(ledgerPayments.id));
 
@@ -674,7 +667,7 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
           payment: ledgerPayments,
           ea: ledgerEa,
           employer: employers,
-          createdDate: entityMetadata.createdDate
+          createdDate: ledgerPayments.createdAt
         })
         .from(ledgerPayments)
         .innerJoin(ledgerEa, eq(ledgerPayments.ledgerEaId, ledgerEa.id))
@@ -685,7 +678,6 @@ export function createLedgerPaymentStorage(): LedgerPaymentStorage {
             eq(ledgerEa.entityId, employers.id)
           )
         )
-        .leftJoin(entityMetadata, paymentCreatedDateJoin)
         .where(eq(ledgerEa.accountId, accountId))
         .orderBy(desc(ledgerPayments.id))
         .limit(limit)
@@ -2056,7 +2048,7 @@ export function createLedgerPaymentBatchAssignmentStorage(): LedgerPaymentBatchA
           payment: ledgerPayments,
           ea: ledgerEa,
           employer: employers,
-          createdDate: entityMetadata.createdDate,
+          createdDate: ledgerPayments.createdAt,
           assignmentId: ledgerPaymentBatchAssignments.id,
         })
         .from(ledgerPaymentBatchAssignments)
@@ -2066,7 +2058,6 @@ export function createLedgerPaymentBatchAssignmentStorage(): LedgerPaymentBatchA
           employers,
           and(eq(ledgerEa.entityType, "employer"), eq(ledgerEa.entityId, employers.id)),
         )
-        .leftJoin(entityMetadata, paymentCreatedDateJoin)
         .where(eq(ledgerPaymentBatchAssignments.batchId, batchId))
         .orderBy(sqlRaw`${ledgerPayments.dateReceived} DESC NULLS LAST`);
 

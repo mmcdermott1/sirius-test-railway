@@ -6,7 +6,10 @@ import {
   type TableVerdict,
 } from "./entity-metadata";
 import { isPlainTableIdentifier, RECORD_ID_SQL_PATTERN } from "./entity-metadata-tables";
-import { isMetadataRecordTable } from "../entity-metadata-record-tables";
+import {
+  entityMetadataRecordTables,
+  isMetadataRecordTable,
+} from "../entity-metadata-record-tables";
 
 /**
  * Reading and filling in `entity_metadata` across the whole table, for the
@@ -249,6 +252,13 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
       const client = getClient();
       const conditions: SQL[] = [];
 
+      const eligibleTableNames = Object.keys(entityMetadataRecordTables);
+      conditions.push(
+        sql`m.table_name IN (${sql.join(
+          eligibleTableNames.map((tableName) => sql`${tableName}`),
+          sql`, `,
+        )})`,
+      );
       if (query.tableName) conditions.push(sql`m.table_name = ${query.tableName}`);
       conditions.push(
         ...stampConditions("m.created_date", "m.created_by", query.created),
@@ -329,9 +339,13 @@ export function createEntityMetadataAdminStorage(): EntityMetadataAdminStorage {
         FROM users u
         WHERE EXISTS (
           SELECT 1 FROM entity_metadata m
-          WHERE m.created_by = u.id
+            WHERE m.table_name IN (${sql.join(
+              Object.keys(entityMetadataRecordTables).map((tableName) => sql`${tableName}`),
+              sql`, `,
+            )})
+              AND (m.created_by = u.id
              OR m.modified_by = u.id
-             OR m.subrecord_modified_by = u.id
+              OR m.subrecord_modified_by = u.id)
         )
         ORDER BY u.last_name NULLS LAST, u.first_name NULLS LAST, u.email
       `);

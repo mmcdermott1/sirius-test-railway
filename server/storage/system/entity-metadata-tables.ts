@@ -54,6 +54,8 @@ export function isPlainTableIdentifier(name: string): boolean {
   return /^[a-z][a-z0-9_]*$/.test(name) && name.length <= 63;
 }
 
+export { isMetadataTableEligible } from "./entity-metadata-policy";
+
 /** Column types whose values can be a record id. */
 const RECORD_ID_COLUMN_TYPES = new Set(["uuid", "character varying", "text"]);
 

@@ -126,6 +126,9 @@ are listed here so the inventory is complete.
 | `entity_notes` | `timestamp` | A note's posted time, shown on the note. | no |
 | `sessions` | (all) | Cookie-keyed session store, not a record table. | no |
 | `sitespecific_btu_political_worker_reps` | `last_looked_up_at` | Freshness of a billable lookup, distinct from that table's retiring `created_at`. | no |
+| `snapshots` | `captured_at`, `captured_by` | Capture provenance for process snapshots; kept on the snapshot so excluding snapshots from record history does not erase the browser's timestamp or actor. | no |
+| `ledger_payments` | `created_at` | Payment creation time displayed and ordered by payment lists; ledger tables are intentionally excluded from record history. | `created_at` |
+| `ledger_paymentmethods` | `created_at` | Payment-method creation time displayed and ordered by payment-method lists; ledger tables are intentionally excluded from record history. | `created_at` |
 
 `entity_metadata`'s own `created_date` / `created_by` / `modified_date` /
 `modified_by` / `subrecord_modified_*` columns are the framework itself, and

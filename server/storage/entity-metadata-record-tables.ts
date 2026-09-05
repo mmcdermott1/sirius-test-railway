@@ -6,6 +6,7 @@ import {
   getLoggedTableNames,
   getModulesNamingTablesAtRuntime,
 } from "./middleware/logging";
+import { isMetadataTableEligible } from "./system/entity-metadata-policy";
 
 /**
  * Every database table that carries provenance, and how to reach one of its
@@ -60,7 +61,6 @@ export interface MetadataRecordTable {
  * therefore means deciding, once, what to call it and whether it has a page.
  */
 export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
-  auth_identities: { label: "Sign-in Identities", hrefTemplate: null },
   bargaining_units: { label: "Bargaining Units", hrefTemplate: "/bargaining-units/{id}" },
   bookmarks: { label: "Bookmarks", hrefTemplate: null },
   bulk_messages: { label: "Bulk Messages", hrefTemplate: "/bulk/{id}" },
@@ -68,14 +68,11 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   bulk_messages_inapp: { label: "Bulk Message In-App Settings", hrefTemplate: null },
   bulk_messages_postal: { label: "Bulk Message Postal Settings", hrefTemplate: null },
   bulk_messages_sms: { label: "Bulk Message SMS Settings", hrefTemplate: null },
-  bulk_participants: { label: "Bulk Message Participants", hrefTemplate: null },
   cardcheck_definitions: {
     label: "Card Check Definitions",
     hrefTemplate: "/cardcheck-definitions/{id}",
   },
   cardchecks: { label: "Card Checks", hrefTemplate: "/cardchecks/{id}" },
-  comm: { label: "Communications", hrefTemplate: "/comm/{id}" },
-  comm_tags: { label: "Communication Tags", hrefTemplate: null },
   companies: { label: "Companies", hrefTemplate: "/companies/{id}" },
   contact_phone: { label: "Phone Numbers", hrefTemplate: null },
   contact_postal: { label: "Addresses", hrefTemplate: null },
@@ -102,8 +99,6 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   entity_files: { label: "Record Attachments", hrefTemplate: null },
   entity_notes: { label: "Record Notes", hrefTemplate: null },
   esigs: { label: "Signatures", hrefTemplate: null },
-  event_occurrences: { label: "Event Occurrences", hrefTemplate: null },
-  event_participants: { label: "Event Participants", hrefTemplate: null },
   events: { label: "Events", hrefTemplate: "/events/{id}" },
   facilities: { label: "Facilities", hrefTemplate: "/facility/{id}" },
   files: { label: "Files", hrefTemplate: null },
@@ -112,7 +107,6 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   grievance_employers: { label: "Grievance Employers", hrefTemplate: null },
   grievance_remedies: { label: "Grievance Remedies", hrefTemplate: null },
   grievance_settlements: { label: "Grievance Settlements", hrefTemplate: null },
-  grievance_status_history: { label: "Grievance Status History", hrefTemplate: null },
   grievance_timeline_template_steps: {
     label: "Grievance Timeline Template Steps",
     hrefTemplate: null,
@@ -124,21 +118,12 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   grievance_users: { label: "Grievance Staff", hrefTemplate: null },
   grievance_workers: { label: "Grievance Workers", hrefTemplate: null },
   grievances: { label: "Grievances", hrefTemplate: "/grievance/{id}" },
-  ledger_accounts: { label: "Ledger Accounts", hrefTemplate: "/ledger/accounts/{id}" },
-  ledger_gateway_customers: { label: "Payment Gateway Customers", hrefTemplate: null },
-  ledger_payment_batches: {
-    label: "Payment Batches",
-    hrefTemplate: "/ledger/payment-batch/{id}",
-  },
-  ledger_paymentmethods: { label: "Payment Methods", hrefTemplate: null },
-  ledger_payments: { label: "Payments", hrefTemplate: "/ledger/payment/{id}" },
   // A configuration is read and edited on its kind's admin page
   // (/admin/plugin-configs/<kind>), which is a list, not a page per row.
   plugin_configs: { label: "Plugin Configurations", hrefTemplate: null },
   policies: { label: "Access Policies", hrefTemplate: "/policies/{id}" },
   role_permissions: { label: "Role Permissions", hrefTemplate: null },
   roles: { label: "Roles", hrefTemplate: null },
-  sessions: { label: "Sessions", hrefTemplate: null },
   sftp_client_destinations: {
     label: "SFTP Client Destinations",
     hrefTemplate: "/config/sftp/client/{id}",
@@ -158,7 +143,6 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   },
   sitespecific_freeman_crewleads: { label: "Freeman Crew Leads", hrefTemplate: null },
   sitespecific_t631_job_interviews: { label: "T631 Job Interviews", hrefTemplate: null },
-  snapshots: { label: "Snapshots", hrefTemplate: null },
   trust_benefit_eligibility_exemptions: {
     label: "Benefit Eligibility Exemptions",
     hrefTemplate: null,
@@ -169,7 +153,6 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
     hrefTemplate: "/trust-provider-contacts/{id}",
   },
   trust_providers: { label: "Trust Providers", hrefTemplate: "/trust/provider/{id}" },
-  trust_wmb: { label: "Worker Monthly Benefits", hrefTemplate: null },
   user_roles: { label: "User Roles", hrefTemplate: null },
   users: { label: "Users", hrefTemplate: "/users/{id}" },
   variables: { label: "Configuration Variables", hrefTemplate: null },
@@ -179,26 +162,17 @@ export const entityMetadataRecordTables: Record<string, MetadataRecordTable> = {
   },
   wizard_feed_mappings: { label: "Wizard Feed Mappings", hrefTemplate: null },
   wizards: { label: "Wizards", hrefTemplate: "/wizards/{id}" },
-  worker_aat: { label: "Worker Access Tokens", hrefTemplate: null },
   worker_bans: { label: "Worker Bans", hrefTemplate: null },
   worker_certifications: { label: "Worker Certifications", hrefTemplate: null },
-  worker_dispatch_asi: { label: "Worker Dispatch ASI", hrefTemplate: null },
-  worker_dispatch_department: { label: "Worker Dispatch Departments", hrefTemplate: null },
-  worker_dispatch_dnc: { label: "Worker Do-Not-Call", hrefTemplate: null },
-  worker_dispatch_eba: { label: "Worker Dispatch EBA", hrefTemplate: null },
-  worker_dispatch_hfe: { label: "Worker Dispatch HFE", hrefTemplate: null },
-  worker_dispatch_status: { label: "Worker Dispatch Status", hrefTemplate: null },
   worker_edls: { label: "Worker EDLS Settings", hrefTemplate: null },
   worker_hours: { label: "Worker Hours", hrefTemplate: "/hours/{id}" },
   worker_ids: { label: "Worker Identifiers", hrefTemplate: null },
-  worker_msh: { label: "Worker Member Status History", hrefTemplate: null },
   worker_ratings: { label: "Worker Ratings", hrefTemplate: null },
   worker_relations: { label: "Worker Relations", hrefTemplate: null },
   worker_skills: { label: "Worker Skills", hrefTemplate: null },
   worker_steward_assignments: { label: "Worker Steward Assignments", hrefTemplate: null },
   worker_tos: { label: "Worker Terms Acceptance", hrefTemplate: null },
   worker_trust_elections: { label: "Trust Elections", hrefTemplate: "/trust/election/{id}" },
-  worker_wsh: { label: "Worker Work Status History", hrefTemplate: null },
   workers: { label: "Workers", hrefTemplate: "/workers/{id}" },
   ws_client_credentials: { label: "Web Service Credentials", hrefTemplate: null },
   ws_client_grants: { label: "Web Service Access Grants", hrefTemplate: null },
@@ -231,13 +205,15 @@ const schemaTablesByName: Map<string, PgTable<TableConfig>> = (() => {
 export function getMetadataRecordTable(
   tableName: string,
 ): PgTable<TableConfig> | undefined {
-  if (!entityMetadataRecordTables[tableName]) return undefined;
+  if (!isMetadataTableEligible(tableName) || !entityMetadataRecordTables[tableName]) {
+    return undefined;
+  }
   return schemaTablesByName.get(tableName);
 }
 
 /** Whether this table carries provenance at all. */
 export function isMetadataRecordTable(tableName: string): boolean {
-  return Boolean(entityMetadataRecordTables[tableName]);
+  return isMetadataTableEligible(tableName) && Boolean(entityMetadataRecordTables[tableName]);
 }
 
 /**
@@ -277,7 +253,9 @@ export function listMetadataRecordTables(): Array<
 export function assertEntityMetadataRecordTablesComplete(): void {
   const problems: string[] = [];
 
-  const undeclared = getLoggedTableNames().filter((name) => !entityMetadataRecordTables[name]);
+  const undeclared = getLoggedTableNames().filter(
+    (name) => isMetadataTableEligible(name) && !entityMetadataRecordTables[name],
+  );
   if (undeclared.length > 0) {
     problems.push(
       `named by a storage logging config but not declared: ${undeclared.join(", ")}`,

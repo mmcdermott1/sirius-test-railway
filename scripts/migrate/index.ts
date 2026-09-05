@@ -104,6 +104,8 @@ import "./core/1099_drop_worker_msh_created_at";
 import "./core/1100_seed_bookmark_provenance";
 import "./core/1101_drop_bookmarks_created_at";
 import "./core/1102_add_entity_metadata_rev";
+import "./core/1103_remove_process_entity_metadata";
+import "./core/1104_own_process_capture_provenance";
 
 // Per-component migrations — each registered via
 // `registerComponentMigration(componentId, migration)`. Tracked by the
