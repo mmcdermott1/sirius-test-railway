@@ -107,11 +107,6 @@ function PaymentViewContent() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Payment ID</label>
-              <p className="mt-1 font-mono text-sm" data-testid="text-payment-id">{payment.id}</p>
-            </div>
-
-            <div>
               <label className="text-sm font-medium text-muted-foreground">Amount</label>
               <p className="mt-1 font-mono text-lg font-semibold" data-testid="text-amount">
                 {formatAmount(parseFloat(payment.amount), currencyCode)}
