@@ -1,9 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, ArrowUpDown, Filter, Loader2, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { usePageTitle } from "@/contexts/PageTitleContext";
 import { RecordHistoryLayout } from "@/components/layouts/RecordHistoryLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -41,6 +43,14 @@ type MissingCount =
   | { contextId: string; countable: true; missing: number }
   | { contextId: string; countable: false; reason: string };
 
+type SortColumn = "label" | "contextId" | "missing";
+type SortDirection = "asc" | "desc";
+
+interface SortState {
+  column: SortColumn;
+  direction: SortDirection;
+}
+
 interface BackfillResult {
   contextId: string;
   written: number;
@@ -56,14 +66,126 @@ export async function runMetadataBackfill(contextId: string): Promise<BackfillRe
   });
 }
 
+function missingCountKey(contextId: string) {
+  return `/api/admin/entity-metadata/contexts/${contextId}/missing`;
+}
+
+function countValue(count: MissingCount | undefined): number | null {
+  return count?.countable === true ? count.missing : null;
+}
+
+function compareText(left: string, right: string) {
+  return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+}
+
+function compareRows(
+  left: { context: ContextChoice; count?: MissingCount },
+  right: { context: ContextChoice; count?: MissingCount },
+  sort: SortState,
+) {
+  let comparison = 0;
+  if (sort.column === "label") {
+    comparison = compareText(left.context.label, right.context.label);
+  } else if (sort.column === "contextId") {
+    comparison = compareText(left.context.contextId, right.context.contextId);
+  } else {
+    const leftCount = countValue(left.count);
+    const rightCount = countValue(right.count);
+    if (leftCount !== null && rightCount === null) {
+      return -1;
+    } else if (leftCount === null && rightCount !== null) {
+      return 1;
+    } else if (leftCount !== null && rightCount !== null) {
+      comparison = leftCount - rightCount;
+    }
+  }
+
+  if (comparison !== 0) {
+    return sort.direction === "asc" ? comparison : -comparison;
+  }
+
+  const labelTieBreak = compareText(left.context.label, right.context.label);
+  return labelTieBreak !== 0
+    ? labelTieBreak
+    : compareText(left.context.contextId, right.context.contextId);
+}
+
+function SortableHeader({
+  column,
+  label,
+  sort,
+  onToggle,
+}: {
+  column: SortColumn;
+  label: string;
+  sort: SortState;
+  onToggle: (column: SortColumn) => void;
+}) {
+  const active = sort.column === column;
+  const Icon = active
+    ? sort.direction === "asc"
+      ? ArrowUp
+      : ArrowDown
+    : ArrowUpDown;
+
+  return (
+    <TableHead
+      aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={() => onToggle(column)}
+        className="flex items-center gap-1 font-medium hover:text-foreground"
+        aria-label={`Sort by ${label}`}
+      >
+        {label}
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </TableHead>
+  );
+}
+
 export default function MetadataBackfillPage() {
   usePageTitle("Fill In Record History");
+  const [filter, setFilter] = useState("");
+  const [sort, setSort] = useState<SortState>({ column: "missing", direction: "desc" });
 
   const { data, isLoading, isError } = useQuery<{ contexts: ContextChoice[] }>({
     queryKey: ["/api/admin/entity-metadata/contexts"],
   });
 
   const contexts = data?.contexts ?? [];
+  const countResults = useQueries({
+    queries: contexts.map((context) => ({
+      queryKey: [missingCountKey(context.contextId)],
+    })),
+  });
+  const rows = contexts.map((context, index) => ({
+    context,
+    count: countResults[index]?.data as MissingCount | undefined,
+    isLoading: countResults[index]?.isLoading ?? true,
+    isError: countResults[index]?.isError ?? false,
+  }));
+  const visibleRows = useMemo(() => {
+    const normalizedFilter = filter.trim().toLocaleLowerCase();
+    return rows
+      .filter(({ context }) => {
+        if (!normalizedFilter) return true;
+        return (
+          context.label.toLocaleLowerCase().includes(normalizedFilter) ||
+          context.contextId.toLocaleLowerCase().includes(normalizedFilter)
+        );
+      })
+      .sort((left, right) => compareRows(left, right, sort));
+  }, [filter, rows, sort]);
+
+  const toggleSort = (column: SortColumn) => {
+    setSort((current) =>
+      current.column === column
+        ? { column, direction: current.direction === "asc" ? "desc" : "asc" }
+        : { column, direction: "asc" },
+    );
+  };
 
   return (
     <RecordHistoryLayout activeTab="record-metadata-backfill">
@@ -90,21 +212,79 @@ export default function MetadataBackfillPage() {
               The list of record kinds could not be read.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Kind of record</TableHead>
-                    <TableHead className="w-64">Without history</TableHead>
-                    <TableHead className="w-40" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contexts.map((context) => (
-                    <TableRowForContext key={context.contextId} context={context} />
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="relative max-w-md flex-1">
+                  <Filter
+                    className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <Input
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value)}
+                    placeholder="Filter by record name or context ID"
+                    aria-label="Filter by record name or context ID"
+                    className="pl-9"
+                  />
+                </div>
+                {filter && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setFilter("")}
+                    aria-label="Clear filter"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <SortableHeader
+                        column="label"
+                        label="Record Name"
+                        sort={sort}
+                        onToggle={toggleSort}
+                      />
+                      <SortableHeader
+                        column="contextId"
+                        label="Context ID"
+                        sort={sort}
+                        onToggle={toggleSort}
+                      />
+                      <SortableHeader
+                        column="missing"
+                        label="Without History"
+                        sort={sort}
+                        onToggle={toggleSort}
+                      />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visibleRows.length > 0 ? (
+                      visibleRows.map((row) => (
+                        <TableRowForContext
+                          key={row.context.contextId}
+                          context={row.context}
+                          count={row.count}
+                          isLoading={row.isLoading}
+                          isError={row.isError}
+                        />
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                          No record kinds match this filter.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
@@ -121,14 +301,20 @@ export default function MetadataBackfillPage() {
  * the page wait on the slowest. A kind that cannot be counted says why in its
  * own row instead of being left out of the list.
  */
-function TableRowForContext({ context }: { context: ContextChoice }) {
+function TableRowForContext({
+  context,
+  count,
+  isLoading,
+  isError,
+}: {
+  context: ContextChoice;
+  count?: MissingCount;
+  isLoading: boolean;
+  isError: boolean;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const countKey = `/api/admin/entity-metadata/contexts/${context.contextId}/missing`;
-
-  const { data: count, isLoading, isError } = useQuery<MissingCount>({
-    queryKey: [countKey],
-  });
+  const countKey = missingCountKey(context.contextId);
 
   const backfill = useMutation<BackfillResult>({
     mutationFn: () => runMetadataBackfill(context.contextId),
@@ -160,35 +346,39 @@ function TableRowForContext({ context }: { context: ContextChoice }) {
   return (
     <TableRow data-testid={`row-backfill-${context.contextId}`}>
       <TableCell>
-        <div>{context.label}</div>
-        <div className="font-mono text-xs text-muted-foreground">{context.contextId}</div>
+        {context.label}
+      </TableCell>
+      <TableCell>
+        <span className="font-mono text-xs text-muted-foreground">{context.contextId}</span>
       </TableCell>
       <TableCell data-testid={`text-missing-${context.contextId}`}>
-        {isLoading ? (
-          <span className="text-muted-foreground">Counting…</span>
-        ) : isError ? (
-          <span className="text-muted-foreground">Could not be counted</span>
-        ) : count && !count.countable ? (
-          <span className="text-muted-foreground">Unavailable — {count.reason}</span>
-        ) : missing === 0 ? (
-          <span className="text-muted-foreground">None</span>
-        ) : (
-          missing.toLocaleString()
-        )}
-      </TableCell>
-      <TableCell className="text-right">
-        {countable && missing > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={backfill.isPending}
-            onClick={() => backfill.mutate()}
-            data-testid={`button-backfill-${context.contextId}`}
-          >
-            {backfill.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Fill in {Math.min(missing, BATCH_LIMIT).toLocaleString()}
-          </Button>
-        )}
+        <div className="flex items-center justify-between gap-3">
+          <span>
+            {isLoading ? (
+              <span className="text-muted-foreground">Counting…</span>
+            ) : isError ? (
+              <span className="text-muted-foreground">Could not be counted</span>
+            ) : count && !count.countable ? (
+              <span className="text-muted-foreground">Unavailable — {count.reason}</span>
+            ) : missing === 0 ? (
+              <span className="text-muted-foreground">None</span>
+            ) : (
+              missing.toLocaleString()
+            )}
+          </span>
+          {countable && missing > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={backfill.isPending}
+              onClick={() => backfill.mutate()}
+              data-testid={`button-backfill-${context.contextId}`}
+            >
+              {backfill.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Fill in {Math.min(missing, BATCH_LIMIT).toLocaleString()}
+            </Button>
+          )}
+        </div>
       </TableCell>
     </TableRow>
   );
