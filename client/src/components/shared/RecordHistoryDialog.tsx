@@ -111,6 +111,12 @@ export function RecordHistoryDialog({
                 {formatRecordRevision(state.metadata.rev)}
               </dd>
             </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-muted-foreground">Entity UUID</dt>
+              <dd className="font-mono" data-testid="text-record-metadata-entity-id">
+                {state.metadata.entityId}
+              </dd>
+            </div>
           </dl>
         )}
       </DialogContent>
