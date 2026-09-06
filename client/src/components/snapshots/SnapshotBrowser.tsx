@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SnapshotMeta } from "@shared/snapshots";
 import { getSnapshotRenderer } from "./renderers";
+import { SnapshotRevision } from "./SnapshotRevision";
 
 interface SnapshotDetail extends SnapshotMeta {
   decoded: unknown;
@@ -139,6 +140,10 @@ export function SnapshotBrowser({ entityType, entityId }: SnapshotBrowserProps) 
                           </span>
                         </div>
                       )}
+                    <SnapshotRevision
+                      revision={snapshot.revision}
+                      testId={`badge-snapshot-revision-${snapshot.id}`}
+                    />
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -186,6 +191,7 @@ export function SnapshotBrowser({ entityType, entityId }: SnapshotBrowserProps) 
                 <span data-testid="text-snapshot-author">{selected.capturedByName}</span>
               </div>
             )}
+            <SnapshotRevision revision={selected.revision} testId="badge-snapshot-revision" />
           </div>
         </div>
         <div className="flex items-center gap-2">

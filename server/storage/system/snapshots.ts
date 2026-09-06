@@ -4,8 +4,11 @@ import {
   type Snapshot,
   type InsertSnapshot,
 } from "@shared/schema";
-import type { SnapshotMeta } from "@shared/snapshots";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import {
+  snapshotRevisionFromValues,
+  type SnapshotMeta,
+} from "@shared/snapshots";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { getClient } from "../transaction-context";
 import { defineLoggingConfig } from "../middleware/logging";
 import { getRequestContext } from "../../middleware/request-context";
@@ -101,23 +104,26 @@ export function createSnapshotsStorage(): SnapshotsStorage {
           entityType: snapshots.entityType,
           entityId: snapshots.entityId,
           label: snapshots.label,
-           ...provenanceColumns,
+          revisionSeq: sql<string | null>`${snapshots.data}->'metadata'->>'seq'`,
+          revisionRev: sql<string | null>`${snapshots.data}->'metadata'->>'rev'`,
+          ...provenanceColumns,
         })
         .from(snapshots)
-         .leftJoin(users, eq(users.id, snapshots.capturedBy))
+        .leftJoin(users, eq(users.id, snapshots.capturedBy))
         .where(and(eq(snapshots.entityType, entityType), eq(snapshots.entityId, entityId)))
         .orderBy(...newestFirst);
       return rows.map((row) => ({
         id: row.id,
         entityType: row.entityType,
         entityId: row.entityId,
+        revision: snapshotRevisionFromValues(row.revisionSeq, row.revisionRev),
         label: row.label,
-         capturedAt: row.capturedAt ? row.capturedAt.toISOString() : null,
-         capturedByName: personName({
-           firstName: row.capturedByFirstName,
-           lastName: row.capturedByLastName,
-           email: row.capturedByEmail,
-         }),
+        capturedAt: row.capturedAt ? row.capturedAt.toISOString() : null,
+        capturedByName: personName({
+          firstName: row.capturedByFirstName,
+          lastName: row.capturedByLastName,
+          email: row.capturedByEmail,
+        }),
       }));
     },
 
@@ -149,10 +155,10 @@ export function createSnapshotsStorage(): SnapshotsStorage {
           entityId: snapshots.entityId,
           label: snapshots.label,
           data: snapshots.data,
-           ...provenanceColumns,
+          ...provenanceColumns,
         })
         .from(snapshots)
-         .leftJoin(users, eq(users.id, snapshots.capturedBy))
+        .leftJoin(users, eq(users.id, snapshots.capturedBy))
         .where(
           and(eq(snapshots.entityType, entityType), eq(snapshots.entityId, entityId)),
         )

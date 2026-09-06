@@ -47,6 +47,42 @@ export interface SnapshotRecordMetadata {
   subrecordModified: SnapshotMetadataStamp;
 }
 
+/** The stable sequence/revision identity displayed for a captured record. */
+export interface SnapshotRevision {
+  seq: number;
+  rev: number;
+}
+
+/**
+ * Validate and normalize the two JSON values used to identify a snapshot's
+ * captured record revision. Older bundles and malformed metadata answer null.
+ */
+export function snapshotRevisionFromValues(
+  seq: unknown,
+  rev: unknown,
+): SnapshotRevision | null {
+  const parsedSeq = typeof seq === "number" ? seq : typeof seq === "string" ? Number(seq) : NaN;
+  const parsedRev = typeof rev === "number" ? rev : typeof rev === "string" ? Number(rev) : NaN;
+  if (
+    !Number.isSafeInteger(parsedSeq) ||
+    parsedSeq <= 0 ||
+    !Number.isSafeInteger(parsedRev) ||
+    parsedRev <= 0
+  ) {
+    return null;
+  }
+  return { seq: parsedSeq, rev: parsedRev };
+}
+
+/** Read the captured revision identity without exposing the snapshot payload. */
+export function snapshotRevisionFromNode(node: unknown): SnapshotRevision | null {
+  if (!node || typeof node !== "object") return null;
+  const metadata = (node as { metadata?: unknown }).metadata;
+  if (!metadata || typeof metadata !== "object") return null;
+  const values = metadata as { seq?: unknown; rev?: unknown };
+  return snapshotRevisionFromValues(values.seq, values.rev);
+}
+
 /** A `{ id, name }` stub for a referenced (not owned) entity. */
 export interface SnapshotRef {
   id: string;
@@ -68,8 +104,9 @@ export function snapshotRef(
 /**
  * Snapshot row metadata as returned by the list API (no data payload).
  *
- * When the snapshot was captured, and by whom, comes from the record's
- * history (`entity_metadata`), not from the snapshot row itself:
+ * The revision comes from the snapshot bundle captured with the target record.
+ * When the snapshot was captured, and by whom, comes from the snapshot row
+ * and the current account record:
  *
  *  - `capturedAt` is null for a snapshot the framework holds no history for.
  *    That is not an error — history is written best effort, just after the
@@ -83,6 +120,7 @@ export interface SnapshotMeta {
   id: string;
   entityType: string;
   entityId: string;
+  revision: SnapshotRevision | null;
   capturedAt: string | null;
   capturedByName: string | null;
   label: string | null;
