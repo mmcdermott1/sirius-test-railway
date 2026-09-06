@@ -49,6 +49,13 @@ interface BackfillResult {
   missing: number;
 }
 
+export async function runMetadataBackfill(contextId: string): Promise<BackfillResult> {
+  return apiRequest("POST", "/api/admin/entity-metadata/backfill", {
+    contextId,
+    limit: BATCH_LIMIT,
+  });
+}
+
 export default function MetadataBackfillPage() {
   usePageTitle("Fill In Record History");
 
@@ -124,13 +131,7 @@ function TableRowForContext({ context }: { context: ContextChoice }) {
   });
 
   const backfill = useMutation<BackfillResult>({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/admin/entity-metadata/backfill", {
-        contextId: context.contextId,
-        limit: BATCH_LIMIT,
-      });
-      return response.json();
-    },
+    mutationFn: () => runMetadataBackfill(context.contextId),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: [countKey] });
       toast({
